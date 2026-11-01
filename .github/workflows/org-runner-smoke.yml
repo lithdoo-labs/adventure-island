@@ -1,0 +1,28 @@
+name: Organization Runner Smoke Test
+
+# Deliberately manual-only: this is a public repository backed by a persistent
+# self-hosted runner with credentials and mounted shared storage.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Verify organization runner scheduling
+    if: ${{ github.actor == 'lithdoo' && github.repository == 'lithdoo-labs/adventure-island' }}
+    runs-on: [self-hosted, linux, x64, opencode, labs]
+    timeout-minutes: 5
+    steps:
+      - name: Check assigned runner and OpenCode installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Runner name: ${RUNNER_NAME}"
+          test "${RUNNER_NAME}" = "opencode-lithdoo-labs"
+          command -v opencode2
+          opencode2 --version
+          command -v node
+          node --version
+          echo "Organization runner scheduling: OK"

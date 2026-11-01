@@ -194,16 +194,16 @@ jobs:
     name: Revise with persistent OpenCode session
     needs: preflight
     if: ${{ needs.preflight.outputs.allowed == 'true' }}
-    runs-on: [self-hosted, opencode, adventure-island]
+    runs-on: [self-hosted, linux, x64, opencode, labs]
     timeout-minutes: 120
     permissions:
       actions: read
       contents: read
     env:
       OPENCODE_BIN: opencode2
-      XDG_DATA_HOME: /runner/state/adventure-island/opencode-data
-      AGENT_SESSION_ROOT: /runner/state/adventure-island/agent-sessions/design-${{ needs.preflight.outputs.design_pr }}
-      AGENT_WORKSPACE: /runner/state/adventure-island/agent-sessions/design-${{ needs.preflight.outputs.design_pr }}/workspace
+      XDG_DATA_HOME: /runner/state/lithdoo-labs-org/agent-projects/adventure-island/opencode-data
+      AGENT_SESSION_ROOT: /runner/state/lithdoo-labs-org/agent-projects/adventure-island/agent-sessions/design-${{ needs.preflight.outputs.design_pr }}
+      AGENT_WORKSPACE: /runner/state/lithdoo-labs-org/agent-projects/adventure-island/agent-sessions/design-${{ needs.preflight.outputs.design_pr }}/workspace
 
     steps:
       - name: Reset transient revision directories

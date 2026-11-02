@@ -20,6 +20,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          submodules: true
+      - name: Check pinned LoomRealm submodule and reference layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(git rev-parse HEAD:loom-realm)"
+          actual="$(git -C loom-realm rev-parse HEAD)"
+          test "$expected" = "$actual"
+          test "$actual" = "c5217e47be5a43f974e9e6ce82230077fb639c39"
+          test -f loom-realm/examples/PokeMan/game.json
+          test -f loom-realm/examples/PokeMan/launch.pwa.json
+          test -f loom-realm/examples/PokeMan/launch.hostra.json
+          echo "Pinned LoomRealm submodule checkout verified"
       - name: Python syntax
         run: python3 -m py_compile scripts/issue_agent/agent.py tests/test_issue_agent.py
       - name: Unit and two-turn fake OpenCode tests

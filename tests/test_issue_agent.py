@@ -350,8 +350,12 @@ class PublishIntegrationTests(unittest.TestCase):
             run("git", "config", "user.name", "Test", cwd=repository)
             run("git", "config", "user.email", "test@example.com", cwd=repository)
             (repository / "README.md").write_text("baseline\n")
+            # Simulate an existing immutable special Git mode in this repo:
+            # a pre-existing symlink must not prevent unrelated README edits.
+            (repository / "legacy-reference").symlink_to("README.md")
             run("git", "add", ".", cwd=repository)
-            run("git", "commit", "-qm", "base", cwd=repository)
+            run("git", "commit", "-qm", "base with existing special Git mode", cwd=repository)
+            self.assertIn("120000", run("git", "ls-files", "--stage", cwd=repository).stdout)
             run("git", "push", "-q", "origin", "HEAD:refs/heads/main", cwd=repository)
             base_sha = run("git", "rev-parse", "HEAD", cwd=repository).stdout.strip()
             comments = []

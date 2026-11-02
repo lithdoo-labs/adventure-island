@@ -467,7 +467,10 @@ def publish(args):
             paths = [x for x in git("diff", "--cached", "--name-only", "-z").stdout.split("\0") if x]
             validate_paths(paths)
             git("diff", "--cached", "--check")
-            modes = git("ls-files", "--stage", "-z").stdout
+            # This repository legitimately tracks existing Git submodules.
+            # Reject only symlinks/submodules among the *changed* paths;
+            # inspecting every tracked entry would reject unrelated history.
+            modes = git("ls-files", "--stage", "-z", "--", *paths).stdout
             for row in modes.split("\0"):
                 if row and row.split(" ", 1)[0] in ("120000", "160000"):
                     raise RuntimeError("symlinks or submodules are not publishable")

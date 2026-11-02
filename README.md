@@ -245,3 +245,16 @@ docs/
 ```
 
 这样可以把任务、原始分析结果、发现过程和最终长期文档分开管理，也方便以后对不同 079 客户端样本做差异比较。
+
+## GitHub Issue 驱动的 OpenCode 2 开发（新增）
+
+仓库新增独立的 Issue Agent，与已有的 Design PR → Agent Implement / Revise 流程**并行运行**，不替代旧流程。
+
+1. 使用 `lithdoo` 账号创建一个普通 Issue，描述需求、验收标准和限制。
+2. 在该 Issue 评论 `/agent start`，组织级 Runner `opencode-lithdoo-labs` 将调用 OpenCode 2，在 `agent/issue-N` 分支实现需求，自动创建 **Draft PR** 并回复 Issue。
+3. 在同一 Issue 或关联 PR 留下反馈后，回到 Issue 评论 `/agent revise`，继续 **同一个 OpenCode Session、同一个 PR**，直到人工审核和合并。
+4. 每轮发布权限和执行权限隔离；不会自动合并 PR。
+
+这套流程的持久化数据放在组织 Runner 的 `agent-projects/adventure-island/issue-agent/` 中，不复用现有 Design PR Agent 的历史 Session。
+
+详细权限配置、公开仓库 Runner 安全约束、故障恢复与两轮验收步骤见 [docs/issue-agent.md](docs/issue-agent.md)。

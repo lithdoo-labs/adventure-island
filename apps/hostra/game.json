@@ -1,0 +1,10 @@
+{
+  "formatVersion": 1,
+  "initial": {
+    "subsystem": "smoke",
+    "input": null
+  },
+  "subsystems": [
+    { "key": "smoke" }
+  ]
+}

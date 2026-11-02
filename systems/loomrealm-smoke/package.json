@@ -1,0 +1,13 @@
+{
+  "name": "@adventure-island/loomrealm-smoke",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "No-op LoomRealm smoke Subsystem and headless validation suite for the empty adventure-island application scaffold.",
+  "scripts": {
+    "test": "node --test test/smoke.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

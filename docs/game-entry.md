@@ -18,7 +18,8 @@
 | `launch.hostra.json` | Hostra 平台 Launch manifest：与 PWA 完全相同的 key→module 绑定。 |
 | `presentation.json` | Web Presentation Config V1（`styles: []`、`scripts: []`）。空应用不声明任何样式/脚本资源，不引用 Pokeman 或 CMS079 素材。 |
 | `subsystems/smoke.mjs` | 根安装根的 Smoke Subsystem 绑定（见 §3）。 |
-| `test/` | Node 原生（`node:test`）无外部依赖的验证套件（见 §5）。 |
+| `scripts/pwa/` | 阶段 4A：installation-bundle v1 输入生成器（见 §5）。 |
+| `test/` | Node 原生（`node:test`）无外部依赖的验证套件（见 §6）。 |
 
 **过渡兼容**：`apps/pwa/**`、`apps/hostra/**` 与 `systems/loomrealm-smoke/**` 在本阶段
 **全部保留不动**，仍由既有流程（含 `systems/loomrealm-smoke/test/smoke.test.mjs`）使用。
@@ -85,13 +86,80 @@ executable 的导入图有硬性约束：只接受相对导入，且整张导入
 
 发布内容不得包含研究证据、原始 WZ、未授权素材与凭据。
 
-## 5. 测试
+## 5. Smoke Bundle（阶段 4A：通用 PWA Bundle 输入生成）
+
+`scripts/pwa/build-installation-bundle.mjs` 从 §1–§2 的 canonical 根目录输入生成
+**installation-bundle v1 payload**——即 LoomRealm 通用 PWA 构建器（较新版本
+`93648192323bf5f57996b7b54cbae641d8a53fdb` 的 `apps/pwa/scripts/build-bundle.mjs`
+`--bundle` 入参）所消费的产品侧 JSON，schema 与上游 `validatePwaBundlePayload`
+及 Pokeman 的 product-owned generator 完全相容：
+
+```jsonc
+{
+  "formatVersion": 1,
+  "gameEntryText": "<根 game.json 原文>",
+  "launchManifestText": "<根 launch.pwa.json 原文>",
+  "presentation": { "formatVersion": 1, "styles": [], "scripts": [] },
+  "executables": [
+    { "logicalModule": "subsystems/smoke.mjs", "mime": "text/javascript",
+      "source": "<systems/loomrealm-smoke/subsystem.mjs 原文>",
+      "contentVersion": "sha256:<source 的 SHA-256>" }
+  ],
+  "content": []
+}
+```
+
+- **输入白名单（冻结）**：仅 `game.json`、`launch.pwa.json`、`presentation.json`
+  与 `EXECUTABLE_SOURCE_BINDINGS` 映射的 `systems/loomrealm-smoke/subsystem.mjs`。
+  不从 `apps/*` 取数、不扫描目录，`research/**`、`.raw/**`、`.work/**`、
+  `glm-work/**`、`task/**`、WZ/客户端、凭据读入为零（结构上不可能，测试钉死）。
+- **executable 发布策略**：按 §4 为逻辑模块 `subsystems/smoke.mjs` 发布无依赖共享
+  实现（导入图为空，Chrome 可直接加载）；生成器强制校验零 import/re-export 边、
+  无 bare specifier、无非字面量动态 import、无 `process.*`/`require()`/`node:`
+  引用，并重算 SHA-256 与 `contentVersion` 一致。根目录与 `apps/*` shim 作为
+  executable 输入时被直接拒绝。
+- **确定性**：紧凑 JSON + 换行，无时间戳/路径字段；同输入重复运行字节一致。
+- **写出约束**：`--output` 必填，目标必须位于 `<repo>/dist/` 或系统临时目录
+  （含 symlink realpath 复核）、不得命中保护树、不得覆盖 Git 追踪文件；失败
+  输入在写出之前被拒绝。
+- **gitlink 校验**：运行时验证 `HEAD:loom-realm` 与检出的 submodule 均为
+  `c5217e47be5a43f974e9e6ce82230077fb639c39`（可用 `verifyGitlink: false` 关闭，
+  仅供测试注入）。
+
+用法：
+
+```bash
+npm run pwa:bundle
+# 等价于
+node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json
+```
+
+当前产物：`executables` 1 项（`subsystems/smoke.mjs` ←
+`systems/loomrealm-smoke/subsystem.mjs`，`sha256:bf17c17b…94257`）、`content` 0 项。
+
+### 下一步（阶段 4B，本仓库尚未完成）
+
+pinned LoomRealm `c5217e47` **尚无**通用 `build-bundle.mjs`，因此本阶段止步于
+bundle 输入生成，不构成 staging/PWA 发布，也未做任何浏览器 E2E。待后续 Issue 将
+gitlink 精确升级到含通用构建器的版本后，staging 命令预计为：
+
+```bash
+node loom-realm/apps/pwa/scripts/build-bundle.mjs \
+  --bundle dist/adventure-island-installation-bundle.json \
+  --app-id adventure-island \
+  --base-path /pwa/adventure-island/
+```
+
+（`.github` workflow 与 LoomRealm gitlink 升级均超出 Issue Agent 的受保护路径
+范围，需维护者另行处理。）
+
+## 6. 测试
 
 全部为 Node 原生测试，无外部安装依赖（仅 `node:*` 内建模块）：
 
 ```bash
-npm test                                                                                # 全部三套（根入口 + 既有 smoke）
-node --test test/*.test.mjs                                                             # 仅根入口测试
+npm test                                                                                # 全部四套（根入口 + presentation + bundle + 既有 smoke）
+node --test test/*.test.mjs                                                             # 根入口三套
 node --test systems/loomrealm-smoke/test/smoke.test.mjs                                 # 既有 smoke 套件（无回归）
 ```
 
@@ -117,12 +185,25 @@ node --test systems/loomrealm-smoke/test/smoke.test.mjs                         
 `validateWebPresentationConfigV1` 校验，且不声明任何资源；镜像规则本身用一组
 正/反例 fixture 校准。
 
-## 6. 后续（不在本阶段）
+`test/pwa-bundle.test.mjs`（阶段 4A）：CLI 字节确定性（两次运行 + 自覆盖一致）；
+payload schema 与精确来源（文本逐字节等于根文档、executable source 逐字节等于
+共享实现且不是任何 shim、SHA-256 重算一致、零 content）；上游
+`validatePwaBundlePayload`（自 `9364819` 逐字 vendored，正/反例校准）接受产物；
+manifest/Game Entry 键集合往返一致；shim、bare import、非字面量动态 import、
+Node-only 全局作为 executable 被拒绝；非法 CLI 参数、受保护/追踪路径、目录目标、
+七类坏输入文档在写出前被拒绝且零写出；产物不含任何 research/敏感标识（并对
+生成器输入白名单做结构校验）；深层用真实 pinned `buildPwaExecutableIndexV1`
+接受产物 executable 图（`imports: []`）并以 shim 输入复验被拒
+（`SUBSYSTEM_MODULE_NOT_FOUND`）。
+
+## 7. 后续（不在本阶段）
 
 - 阶段 3B：合成地图 + 纸娃娃与移动/跳跃/立足线/传送。
-- 阶段 4：升级并精确固定 LoomRealm gitlink、Adventure 自打包 executable/Content/
-  Presentation 后用 LoomRealm 通用 PWA Bundle 构建（`--app-id adventure-island
-  --base-path /pwa/adventure-island/`）与 Chromium E2E；届时按 §4 选择发布产物。
+- 阶段 4A（本阶段）：`scripts/pwa/build-installation-bundle.mjs` 生成
+  installation-bundle v1 输入（见 §5）。
+- 阶段 4B（未完成）：升级并精确固定 LoomRealm gitlink 至含通用 `build-bundle`
+  的版本、用 §5 的 staging 命令产出正式 PWA、Chromium E2E、独立 PR CI；
+  `.github` 与 submodule 更新超出 Issue Agent 受保护路径范围，需维护者处理。
 - 阶段 5：独立 Compose（`loomrealm-adventure-pwa`）、端口 8788/8791 与回滚。
 - 旧入口清理：根入口被阶段 4 验证后，另开 Issue 删除 `apps/pwa/**`、`apps/hostra/**`
   的重复 Game Entry 与平台 manifest（保留 `systems/loomrealm-smoke/**` 共享实现）。

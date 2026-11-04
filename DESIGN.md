@@ -7,7 +7,7 @@
 
 ## 1. 文档职责
 
-本文只记录改造决策和复核结论。逆向证据仍在 `task/` 与 `result/`。玩法实现落在 LoomRealm 的 game library 与 example，不在本文写协议字段或函数地址。
+本文只记录改造决策和复核结论。逆向证据统一归档在 `research/task/` 与 `research/result/`。玩法实现落在本仓库的 game library 与 Subsystem；LoomRealm 的 `examples/PokeMan` 仅作平台结构参考，不在 LoomRealm Submodule 中添加本游戏代码。本文不写协议字段或函数地址。
 
 决策改变时直接改本文，并在文末复核记录里留一行。
 
@@ -71,7 +71,10 @@ Task 061 写出了伤害公式、伤害上限和 MP 成长，处理器伪代码 
 
 | 位置 | 职责 |
 |---|---|
-| `adventure-island` | 研究任务、结构化结果、本文 |
+| 仓库根目录 | 正式游戏设计、平台入口、Components、Libraries、Subsystems 与测试 |
+| `research/` | CMS079 逆向任务、证据、参考资料和分析脚本；仅作设计参考 |
+| `task/dev/` | 旧 Design PR Agent 的 CI 任务规格，保持原路径 |
+| `docs/` | CI / Agent 操作文档 |
 | `components/` | Web Component |
 | `libs/` | 库 |
 | `systems/` | 子系统 |
@@ -109,7 +112,7 @@ Task 061 写出了伤害公式、伤害上限和 MP 成长，处理器伪代码 
 最大基础伤害 = (主属性 × 5 + 副属性) × 武器攻击 ÷ 100
 ```
 
-武器与主副属性的对应关系、199,999 的基础上限，记在 `result/task061-game-formulas.md`。优化这条公式属于机制实验：改之前先记下 079 的原值，改完在复核记录里写体验假设。经验曲线不在这条公式里。Task 061 的经验曲线一节是空的，升级系统本来就要自己设计，不把补全这条曲线当作研究缺口。
+武器与主副属性的对应关系、199,999 的基础上限，记在 `research/result/task061-game-formulas.md`。优化这条公式属于机制实验：改之前先记下 079 的原值，改完在复核记录里写体验假设。经验曲线不在这条公式里。Task 061 的经验曲线一节是空的，升级系统本来就要自己设计，不把补全这条曲线当作研究缺口。
 
 ## 6. 第一阶段
 

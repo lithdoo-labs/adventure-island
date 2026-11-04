@@ -4,9 +4,9 @@
   "permission": {
     "edit": {
       "*": "deny",
-      "glm-work/*": "allow",
-      "*glm-work/*": "allow",
-      "*glm-work\\*": "allow"
+      "research/glm-work/*": "allow",
+      "*research/glm-work/*": "allow",
+      "*research/glm-work\\*": "allow"
     },
     "bash": "allow",
     "external_directory": "allow",

@@ -9,7 +9,7 @@
 - [FSDB layout](https://github.com/lithdoo/loom-realm/blob/main/doc/20-modules/fsdb-content-service/fsdb-layout.md)：目录命名、四类表、metadata、Well-formed/Integrity-valid。
 - [Content API v1](https://github.com/lithdoo/loom-realm/blob/main/doc/15-contracts/content-api-v1.md)：Content 逻辑标识、Group/Record/Resource 及版本。
 - [Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/main/doc/15-contracts/web-presentation-api-v1.md)：资源读取必须提供 expectedContentVersion。
-- 仓库内逆向证据：`result/20-wz-inventory.md`、`result/23-wz-library-cross-validation.md`、`result/57-wz-data-layer.md`、`result/60-map-extraction-complete.md`。
+- 仓库内逆向证据：`research/result/20-wz-inventory.md`、`research/result/23-wz-library-cross-validation.md`、`research/result/57-wz-data-layer.md`、`research/result/60-map-extraction-complete.md`。
 
 ## 1. 转换过程与责任边界
 

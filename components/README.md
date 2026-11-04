@@ -4,8 +4,8 @@
 
 资料有两处：
 
-- 地图绘制顺序来自 Task 023 的地图合成。`compose` 先画远景，再画 0 到 7 层的物件和瓦片，然后是生命体、反应堆、传送门，最后是近景。立足线和绳梯只作为编辑辅助线，不进正式画面。
-- 人物插层来自 Task 050 的 `SPAWN_PLAYER`。角色被放进 `FieldDispatcher+0x24` 的 avatar layer，不是整张图的最上面。
+- 地图绘制顺序来自 [研究任务 023](../research/task/023-third-party-wz-parser-cross-validation.md) 的地图合成，证据见 [研究结果 23](../research/result/23-wz-library-cross-validation.md)。`compose` 先画远景，再画 0 到 7 层的物件和瓦片，然后是生命体、反应堆、传送门，最后是近景。立足线和绳梯只作为编辑辅助线，不进正式画面。
+- 人物插层来自 [研究任务 050](../research/task/050-subsystem-semantic-deep-recovery-master-campaign.md) 的 `SPAWN_PLAYER`，证据见 [研究结果 50](../research/result/50-subsystem-semantic-deep-recovery.md)。角色被放进 `FieldDispatcher+0x24` 的 avatar layer，不是整张图的最上面。
 
 ## 渲染树
 

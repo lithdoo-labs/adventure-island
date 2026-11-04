@@ -12,7 +12,7 @@ set "OPENCODE_CONFIG=%~dp0opencode.json"
 set "OPENCODE=%USERPROFILE%\.opencode\bin\opencode2.cmd"
 if not exist "%OPENCODE%" set "OPENCODE=opencode"
 
-"%OPENCODE%" --standalone --session ses_edb24f216ffeLsadviowS94u1r --prompt "Read and follow glm-work/prompt.md exactly. Create or modify files only inside glm-work/."
+"%OPENCODE%" --standalone --session ses_edb24f216ffeLsadviowS94u1r --prompt "Read and follow glm-work/prompt.md exactly. Create or modify files only inside research/glm-work/."
 endlocal
 exit /b
 

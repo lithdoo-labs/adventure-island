@@ -1,7 +1,7 @@
 # CMS079 怀旧岛 079V5 客户端逆向研究总体计划
 
 > 版本：v1.0（2026-10-10）
-> 依据：本仓库 `README.md`、`task/001–010` 全部任务书、`result/` 全部已有结果、`scripts/`、`reference/maplestory-symbols/`、`.work/` 现场遗留物。
+> 依据：本仓库 `README.md`、`research/task/001–010` 全部任务书、`research/result/` 全部已有结果、`research/scripts/`、`research/reference/maplestory-symbols/`、`.work/` 现场遗留物。
 > 本文档只做规划，不改动仓库中任何已有文件；后续执行仍按仓库既有 Task / Result 工作流落盘。
 
 ---
@@ -25,7 +25,7 @@
 - [14. 成功度量与验收标准](#14-成功度量与验收标准)
 - [附录 A：关键常量速查表](#附录-a关键常量速查表)
 - [附录 B：已知 RVA / 地址索引](#附录-b已知-rva--地址索引)
-- [附录 C：result/ 文件索引](#附录-cresult-文件索引)
+- [附录 C：research/result/ 文件索引](#附录-cresult-文件索引)
 - [附录 D：任务历史与结论一览](#附录-d任务历史与结论一览)
 
 ---
@@ -49,7 +49,7 @@
 
 - 每完成一个 Task，回填本计划第 4 节的"未决问题清单"与第 5 节的里程碑状态；
 - 路线选择发生变化时，在第 5 节决策门处记录理由与证据文件名；
-- 本文件位于 `glm-work/`，属于规划文档，最终稳定结论仍以 `result/`、`docs/` 为准。
+- 本文件位于 `research/glm-work/`，属于规划文档，最终稳定结论仍以 `research/result/`、`docs/` 为准。
 
 ---
 
@@ -76,16 +76,16 @@
 ```text
 docs/            长期逆向文档（00-baseline … 05-field 等）
 symbols/         函数命名表（name / RVA / signature / evidence / confidence）
-scripts/         可复现分析脚本（现有 7 个 + 后续新增）
-result/          每个任务的结构化结果（持续追加）
-reference/       合规参考材料索引与相关性种子
+research/scripts/         可复现分析脚本（现有 7 个 + 后续新增）
+research/result/          每个任务的结构化结果（持续追加）
+research/reference/       合规参考材料索引与相关性种子
 ```
 
 ---
 
 ## 2. 样本与基线事实汇总
 
-以下事实均已由 `result/` 中对应文件证实，后续任务直接引用，不重复推导。
+以下事实均已由 `research/result/` 中对应文件证实，后续任务直接引用，不重复推导。
 
 ### 2.1 输入样本
 
@@ -216,7 +216,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
 | --- | --- | --- |
 | 001 基线 | 主客户端识别、PE/节区/哈希/WZ 清单、壳判断 | `00-baseline.md`、`pe-summary.json` 等 |
 | 002 服务端协议 | 端口/握手/帧/加密/opcode/登录→进图全链路恢复 | `protocol-*.md`、`protocol-opcodes.csv` |
-| 003 运行时网络 | **失败但有价值**：调试器检测点定位（0x862E76/0x862FB0），封包脚本完成 | `02-runtime-network-bootstrap.md`、`scripts/maple079_packet.py` |
+| 003 运行时网络 | **失败但有价值**：调试器检测点定位（0x862E76/0x862FB0），封包脚本完成 | `02-runtime-network-bootstrap.md`、`research/scripts/maple079_packet.py` |
 | 004 保护层 | 两个异常 RVA 无 raw backing；Dapan=VPN 噪声；protector 同类于 ehsvc.old | `protection-*.md`、`client-address-space-model.md` |
 | 005 兼容性实验 | 0xC0E90008=Smart App Control 拒绝；无调试器运行停在无名对话框；选 Route C | `03-compatibility-passive-capture.md` |
 | 006 静态 loader | T1/T2/T3 全恢复（aPLib）；Tail B=protector 代码；Tail A 未写 | `04-static-loader-dataflow.md`、`loader-*.md/csv` |
@@ -245,7 +245,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
 | Q10 | 未加壳 Wizet DLL（ResMan/Canvas/PCOM/Gr2D/NameSpace/Shape2D/Sound_DX8/ZLZ/WzMss）的内部结构与主程序的交互协议？ | G5；且完全不依赖 protector 进展，可并行 | 仅 PE 元数据级（Task 001） |
 | Q11 | `List.wz`（头 `05 00 00 00`，非 PKG1）的格式与用途？ | WZ 链路第一环（Canvas/PCOM 引用它） | 未解析 |
 | Q12 | 客户端 AES/自定义变换常量是否与服务端 JAR 完全一致（同源）？ | 若一致，客户端 crypto 函数可由常量直接定位命名 | 服务端侧已确认；客户端侧待锚点出现 |
-| Q13 | `reference/maplestory-symbols` README 声称的 `upstream/`、`derived/` 内容实际未提交，bundle 不完整？ | 符号关联阶段的前置 | 目录下只有 3 个 md 文件 |
+| Q13 | `research/reference/maplestory-symbols` README 声称的 `upstream/`、`derived/` 内容实际未提交，bundle 不完整？ | 符号关联阶段的前置 | 目录下只有 3 个 md 文件 |
 | Q14 | `.work/task-011/` 已有 `cfg_follow.py`/`cfg.json`（probe 窗口 CFG 遍历起步），Task 011 任务书尚未立项？ | 避免工作遗散 | 未提交、无任务书 |
 
 ---
@@ -291,7 +291,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
 
 | 里程碑 | 内容 | 判定 | 现状 |
 | --- | --- | --- | --- |
-| **M1** | 探针集群静态全图：SICE/SIWVID/NTICE/注册表集群的完整 CFG、每分支分类、收敛点 | `result/` 有完整 probe-map + 收敛分析 | 部分（SICE 已完，其余未遍历） |
+| **M1** | 探针集群静态全图：SICE/SIWVID/NTICE/注册表集群的完整 CFG、每分支分类、收敛点 | `research/result/` 有完整 probe-map + 收敛分析 | 部分（SICE 已完，其余未遍历） |
 | **M2** | 正常路径到达下一个非探针阶段（新解码轮 / import 重建 / Tail A materializer 任一） | 结构性识别 + RVA | 未达 |
 | **M3** | 游戏镜像 materialization 确定性复现：Tail A 写入 + Ztl 槽位 + 函数边界 | 离线 replay 自然出现（或兼容环境自然出现） | 未达 |
 | **M4** | 游戏代码锚点命中：AES key / IV 表 / WS2_32 / `.wz` 字符串 / RTTI 任一 | 地址 + xref | 未达（所有窗口均未命中） |
@@ -316,7 +316,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
 
 ### Task 011 — 探针窗口静态 CFG 全遍历（正常边优先）
 
-> 注：`.work/task-011/` 已存在 `cfg_follow.py`（Capstone 前向 CFG 遍历器，含 `formed()` 地址公式 `pop+disp-0x074436BB`）与 `cfg.json`，说明该任务已自然起步；正式立项时应把该脚本规范化进 `scripts/` 并补任务书。
+> 注：`.work/task-011/` 已存在 `cfg_follow.py`（Capstone 前向 CFG 遍历器，含 `formed()` 地址公式 `pop+disp-0x074436BB`）与 `cfg.json`，说明该任务已自然起步；正式立项时应把该脚本规范化进 `research/scripts/` 并补任务书。
 
 - **目标**：在不执行任何分支的前提下，把 `0x00856000–0x00862000` 探针窗口（以及向两侧自然延伸的范围）的完整控制流、每个 `call dword [slot]` 的形状、每条边的目标与收敛关系恢复成结构化数据。
 - **输入**：`.work/task-009/probe-window.bin`（已 materialize 的窗口字节）、Task 009 的 `protector-resolver-cfg.csv`、`softice-branch-cfg.csv`。
@@ -327,7 +327,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
   4. WinLicense 注册表集群（Task 009 已记录 16 个值名 + 3 参/6 参调用形状）：逐调用判定 open/query/write/close 语义倾向；**槽位不猜名**，保持 unresolved 记录参数模式；
   5. 标注所有分支的"普通系统预期结果"（设备不存在→INVALID_HANDLE_VALUE；注册表键不存在→open 失败），只作为文档性预期，不注入模拟器；
   6. 寻找两侧边的汇聚点（或证明不汇聚，如 SICE 边即如此）。
-- **产物**：`result/09-probe-cluster-full-cfg.md`、`result/probe-window-cfg.csv`、`result/probe-call-sites.csv`、`scripts/maple079_probe_cfg.py`（规范化自 cfg_follow.py）。
+- **产物**：`research/result/09-probe-cluster-full-cfg.md`、`research/result/probe-window-cfg.csv`、`research/result/probe-call-sites.csv`、`research/scripts/maple079_probe_cfg.py`（规范化自 cfg_follow.py）。
 - **成功标准**：窗口内全部可判读调用点有结构化记录；三个设备探针的异同有结论；注册表集群每个调用有语义倾向与置信度。
 - **回退**：若 gadget 混淆导致遍历不可靠（如间接跳转不可解析），记录具体不可解析点，产出降级为"已解析子图 + 盲区清单"。
 
@@ -341,7 +341,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
   3. 检查对 Tail A（`0x002CE000–0x007EA000`）与 Ztl 槽位（`0x5FC19F/0x1B0/0x1C1`）的任何地址形成（立即数、基址算术）；
   4. 检查对第一节 packed raw（`0x001000–0x2CE000`）的读取引用——它是游戏镜像最可能的压缩源；
   5. 若识别出确定性 transform（输入不依赖未观测运行态），可离线执行该 transform 后做差分 anchor 扫描（AES/IV/WZ/WS2_32/RTTI/`55 8B EC` 密度）。
-- **产物**：`result/10-post-probe-stage.md`、`result/next-transform-candidates.csv`、（若执行）`result/task012-anchor-scan.csv`。
+- **产物**：`research/result/10-post-probe-stage.md`、`research/result/next-transform-candidates.csv`、（若执行）`research/result/task012-anchor-scan.csv`。
 - **成功标准**：M2 有明确答案（结构识别 + RVA + 证据），或给出精确 blocker（依赖哪个具体运行态值）。
 - **回退**：静态不可达 → 触发 G1 评估 T013。
 
@@ -355,7 +355,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
   3. 只读观测清单复用 Task 005 D3/F（Get-NetTCPConnection、ETW ImageLoad、pktmon/Npcap loopback）；
   4. 若连上 9555：按 Task 005 F 流程恢复握手→首 C→S(0x01)→首 S→C→（尽量到）频道迁移与 `WARP_TO_MAP 0x81`；
   5. 所有原始 pcap/日志留 `.work/task-013/`，只提交结构化事件表。
-- **产物**：`result/11-compat-vm-natural-run.md`、`result/protocol-session-events.csv`（真实流）、更新 `compatibility-matrix.csv`。
+- **产物**：`research/result/11-compat-vm-natural-run.md`、`research/result/protocol-session-events.csv`（真实流）、更新 `compatibility-matrix.csv`。
 - **成功标准**：最低——VM 内 AspINet 是否加载、客户端是否过对话框有明确证据；理想——捕获真实 15 字节握手与至少一条可解密业务包。
 - **注意**：VM 内同样不装调试器隐身工具、不换 bypass DLL（客户端包内自带的 `ehsvc.dll`(HSBypass) 是样本原始状态，保持原样即可）。
 
@@ -371,7 +371,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
   2. 差分扫描每轮稳定后的新增区（Task 008 Phase H 方法论）；
   3. 监控 `E1–E10` 事件类（写 Tail A / 写 Ztl / 执行出 Tail B / 新分配 / crypto 锚点出现…）；
   4. 产出 Tail A 内部分区草图（哪段是代码、哪段是重建 IAT、哪段是数据/relocation 表）。
-- **产物**：`result/12-game-materialization.md`、`result/taila-materialization-events.csv`、`result/taila-region-map.csv`。
+- **产物**：`research/result/12-game-materialization.md`、`research/result/taila-materialization-events.csv`、`research/result/taila-region-map.csv`。
 - **成功标准**：M3 判据达成（确定性复现或 VM 内自然出现 + 元数据证据链完整）。
 
 ### Task 015 — 游戏区函数边界与 import 重建恢复
@@ -381,7 +381,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
   1. 指令密度/序言扫描 + 线性反汇编 + CFG（可引入 Ghidra headless，注意不提交工程库）；
   2. IAT 候选表识别：指向已解析 API 槽（`0x81A81D` 等）或系统模块 VA 的指针簇；
   3. 与 Task 007 真实进程布局快照交叉（`process-layout-snapshot.csv`）验证模块假设。
-- **产物**：`result/13-game-function-boundaries.md`、`result/game-iat-map.csv`。
+- **产物**：`research/result/13-game-function-boundaries.md`、`research/result/game-iat-map.csv`。
 - **成功标准**：游戏区函数数量级、IAT 表、与 protector 区的分界线清晰；G2 决策门可评估。
 
 ---
@@ -392,7 +392,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
 
 - **目标**：在 materialized 游戏区系统搜索并交叉验证：AES key（32B）、IV 表前缀、IV seed、`WS2_32`/`WSAStartup`/`connect`/`send`/`recv`、`List.wz`/`.wz`、MSVC RTTI（`.?AV`）、Wizet/Nexon 字符串。
 - **方法**：常量搜索 → 地址 → 代码 xref → 数据流/调用栈双重证据后才命名（延续 Task 003 Phase H 标准：常量命中 ≠ 函数命名）。
-- **产物**：`result/14-game-anchors.md`、`result/anchor-hits.csv`、首批 `client-function-candidates.csv` 实地址行。
+- **产物**：`research/result/14-game-anchors.md`、`research/result/anchor-hits.csv`、首批 `client-function-candidates.csv` 实地址行。
 
 ### Task 017 — 网络栈与封包编解码恢复（G1+G2 核心）
 
@@ -402,13 +402,13 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
   2. 从 `connect`/`WSAConnect`（系统断点不可用时用静态 ws2_32 thunk xref）向上回溯；
   3. 用 `maple079_packet.py` 做"客户端实现 vs 服务端实现"一致性对拍（复用 Task 004 crosscheck 方法论与 15 个测试长度）；
   4. 记录 socket/crypto 对象生命周期（登录连接 vs 频道连接两次实例化对比，验证 Task 003 Phase K 设计）。
-- **产物**：`result/15-client-crypto-network.md`、`result/client-function-candidates.csv`（crypto/network 组）。
+- **产物**：`research/result/15-client-crypto-network.md`、`research/result/client-function-candidates.csv`（crypto/network 组）。
 
 ### Task 018 — Opcode dispatcher 恢复
 
 - **目标**：定位 opcode 读取点与分发结构（switch/jump-table/table-call），用 ≥2 个不同 S→C opcode（优先 `LOGIN_STATUS 0x00` + `SERVERLIST 0x09`，或 `SERVER_IP 0x0B`）证明同一分发点。
 - **方法**：从解密后明文缓冲区（Task 017 恢复的 OnRead 下游）追踪首 2 字节读取 → 分发；恢复 handler 注册/跳转表结构。
-- **产物**：`result/16-dispatcher.md`、候选 `candidate_PacketDispatcher`、`candidate_Handler_*`。
+- **产物**：`research/result/16-dispatcher.md`、候选 `candidate_PacketDispatcher`、`candidate_Handler_*`。
 
 ---
 
@@ -417,12 +417,12 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
 ### Task 019 — 离线协议验证（无真实流量时的替代路径）
 
 - **目标**：用服务端 JAR（本地起服或纯离线构造）生成握手→登录→列表→选角→迁移→进图的完整字节流样本，喂给对 Task 017/018 恢复的客户端路径做"纸面对拍"（字段顺序、长度、IV 演进全部对齐）。
-- **产物**：`result/17-protocol-offline-verification.md`、扩展 selftest 用例集。
+- **产物**：`research/result/17-protocol-offline-verification.md`、扩展 selftest 用例集。
 
 ### Task 020 — 登录→进图 handler 全关联（M6）
 
 - **目标**：完成 G4 关联表：每个协议事件的 client handler 候选 ↔ opcode ↔ server handler/builder ↔ 期望运行时字节 ↔ 置信度。覆盖：connect/handshake/login/world list/charlist/char select/channel redirect/channel handshake/PLAYER_LOGGEDIN/WARP_TO_MAP/movement。
-- **产物**：`result/18-client-server-handler-map.csv`（升级自 `client-server-correlation.md`）。
+- **产物**：`research/result/18-client-server-handler-map.csv`（升级自 `client-server-correlation.md`）。
 
 ### Task 020b —（若 G4=有真实流量）被动抓包全解码
 
@@ -442,12 +442,12 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
   2. `List.wz`（头 `05 00 00 00`）如何被 Canvas/PCOM 消费 → 直接推进 Q11；
   3. `PCOM.dll` 导出族（PcCreateObject 等）勾勒的组件对象模型；
   4. ResMan 的 WZ 打开/读取入口签名（未来与主程序侧调用对齐）。
-- **产物**：`result/19-wizet-dlls.md`、`result/resman-entry-points.csv`。
+- **产物**：`research/result/19-wizet-dlls.md`、`research/result/resman-entry-points.csv`。
 
 ### Task 022 — List.wz / PKG1 目录级解析
 
 - **目标**：16 个 `PKG1` WZ 的目录树解析（仅目录/元数据，不提取内容物）；`List.wz` 头部格式判定；WZ 版本差异记录（2010-01 vs 2016-05 vs 2017-07 三组修改时间对应的文件集合）。
-- **产物**：`result/20-wz-inventory.md`、`result/wz-directory-index.csv`。
+- **产物**：`research/result/20-wz-inventory.md`、`research/result/wz-directory-index.csv`。
 
 ### Task 022b —（远期）资源对象模型与进图数据结构
 
@@ -459,7 +459,7 @@ WinLicense 注册表集群 @0x00856_000 窗口（静态可见，未执行）
 
 ### Task 023 — docs/ 与 symbols/ 建立（持续）
 
-- **目标**：当 M5/M6 达成或阶段性稳定时，把 `result/` 结论整理进 README 规划的长期结构：
+- **目标**：当 M5/M6 达成或阶段性稳定时，把 `research/result/` 结论整理进 README 规划的长期结构：
 
 ```text
 docs/
@@ -473,7 +473,7 @@ symbols/
 └── functions.csv           ← name,rva,signature,callers,callees,evidence,confidence
 ```
 
-- **命名规范**：沿用 README 的记录约定（Name/VA/RVA/Caller/Callee/Strings/Imports/Signature/Evidence/Notes），优先 RVA+字节签名而非绝对地址；跨版本参考名（v95/v83）必须按 `reference/maplestory-symbols/README.md` 的证据顺序独立验证后才可赋予。
+- **命名规范**：沿用 README 的记录约定（Name/VA/RVA/Caller/Callee/Strings/Imports/Signature/Evidence/Notes），优先 RVA+字节签名而非绝对地址；跨版本参考名（v95/v83）必须按 `research/reference/maplestory-symbols/README.md` 的证据顺序独立验证后才可赋予。
 
 ---
 
@@ -485,7 +485,7 @@ symbols/
 
 ### 轨道 B — reference bundle 补全（T-102，Q13）
 
-- 现状：`reference/maplestory-symbols/` 只有 LEGAL/README/SOURCES 三个文件，README 声称的 `upstream/Bia10.Maple.Client.V95/`、`upstream/Bia10.Maple.Enums/`、`derived/*.csv|md` 均不存在。
+- 现状：`research/reference/maplestory-symbols/` 只有 LEGAL/README/SOURCES 三个文件，README 声称的 `upstream/Bia10.Maple.Client.V95/`、`upstream/Bia10.Maple.Enums/`、`derived/*.csv|md` 均不存在。
 - 行动：按 SOURCES.md 的 pinned commit 重新引入合规（MIT）材料；生成 `derived/cms079-correlation-seeds.csv`（v95/v83 中网络/crypto 类函数家族 → CMS079 待验证种子）；保持 LEGAL.md 的不镜像二进制政策。
 - 这是阶段三函数命名的弹药库，应在 M3 之前完成。
 
@@ -535,7 +535,7 @@ symbols/
 
 - 样本哈希与基线一致（客户端 `5d280cf1…`），不一致即停、不套用旧 RVA；
 - 每条结论有证据文件 + 置信度；`not observed` / `blocked` 也如实写；
-- 未破坏第 3 节任何边界；产物进 `result/`、临时进 `.work/task-NNN/`；
+- 未破坏第 3 节任何边界；产物进 `research/result/`、临时进 `.work/task-NNN/`；
 - 提交信息沿用 `Complete Task NNN <subject>` 格式，正常 push。
 
 ### 14.3 质量红线（任何任务触发即停并记录）
@@ -575,7 +575,7 @@ symbols/
 | 自定义变换 | 6 轮；偶数轮加 `72`；奇数轮异或 `0x13` |
 | 端口 | 登录 9555；频道 7575–7578；商城 8600 |
 
-### A.3 核心 opcode（小端 short，完整表见 `result/protocol-opcodes.csv`）
+### A.3 核心 opcode（小端 short，完整表见 `research/result/protocol-opcodes.csv`）
 
 | 方向 | hex | 名称 | | 方向 | hex | 名称 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -654,7 +654,7 @@ symbols/
 | NTDLL.dll | `0x77080000` | |
 | ws2_32.dll | `0x758E0000` | 在扫描窗口之下，扫描不会命中它 |
 
-## 附录 C：result/ 文件索引
+## 附录 C：research/result/ 文件索引
 
 | 主题 | 文件 |
 | --- | --- |
@@ -694,16 +694,16 @@ symbols/
 
 ## 附录 E：执行期修订与回填（glm-work 会话，2026-10-10 起）
 
-> 本节由 glm-work 会话追加，原文（上文）保持不变。回填按 prompt.md 规则：不改仓库既有文件，修订写在本附录与 `glm-work/analysis/STATUS.md`。
+> 本节由 glm-work 会话追加，原文（上文）保持不变。回填按 prompt.md 规则：不改仓库既有文件，修订写在本附录与 `research/glm-work/analysis/STATUS.md`。
 
 ### E.1 计划基线与仓库实际状态的差异（会话 1 发现）
 
-- 第 4.3 节 Q14 所述"Task 011 任务书尚未立项"已过时：仓库已提交 `task/011-normal-probe-path-game-materialization.md`（范围 ≈ 计划 Task 011+012 的前半）及配套 result（`09-normal-probe-path-materialization.md`、`normal-probe-path-cfg.csv`、`first-post-probe-stage.md` 等），并已提交规范化脚本 `scripts/maple079_normal_path_analyze.py`。仓库该 Task 011 结论 Route B（post-probe materializer = 两个原地解码器 + Oreans 驱动安装段），与计划 Task 012 的输入预期一致。
-- 计划版 Task 011 的专属产物形态（`09-probe-cluster-full-cfg.md`、`probe-window-cfg.csv`、`probe-call-sites.csv`、`scripts/maple079_probe_cfg.py`）仍缺失，由 glm-work 会话补齐于 `glm-work/` 下。
+- 第 4.3 节 Q14 所述"Task 011 任务书尚未立项"已过时：仓库已提交 `research/task/011-normal-probe-path-game-materialization.md`（范围 ≈ 计划 Task 011+012 的前半）及配套 result（`09-normal-probe-path-materialization.md`、`normal-probe-path-cfg.csv`、`first-post-probe-stage.md` 等），并已提交规范化脚本 `research/scripts/maple079_normal_path_analyze.py`。仓库该 Task 011 结论 Route B（post-probe materializer = 两个原地解码器 + Oreans 驱动安装段），与计划 Task 012 的输入预期一致。
+- 计划版 Task 011 的专属产物形态（`09-probe-cluster-full-cfg.md`、`probe-window-cfg.csv`、`probe-call-sites.csv`、`research/scripts/maple079_probe_cfg.py`）仍缺失，由 glm-work 会话补齐于 `research/glm-work/` 下。
 
 ### E.2 Task 011（计划版）完成回填（会话 1，2026-10-10）
 
-- 产物：`glm-work/result/09-probe-cluster-full-cfg.md`、`probe-window-cfg.csv`（71 行）、`probe-call-sites.csv`（71 行）、`probe-cfg-summary.json`、`glm-work/scripts/maple079_probe_cfg.py`（规范化自 `.work/task-011/cfg_follow.py`）。
+- 产物：`research/glm-work/result/09-probe-cluster-full-cfg.md`、`probe-window-cfg.csv`（71 行）、`probe-call-sites.csv`（71 行）、`probe-cfg-summary.json`、`research/glm-work/scripts/maple079_probe_cfg.py`（规范化自 `.work/task-011/cfg_follow.py`）。
 - 里程碑 M1：探针集群静态全图达成（SICE/SIWVID/NTICE + 注册表集群 15 单元 + 检测边 + 汇聚分析）。
 - 对既有仓库结论的勘误（仓库文件未动，登记于 09 文件 §1/§4 与 STATUS）：
   1. NTICE 返回测试实际为 `0x00859A04 inc / 0x00859A05 jne / miss 边 0x00859A0B`（既有 5 处记录 +0x100 错位）；`0x0085A00B` 实为注册表 ExpInfo 单元 open 调用。
@@ -716,7 +716,7 @@ symbols/
 
 ### E.3 Task 012 完成回填（会话 1，2026-10-10）
 
-- 产物：`glm-work/result/10-post-probe-stage.md`、`next-transform-candidates.csv`、`task012-scan-summary.json`、`scripts/maple079_post_probe_scan.py`、`scripts/maple079_wide_capture.py`（replay 复跑 + 探针停点全 Tail B 宽捕获，停点字节级复现通过）、`scripts/maple079_write_logger.py`（注入写记录的第二跑，replay 本体未改）。
+- 产物：`research/glm-work/result/10-post-probe-stage.md`、`next-transform-candidates.csv`、`task012-scan-summary.json`、`research/scripts/maple079_post_probe_scan.py`、`research/scripts/maple079_wide_capture.py`（replay 复跑 + 探针停点全 Tail B 宽捕获，停点字节级复现通过）、`research/scripts/maple079_write_logger.py`（注入写记录的第二跑，replay 本体未改）。
 - **M2 达成**：非探针结构 = 解码器 A（`0x85A464`）→ B（`0x85AA35`）→ Oreans SecureEngine 驱动安装段 `0x85FCC0`（152 块/68 调用首次遍历；`\\.\Oreans.vxd` 打开、`%s\Oreans.vxd`、SCManager/Service 引用、**HKCU\Software\Wine 探针 @`0x861113`**）。`0x862000+` ~700KB 停点仍编码态。
 - **round 3 定案（Q3 超预期）**：探针前存在未编目解码轮——producer `0x008593E3`，`dst=((src+0x3DDF4CA1+0x1C39E09C)&0xFFFFFFFF)^0x61799419`，span `0x0085941A–0x0085FA3D`（6537 dword，6537/6537 验证）。解码链修正：T1→T2→T3→r1→r2→**r3**→探针→（正常路径）→A→B→驱动段。
 - 负结果：Tail A/Ztl/packed-raw 地址形成 0 个；自解码字节候选 5 个全证伪；游戏锚点（AES/IV/WZ/WS2_32/RTTI/55 8B EC）零命中。
@@ -726,7 +726,7 @@ symbols/
 
 ### E.4 Task 012b 完成回填（会话 2，2026-10-10）
 
-- 产物：`glm-work/result/10b-static-extension.md`、`resolver-api-dictionary.csv`（23/23）、`scripts/maple079_checksum_table.py`（walker 插桩地面真值法）。
+- 产物：`research/glm-work/result/10b-static-extension.md`、`resolver-api-dictionary.csv`（23/23）、`research/scripts/maple079_checksum_table.py`（walker 插桩地面真值法）。
 - **resolver 机制定案**：直接调用形态 `push imm32; push 模块基址; call [0x81C245]|0x81CEC7` 中 **imm32 即 walker 名字校验和**（`0x81CEC7: mov edx,[esp+0x28]; esi=[esp+0x24]+0x3C`）；校验和=自定义 CRC（多项式字节 `41 50 49 54`="APIT"）。
 - **集群五槽命名**（推翻形状猜测两处）：`0x859CE5=RegCreateKeyA`（创建！干净系统预期反转为成功）、`0x859CE1=RegFlushKey`、`0x81A829=RegSetValueExA`、`0x8191E9=RegCloseKey`、`0x819C95=RegQueryValueExA`。Q2 完全解决。
 - **Q16 解决**：flag 槽写入者=命令行开关解析器（decoder A 明文内 `0x85A5E6–0x85A9AA` 七处 `mov [slot],1`）——集群/驱动段 thunk 仅开关激活，自然路径恒跳过。
@@ -737,8 +737,8 @@ symbols/
 
 ### E.5 轨道 A / 轨道 B 完成回填（会话 2，2026-10-10）
 
-- **轨道 A（T-101 第一轮）**：产物 `glm-work/result/19-wizet-dlls.md`、`wizet-dll-inventory.json`、`resman-entry-points.csv`、`scripts/maple079_wizet_dlls.py`。要点：COM 工厂体系；`List.wz`=PCOM 目录拼接的资源根（Canvas `0x20BC4`/PCOM `0x6CC7` 双引用，Q11 推进）；PKG1 处理器在 NameSpace.dll；Canvas→ZLZ 解压链证实（ZLZ 导出 C++ 签名直读；PDB 路径 `D:\ACGAME_CN\ztl\` 给出官方库词根 `ztl`，与 ZtlTaskMem* 同族）；RTTI 实测可用；WzMss=官网 SOAP（网络栈反判别器）；`PWS2_32.DLL`=序列化组件表条目（全部 DLL 无延迟导入）。Task 021 的四个重点中 #1/#2/#3 已有初答，#4（ResMan 签名）留下一轮。
-- **轨道 B（T-102）**：Q13 已在仓库侧解决（derived 两件齐备）；glm-work 补 `trackB-seed-readiness.md` + `scripts/maple079_seed_scan.py`（33 项证据族扫描器，冒烟 0/33 符合预期）+ 新判别器三条（WzMss 反判别、ztl 词根正判别、RTTI 可行性证实）。M3 达成后以 seed_scan 为第一道工序。
+- **轨道 A（T-101 第一轮）**：产物 `research/glm-work/result/19-wizet-dlls.md`、`wizet-dll-inventory.json`、`resman-entry-points.csv`、`research/scripts/maple079_wizet_dlls.py`。要点：COM 工厂体系；`List.wz`=PCOM 目录拼接的资源根（Canvas `0x20BC4`/PCOM `0x6CC7` 双引用，Q11 推进）；PKG1 处理器在 NameSpace.dll；Canvas→ZLZ 解压链证实（ZLZ 导出 C++ 签名直读；PDB 路径 `D:\ACGAME_CN\ztl\` 给出官方库词根 `ztl`，与 ZtlTaskMem* 同族）；RTTI 实测可用；WzMss=官网 SOAP（网络栈反判别器）；`PWS2_32.DLL`=序列化组件表条目（全部 DLL 无延迟导入）。Task 021 的四个重点中 #1/#2/#3 已有初答，#4（ResMan 签名）留下一轮。
+- **轨道 B（T-102）**：Q13 已在仓库侧解决（derived 两件齐备）；glm-work 补 `trackB-seed-readiness.md` + `research/scripts/maple079_seed_scan.py`（33 项证据族扫描器，冒烟 0/33 符合预期）+ 新判别器三条（WzMss 反判别、ztl 词根正判别、RTTI 可行性证实）。M3 达成后以 seed_scan 为第一道工序。
 - 会话 2 净结论：主线静态收口于探针停点 + 驱动安装段全图；游戏侧第一批结构性知识（WZ/资源链、对象模型、官方词根）已由未加壳 DLL 路线建立。G1/G2 状态不变（G1 达成、G2 等待物化）。
 
 ### E.6 轨道 A 第二轮 + 探针前 resolver 全录（会话 2 续，2026-10-10）
@@ -753,7 +753,7 @@ symbols/
 
 ### E.7 Task 022 提前完成（会话 3，2026-10-10，采用成熟解析库）
 
-- **工具**：wz-python/wzpy（MIT，github.com/Leonana69/wz-python @ `79344c9`，取至 `.work/tools/`，URL+commit 按政策记录）；脚本 `glm-work/scripts/maple079_wz_dir.py`；产物 `glm-work/result/wz-directory-index.csv` + `20-wz-inventory.md`。
+- **工具**：wz-python/wzpy（MIT，github.com/Leonana69/wz-python @ `79344c9`，取至 `.work/tools/`，URL+commit 按政策记录）；脚本 `research/glm-work/scripts/maple079_wz_dir.py`；产物 `research/glm-work/result/wz-directory-index.csv` + `20-wz-inventory.md`。
 - **私服 IV 定位**：`B9 7D 63 E9`（wzpy 区域表 EMS 值；BMS/GMS 对照乱码、EMS 干净，判据=根名可打印率）。
 - **16× PKG1 全解析**：version=79（第三方复核客户端版本）；~36,000 img（Character 25,565、Map 4,614…）；Base.wz 15 个跨文件链接子目录=命名空间树投影；2010/2016/2017 三组修改时间在目录层无格式代差（私服重打包痕迹）。
 - **机制辨析**：PKG1 内字符串=固定 IV AES 密钥流（成熟库全覆盖）；List.wz=按名键控序列化（独立机制，Q11 收口仍指 PCOM `0x7575`）。下一验证点：Base.wz 链接名 ↔ List.wz ~370 记录对应。
@@ -765,12 +765,12 @@ symbols/
 - **内容**：外链 img 挂载表 **1,258 条**（character 513 / map 297 / mob 184 / npc 104 / item 47 / reactor 25 / skill 22 / …14 类），零间隙覆盖 65,468/65,470 字节。
 - **破题方法**：密钥流相位扫描——16 字节重复块在相位 0 解出宽串 `characte`；进而连续密钥流假设→逐串复位确认→贪婪游走全解。
 - **勘误**：前记"~370 条记录"实为 1,258（计数截断）；"16 字节固定签名"实为共享明文前缀的密文；NameSpace/PCOM 的"按名键控变换"重新定性为命名空间哈希桶（`h=h*32+c+1`）机制而非字节密码。
-- 产物：`glm-work/result/listwz-entries.csv`、`scripts/maple079_listwz.py`、`20-wz-inventory.md` §3.1。
+- 产物：`research/glm-work/result/listwz-entries.csv`、`research/scripts/maple079_listwz.py`、`20-wz-inventory.md` §3.1。
 - **Q11 状态：已解决**（格式+用途+解码器齐备）；G5（WZ 链路）剩余：ResMan 读取签名、Task 022b 对象模型。
 
 ### E.9 Task 012c 完成回填（会话 4，2026-10-12）
 
-- 产物：`glm-work/result/10c-decoder-c-hunt.md`、`task012c-cross-boundary-refs.csv`、`task012c-transform-clusters.csv`、`task012c-summary.json`、`task012c-encoded-entry-map.csv`（策展入口表）、`beyond-wall-island-map.csv`、`beyond-wall-thunk-tables.csv`、`beyond-wall-thunk-names.csv`、`task012c-beyond-wall-summary.json`、`task012c-thunk-names-summary.json`；scripts：`maple079_decoder_hunt.py`、`maple079_beyond_wall.py`、`maple079_thunk_names.py`（第四次 replay 宽捕获重生成，全部复现门槛通过）。
+- 产物：`research/glm-work/result/10c-decoder-c-hunt.md`、`task012c-cross-boundary-refs.csv`、`task012c-transform-clusters.csv`、`task012c-summary.json`、`task012c-encoded-entry-map.csv`（策展入口表）、`beyond-wall-island-map.csv`、`beyond-wall-thunk-tables.csv`、`beyond-wall-thunk-names.csv`、`task012c-beyond-wall-summary.json`、`task012c-thunk-names-summary.json`；scripts：`maple079_decoder_hunt.py`、`maple079_beyond_wall.py`、`maple079_thunk_names.py`（第四次 replay 宽捕获重生成，全部复现门槛通过）。
 - **Q15 前提修正（本会话核心）**：`0x862000–0x911B25` 在探针停点为**明文岛+编码区混合**（40 岛 / 74,496B / 10.3%）——Task 012b 的全区盲测方法论对混合区域失效（定案）。墙根岛 `0x862000–0x864000` 含 WinLicense 检查点统计/异常 UI 字符串（CheckIN/CheckOUT/ProcIN/ProcOUT/ExitIN/ExitOUT = %d 等，与 Task 011 注册表集群值名对应）。
 - **canonical EBP 不变量**：全部墙外模块的 `sub ebp, imm32` 归一化到规范基 `0xF93D9014`（三例字节直算验证）→ `formed()` 全 Tail B 有效。
 - **编码区入口图**：`0x862D7D`（4 jmp，门控槽 `0x81C1A5`≠0，写入者 `0x86118E`，条件 `word[formed(0x7486BC6)]==9`）、`0x862D80`（2 jmp）、`0x8620C6`（门控槽 `0x81B96D`==0，写入者 `0x8609D1`；目标岛含 7 参 CreateFileA 配方）；编码函数 `0x86B299`（walker 区 5 处 + 岛 3 处引用，岛调用者存返回值后带 4–5 参再调用）。

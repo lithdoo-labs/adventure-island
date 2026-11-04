@@ -5,8 +5,9 @@
   "type": "module",
   "description": "Adventure Island repository root: canonical Game Entry (smoke), platform launch manifests, and headless validation. See docs/game-entry.md.",
   "scripts": {
-    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/pwa-bundle.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
-    "pwa:bundle": "node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json"
+    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
+    "pwa:bundle": "node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json",
+    "pwa:staging": "node scripts/pwa/build-staging.mjs"
   },
   "engines": {
     "node": ">=20"

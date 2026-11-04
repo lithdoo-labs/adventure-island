@@ -716,6 +716,51 @@ test("the artifact carries no research material or sensitive markers", async () 
   }
 });
 
+test("the framework pin rejects mismatches and unchecked-out submodules", async () => {
+  const temp = await makeTempDir();
+  try {
+    // A framework repository at a DIFFERENT revision than the repo Gitlink.
+    const drift = path.join(temp, "drift-framework");
+    await mkdir(drift, { recursive: true });
+    const { execFileSync } = await import("node:child_process");
+    const git = (dir, ...args) => execFileSync(
+      "git",
+      ["-C", dir, "-c", "user.email=fixture@example.invalid", "-c", "user.name=fixture", ...args],
+      { encoding: "utf8" },
+    ).trim();
+    git(drift, "init", "-q");
+    await writeFile(path.join(drift, "README.md"), "drift\n", "utf8");
+    git(drift, "add", "-A");
+    git(drift, "commit", "-q", "-m", "drift");
+
+    await assert.rejects(
+      buildAdventureIslandInstallationBundle({
+        outputFile: path.join(temp, "mismatch-bundle.json"),
+        frameworkRoot: drift,
+      }),
+      /does not match the pinned repository Gitlink/,
+      "a checkout at any other revision must be rejected",
+    );
+
+    // A framework directory with no repository of its own: git would resolve
+    // to the parent repository, which is NOT the submodule.
+    const empty = path.join(temp, "empty-framework");
+    await mkdir(empty, { recursive: true });
+    await assert.rejects(
+      buildAdventureIslandInstallationBundle({
+        outputFile: path.join(temp, "empty-bundle.json"),
+        frameworkRoot: empty,
+      }),
+      /not checked out/,
+      "a directory that is not a submodule checkout must be rejected",
+    );
+    await assert.rejects(readText(path.join(temp, "mismatch-bundle.json")), /ENOENT/);
+    await assert.rejects(readText(path.join(temp, "empty-bundle.json")), /ENOENT/);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Optional deep validation through the real pinned LoomRealm APIs
 // ---------------------------------------------------------------------------

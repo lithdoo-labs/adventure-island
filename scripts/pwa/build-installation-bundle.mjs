@@ -35,6 +35,7 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -42,8 +43,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
-/** Pinned LoomRealm baseline this generator (and the whole repo) targets. */
-export const PINNED_LOOM_REALM_GITLINK = "c5217e47be5a43f974e9e6ce82230077fb639c39";
+/**
+ * The repository Gitlink (`HEAD:loom-realm`) is the ONLY trusted pin for the
+ * LoomRealm submodule: the actually checked-out framework HEAD must equal it
+ * exactly. No checkout SHA is ever accepted on its own, and no SHA is
+ * hardcoded here — when a maintainer updates the Gitlink through a PR, this
+ * check keeps protecting the exact-revision contract without edits. (On
+ * today's main the Gitlink is c5217e47be5a43f974e9e6ce82230077fb639c39, so
+ * every run still validates that exact revision.)
+ */
 
 /**
  * The frozen input whitelist: logical module → physical source inside this
@@ -531,14 +539,33 @@ async function writeBundleSafely(destination, gameRoot, data) {
 // Bundle assembly
 // ---------------------------------------------------------------------------
 
-function assertPinnedFramework(game, framework) {
-  const gitlink = git(game, "rev-parse", "HEAD:loom-realm");
-  if (!/^[a-f0-9]{40}$/u.test(gitlink) || gitlink !== PINNED_LOOM_REALM_GITLINK) {
-    throw new Error(`LoomRealm gitlink ${gitlink} is not the pinned baseline ${PINNED_LOOM_REALM_GITLINK}`);
+function assertFrameworkPin(game, framework) {
+  let gitlink;
+  try {
+    gitlink = git(game, "rev-parse", "HEAD:loom-realm");
+  } catch {
+    throw new Error("the repository does not record a loom-realm Gitlink at HEAD:loom-realm — the Gitlink is the only trusted framework pin");
   }
-  const checkedOut = git(framework, "rev-parse", "HEAD");
-  if (checkedOut !== PINNED_LOOM_REALM_GITLINK) {
-    throw new Error(`checked-out LoomRealm ${checkedOut} does not match the pinned gitlink ${PINNED_LOOM_REALM_GITLINK}`);
+  if (!/^[a-f0-9]{40}$/u.test(gitlink)) {
+    throw new Error(`the loom-realm Gitlink "${gitlink}" is not a valid commit SHA`);
+  }
+  let checkedOut;
+  // A submodule checkout owns a `.git` entry (a directory for plain repos,
+  // a "gitdir:" pointer file for standard submodule layouts). Without one,
+  // git resolves to a PARENT repository — that is not the submodule.
+  if (!existsSync(join(framework, ".git"))) {
+    throw new Error(`the loom-realm submodule is not checked out at ${framework} — run \`git submodule update --init\` first`);
+  }
+  try {
+    checkedOut = git(framework, "rev-parse", "HEAD");
+  } catch {
+    throw new Error(`the loom-realm submodule is not checked out at ${framework} — run \`git submodule update --init\` first`);
+  }
+  if (checkedOut !== gitlink) {
+    throw new Error(
+      `checked-out LoomRealm ${checkedOut} does not match the pinned repository Gitlink ${gitlink}; `
+        + "the repository Gitlink is the only trusted pin — update it via a maintainer PR and check the submodule out exactly",
+    );
   }
   return checkedOut;
 }
@@ -562,7 +589,7 @@ export async function buildAdventureIslandInstallationBundle({
     throw new TypeError("outputFile is required");
   }
   const frameworkSha = verifyGitlink
-    ? assertPinnedFramework(game, frameworkRoot === undefined ? join(game, "loom-realm") : resolve(frameworkRoot))
+    ? assertFrameworkPin(game, frameworkRoot === undefined ? join(game, "loom-realm") : resolve(frameworkRoot))
     : null;
   const gameSha = verifyGitlink ? git(game, "rev-parse", "HEAD") : null;
 

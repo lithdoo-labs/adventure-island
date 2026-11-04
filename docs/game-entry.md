@@ -139,9 +139,11 @@ executable 的导入图有硬性约束：只接受相对导入，且整张导入
   置换已验证目录的 TOCTOU 竞态，Node 无 `renameat`/dirfd 原语，只能收窄窗口而
   无法严格消除——本工具不宣称防御拥有同级文件权限且主动竞态的攻击者（与上游
   PokeMan/LoomRealm 构建器的保证层级一致）。
-- **gitlink 校验**：运行时验证 `HEAD:loom-realm` 与检出的 submodule 均为
+- **gitlink 校验**：仓库 Gitlink（`HEAD:loom-realm`）是唯一受信任 pin，运行时验证
+  检出的 submodule HEAD 与之完全相等（须为真正的 submodule checkout）；脚本内不再
+  硬编码 SHA——维护者经 PR 更新 Gitlink 后无需改脚本，当日 main 上仍等效校验
   `c5217e47be5a43f974e9e6ce82230077fb639c39`（可用 `verifyGitlink: false` 关闭，
-  仅供测试注入）。
+  仅供测试注入；非匹配/未检出 submodule 的负例测试见 `test/pwa-bundle.test.mjs`）。
 
 用法：
 
@@ -154,21 +156,50 @@ node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-in
 当前产物：`executables` 1 项（`subsystems/smoke.mjs` ←
 `systems/loomrealm-smoke/subsystem.mjs`，`sha256:bf17c17b…94257`）、`content` 0 项。
 
-### 下一步（阶段 4B，本仓库尚未完成）
+### 阶段 4B-0：staging 编排入口（已完成，产品侧）
 
-pinned LoomRealm `c5217e47` **尚无**通用 `build-bundle.mjs`，因此本阶段止步于
-bundle 输入生成，不构成 staging/PWA 发布，也未做任何浏览器 E2E。待后续 Issue 将
-gitlink 精确升级到含通用构建器的版本后，staging 命令预计为：
+`scripts/pwa/build-staging.mjs`（`npm run pwa:staging`，CLI **无参数**——app id、
+base path、staging 目录全部固定）按以下顺序 fail-closed 编排：
 
-```bash
-node loom-realm/apps/pwa/scripts/build-bundle.mjs \
-  --bundle dist/adventure-island-installation-bundle.json \
-  --app-id adventure-island \
-  --base-path /pwa/adventure-island/
-```
+1. **前置校验（任何写出/删除之前）**：检出 LoomRealm HEAD 必须与仓库 Gitlink
+   （唯一受信任 pin，本工具绝不自动升级/下载 submodule）完全相等，且 framework
+   必须是真正的 submodule checkout（拥有自己的 `.git`）；submodule 内必须实际存在
+   通用 `apps/pwa/scripts/build-bundle.mjs` 及其 helpers；通用 builder 的必需构建
+   产物（`game-libs/game-common-controls/dist/browser/device-input.browser.js`、
+   esbuild 工具链）必须已构建。任一缺失 → 明确的升级/构建指引 + 非零退出。
+   **当前 pin `c5217e47` 没有通用 builder，`npm run pwa:staging` 必然失败且不产生
+   任何伪造 PWA 目录、不删除任何资料**（测试钉死）。
+2. **payload**：调用 §5 的 `build-installation-bundle.mjs` 生成安全、确定的
+   installation-bundle v1。
+3. **通用 builder**：以固定参数调用真实上游 CLI
+   `node <loom-realm>/apps/pwa/scripts/build-bundle.mjs --bundle <payload> --app-id adventure-island --base-path /pwa/adventure-island/ --output-dir <repo>/dist/staging/adventure-island/`。
+   通用 builder 会**递归删除**该输出目录，因此交付前逐段验证已存在链无 symlink、
+   无 Git 追踪内容、不在任何保护树/其他 App 目录（fixture 测试证明：symlink 目标
+   或祖先为 symlink 时在 builder 启动前拒绝，sentinel 完好、零删除）。
+   编排器自身不做任何删除。
+4. **产物校验**：`generation.json`（`appId=adventure-island`、
+   `basePath=/pwa/adventure-island/`）、`installation-bundle.json`（`bundleId` +
+   六字段与产品 payload 逐项一致、无 research/敏感标识）、`index.html` 与
+   `window.js`/`session-worker.js`/`worker-runner.js`/`service-worker.js` 存在。
 
-（`.github` workflow 与 LoomRealm gitlink 升级均超出 Issue Agent 的受保护路径
-范围，需维护者另行处理。）
+**明确区分验收层级**：本地 staging 构建成功 ≠ Chromium 安装/Service Worker E2E
+通过；后者属 Stage 4B 正式验收，由维护者完成。真实新版 SDK 的正向集成测试
+（`test/pwa-staging.test.mjs` 末项）在 Gitlink 升级前以明确原因 skip，不冒充通过。
+
+### 下一步（阶段 4B，由维护者完成，本仓库不自行越界）
+
+pinned LoomRealm `c5217e47` **没有**通用 `build-bundle.mjs`，因此 4B-0 止步于产品侧
+编排。待维护者 PR 完成后（按序）：
+
+1. 合并 PR #40（旧 Design PR Agent 清理）与 PR #42（本 Issue 产物）。
+2. **升级 LoomRealm Gitlink** 至含通用 builder 的修订（已核对的上游：
+   `93648192323bf5f57996b7b54cbae641d8a53fdb`），并在 submodule 内
+   `npm install` + 构建 packages 与 game-common-controls 浏览器产物——
+   `npm run pwa:staging` 届时自动通过前置校验（pin 检查以 Gitlink 为准，无需改脚本）。
+3. 独立 PR CI（`.github` 变更超出 Issue Agent 受保护路径）。
+4. 真实通用 PWA 构建产物经独立 Compose（阶段 5：`loomrealm-adventure-pwa`、
+   8788 正式 / 8791 候选、独立发布状态与数据根）发布后，运行 Chromium 安装与
+   Service Worker E2E；发布内容不含研究证据、WZ、未授权素材与凭据。
 
 ## 6. 测试
 
@@ -220,13 +251,28 @@ symlink 后还需创建新子目录、tmpdir 内祖先 symlink 指向保护目�
 pinned `buildPwaExecutableIndexV1` 接受产物 executable 图（`imports: []`）并以
 shim 输入复验被拒（`SUBSYSTEM_MODULE_NOT_FOUND`）。
 
+`test/pwa-staging.test.mjs`（阶段 4B-0）：当前旧 Gitlink 上 fail-closed（CLI 非零
+退出、升级指引含上游修订号、不产生伪造 PWA 目录、不删除任何资料、拒绝任意 CLI
+参数）；隔离 git fixture（`git update-index --cacheinfo 160000` 构造真实 Gitlink）
++ 忠实模拟通用 builder（含其对输出目录的递归 rm）验证：固定参数
+（`--app-id adventure-island --base-path /pwa/adventure-island/` 与固定 staging 目
+标逐字相等）、payload→builder→产物校验链（`generation.json` appId/basePath、
+`bundleId`、六字段与 payload 逐项一致、五个运行时产物存在、重复运行成功）、
+Gitlink 不匹配/未检出 submodule/缺 builder/缺构建产物在 builder 启动前拒绝且
+stub 未被调用、staging 目录自身或祖先为 symlink 时零删除且 sentinel 完好、
+staging 内含 Git 追踪文件时拒绝、builder 产物偏离（错误 appId/缺 bundleId/缺
+window.js）被检出；真实新版 SDK 的正向集成测试在 Gitlink 升级前显式 skip。
+模拟 builder 仅用于确定性单测，不冒充真实 staging 成功。
+
 ## 7. 后续（不在本阶段）
 
 - 阶段 3B：合成地图 + 纸娃娃与移动/跳跃/立足线/传送。
-- 阶段 4A（本阶段）：`scripts/pwa/build-installation-bundle.mjs` 生成
+- 阶段 4A（已完成）：`scripts/pwa/build-installation-bundle.mjs` 生成
   installation-bundle v1 输入（见 §5）。
-- 阶段 4B（未完成）：升级并精确固定 LoomRealm gitlink 至含通用 `build-bundle`
-  的版本、用 §5 的 staging 命令产出正式 PWA、Chromium E2E、独立 PR CI；
+- 阶段 4B-0（已完成，产品侧）：`scripts/pwa/build-staging.mjs` staging 编排入口
+  与前置校验/产物校验（见 §5）；当前旧 Gitlink 上按设计 fail closed。
+- 阶段 4B（未完成，维护者负责）：升级并精确固定 LoomRealm Gitlink 至含通用
+  `build-bundle` 的版本、真实 PWA staging、Chromium E2E、独立 PR CI；
   `.github` 与 submodule 更新超出 Issue Agent 受保护路径范围，需维护者处理。
 - 阶段 5：独立 Compose（`loomrealm-adventure-pwa`）、端口 8788/8791 与回滚。
 - 旧入口清理：根入口被阶段 4 验证后，另开 Issue 删除 `apps/pwa/**`、`apps/hostra/**`

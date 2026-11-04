@@ -1,0 +1,193 @@
+# cms-actor 实施说明
+
+> 状态：算法与 LoomRealm 正式浏览器集成已通过合成素材在**当前固定 LoomRealm gitlink `93648192323bf5f57996b7b54cbae641d8a53fdb`** 上重新验证（PR-A，Issue #46）；真实 CMS 079 素材验证保持 **BLOCKED / 仅本地可选**（见文末三状态表）。
+> 范围：Web Component、有界 `avatarPlan`、帧布局与锚点算法、classic script 构建产物、正式 `bootstrapWebPresentation()` 浏览器闭环、资源生命周期与缓存边界、Node 合成测试与真实 Chromium 集成测试。
+> 本组件由历史 Draft PR #2（HEAD `132853b8`，基于旧 gitlink `8cf8e2d`）选择性移植；移植后在当前 pin 上原样通过全部 ABI 与像素验证，未发现需要放宽边界或改写框架的差异。
+
+## 1. 边界
+
+`cms-actor` 是一个只负责呈现的 Web Component。它不读取 WZ、FSDB 文件系统或私有 Content Index，也不决定角色的位置、移动、跳跃和场景切换。运行库通过 `attrs` 提供动态状态；游戏侧适配器把已解析的 WZ 外观投影为 `RenderNode.data.avatarPlan`。
+
+本次实现覆盖：
+
+- `stand1` / `walk1` / `jump` 等动作计划的帧选择与按 `delay` 绝对值推进；
+- `receiveRenderEvent({ name: "action", data: { action } })` 单次动作播放，完成后恢复**当时的** `locomotion`；
+- 以 `origin` 和 `map` 锚点合成多张画布，按 `zOrder` 从后向前绘制，左右朝向绕身体原点镜像（含帧 `flip` XOR）；
+- 通过 `PresentationResourceClient.resource(namespace, key, expectedContentVersion)` 读取 PNG，校验返回版本、MIME 与像素尺寸；
+- 资源缓存有明确容量边界；异步过期绘制隔离；断开时取消请求并释放 `ImageBitmap`；
+- 可作为 **classic script** 被 LoomRealm `bootstrapWebPresentation()` 正式加载（无 `type="module"` 要求）；
+- 真实 Chromium 集成测试与 Node 纯函数测试。
+
+不声称完成：WZ 解码、`islot/vslot` 装备冲突算法、真实 `zmap/smap` 数据接入、真实 CMS 079 素材验收。这些属于游戏侧适配层与后续验收。测试里的 `test/look-adapter.mjs` 是**参考适配器，不是正式游戏运行时**。
+
+## 2. 平台入口（P0）
+
+### 2.1 classic script 产物
+
+LoomRealm Web Presentation Config v1 只以 ordered classic `<script src>` 加载业务脚本，不评估 ES 模块。因此组件交付：
+
+```text
+components/cms-actor/src/*.mjs                  编辑用 ESM 源（Node 测试直接 import）
+components/cms-actor/scripts/build.mjs          确定性打包器（无第三方依赖）
+components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic script（IIFE）
+```
+
+- 产物无 `import`/`export`，通过 `customElements.define("cms-actor", ...)` 注册；
+- `node scripts/build.mjs --check` 可字节级校验产物与源一致；
+- 仓库 `.gitignore` 屏蔽 `dist/`、`build/`，因此产物固定放在 `browser/`。
+
+### 2.2 注册声明
+
+组件目录内的 `presentation.json`（**组件示范/测试配置，不是根 `presentation.json`**）声明浏览器入口：
+
+```json
+{
+  "formatVersion": 1,
+  "styles": [],
+  "scripts": [{ "namespace": "resource.Presentation", "key": "cms-actor/cms-actor.browser.js" }]
+}
+```
+
+`namespace + key` 是 Content 逻辑标识；平台 PREPARE 解析后固定 `contentVersion`、MIME（essence 必须是 `text/javascript`）与私有 `browserSource`。组件与业务代码永远拿不到 bearer、物理路径或私有 URL。根 `presentation.json` 的正式注册属于 PR-B（见 §9）。部署细节见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+
+## 3. RenderNode 契约
+
+动态状态用字符串 `attrs`（单条 ≤ 4096 字节，符合 Render Update v1）：
+
+| 属性 | 含义 |
+|---|---|
+| `x`, `y` | 身体原点在场景中的坐标（十进制字符串） |
+| `locomotion` | `stand` / `walk` / `jump` |
+| `facing` | `left` / `right` |
+| `skin`, `face`, `hair`, `expression`, `equips` | 运行时外观选择状态，供游戏适配层重建 `avatarPlan`；组件不据此查 WZ |
+
+`RenderNode.data` 承载一份**已解析、有界、渲染就绪**的外观计划：
+
+```js
+{
+  avatarPlan: {
+    formatVersion: 1,
+    zOrder: ["weaponOverGlove", "hair", "face", "head", "body"],   // 前景 → 背景
+    locomotionActions: { stand: "stand1", walk: "walk1", jump: "jump" },
+    actions: {
+      stand1: { loop: true, frames: [{ delay: 500, move: [0, 0], flip: false, layers: [...] }] }
+    }
+  }
+}
+```
+
+每个 layer：
+
+```js
+{
+  id: "body",
+  z: "body",                                  // 必须出现在 zOrder 中
+  resource: {
+    namespace: "resource.图",
+    key: "Look/00002000/stand1/0/body",
+    contentVersion: "sha256:<64 位小写十六进制>"
+  },
+  width: 27, height: 32,
+  origin: [19, 32],
+  anchors: { navel: [-6, -20], neck: [-4, -32] }   // WZ map 向量，相对 origin
+}
+```
+
+### 3.1 有界性（Render Update v1 硬上限）
+
+计划只承载**当前角色当前需要的动作**，不是全量人物/装备/动作目录。`validateAvatarPlan` 按以下边界 fail-closed（`AVATAR_PLAN_LIMITS`）：
+
+| 项 | 上界 |
+|---|---|
+| 序列化 `RenderNode.data`（compact JSON UTF-8） | **262,144 字节**（冻结协议上限） |
+| 单画布解码字节（`width×height×4`） | **12,582,912 字节**（`maxDecodedFrameBytes`，与缓存字节预算同源） |
+| 单帧全部画布解码字节合计 | **12,582,912 字节**（工作集策略，见 §6） |
+| `zOrder` 条目 | 64 |
+| `actions` 条数 | 32 |
+| 每动作帧数 | 128 |
+| 每帧 layer 数 | 32 |
+| 每 layer 锚点数 | 8 |
+| 画布边长 | ≤ 4096 像素 |
+| `delay` 绝对值 | ≤ 600,000 ms |
+| 动作名 / id / 锚点名 / namespace / key | 64 / 64 / 32 / 64 / 256 UTF-8 字节 |
+
+- 字节数用**有界测量器**（`measureCompactJsonBytes`）在超过预算时立刻中止，不会先拼出无界大字符串；
+- 同一 `(namespace, key, contentVersion)` 在计划内必须声明一致 的 `width/height`，否则拒绝——保证同一 ResourceKey 的尺寸校验结果处处一致；
+- `locomotionActions` 只接受 `stand` / `walk` / `jump`，且必须指向存在的动作。
+
+## 4. 锚点布局
+
+1. 身体画布 `origin` 放在 `(x, y)`；帧 `move` 只作用于当前帧，不累计。
+2. 后续画布按 `navel → neck → hand → brow → handMove` 优先级取第一个与已建立锚点表同名的锚点重合。
+3. 只登记尚不存在的新锚点（头通过 `neck` 对身体，并提供 `brow` 给脸/头发）。
+4. 带锚点但没有任何可匹配锚点的画布**跳过不画**，并在 `data-skipped-layers` 上给出 `layerId[needs=anchorA+anchorB]` 形式的可定位诊断。
+5. 全部定位后按 `zOrder` 反向（先背景后前景）绘制；`facing=left` 与帧 `flip` 异或后绕身体原点镜像整套合成结果（位置与像素内容同时翻转）。
+
+## 5. 动画与事件
+
+- 身体帧是时间轴；一帧中的所有 layer 一起切换。`delay` 取绝对值，缺失/为零表示停留。
+- `loop: true` 的多帧动作循环；`jump` 等非循环动作停在末帧直到 `locomotion` 改变。
+- `action` Render Event 只触发一次私有播放，不写 `attrs`、不进 retained data；播完自动回落到**当下**的 `locomotion`（播放期间的状态更新不会被旧状态覆盖）。播放中再次收到 `action` 事件则丢弃旧播放、从第 0 帧重启。
+- 事件不重放到新建/重连元素（由 Web Presentation API v1 的 transient 语义保证）。
+
+## 6. 资源生命周期与失败策略
+
+读取按 `(namespace, key, expectedContentVersion)` 进行，结果必须满足：返回 `contentVersion` 与请求完全一致；MIME essence 属于 `image/*`；解码尺寸与计划声明一致。
+
+**位图缓存（两层预算模型）**：
+
+- **可缓存层（LRU）**：已完成解码、当前没有绘制占用的位图。硬上限 = 64 条 **或** 12,582,912 解码字节（`BITMAP_CACHE_LIMITS`），任一先到即逐出最久未用者。每次完成插入都在返回前强制执行边界，因此该层**任何时候**（含并发加载期间）都不超限；条目在逐出时即从计数中移出，即使位图因绘制 pin 而延迟 close。
+- **工作集层**：正在解码或被一次绘制 pin 的位图，绝不中途逐出。由计划校验限界：每帧 ≤ 32 层、每帧解码字节 ≤ `maxDecodedFrameBytes`，因此工作集不会无界绕过预算，也不会永久超限。
+- 单张超过字节预算的画布在计划校验即拒绝（可定位错误）；防御路径下它只作为工作集使用、永不进入缓存。
+- `receiveRenderData` 接受新计划时，先释放旧计划不再引用的条目（计划驱动生命周期）；断开（`disconnectedCallback`）立即中止 in-flight 读取、停表、关闭并清空全部 `ImageBitmap`，重连按需重建。
+- `diagnostics()`（非 ABI）分层报告 `entries/bytes`（可缓存层）、`loading`、`pendingClose/pendingCloseBytes`，供容量与泄漏断言。
+
+**跨计划尺寸一致性**：缓存条目记录解码尺寸；同一 `(namespace, key, contentVersion)` 在后续计划中声明不同尺寸时，命中缓存即同步拒绝（`CONTENT_INVALID … declares WxH but the cached decode … is W'×H'`），错误进入该次绘制的错误处理，不会产生未处理 Promise，也不会把位图拉伸绘制。
+
+**过期绘制隔离**：每次绘制轮次有单调 `_paintEpoch`；动作/数据/断开产生的更新使旧轮次的异步结果作废，慢响应永远不会覆盖新动作的画面。`_paintFrame` 的取条目、等待与绘制全部在自身错误处理之内（含缓存命中的同步异常），`_requestPaint` 另有兜底 catch，任何拒绝都不会逃逸为未处理 Promise。
+
+**可定位诊断**（宿主属性）：
+
+| 属性 | 值 |
+|---|---|
+| `data-render-state` | `ready` / `error` / `invalid` |
+| `data-render-error` | 失败原因；资源类失败带错误码 + 完整逻辑标识，如 `CONTENT_CONFLICT resource.图/Look/00030000/default/0/hair (expected sha256:…)` |
+| `data-skipped-layers` | 锚点不可解析的画布，如 `detached[needs=foo+bar]` |
+| `data-action` / `data-frame` | 当前动作与帧 |
+
+Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样写入 `data-render-error`。单帧任一资源失败时整帧不做部分合成：画布清空并进入 `error`，纠正后的计划可恢复 `ready`。`diagnostics()`（非 ABI）暴露状态、帧号与缓存占用供测试与调优。
+
+## 7. 测试与验证
+
+| 套件 | 位置 | 可复现性 | 内容 |
+|---|---|---|---|
+| 算法（Node，21 例） | `node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs` | **可复现** | 计划校验、字节预算（compact 数据 / 单画布 / 帧合计）、锚点布局、镜像、打包一致性、presentation.json 正式校验（真实 `validateWebPresentationConfigV1` / `prepareWebPresentationV1`） |
+| 浏览器集成（真实 Chromium，合成 FSDB，13 例） | `node --test components/cms-actor/test/integration.chromium.test.mjs` | **可复现**（需 Chromium 与已构建的 pinned renderer dist） | 正式 `bootstrapWebPresentation()` 加载 classic 入口；`customElements.get("cms-actor")`；Projector 注入 Context/attrs/avatarPlan；`resource()` 收到正确 namespace/key/版本；Canvas 像素（锚点对齐、z 序、透明合成、镜像，DPR 1 与 2、含 `move` 轴）；`stand1`/`walk1`/`jump` 帧推进；一次性 `action` 播完恢复当前移动；快速切换动作；慢速资源不覆盖新动作；版本冲突与资源缺失的可定位诊断与恢复；断开取消 in-flight 并释放缓存、重连恢复；缓存容量上界；**超大单图与同帧多图在计划校验拒绝；32 资源并发突发期间可缓存层逐次采样不超限；跨计划尺寸冲突可定位拒绝且无未处理 Promise** |
+| 真实素材（真实 FSDB，3 例） | `node --test components/cms-actor/test/real-assets.local.test.mjs` | **仅本地**（无真实 FSDB 的 checkout 显式 skip 并给出原因） | 用本地合法取得的 079 WZ 转出的真实 FSDB（纸娃娃子集）重复同一闭环，并把转换结果与 Task 050/DESIGN 的逆向几何逐项对照。激活方式：`CMS_ACTOR_REAL_FSDB` 指向含 `[struct]Look/{00002000,00012000,00020000,00030000,01302000}.json`、`[struct]ZMap/order.json` 与 `[resource]图/` 的 FSDB 根 |
+
+浏览器集成测试使用**运行时生成的合成 PNG 和合成 FSDB**（`.work/cms-actor/[FSDB]cms/`，遵循 `content/DESIGN.md` 布局；`.work/` 已被根 `.gitignore` 忽略；身体几何取自逆向的 079 walk1 画布 27×32 / origin (19,32) / navel (-6,-20) / neck (-4,-32)），不包含任何原版游戏素材。测试把 `test/look-adapter.mjs` 当作游戏侧适配器参考实现：解析 UOL、按武器 `info` 决定移动后缀、部件缺动作不画、帧号钳制到身体时间轴。
+
+前置条件：
+
+- `loom-realm/` 子模块已 `npm install` 并构建 `@loomrealm/renderer`（dist）；如 staging 相关包过期，按其标准脚本重建（例如 `npm run build -w @loomrealm/session-events`）。
+- Chromium：`LOOMREALM_CHROMIUM_PATH` 指定可执行文件，或存在系统 Chrome/Chromium；否则 playwright 使用其下载的 Chromium（Linux 无 root 环境需自备系统库后通过 `LD_LIBRARY_PATH` 提供）。
+- PR-A 不修改根 `package.json` 与 CI 工作流；把组件套件纳入 GitHub CI 属于 PR-B 的维护者工作。
+
+本地快速预览（合成素材，非验收）：`python -m http.server 8000` 后打开 `components/cms-actor/preview/`。
+
+## 8. 三状态
+
+| # | 状态 | 结论 | 证据与可复现性 |
+|---|---|---|---|
+| 1 | 合成算法测试 | **通过**（21 例） | `avatar-model.test.mjs` + `browser-artifact.test.mjs`；PR-A 在 pin `9364819` 上复跑通过 |
+| 2 | LoomRealm 正式浏览器集成 | **通过**（13 例真实 Chromium，合成素材） | `integration.chromium.test.mjs`；PR-A 在 pin `9364819` 与真实 Chromium 上复跑通过；历史 PR #2 的旧 pin 证据仅作参考，不作为验收依据 |
+| 3 | 真实 CMS 079 素材验证 | **BLOCKED（本仓库无真实素材，显式 skip）** | `real-assets.local.test.mjs`；需持有合法 WZ 的使用者本地执行（`CMS_ACTOR_REAL_FSDB`）；历史 PR #2 曾在 Agent 本机通过（纸娃娃子集），该结论**不可**在本仓库复现，须在新的确认样本上重跑；装备遮挡、表情独立计时、全量 16 包转换仍属后续任务 |
+
+## 9. 后续集成顺序
+
+0. **PR-B（本 Issue 之后的新 Issue/新 PR）**：根 `presentation.json` 注册、严格白名单合成 Content 发布、真实 PWA/Service Worker/Renderer 投影与根 CI 更新（`.github/**` 仅由维护者处理）。
+1. 装备 `islot/vslot` 遮挡（接入 `struct.SMap/smap`，真实表驱动；不在组件里按文件名猜槽位）。
+2. 表情独立计时（`blink` 等与身体分开的帧钟）与更多肤色后缀、ladder/rope 的 backHead 路径。
+3. 扩大真实白名单动作（更多 `swing*`/`stab*`/技能引用动作）与多件装备组合验证。
+4. 全量 16 包转换与 FSDB Integrity-valid（属 WZ→FSDB 转换器的未竟事项）。
+5. 技能 `effect` 层、残影与声音（按 DESIGN 不在本组件内）。

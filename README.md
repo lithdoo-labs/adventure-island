@@ -10,7 +10,7 @@
 
 ## PWA / Hostra 工程参考
 
-平台入口以 LoomRealm 固定版本中的 [PokeMan 示例](https://github.com/lithdoo/loom-realm/tree/c5217e47be5a43f974e9e6ce82230077fb639c39/examples/PokeMan) 为结构参考，重点复用其 Game Package 与平台启动边界，而不是复制其玩法：
+平台入口以 LoomRealm 固定版本的 Game Package 与平台启动边界为准；新版框架使用 [通用 PWA Builder](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/apps/pwa/scripts/build-bundle.mjs)，不再依赖已迁出的 `examples/PokeMan/` 目录，也不复制 PokeMan 玩法：
 
 - `game.json`：声明 Game Package 的初始 Subsystem 和输入。
 - `launch.pwa.json` / `launch.hostra.json`：分别描述平台安装根中的模块入口。
@@ -18,7 +18,7 @@
 - `presentation.json`、`presentation/`：呈现资源入口。
 - `package.json`、`test/`：依赖、构建和测试边界。
 
-Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定版本的 Git Submodule 依赖。当前 Submodule gitlink 为 `c5217e47be5a43f974e9e6ce82230077fb639c39`，未经单独依赖升级任务不得修改。
+Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定版本的 Git Submodule 依赖。当前 Submodule gitlink 为 `93648192323bf5f57996b7b54cbae641d8a53fdb`，未经单独依赖升级任务不得修改。
 
 ## 正式工程目录
 
@@ -60,3 +60,21 @@ Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定�
 ## GitHub Issue Agent
 
 本仓库支持 Issue 驱动的 OpenCode 2 本地 Runner。操作方式、权限边界、Session 持久化和故障恢复见 [docs/issue-agent.md](./docs/issue-agent.md)。Agent 生成的 PR 必须人工审核，不自动合并。
+
+## 本地 PWA Staging 与独立 CI
+
+根目录 `npm run pwa:bundle` 使用 Adventure Island 的 canonical Game Entry 创建无外部资源的 Smoke installation-bundle；`npm run pwa:staging` 在检查精确 Gitlink、真实通用 Builder 和编译依赖后，生成 `dist/staging/adventure-island/`。该目录只是本地构建产物，**不是线上服务**。升级后首次验证可执行：
+
+```bash
+npm ci --prefix loom-realm
+npm run pwa:bundle
+npm run build:bundle --prefix loom-realm --workspace @loomrealm/pwa -- \
+  --bundle "$PWD/dist/adventure-island-installation-bundle.json" \
+  --app-id adventure-island --base-path /pwa/adventure-island/ \
+  --output-dir "$PWD/dist/staging/adventure-island"
+npm run build --prefix loom-realm --workspace @loomrealm/game-launcher-hostra
+npm test
+npm run pwa:staging
+```
+
+`.github/workflows/pwa-ci.yml` 在 GitHub-hosted Runner 中独立编译 LoomRealm，强制执行无跳过的根测试、真实 staging 及 Chromium/Service Worker Smoke E2E。构建与部署必须分离；本阶段不启动 Docker、生产端口或 Pokeman 服务。详见 [Game Entry 与 PWA Bundle](./docs/game-entry.md)。

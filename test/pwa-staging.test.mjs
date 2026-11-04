@@ -171,22 +171,28 @@ const symlinkSupport = await (async () => {
 // Fail-closed behavior on the currently pinned LoomRealm
 // ---------------------------------------------------------------------------
 
-test("staging fails closed on the pinned LoomRealm without the generic builder", async () => {
+test("staging preflight matches the checked-out framework capability", async () => {
+  const usage = runCli(["--output-dir", "/tmp/evil"]);
+  assert.notEqual(usage.status, 0);
+  assert.ok(usage.stderr.includes("Usage: node scripts/pwa/build-staging.mjs"));
+
+  // A generic-builder-capable pin must not be treated as an absent builder.
+  // Its real success path is asserted by the explicit integration test below.
+  const genericBuilderAvailable = await access(new URL("loom-realm/apps/pwa/scripts/build-bundle.mjs", repoRoot))
+    .then(() => true, () => false);
+  if (genericBuilderAvailable) return;
+
+  // On the historical Gitlink without the generic builder, fail closed.
   await assert.rejects(
     () => buildAdventureIslandPwaStaging(),
     /does not contain the generic PWA builder.*93648192323bf5f57996b7b54cbae641d8a53fdb/s,
   );
-
   const run = runCli([]);
-  assert.notEqual(run.status, 0, "the staging CLI must exit non-zero on the old Gitlink");
+  assert.notEqual(run.status, 0, "the staging CLI must exit non-zero without the generic builder");
   assert.match(run.stderr, /does not contain the generic PWA builder/);
   assert.match(run.stderr, /never upgrades or downloads the submodule itself/);
   assert.doesNotMatch(run.stdout, /Prepared Adventure Island PWA staging/);
-  await assert.rejects(access(path.join(repoRootPath, "dist", "staging")), /ENOENT/, "no fake PWA directory may be created");
-
-  const usage = runCli(["--output-dir", "/tmp/evil"]);
-  assert.notEqual(usage.status, 0);
-  assert.match(usage.stderr, /Usage: node scripts\/pwa\/build-staging\.mjs/);
+  await assert.rejects(access(path.join(repoRootPath, "dist", "staging")), /ENOENT/);
 });
 
 // ---------------------------------------------------------------------------

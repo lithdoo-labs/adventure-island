@@ -2,6 +2,7 @@
 
 > 验证类型：本地只读验证 + 既有测试执行。除本报告外未修改、未新增任何文件；未执行 git commit / push / gh 发布操作。
 > 验证对象：`main` 在 PR #37（仓库重构）与 PR #36（LoomRealm 空应用脚手架）合并后的实际结果。
+> 结果总计：**26 项编号检查（P1–P4、A1–A7、B1–B5、C1–C5、D1–D5）全部 PASS，0 FAIL、0 BLOCKED**。测试用例数单列、不并入上述计数：Issue Agent 单元测试 15 例、研究脚本语法检查 100 例、LoomRealm smoke 测试 9 例，全部通过（分见 §5 C4/C5、§6 D4）。
 
 ## 1. Runner 环境信息
 
@@ -14,7 +15,7 @@
 | Node / npm | v22.23.4 / 10.9.9（满足 `systems/loomrealm-smoke` 的 `engines.node >= 20`） |
 | Python | 3.11.2 |
 | Git | 2.39.5 |
-| 验证基线 | HEAD `38f28c0238eb65292176555aa3c9363705a02301`（detached，工作树干净），即 PR #36 的 squash 合并提交，且经 API 确认为 `origin/main` 当前 tip |
+| 验证基线 | HEAD `38f28c0238eb65292176555aa3c9363705a02301`（detached，工作树干净），即 PR #36 的**普通合并提交**（非 squash：两个 parent 为 `06cfc8af0c2ac3811f9f6ad6c36b6b43be50357b`＝PR #37 的合并提交、`0de91a913c5edc04ed811df2c30eed14ebefd2a5`＝PR #36 head；committer 为 GitHub），且经 API 确认为 `origin/main` 当前 tip |
 | Submodule | `loom-realm` 已初始化于 `c5217e47be5a43f974e9e6ce82230077fb639c39`，packages 已构建（各 `dist/` 存在），因此 smoke 深层用例启用 |
 | 本地样本 | `.raw/`、`.work/` 在本 Runner 上不存在，全程未访问、未复制 |
 
@@ -25,7 +26,7 @@ GitHub 状态检查通过匿名只读 REST API（`api.github.com`）完成，未
 | # | 条件 | 结果 | 证据 |
 |---|---|---|---|
 | P1 | PR #37 已合并 | **PASS** | API：`merged=true`，`merged_at=2026-11-04T03:33:45Z`，标题 `refactor: isolate CMS079 research archive under research/`，base `main` |
-| P2 | PR #36 已合并 | **PASS** | API：`merged=true`，`merged_at=2026-11-04T03:34:30Z`，`merge_commit_sha=38f28c0…` 与本地 HEAD 完全一致 |
+| P2 | PR #36 已合并 | **PASS** | API：`merged=true`，`merged_at=2026-11-04T03:34:30Z`，`merge_commit_sha=38f28c0…` 与本地 HEAD 完全一致；`git rev-list --parents` 与 API 均确认该提交有两个 parent（PR #37 合并提交 `06cfc8a…` 与 PR #36 head `0de91a9…`），为普通 merge commit |
 | P3 | 报告路径为 `research/result/loomrealm-empty-app.md`，根目录 `result/` 未重建 | **PASS** | 文件存在（17,288 字节）；根目录无 `result/`；PR #36 变更清单（13 个文件）仅含 `research/result/loomrealm-empty-app.md`，无任何根 `result/` 路径 |
 | P4 | `loom-realm` gitlink 仍为 `c5217e47be5a43f974e9e6ce82230077fb639c39` | **PASS** | `git ls-tree HEAD loom-realm` → `160000 commit c5217e47…`；`git submodule status` 前缀为空格（checkout 精确一致）；PR #37/#36 变更清单均不含 `loom-realm` |
 
@@ -119,6 +120,14 @@ GitHub 状态检查通过匿名只读 REST API（`api.github.com`）完成，未
 | `python3`（内存内 `compile()` 语法检查 `research/` 全部 100 个 `.py`，不写 `__pycache__`） | **0**（failed=0） |
 | `npm test --prefix systems/loomrealm-smoke` | **0**（9 pass / 0 fail / 0 skipped） |
 | `node --input-type=module -e "…"`（smoke Subsystem 三路导入 + 单帧完成检查） | **0**（ONE_FRAME_CHECK=PASS） |
+| `git rev-list --parents -n 1 38f28c0…` / `curl …/commits/38f28c0…` / `curl …/pulls/36` / `curl …/pulls/37`（Turn 2 复核合并方式：确认两个 parent，普通 merge commit） | 0 |
 | `uname -a` / `node --version` / `npm --version` / `python3 --version` / `git --version` | 0 |
 
 > 未执行：任何研究分析脚本、部署/发布命令、依赖真实素材的构建、`git push` / `git commit` / `gh`。`scripts/issue_agent/__pycache__` 为 CI 同款命令产生的未跟踪且被 `.gitignore` 忽略的缓存，不会进入提交。
+
+## 修订记录
+
+| 轮次 | 修订内容 |
+|---|---|
+| Turn 1（2026-11-04） | 初版报告：前置条件、A–D 四组验证、验收标准对照、后续建议、命令附录。 |
+| Turn 2（2026-11-04，Issue 反馈） | 仅修订本报告两处澄清，未改动其他文件、未重跑任何访问本地样本的任务：① §1「验证基线」与 §2 P2 更正合并方式描述——`38f28c0…` 为普通 merge commit（两个 parent：PR #37 合并提交 `06cfc8a…`、PR #36 head `0de91a9…`），此前误写为 squash 合并提交；已全文复查，无其他合并方式误述。② 明确检查计数：编号检查项共 26 项（P1–P4、A1–A7、B1–B5、C1–C5、D1–D5），此前回帖中的「30 项」系将 26 项检查与 15/100/9 三组测试用例数混算所致；现于报告首部单独列示，避免重复计数。复核用的只读命令已补入附录。 |

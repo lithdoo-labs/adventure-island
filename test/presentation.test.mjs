@@ -1,0 +1,178 @@
+// Headless validation for the canonical root presentation manifest
+// (PWA migration 3A).
+//
+// Deterministic base layer: presentation.json is a valid Web Presentation
+// Config V1 as allowed by the pinned loom-realm submodule
+// (c5217e47be5a43f974e9e6ce82230077fb639c39,
+// packages/renderer/src/internal/web-presentation-config.ts,
+// validateWebPresentationConfigV1): an exact
+// { formatVersion, scripts, styles } object whose entries are exact
+// { namespace, key } Content resource references. The empty smoke application
+// declares no styles and no scripts, so it references no Pokeman or CMS079
+// resource.
+//
+// Optional deep layer (auto-enabled when the checked-out loom-realm submodule
+// has been built): the real pinned validator accepts the document.
+
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const repoRoot = new URL("../", import.meta.url);
+const loomRealmRoot = new URL("loom-realm/", repoRoot);
+
+const EXPECTED_PRESENTATION = Object.freeze({
+  formatVersion: 1,
+  styles: Object.freeze([]),
+  scripts: Object.freeze([]),
+});
+
+const readText = (url) => readFile(url, "utf8");
+
+// ---------------------------------------------------------------------------
+// Structural validation mirroring the pinned LoomRealm rules
+// ---------------------------------------------------------------------------
+
+function exactObjectKeys(value, expected, label) {
+  assert.ok(
+    value !== null && typeof value === "object" && !Array.isArray(value),
+    `${label} must be an object`,
+  );
+  assert.deepEqual(
+    Object.keys(value).sort(),
+    [...expected].sort(),
+    `${label} has an invalid shape`,
+  );
+  return value;
+}
+
+/** Mirrors segment() (renderer/src/internal/web-presentation-config.ts). */
+function validSegment(value, hierarchy) {
+  if (typeof value !== "string" || value.length === 0 || value === "." || value === "..") return false;
+  if (/[\\\0]|\p{Cc}|\p{Cs}/u.test(value)) return false;
+  if (!hierarchy && value.includes("/")) return false;
+  if (value.startsWith("/") || value.endsWith("/")) return false;
+  if (value.split("/").some((part) => part.length === 0 || part === "." || part === "..")) return false;
+  if (/^[A-Za-z]:/.test(value) || value.startsWith("\\\\")) return false;
+  if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(value)) return false;
+  return true;
+}
+
+/** Mirrors refs() + validateWebPresentationConfigV1. */
+function validatePresentationStructural(text, label) {
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (cause) {
+    assert.fail(`${label}: not valid JSON (${cause.message})`);
+  }
+  const record = exactObjectKeys(value, ["formatVersion", "scripts", "styles"], `${label}: Web Presentation Config`);
+  assert.equal(record.formatVersion, 1, `${label}: unsupported Web Presentation Config formatVersion`);
+
+  const normalize = (list, listLabel) => {
+    assert.ok(Array.isArray(list), `${label}: ${listLabel} must be an array`);
+    const seen = new Set();
+    return Object.freeze(list.map((candidate, index) => {
+      const ref = exactObjectKeys(candidate, ["namespace", "key"], `${label}: ${listLabel}[${index}]`);
+      assert.ok(validSegment(ref.namespace, false), `${label}: invalid ${listLabel}[${index}] namespace`);
+      assert.ok(validSegment(ref.key, true), `${label}: invalid ${listLabel}[${index}] key`);
+      const identity = JSON.stringify([ref.namespace, ref.key]);
+      assert.ok(!seen.has(identity), `${label}: duplicate ${listLabel} resource`);
+      seen.add(identity);
+      return Object.freeze({ namespace: ref.namespace, key: ref.key });
+    }));
+  };
+  return Object.freeze({
+    formatVersion: 1,
+    styles: normalize(record.styles, "styles"),
+    scripts: normalize(record.scripts, "scripts"),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic base validation
+// ---------------------------------------------------------------------------
+
+test("the root presentation manifest is a valid empty Web Presentation Config V1", async () => {
+  const presentation = validatePresentationStructural(
+    await readText(new URL("presentation.json", repoRoot)),
+    "presentation.json (root)",
+  );
+  assert.deepEqual(presentation, EXPECTED_PRESENTATION);
+  assert.equal(presentation.styles.length, 0, "the empty application declares no styles");
+  assert.equal(presentation.scripts.length, 0, "the empty application declares no scripts");
+});
+
+test("the mirrored Web Presentation Config rules reject malformed documents", () => {
+  // Calibrate the mirror above against representative invalid documents so a
+  // future drift of the pinned validator surfaces as a failing assertion.
+  const valid = JSON.stringify({
+    formatVersion: 1,
+    styles: [{ namespace: "Presentation", key: "page.css" }],
+    scripts: [{ namespace: "Presentation", key: "ui/page.browser.js" }],
+  });
+  assert.deepEqual(
+    validatePresentationStructural(valid, "calibration"),
+    { formatVersion: 1, styles: [{ namespace: "Presentation", key: "page.css" }], scripts: [{ namespace: "Presentation", key: "ui/page.browser.js" }] },
+  );
+
+  const invalid = new Map([
+    ["unsupported formatVersion", JSON.stringify({ formatVersion: 2, styles: [], scripts: [] })],
+    ["unknown top-level key", JSON.stringify({ formatVersion: 1, styles: [], scripts: [], extra: 1 })],
+    ["missing top-level key", JSON.stringify({ formatVersion: 1, styles: [] })],
+    ["styles is not an array", JSON.stringify({ formatVersion: 1, styles: {}, scripts: [] })],
+    ["ref with extra field", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P", key: "a.css", mime: "text/css" }], scripts: [] })],
+    ["namespace with hierarchy", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P/x", key: "a.css" }], scripts: [] })],
+    ["key with traversal segment", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P", key: "../a.css" }], scripts: [] })],
+    ["absolute key", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P", key: "/a.css" }], scripts: [] })],
+    ["scheme-like namespace", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "https:", key: "a.css" }], scripts: [] })],
+    ["duplicate resource", JSON.stringify({
+      formatVersion: 1,
+      styles: [
+        { namespace: "Presentation", key: "a.css" },
+        { namespace: "Presentation", key: "a.css" },
+      ],
+      scripts: [],
+    })],
+  ]);
+  for (const [label, document] of invalid) {
+    assert.throws(
+      () => validatePresentationStructural(document, label),
+      { name: "AssertionError" },
+      `mirror must reject: ${label}`,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Optional deep validation through the real pinned LoomRealm APIs
+// ---------------------------------------------------------------------------
+
+async function tryImportLoomRealmPackage(packagePath) {
+  try {
+    return await import(new URL(packagePath, loomRealmRoot).href);
+  } catch {
+    // The submodule is either not built or its workspace dependencies are not
+    // installed. The deterministic base layer above still fully applies.
+    return null;
+  }
+}
+
+// validateWebPresentationConfigV1 is an internal module of @loomrealm/renderer
+// (not re-exported by the package index), so it is imported from its dist
+// file, the same way the smoke suite imports the Hostra manifest parser.
+const rendererConfig = await tryImportLoomRealmPackage("packages/renderer/dist/internal/web-presentation-config.js");
+
+test("the built LoomRealm renderer validator accepts the root presentation manifest", {
+  skip: !rendererConfig && "loom-realm packages are not built; run `npm install && npm run build:packages` inside loom-realm/ to enable deep validation",
+}, async () => {
+  const presentation = JSON.parse(await readText(new URL("presentation.json", repoRoot)));
+  assert.deepEqual(
+    rendererConfig.validateWebPresentationConfigV1(presentation),
+    EXPECTED_PRESENTATION,
+  );
+  assert.throws(
+    () => rendererConfig.validateWebPresentationConfigV1({ formatVersion: 1, styles: [], scripts: [] , extra: true }),
+    TypeError,
+  );
+});

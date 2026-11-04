@@ -37,7 +37,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -317,65 +317,158 @@ async function pathFacts(target) {
 }
 
 /**
+ * Splits the (already rebased) parent directory into trusted path segments
+ * relative to a realpath'd anchor. Defensive: the caller guarantees the
+ * parent is lexically inside the anchor, so any `..` here is an internal
+ * error and fails closed.
+ */
+function trustedParentSegments(anchorReal, rebasedParent, destination) {
+  const chain = relative(anchorReal, rebasedParent);
+  if (chain === "") return [];
+  if (chain.startsWith("..") || isAbsolute(chain)) {
+    throw new Error(`internal error: output parent escapes its anchor (fail closed): ${destination}`);
+  }
+  const segments = chain.split(sep);
+  if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+    throw new Error(`internal error: untrusted parent segment (fail closed): ${destination}`);
+  }
+  return segments;
+}
+
+/**
+ * Validates the existing parent chain segment by segment and creates missing
+ * directories ONE level at a time with non-recursive mkdir — never
+ * mkdir({recursive:true}) followed by a safety verdict. Every existing
+ * segment must be a real directory: ANY symlink in the parent chain is
+ * rejected before a deeper directory can be created through it, so a
+ * rejected build leaves the filesystem untouched. The pre-mkdir re-check of
+ * the immediate parent narrows (but cannot eliminate — no dirfd in Node)
+ * the window for a concurrent swap of an already-validated directory.
+ */
+async function ensureTrustedParentDirectory(anchorReal, segments, destination) {
+  let current = anchorReal;
+  for (const segment of segments) {
+    const child = join(current, segment);
+    let facts = await pathFacts(child);
+    if (facts === null) {
+      const parentFacts = await pathFacts(current);
+      if (parentFacts === null || !parentFacts.isDirectory()) {
+        throw new Error(`parent chain changed during the build (fail closed): ${current}`);
+      }
+      try {
+        await mkdir(child);
+      } catch (cause) {
+        if (cause?.code !== "EEXIST") throw cause;
+        facts = await pathFacts(child);
+        if (facts === null || !facts.isDirectory()) {
+          throw new Error(`refusing to traverse a non-directory parent created concurrently (fail closed): ${child}`);
+        }
+      }
+    } else if (facts.isSymbolicLink()) {
+      throw new Error(`refusing to traverse a symlink parent directory: ${child}`);
+    } else if (!facts.isDirectory()) {
+      throw new Error(`parent path component is not a directory: ${child}`);
+    }
+    current = child;
+  }
+  return current;
+}
+
+/** Re-walks the trusted chain in verify-only mode (no creation). */
+async function assertChainStillTrusted(anchorReal, segments, destination) {
+  let current = anchorReal;
+  for (const segment of segments) {
+    current = join(current, segment);
+    const facts = await pathFacts(current);
+    if (facts === null || !facts.isDirectory()) {
+      throw new Error(`parent chain changed during the build (fail closed): ${destination}`);
+    }
+  }
+  return current;
+}
+
+/**
  * Validates the output location and publishes the artifact atomically.
  *
  * Threat model (see docs/game-entry.md §5): the builder defends against
  * filesystem entries it did not create — a destination that is (or becomes) a
- * symlink, and symlinked/`..` parents that redirect the write out of the
- * allowed roots (<repo>/dist/ or the system temp directory) into protected
- * trees (research/**, glm-work/**, task/**, loom-realm/**, .github/**, …) or
- * Git-tracked files. Validation and publication are deliberately combined:
+ * symlink, and symlinked parents that redirect the write out of the allowed
+ * roots (<repo>/dist/ or the system temp directory) into protected trees
+ * (research/**, glm-work/**, task/**, loom-realm/**, .github/**, …) or onto
+ * Git-tracked files. Rejections must happen BEFORE any filesystem mutation:
  *
- *   1. Lexical gate (before touching the filesystem): the destination must be
- *      inside <repo>/dist/ or the system temp directory, must not lexically
- *      sit in a protected tree, and must not be a Git-tracked file.
- *   2. The destination entry itself must be a regular file or not exist —
- *      symlinks (including dangling ones) and directories are rejected.
- *   3. The parent chain is materialized and then resolved via realpath; the
- *      RESOLVED location must stay within the allowed root chosen lexically
- *      (a dist target must resolve back inside the literal dist subtree; a
- *      temp target must resolve back inside the system temp directory), must
- *      not land in a protected tree, and must not resolve onto a Git-tracked
- *      file. This closes parent-symlink redirection; an unresolvable parent
- *      (e.g. a dangling dist symlink) fails closed with the raw fs error.
- *   4. Publication writes an exclusive temporary file (open flag "wx" =
- *      O_CREAT|O_EXCL, so the temp entry itself can never be a followed
- *      symlink) in the validated real directory, re-validates the parent and
- *      destination entry, then rename(2)s it into place. rename replaces the
- *      destination directory entry itself and does not follow symlinks, so a
- *      symlink swapped in after the final check is replaced, never written
- *      through. Rebuilding over an existing regular artifact stays legal and
- *      byte-deterministic.
+ *   1. Lexical gate (zero fs access): inside <repo>/dist/ or the system temp
+ *      directory; not in a protected tree; not Git-tracked.
+ *   2. The destination entry itself must be a regular file or absent —
+ *      symlinks (including dangling) and directories are rejected (lstat,
+ *      no following).
+ *   3. The destination is rebased onto a realpath'd anchor and the parent
+ *      chain is walked segment by segment: existing segments must be real
+ *      directories (ANY symlink parent is rejected — including a symlinked
+ *      dist root — before a deeper directory could be created through it);
+ *      missing segments are created one level at a time with non-recursive
+ *      mkdir, re-validating each level. A missing dist/ is created on demand
+ *      in a clean checkout; temp targets never require dist/ to exist.
+ *   4. The resolved parent must satisfy realpath identity (proving no
+ *      hidden symlinks), stay within the lexically chosen allowed root, out
+ *      of protected trees, and off Git-tracked files.
+ *   5. Publication writes an exclusive temporary file (flag "wx" =
+ *      O_CREAT|O_EXCL — the temp entry itself can never be a followed
+ *      symlink) in the validated real directory, re-walks the chain in
+ *      verify-only mode, re-checks the destination entry, then rename(2)s
+ *      into place. rename replaces the destination directory entry itself
+ *      and never follows symlinks, so a symlink swapped in after the final
+ *      check is replaced, not written through. Rebuilding an existing
+ *      regular artifact stays legal and byte-deterministic.
  *
  * Residual limitation, stated honestly: Node offers no renameat/dirfd
- * primitives, so a concurrent attacker that swaps a parent directory between
- * the final realpath re-check and the rename can still redirect the write.
- * The re-validation narrows that window and every observable anomaly fails
- * closed, but this tool does not claim to defeat a racing writer with the
- * same filesystem permissions — that is out of scope for a build tool and
- * matches the upstream PokeMan/LoomRealm builders' guarantees.
+ * primitives, so a concurrent attacker that swaps an already-validated
+ * directory for a symlink between validation and the rename can still
+ * redirect the write. The pre-mkdir parent re-check and the verify-only
+ * re-walk narrow the windows and every observable anomaly fails closed, but
+ * this tool does not claim to defeat a racing writer with the same
+ * filesystem permissions — that is out of scope for a build tool and matches
+ * the upstream PokeMan/LoomRealm builders' guarantees.
  */
 async function writeBundleSafely(destination, gameRoot, data) {
-  const distRoot = join(gameRoot, "dist");
-  const canonicalTmp = await realpath(tmpdir());
+  // Phase A — pure lexical validation, zero filesystem mutation.
+  const gameReal = await realpath(gameRoot);
+  const distRootLexical = join(gameRoot, "dist");
+  const tmpLexical = tmpdir();
+  const canonicalTmp = await realpath(tmpLexical);
 
-  // 1. Lexical gate — decide before creating anything.
-  const lexicallyInDist = insideDirectory(distRoot, destination);
-  const lexicallyInTmp = insideDirectory(canonicalTmp, destination);
+  const lexicallyInDist = insideDirectory(distRootLexical, destination);
+  const lexicallyInTmp = insideDirectory(tmpLexical, destination) || insideDirectory(canonicalTmp, destination);
   if (!lexicallyInDist && !lexicallyInTmp) {
     throw new Error(`refusing to write outside <repo>/dist/ or the system temp directory: ${destination}`);
   }
-  const relativeToRepo = relative(gameRoot, destination).replaceAll("\\", "/");
-  if (OUTPUT_DENYLIST.some((pattern) => pattern.test(relativeToRepo))) {
+  const lexicalRelative = relative(gameRoot, destination).replaceAll("\\", "/");
+  if (OUTPUT_DENYLIST.some((pattern) => pattern.test(lexicalRelative))) {
     throw new Error(`refusing to write into a protected tree: ${destination}`);
   }
   if (gitTracked(gameRoot, destination)) {
     throw new Error(`refusing to overwrite a Git-tracked file: ${destination}`);
   }
 
-  // 2. The destination entry must not be a symlink (dangling included) or a
-  //    directory. lstat does not follow, so this observes the entry itself.
-  const entryFacts = await pathFacts(destination);
+  // Rebase onto the realpath'd anchor of the chosen branch so that no
+  // symlink inside the game root's or tmpdir's own path is ever traversed.
+  let anchorReal;
+  let anchorForRelative;
+  if (lexicallyInDist) {
+    anchorReal = gameReal;
+    anchorForRelative = gameRoot;
+  } else if (insideDirectory(tmpLexical, destination)) {
+    anchorReal = canonicalTmp;
+    anchorForRelative = tmpLexical;
+  } else {
+    anchorReal = canonicalTmp;
+    anchorForRelative = canonicalTmp;
+  }
+  const rebased = join(anchorReal, relative(anchorForRelative, destination));
+  const parentSegments = trustedParentSegments(anchorReal, dirname(rebased), destination);
+
+  // Phase B — the destination entry itself must be a regular file or absent.
+  const entryFacts = await pathFacts(rebased);
   if (entryFacts !== null) {
     if (entryFacts.isSymbolicLink()) {
       throw new Error(`refusing to write through a symlink destination: ${destination}`);
@@ -385,36 +478,27 @@ async function writeBundleSafely(destination, gameRoot, data) {
     }
   }
 
-  // 3. Materialize the parent chain, then validate the RESOLVED location.
-  //    A missing dist/ is created on demand here; temp-dir targets never
-  //    require dist/ to exist (realpath(distRoot) below tolerates ENOENT).
-  await mkdir(dirname(destination), { recursive: true });
-  const gameReal = await realpath(gameRoot);
-  const realParent = await realpath(dirname(destination));
-  const resolved = join(realParent, basename(destination));
+  // Phase C — segment-wise parent validation and creation; rejections
+  // happen before any directory is created.
+  const parent = await ensureTrustedParentDirectory(anchorReal, parentSegments, destination);
 
+  // Phase D — resolved-path re-validation (defense in depth).
+  const expectedParent = dirname(rebased);
+  if ((await realpath(parent).catch(() => null)) !== expectedParent) {
+    throw new Error(`parent chain failed realpath identity (fail closed): ${destination}`);
+  }
+  const resolved = join(parent, basename(rebased));
   if (lexicallyInDist) {
-    const realDist = await realpath(distRoot).catch((cause) => {
-      if (cause?.code === "ENOENT") return null;
-      throw cause;
-    });
     const resolvedRelative = relative(gameReal, resolved).replaceAll("\\", "/");
-    const staysInDist = realDist !== null && insideDirectory(realDist, resolved)
-      && resolvedRelative.split("/")[0] === "dist";
-    if (!staysInDist) {
+    if (!insideDirectory(join(gameReal, "dist"), resolved) || resolvedRelative.split("/")[0] !== "dist") {
       throw new Error(`refusing to write outside <repo>/dist/ (symlinked parent redirects the write): ${destination}`);
     }
   } else if (!insideDirectory(canonicalTmp, resolved)) {
     throw new Error(`refusing to write outside the system temp directory (symlinked parent redirects the write): ${destination}`);
   }
-
-  // The resolved location inside the game tree must also stay out of every
-  // protected tree and off Git-tracked files, whichever allowed root was
-  // used (this also covers a TMPDIR placed inside the repository).
-  const resolvedRelativeTree = relative(gameReal, resolved);
-  const resolvedInsideTree = !resolvedRelativeTree.startsWith("..") && !isAbsolute(resolvedRelativeTree);
-  if (resolvedInsideTree) {
-    const normalized = resolvedRelativeTree.replaceAll("\\", "/");
+  const resolvedTree = relative(gameReal, resolved);
+  if (!resolvedTree.startsWith("..") && !isAbsolute(resolvedTree)) {
+    const normalized = resolvedTree.replaceAll("\\", "/");
     if (OUTPUT_DENYLIST.some((pattern) => pattern.test(normalized))) {
       throw new Error(`refusing to write into a protected tree (resolved): ${destination}`);
     }
@@ -423,22 +507,19 @@ async function writeBundleSafely(destination, gameRoot, data) {
     }
   }
 
-  // 4. Atomic, symlink-free publication via an exclusive same-directory
-  //    temporary file and rename. rename(2) replaces the destination entry
-  //    itself, so a symlink swapped in after the last check is destroyed,
-  //    never followed.
-  const temp = join(realParent, `.${basename(destination)}.tmp-${process.pid}-${randomBytes(6).toString("hex")}`);
+  // Phase E — atomic, symlink-free publication.
+  const temp = join(parent, `.${basename(rebased)}.tmp-${process.pid}-${randomBytes(6).toString("hex")}`);
   try {
     await writeFile(temp, data, { encoding: "utf8", flag: "wx" });
-    const parentNow = await realpath(dirname(destination)).catch(() => null);
-    if (parentNow !== realParent) {
+    const lateParent = await assertChainStillTrusted(anchorReal, parentSegments, destination);
+    if (lateParent !== parent || (await realpath(parent).catch(() => null)) !== parent) {
       throw new Error(`parent directory of the output changed during the build (fail closed): ${destination}`);
     }
-    const lateFacts = await pathFacts(destination);
+    const lateFacts = await pathFacts(rebased);
     if (lateFacts !== null && (lateFacts.isSymbolicLink() || lateFacts.isDirectory())) {
       throw new Error(`refusing to write through a symlink or directory destination: ${destination}`);
     }
-    await rename(temp, destination);
+    await rename(temp, rebased);
   } catch (cause) {
     await rm(temp, { force: true }).catch(() => {});
     throw cause;

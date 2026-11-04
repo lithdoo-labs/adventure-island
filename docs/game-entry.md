@@ -120,19 +120,25 @@ executable 的导入图有硬性约束：只接受相对导入，且整张导入
   executable 输入时被直接拒绝。
 - **确定性**：紧凑 JSON + 换行，无时间戳/路径字段；同输入重复运行字节一致。
 - **写出约束与路径安全**：`--output` 必填，目标必须位于 `<repo>/dist/` 或系统临时
-  目录；目标自身不得是 symlink（含悬空）或目录；父目录经 `realpath` 解析后必须仍
-  落在词法上选定的允许根内（dist 目标必须解析回字面 `dist/` 子树，临时目录目标
-  必须解析回系统临时目录内），解析后的位置不得落入保护树（`research/**`、
-  `glm-work/**`、`task/**`、`loom-realm/**`、`.github/**` 等）或 Git 追踪文件。
-  产物通过**同目录独占临时文件（`wx`＝`O_CREAT|O_EXCL`）+ `rename` 原子替换**写
-  出：`rename(2)` 只替换目标目录项、不跟随 symlink，因此不会写穿任何预置或中途
-  置换的 symlink；重复构建已存在的普通产物合法且字节确定。
+  目录；目标自身不得是 symlink（含悬空）或目录；**父目录链逐段验证**——任何已存在
+  的中间目录（含 `dist/` 根自身）都不得是 symlink，缺失的父目录只沿已验证的可信链
+  **逐级非递归 `mkdir`** 创建（绝不先 `mkdir({recursive:true})` 再判断），因此所有
+  拒绝都发生在任何越界目录创建之前，被拒绝的构建对文件系统零副作用（测试用
+  隔离 fixture 的完整目录树快照 + sentinel 字节 + 临时文件残留扫描证明）。解析后
+  的最终位置必须仍落在词法选定的允许根内（dist 目标必须解析回字面 `dist/` 子树、
+  临时目录目标必须解析回系统临时目录），且不落入保护树
+  （`research/**`、`glm-work/**`、`task/**`、`loom-realm/**`、`.github/**` 等）、
+  不覆盖 Git 追踪文件。产物通过**同目录独占临时文件（`wx`＝`O_CREAT|O_EXCL`）+
+  `rename` 原子替换**写出：`rename(2)` 只替换目标目录项、不跟随 symlink，因此不会
+  写穿任何预置或中途置换的 symlink；重复构建已存在的普通产物合法且字节确定
+  （两次生成 SHA-256 一致）。
   **威胁模型与边界（如实界定）**：防护对象是"构建开始前已存在的恶意 symlink /
-  越界父目录 / 追踪文件"与"构建期间可观测的重定向"（发现即 fail closed，
-  `dist/` 缺失时按需创建，不影响临时目录目标）。对 rename 瞬间被并发进程置换
-  父目录的 TOCTOU 竞态，Node 无 `renameat`/dirfd 原语，只能通过紧邻 rename 前
-  的父目录/目标复查收窄窗口，无法严格消除——本工具不宣称防御拥有同级文件权限
-  且主动竞态的攻击者（与上游 PokeMan/LoomRealm 构建器的保证层级一致）。
+  越界父目录 / 追踪文件"与"构建期间可观测的重定向"（每级 mkdir 前重验父段、
+  rename 前整链 verify-only 复查 + realpath 身份一致性，发现即 fail closed；
+  `dist/` 缺失时按需创建，不影响临时目录目标）。对并发攻击者在验证与 rename 之间
+  置换已验证目录的 TOCTOU 竞态，Node 无 `renameat`/dirfd 原语，只能收窄窗口而
+  无法严格消除——本工具不宣称防御拥有同级文件权限且主动竞态的攻击者（与上游
+  PokeMan/LoomRealm 构建器的保证层级一致）。
 - **gitlink 校验**：运行时验证 `HEAD:loom-realm` 与检出的 submodule 均为
   `c5217e47be5a43f974e9e6ce82230077fb639c39`（可用 `verifyGitlink: false` 关闭，
   仅供测试注入）。
@@ -205,9 +211,12 @@ Node-only 全局作为 executable 被拒绝；非法 CLI 参数、受保护/追�
 七类坏输入文档在写出前被拒绝且零写出；产物不含任何 research/敏感标识（并对
 生成器输入白名单做结构校验）；**输出路径安全**（隔离的模拟项目根 +
 `research/keep.txt` sentinel，不触碰真实 `research/**`）：无 `dist/` 的干净根
-同时支持 dist 与临时目录目标、symlink 目标（含悬空）被拒且 sentinel 字节不变、
-父目录 symlink 越界进入保护树被拒、已存在普通产物可安全重建且字节确定
-（symlink 用例在平台不允许创建 symlink 时显式 skip 并给出原因）；深层用真实
+同时支持 dist 与临时目录目标（含多级缺失父目录逐级创建）、symlink 目标（含悬空）
+被拒且 sentinel 字节不变、父目录 symlink（含 `dist/` 根自身为 symlink、
+symlink 后还需创建新子目录、tmpdir 内祖先 symlink 指向保护目录）在**任何越界
+目录创建之前**被拒——以完整目录树前后快照 + sentinel 字节 + 临时文件残留扫描
+证明零副作用、已存在普通产物可安全重建且字节确定（symlink 用例在平台不允许
+创建 symlink 时显式 skip 并给出原因）；深层用真实
 pinned `buildPwaExecutableIndexV1` 接受产物 executable 图（`imports: []`）并以
 shim 输入复验被拒（`SUBSYSTEM_MODULE_NOT_FOUND`）。
 

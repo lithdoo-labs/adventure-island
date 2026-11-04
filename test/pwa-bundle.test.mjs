@@ -24,7 +24,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -95,6 +95,38 @@ const symlinkSupport = await (async () => {
     await rm(dir, { recursive: true, force: true });
   }
 })();
+
+// Full recursive snapshot of a directory tree ("d"/"f"/"l" + relative path),
+// so tests can prove that a rejected build leaves ZERO filesystem traces —
+// not merely "the bundle file was not written".
+async function snapshotTree(root) {
+  const entries = [];
+  const walk = async (dir, prefix) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const relativePath = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+      entries.push(`${entry.isDirectory() ? "d" : entry.isSymbolicLink() ? "l" : "f"} ${relativePath}`);
+      if (entry.isDirectory()) await walk(path.join(dir, entry.name), relativePath);
+    }
+  };
+  await walk(root, "");
+  return entries.sort();
+}
+
+// The builder's exclusive temp files are named `.<basename>.tmp-<pid>-<hex>`.
+const TEMP_RESIDUE_PATTERN = /^\..+\.tmp-\d+-[0-9a-f]{6,}$/u;
+
+async function tempResidue(root) {
+  const residue = [];
+  const walk = async (dir, prefix) => {
+    for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+      const relativePath = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+      if (TEMP_RESIDUE_PATTERN.test(entry.name)) residue.push(relativePath);
+      if (entry.isDirectory()) await walk(path.join(dir, entry.name), relativePath);
+    }
+  };
+  await walk(root, "");
+  return residue.sort();
+}
 
 // ---------------------------------------------------------------------------
 // Vendored upstream validator (verbatim) — the Stage 4B consumer's schema
@@ -515,6 +547,15 @@ test("output path safety: a project root without dist/ supports both dist and te
     assert.equal(payload.executables.length, 1);
     assert.equal(payload.content.length, 0);
     await assert.rejects(readText(path.join(isolated.root, "research", "bundle.json")), /ENOENT/);
+
+    // Multi-level missing parents are created along the trusted chain — both
+    // under dist/ and under the system temp directory.
+    const deepDist = path.join(isolated.root, "dist", "a", "b", "bundle.json");
+    await isolated.build(deepDist);
+    assert.equal(JSON.parse(await readText(deepDist)).formatVersion, 1);
+    const deepTemp = path.join(await makeTempDir(), "x", "y", "bundle.json");
+    await isolated.build(deepTemp);
+    assert.equal(JSON.parse(await readText(deepTemp)).formatVersion, 1);
   } finally {
     await rm(isolated.root, { recursive: true, force: true });
   }
@@ -545,20 +586,80 @@ test("output path safety: a symlink destination (including dangling) is rejected
   }
 });
 
-test("output path safety: a parent-directory symlink escaping into a protected tree is rejected", {
+test("output path safety: parent-directory symlinks are rejected before any directory is created", {
   skip: !symlinkSupport.ok && symlinkSupport.reason,
 }, async () => {
-  const isolated = await makeIsolatedGameRoot();
-  try {
-    await mkdir(path.join(isolated.root, "dist"), { recursive: true });
-    await symlink("../research", path.join(isolated.root, "dist", "evil"));
-    const target = path.join(isolated.root, "dist", "evil", "bundle.json");
-    await assert.rejects(() => isolated.build(target), /refusing to write|protected/);
-    await assert.rejects(readFile(path.join(isolated.root, "research", "bundle.json")), /ENOENT/, "no artifact may land in the protected tree");
-    const sentinel = path.join(isolated.root, "research", "keep.txt");
-    assert.equal(await readFile(sentinel, "utf8"), "sentinel-content\n", "the sentinel must be untouched");
-  } finally {
-    await rm(isolated.root, { recursive: true, force: true });
+  // Case 1 — symlinked intermediate parent with a MISSING deeper directory:
+  // the write must be refused BEFORE newchild/ is created through the link.
+  // (Regression for the recursive-mkdir side effect: the old implementation
+  // created research/newchild/ first and rejected only afterwards.)
+  {
+    const isolated = await makeIsolatedGameRoot();
+    try {
+      await mkdir(path.join(isolated.root, "dist"), { recursive: true });
+      await symlink("../research", path.join(isolated.root, "dist", "evil"));
+      const before = await snapshotTree(isolated.root);
+      const target = path.join(isolated.root, "dist", "evil", "newchild", "bundle.json");
+      await assert.rejects(() => isolated.build(target), /refusing|protected|symlink/);
+      assert.deepEqual(await snapshotTree(isolated.root), before, "a rejected build must leave the tree untouched — no research/newchild may appear");
+      assert.deepEqual(await tempResidue(isolated.root), [], "no temp files may remain");
+    } finally {
+      await rm(isolated.root, { recursive: true, force: true });
+    }
+  }
+
+  // Case 2 — direct file target behind a symlinked parent (Turn 3 regression).
+  {
+    const isolated = await makeIsolatedGameRoot();
+    try {
+      await mkdir(path.join(isolated.root, "dist"), { recursive: true });
+      await symlink("../research", path.join(isolated.root, "dist", "evil"));
+      const before = await snapshotTree(isolated.root);
+      const target = path.join(isolated.root, "dist", "evil", "bundle.json");
+      await assert.rejects(() => isolated.build(target), /refusing|protected|symlink/);
+      assert.deepEqual(await snapshotTree(isolated.root), before, "no artifact may land in the protected tree");
+      const sentinel = path.join(isolated.root, "research", "keep.txt");
+      assert.equal(await readFile(sentinel, "utf8"), "sentinel-content\n", "the sentinel must be untouched");
+    } finally {
+      await rm(isolated.root, { recursive: true, force: true });
+    }
+  }
+
+  // Case 3 — the dist root itself is a symlink.
+  {
+    const isolated = await makeIsolatedGameRoot();
+    try {
+      await symlink("../research", path.join(isolated.root, "dist"));
+      const before = await snapshotTree(isolated.root);
+      await assert.rejects(
+        () => isolated.build(path.join(isolated.root, "dist", "bundle.json")),
+        /refusing|protected|symlink/,
+      );
+      assert.deepEqual(await snapshotTree(isolated.root), before, "a symlinked dist root must be rejected without side effects");
+      await assert.rejects(readText(path.join(isolated.root, "research", "bundle.json")), /ENOENT/);
+    } finally {
+      await rm(isolated.root, { recursive: true, force: true });
+    }
+  }
+
+  // Case 4 — an ancestor symlink inside the system temp directory pointing at
+  // the (fake) protected tree, with a missing deeper directory to create.
+  {
+    const isolated = await makeIsolatedGameRoot();
+    const tmpBase = await makeTempDir();
+    try {
+      await symlink(path.join(isolated.root, "research"), path.join(tmpBase, "link"));
+      const beforeIsolated = await snapshotTree(isolated.root);
+      const beforeTmp = await snapshotTree(tmpBase);
+      const target = path.join(tmpBase, "link", "newchild", "bundle.json");
+      await assert.rejects(() => isolated.build(target), /refusing|protected|symlink/);
+      assert.deepEqual(await snapshotTree(isolated.root), beforeIsolated, "no directory may be created inside the protected tree via a tmpdir symlink");
+      assert.deepEqual(await snapshotTree(tmpBase), beforeTmp);
+      assert.deepEqual(await tempResidue(isolated.root), [], "no temp files may remain");
+    } finally {
+      await rm(tmpBase, { recursive: true, force: true });
+      await rm(isolated.root, { recursive: true, force: true });
+    }
   }
 });
 

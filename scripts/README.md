@@ -1,8 +1,9 @@
 # Repository Automation Scripts
 
-根目录 `scripts/` 只保留 GitHub Actions Agent 所需的受保护自动化：
+当前唯一受保护的 AI Coding 执行器为 `issue_agent/agent.py`，由 `.github/workflows/issue-agent.yml` 的 `preflight`、`execute`、`publish` 调用。
 
-- `agent/`：Design PR → Implement / Revise 流程。
-- `issue_agent/`：Issue 驱动的 OpenCode 2 Runner。
+旧 Design PR Agent（`scripts/agent/`，`agent-spec-gate.yml`，`agent-implement.yml`，`agent-revise.yml`）已停用并移除。Issue Agent 不依赖其运行。
 
-CMS079 逆向分析、协议、WZ、Ghidra / IDA 和设备观察脚本已经迁移到 [研究档案](../research/README.md) 的 `research/scripts/`。不要把研究脚本重新放回此目录，也不要修改上述 Agent 自动化，除非有独立的 CI 维护任务。
+CMS079 逆向分析脚本保存在 [研究档案](../research/README.md) 的 `research/scripts/`。正式运行时及 AI 生成代码补丁不得从 `research/` 引入可执行依赖或修改研究证据。
+
+后续 PWA 构建和 CI 工具分别放在 `scripts/pwa/` 与 `scripts/ci/`，与 Issue Agent 分离。

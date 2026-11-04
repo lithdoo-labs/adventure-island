@@ -13,9 +13,9 @@ import hashlib
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / ".work" / "task-009"
-RESULT = ROOT / "result"
+RESULT = ROOT / "research" / "result"
 CLIENT = ROOT / ".work" / "task-001" / "extracted" / "冒险岛online" / "MapleStory.exe"
 EXPECTED_CLIENT = "5d280cf1c5663e925104736e73e5715a5a529d25420babf410cc411b37940f4d"
 

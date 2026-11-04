@@ -3,7 +3,7 @@
 Task 033 edition. Derives ONLY from the local server implementation (JAR
 bytecode + live loopback exchanges). Never from protected client code.
 
-Proven chain (see result/task033-protocol-chain.md):
+Proven chain (see research/result/task033-protocol-chain.md):
   login 9555: hello(server-first) -> LOGIN_PASSWORD(0x01) ->
     SERVERLIST(0x02) -> CHARLIST(0x09, bb+int) -> CHAR_SELECT(0x0A, int)
     -> SERVER_IP redirect {ip, port, charid} -> CLOSE the login socket

@@ -1,5 +1,5 @@
 # MapleStory CMS079 V5 packet codec.
-# Algorithm source: result/protocol-crypto.md and result/protocol-handshake.md
+# Algorithm source: research/result/protocol-crypto.md and research/result/protocol-handshake.md
 # (server classes MapleAESOFB, MapleCustomEncryption, BitTools, LoginPacket.getHello).
 """Parse the V5 15-byte handshake and encrypt/decrypt one game packet."""
 

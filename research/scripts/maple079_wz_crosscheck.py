@@ -1,7 +1,7 @@
 """Canonicalize Task 023 third-party WZ exports into result tables.
 
 This script does not parse WZ files. It reads machine-readable exports from
-.work/task-023/output and writes the permanent comparison tables under result/.
+.work/task-023/output and writes the permanent comparison tables under research/result/.
 """
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / ".work" / "task-023" / "output"
-RESULT = ROOT / "result"
+RESULT = ROOT / "research" / "result"
 PARSERS = ("wzpy", "maple", "wcr2")
 PARSER_LABEL = {"wzpy": "wz-python", "maple": "MapleLib", "wcr2": "WzComparerR2"}
 ARCHIVES = [

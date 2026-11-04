@@ -13,7 +13,7 @@ Format (fully recovered, 2026-10-10):
     "character/00002001.img") that NameSpace/PCOM attach into the
     resource namespace at boot.
 
-Emits glm-work/result/listwz-entries.csv.
+Emits research/glm-work/result/listwz-entries.csv.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / ".work" / "tools" / "wz-python"))
 
 from wzpy.crypto import WzKey  # noqa: E402
@@ -55,7 +55,7 @@ def try_record(buf: bytes, ks: bytes, p: int) -> tuple[bytes, str, int] | None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result" / "listwz-entries.csv")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result" / "listwz-entries.csv")
     args = parser.parse_args()
 
     wzdir = next((ROOT / ".work" / "task-001" / "extracted").rglob("List.wz")).parent

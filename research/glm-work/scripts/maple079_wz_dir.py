@@ -2,7 +2,7 @@
 parser (.work/tools/wz-python @ 79344c9, MIT). Metadata only: version,
 image/subdir counts, sample names. No content extraction.
 
-Emits glm-work/result/wz-directory-index.csv (Task 022 deliverable name).
+Emits research/glm-work/result/wz-directory-index.csv (Task 022 deliverable name).
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import time
 import types
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / ".work" / "tools" / "wz-python"))
 
 if "numpy" not in sys.modules:
@@ -26,7 +26,7 @@ if "numpy" not in sys.modules:
 from wzpy.wz_file import WzFile  # noqa: E402
 
 wzdir = next((ROOT / ".work" / "task-001" / "extracted").rglob("TamingMob.wz")).parent
-OUT = ROOT / "glm-work" / "result" / "wz-directory-index.csv"
+OUT = ROOT / "research" / "glm-work" / "result" / "wz-directory-index.csv"
 
 targets = sorted(p for p in wzdir.glob("*.wz") if p.name != "List.wz")
 rows = []

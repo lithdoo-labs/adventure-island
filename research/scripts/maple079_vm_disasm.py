@@ -10,7 +10,7 @@ dump plus the clean dispatch log produced from a corridor trace:
   - per-dispatch VM context (esi stream position, bl rolling key)
 
 Operand decoding implemented per-handler (from handler disassembly, see
-result/task029-opcode-semantics.csv):
+research/result/task029-opcode-semantics.csv):
   0x88: imm32 = raw - 0x12833B5C - ebx32          (dynamically verified)
   0x61: imm8  = raw ^ bl (then const-chain tail)  (partial)
   0x3e: imm8  = (raw ^ bl) - 8
@@ -18,7 +18,7 @@ result/task029-opcode-semantics.csv):
   others: raw shown with class annotation
 
 Usage:
-  python scripts/maple079_vm_disasm.py --image <dumped-image.bin> \
+  python research/scripts/maple079_vm_disasm.py --image <dumped-image.bin> \
       --dispatch-log <dispatch-log.json> [--from-n N] [--to-n N] \
       [--validate]
 

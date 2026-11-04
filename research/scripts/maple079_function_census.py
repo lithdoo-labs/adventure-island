@@ -1,4 +1,4 @@
-"""Task 046: promote the function census script to scripts/ as a reusable tool."""
+"""Task 046: promote the function census script to research/scripts/ as a reusable tool."""
 import struct, sys, os, csv, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 

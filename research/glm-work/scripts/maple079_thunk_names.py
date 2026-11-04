@@ -43,9 +43,9 @@ from unicorn.x86_const import (
     UC_X86_REG_ESP,
 )
 
-ROOT = HERE.parents[1]
-WIDE = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
-THUNKS = ROOT / "glm-work" / "result" / "beyond-wall-thunk-tables.csv"
+ROOT = HERE.parents[2]
+WIDE = ROOT / "research" / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
+THUNKS = ROOT / "research" / "glm-work" / "result" / "beyond-wall-thunk-tables.csv"
 
 IMAGE_BASE = 0x400000
 WBASE_VA = IMAGE_BASE + 0x819000

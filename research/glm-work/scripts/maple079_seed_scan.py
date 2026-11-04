@@ -1,6 +1,6 @@
 """Seed-evidence scanner for materialized CMS079 game regions.
 
-Bridges the repo reference seeds (reference/maplestory-symbols/derived/) to
+Bridges the repo reference seeds (research/reference/maplestory-symbols/derived/) to
 the current boundary: when any new stable region appears (Tail A write, a new
 decoded span, a VM memory capture), point this scanner at it and it reports
 which seed evidence families are present:

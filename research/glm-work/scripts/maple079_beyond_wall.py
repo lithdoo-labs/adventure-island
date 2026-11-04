@@ -44,8 +44,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import maple079_probe_cfg as probe  # noqa: E402
 
-ROOT = HERE.parents[1]
-WIDE = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
+ROOT = HERE.parents[2]
+WIDE = ROOT / "research" / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
 WBASE = 0x819000
 WALL = 0x862000
 ZONE_END = 0x912000
@@ -208,7 +208,7 @@ def thunk_pairs(wide: bytes):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 

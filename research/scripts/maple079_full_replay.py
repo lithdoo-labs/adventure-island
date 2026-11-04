@@ -24,7 +24,7 @@ winmm!timeGetTime timing phase -> Themida error-reporter decision
 (the emulation-detectable boundary; the real guest never shows this box).
 
 Usage:
-  python scripts/maple079_full_replay.py --exe <MapleStory.exe> \
+  python research/scripts/maple079_full_replay.py --exe <MapleStory.exe> \
       --guest-dir <dir with guest Win7 x86 DLLs> \
       --client-dir <client directory> [--budget N] [--dump-image out.bin]
 """
@@ -419,7 +419,7 @@ class Replay:
         #   TCHAR szCSDVersion[128];
         #   WORD  wServicePackMajor, wServicePackMinor, wSuiteMask;
         #   BYTE  wProductType, wReserved;
-        # Guest truth (result/24-win7-x86-sp1-natural-runtime.md):
+        # Guest truth (research/result/24-win7-x86-sp1-natural-runtime.md):
         #   Win7 Professional SP1 6.1.7601, ServicePackMajorVersion=1.
         csd = "Service Pack 1"
         wide = getattr(self, "_gvx_wide", False)
@@ -547,7 +547,7 @@ class Replay:
 
     def stub_GetCommandLine(self, wide=False):
         # Real guest launch (T025OBS.PS1 -> Start-Process): the WMI-captured
-        # exact command line of the gate-bearing runs (result/task025-launch-
+        # exact command line of the gate-bearing runs (research/result/task025-launch-
         # matrix.csv, A1R2) is the QUOTED form "F:\MapleStory.exe".
         variants = getattr(self, "cmdline_variants", None) or ['"F:\\MapleStory.exe"']
         path = variants[self.state.get("cmdline_idx", 0) % len(variants)]

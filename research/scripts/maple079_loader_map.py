@@ -2,7 +2,7 @@
 
 Does not modify the input file. Example:
 
-    python scripts/maple079_loader_map.py path\\to\\MapleStory.exe query 0x862E76
+    python research/scripts/maple079_loader_map.py path\\to\\MapleStory.exe query 0x862E76
     python scripts/maple079_loader_map.py path\\to\\MapleStory.exe regions
 """
 
@@ -304,7 +304,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"perm={info['permissions']} entropy={info['entropy']}"
             )
     elif args.command == "regions":
-        destination = args.csv or "result/loader-region-map.csv"
+        destination = args.csv or "research/result/loader-region-map.csv"
         write_region_csv(destination, pe, spans)
         print(destination)
     return 0

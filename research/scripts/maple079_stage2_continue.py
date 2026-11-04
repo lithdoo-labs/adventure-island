@@ -376,7 +376,7 @@ def main(argv: list[str] | None = None) -> int:
             return
 
     layout_rows = []
-    layout_path = Path("result/process-layout-snapshot.csv")
+    layout_path = Path("research/result/process-layout-snapshot.csv")
     if layout_path.exists():
         with layout_path.open(encoding="utf-8", newline="") as handle:
             layout_rows = list(csv.DictReader(handle))

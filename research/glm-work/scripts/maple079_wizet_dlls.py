@@ -6,7 +6,7 @@ For each target DLL:
 - code references (push imm32 / mov reg,imm32 / lea-style absolute VA) to the
   addresses of the interesting strings
 
-Read-only: parses files under .work/, writes CSV/JSON under glm-work/result/.
+Read-only: parses files under .work/, writes CSV/JSON under research/glm-work/result/.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ import pefile
 from capstone import Cs, CS_ARCH_X86, CS_MODE_32
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parent.parent
+ROOT = HERE.parent.parent.parent
 CLIENT_DIR = ROOT / ".work" / "task-001" / "extracted"
 
 TARGETS = [
@@ -193,7 +193,7 @@ def analyze(name: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     report = []

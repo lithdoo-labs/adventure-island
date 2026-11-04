@@ -5,7 +5,7 @@ Reuses scripts/maple079_stage2_continue.py unmodified. We intercept
 Uc.hook_add so that when the committed script registers its own
 UC_HOOK_MEM_WRITE hook, we register one extra callback of ours that logs
 (eip, address, size) for every write into the MapleStory image below
-0x00912000. Aggregated per producer RVA. Output: JSON in glm-work/scratch/.
+0x00912000. Aggregated per producer RVA. Output: JSON in research/glm-work/scratch/.
 """
 from __future__ import annotations
 
@@ -13,8 +13,8 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "research" / "scripts"))
 
 import maple079_stage2_continue as rep  # noqa: E402
 from unicorn import Uc, UC_HOOK_MEM_WRITE  # noqa: E402
@@ -22,7 +22,7 @@ from unicorn.x86_const import UC_X86_REG_EIP  # noqa: E402
 
 IMAGE = 0x400000
 TAIL_B_HI = 0x912000
-OUT = ROOT / "glm-work" / "scratch" / "uncatalogued-round-producers.json"
+OUT = ROOT / "research" / "glm-work" / "scratch" / "uncatalogued-round-producers.json"
 
 log: list[dict] = []
 seen_first: dict[int, int] = {}

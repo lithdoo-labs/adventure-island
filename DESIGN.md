@@ -7,7 +7,7 @@
 
 ## 1. 文档职责
 
-本文只记录改造决策和复核结论。逆向证据统一归档在 `research/task/` 与 `research/result/`。玩法实现落在 LoomRealm 的 game library 与 example，不在本文写协议字段或函数地址。
+本文只记录改造决策和复核结论。逆向证据统一归档在 `research/task/` 与 `research/result/`。玩法实现落在本仓库的 game library 与 Subsystem；LoomRealm 的 `examples/PokeMan` 仅作平台结构参考，不在 LoomRealm Submodule 中添加本游戏代码。本文不写协议字段或函数地址。
 
 决策改变时直接改本文，并在文末复核记录里留一行。
 

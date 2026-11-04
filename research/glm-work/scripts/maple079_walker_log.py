@@ -11,8 +11,8 @@ import json
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "research" / "scripts"))
 
 import maple079_stage2_continue as rep  # noqa: E402
 from unicorn import Uc, UC_HOOK_CODE  # noqa: E402
@@ -20,7 +20,7 @@ from unicorn.x86_const import UC_X86_REG_EDX, UC_X86_REG_EBP, UC_X86_REG_ESI, UC
 
 IMAGE = 0x400000
 WALKER_VA = IMAGE + 0x81CEC7
-OUT = ROOT / "glm-work" / "scratch" / "walker-invocations.json"
+OUT = ROOT / "research" / "glm-work" / "scratch" / "walker-invocations.json"
 
 log: list[dict] = []
 

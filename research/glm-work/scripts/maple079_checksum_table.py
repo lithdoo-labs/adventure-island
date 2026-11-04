@@ -32,8 +32,8 @@ import pefile
 from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE
 from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_EBP, UC_X86_REG_EDI, UC_X86_REG_ESI, UC_X86_REG_ESP
 
-ROOT = HERE.parent.parent
-WIDE = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"  # rebuild via mapl079_wide_capture.py
+ROOT = HERE.parent.parent.parent
+WIDE = ROOT / "research" / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"  # rebuild via mapl079_wide_capture.py
 
 WALKER = 0x400000 + 0x81CEC7
 SENTINEL = 0x50000000
@@ -41,7 +41,7 @@ HOOK_NAME_PUSH = 0x400000 + 0x81D13C
 HOOK_CMP = 0x400000 + 0x81D184
 
 MODULES: dict[str, tuple[int, str]] = {
-    # bases observed in the real process (result/process-layout-snapshot.csv)
+    # bases observed in the real process (research/result/process-layout-snapshot.csv)
     "kernel32": (0x76240000, r"C:\Windows\SysWOW64\kernel32.dll"),
     "advapi32": (0x767F0000, r"C:\Windows\SysWOW64\advapi32.dll"),
     "user32": (0x76980000, r"C:\Windows\SysWOW64\user32.dll"),
@@ -79,7 +79,7 @@ IMMS: list[tuple[str, int, str]] = [
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
     args = parser.parse_args()
     if not WIDE.exists():
         raise SystemExit("wide capture missing; run maple079_wide_capture.py first")

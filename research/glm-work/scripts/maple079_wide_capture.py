@@ -18,8 +18,8 @@ import hashlib
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "research" / "scripts"))
 
 import maple079_stage2_continue as rep  # noqa: E402
 from unicorn import Uc  # noqa: E402
@@ -30,7 +30,7 @@ PROBE_LEN = 0xC000
 TAILB_VA = IMAGE + 0x819000
 TAILB_LEN = 0xF9000
 
-OUT_DIR = ROOT / "glm-work" / "scratch" / "replay"
+OUT_DIR = ROOT / "research" / "glm-work" / "scratch" / "replay"
 WIDE = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
 REF = ROOT / ".work" / "task-009" / "probe-window.bin"
 

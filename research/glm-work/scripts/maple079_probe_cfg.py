@@ -37,7 +37,7 @@ from pathlib import Path
 from capstone import Cs, CS_ARCH_X86, CS_MODE_32
 from capstone.x86 import X86_OP_IMM, X86_OP_MEM, X86_OP_REG
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 CLIENT_DIR = ROOT / ".work" / "task-001" / "extracted"
 WINDOW = ROOT / ".work" / "task-009" / "probe-window.bin"
 EXPECTED_SHA = "5d280cf1c5663e925104736e73e5715a5a529d25420babf410cc411b37940f4d"
@@ -550,7 +550,7 @@ def classify_block(start: int, kind: str) -> tuple[str, str, str]:
 def main() -> None:
     global blob, END, STRINGS
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
     args = parser.parse_args()
 
     digest = client_sha()
@@ -595,7 +595,7 @@ def main() -> None:
         # SICE edge (the call itself precedes the walk root; recorded statically)
         w.writerow(["0x00859757", "0x00859757", "0x00859759", "pre-stop (replay)", "call eax",
                     "device-probe (SICE CreateFileA recipe; result tested by 0x859779 inc eax / 0x85977A jne 0x859A61)",
-                    "pre-normal-root", "evidence: result/softice-probe-boundary.md; window bytes ffd0", "high"])
+                    "pre-normal-root", "evidence: research/result/softice-probe-boundary.md; window bytes ffd0", "high"])
         # registry-cluster sub-blocks (jumped over by the normal path)
         for unit in units:
             if unit["head"] is None:
@@ -624,7 +624,7 @@ def main() -> None:
                     "not a registry unit; writes EAX into a runtime structure", "high"])
         w.writerow(["0x00859C24", "0x00859CD3", "-", "data", "data",
                     "WinLicense string table: Software\\WinLicense; Software\\WLkt; 14 value names", "data",
-                    "evidence: result/winlicense-registry-cluster.md", "high"])
+                    "evidence: research/result/winlicense-registry-cluster.md", "high"])
 
     with (args.out / "probe-call-sites.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
@@ -645,7 +645,7 @@ def main() -> None:
             [
                 "0x00859757",
                 "call eax",
-                "kernel32!CreateFileA (EAX from replay stop; result/resolved-api-map.csv)",
+                "kernel32!CreateFileA (EAX from replay stop; research/result/resolved-api-map.csv)",
                 "lpFileName=0x00C59507 (\\.\\.SICE); access=0xC0000000 (0xBFB099AC+0x004F6654); share=3; sa=0; disp=3 (OPEN_EXISTING); flags=0x80; template=0",
                 "device-probe CreateFileA recipe; tested by inc eax / jne 0x00859A61 at 0x00859779/0x0085977A",
                 "pre-root (call itself already answered by replay stop)",

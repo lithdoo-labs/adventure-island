@@ -3,3 +3,7 @@
 本目录只存放 CMS079 逆向研究、协议观察、WZ 解析和静态分析辅助脚本。它们是研究档案，不属于正式游戏运行时，也不应被正式应用直接导入。
 
 脚本运行时所需的客户端样本必须由使用者在本机合法准备；原始输入放在仓库根目录的 `.raw/`，中间输出放在 `.work/`。不要把二进制样本或完整资源导出提交到 Git。
+
+## Running scripts
+
+Run scripts from the repository root unless a script's CLI help says otherwise. The tracked evidence archive is under `research/result/`; local client inputs and intermediate captures remain under the root `.raw/` and `.work/` directories and are not committed.

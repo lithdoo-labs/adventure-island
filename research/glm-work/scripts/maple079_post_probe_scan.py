@@ -32,11 +32,11 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import maple079_probe_cfg as probe  # noqa: E402
 
-ROOT = HERE.parent.parent
+ROOT = HERE.parent.parent.parent
 WINDOW = ROOT / ".work" / "task-009" / "probe-window.bin"
 T2BLOCK = ROOT / ".work" / "task-006" / "tail-b-nonzero.bin"
 
-# committed SHA-256 record (result/normal-probe-path-analysis.md)
+# committed SHA-256 record (research/result/normal-probe-path-analysis.md)
 SPAN1 = (0x85A530, 0x860294)
 SPAN1_SHA = "4ddbdf0e304328b837c2142b3a49064381491ec3edd20fa544d09ab1c8f4ff47"
 SPAN2 = (0x85AA4B, 0x860763)
@@ -283,7 +283,7 @@ def round3_verify(wide: bytes) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
@@ -337,7 +337,7 @@ def main() -> None:
 
     import csv
 
-    wide_path = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
+    wide_path = ROOT / "research" / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
     with (args.out / "next-transform-candidates.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["site_rva", "buffer", "signature", "detail", "classification", "confidence"])

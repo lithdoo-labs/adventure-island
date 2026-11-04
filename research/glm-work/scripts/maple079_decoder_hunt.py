@@ -50,16 +50,16 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import maple079_probe_cfg as probe  # noqa: E402
 
-ROOT = HERE.parents[1]
+ROOT = HERE.parents[2]
 
-WIDE = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
+WIDE = ROOT / "research" / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
 
 # wide capture maps VA 0x00819000..0x00912000
 WBASE = 0x819000
 READ_LO = 0x819000
 READ_HI = 0x862000  # first byte of the still-encoded region at the stop
 
-# committed SHA-256 records (result/normal-probe-path-analysis.md, timing
+# committed SHA-256 records (research/result/normal-probe-path-analysis.md, timing
 # corrected by glm-work Task 012 §1/§5)
 SPAN1 = (0x85A530, 0x860294)
 SPAN1_SHA = "4ddbdf0e304328b837c2142b3a49064381491ec3edd20fa544d09ab1c8f4ff47"
@@ -128,7 +128,7 @@ def apply_decoders(buf: bytearray) -> tuple[bytes, bytes]:
     """Decoder A then B on the wide buffer (base 0x00819000).
 
     Returns (state_after_A, state_after_A_and_B). Constants identical to
-    glm-work/scripts/maple079_post_probe_scan.py (validated there against the
+    research/glm-work/scripts/maple079_post_probe_scan.py (validated there against the
     committed span SHAs); only the buffer base differs.
     """
     mid = bytearray(buf)
@@ -386,7 +386,7 @@ def context_disasm(buf: bytes, site: int, before: int = 3, after: int = 3) -> st
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
     parser.add_argument("--scratch", type=Path, default=ROOT / "glm-work" / "scratch")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)

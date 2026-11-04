@@ -10,7 +10,7 @@ import csv
 import hashlib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 CLIENT = ROOT / ".work" / "task-001" / "extracted"
 WINDOW = ROOT / ".work" / "task-009" / "probe-window.bin"
 EXPECTED = "5d280cf1c5663e925104736e73e5715a5a529d25420babf410cc411b37940f4d"

@@ -433,7 +433,7 @@ def main() -> None:
     parser.add_argument("--layout", type=Path, required=True)
     parser.add_argument("--kernel32-base", type=lambda s: int(s, 16), required=True)
     parser.add_argument("--getlocaltime-rva", type=lambda s: int(s, 16), required=True)
-    parser.add_argument("--out-dir", type=Path, default=Path("result"))
+    parser.add_argument("--out-dir", type=Path, default=Path("research/result"))
     parser.add_argument("--json-out", type=Path)
     args = parser.parse_args()
 

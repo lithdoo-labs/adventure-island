@@ -26,4 +26,4 @@ When the `loom-realm` submodule has been built in place, the same command also
 boots this installation through real Main + Hostra hosting
 (`prepareHostraGame` + `runMain`) until the initial Frame completes.
 
-See `result/loomrealm-empty-app.md` for the full scaffold documentation.
+See `research/result/loomrealm-empty-app.md` for the full scaffold documentation.

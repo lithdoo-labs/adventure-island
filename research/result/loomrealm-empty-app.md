@@ -3,6 +3,7 @@
 > 任务：Issue #35，以最小可运行的空应用接入 LoomRealm 平台，为后续 CMS079 人物、地图、移动及双场景跳转打底。
 > 基线：`loom-realm` submodule 固定在 `c5217e47be5a43f974e9e6ce82230077fb639c39`（与当前 `main` 的 gitlink 精确一致）。
 > 本文件记录脚手架结构、对固定版本 LoomRealm API 的逐一校验、对 PokeMan 先例的取舍、实测验证结果与后续任务的扩展方式。
+> 位置：Turn 2 起（Issue 反馈）随仓库目录重构（PR #37）由根目录 `result/` 迁至 `research/result/`；不在根目录 `result/` 重新创建任何文件。
 
 ## 0. 与历史实现（PR #23，分支 `agent/pr-18`）的复核结论
 
@@ -17,7 +18,7 @@ PR #23 分支 `agent/pr-18` 已通过只读方式取回（`git fetch --no-tags o
 | `systems/loomrealm-smoke/package.json` | 逐字节复用 |
 | `systems/loomrealm-smoke/test/smoke.test.mjs` | 复用全部 9 个用例，新增一条深层断言（负向守卫，见 §1.1） |
 | `systems/loomrealm-smoke/README.md`、`apps/pwa/README.md`、`apps/hostra/README.md` | 复用并补充 PWA 发布契约说明 |
-| `result/loomrealm-empty-app.md` | 即本文件，按本次实测重写 |
+| `research/result/loomrealm-empty-app.md` | 即本文件，按本次实测重写；Turn 2 随 PR #37 目录重构迁至 `research/result/` |
 
 ## 1. 创建的脚手架
 
@@ -37,7 +38,8 @@ systems/loomrealm-smoke/       共享无操作（no-op）smoke 子系统 + 冒�
   test/smoke.test.mjs          无头冒烟验证（node --test）
   package.json                 仅暴露 npm test 入口，无任何依赖
   README.md
-result/loomrealm-empty-app.md  本文件
+research/result/
+  loomrealm-empty-app.md        本文件
 ```
 
 两个平台入口是**同一个空测试应用**：Game Entry 逐字节同构（同一 JSON 文档），绑定同一个子系统键
@@ -219,8 +221,11 @@ $ npm test --prefix systems/loomrealm-smoke
 ## 6. 边界确认
 
 - 仅修改允许路径：`apps/pwa/**`、`apps/hostra/**`、`systems/loomrealm-smoke/**`、
-  `result/loomrealm-empty-app.md`；未触碰 `loom-realm/**` 被跟踪文件、Git Submodule 指针、
-  `.github/**`、`scripts/**`、`task/**`、`components/**`、`libs/**`、其余 `systems/**`。
+  `research/result/loomrealm-empty-app.md`（Turn 1 曾交付于根目录 `result/`，Turn 2 起随 PR #37
+  目录重构迁至 `research/result/`，且不在根目录 `result/` 重新创建任何文件）；未触碰
+  `loom-realm/**` 被跟踪文件、Git Submodule 指针、`.github/**`、`scripts/**`、`task/**`、
+  `components/**`、`libs/**`、其余 `systems/**` 及根目录 `result/` 中由 PR #37 负责迁移的旧研究
+  文件。
 - submodule 内的 `npm ci` + `npm run build:packages` 只产生 gitignore 的构建产物，用于本次深层
   验证；`git -C loom-realm status --porcelain` 构建前后均为空。
 - 未新增 WZ、客户端二进制、档案、凭据或任何专有输入；未读取 `F:\CMS079`；验证全程无浏览器、

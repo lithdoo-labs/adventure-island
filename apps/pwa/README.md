@@ -32,4 +32,4 @@ validates both sides when the submodule is built.
 node --test systems/loomrealm-smoke/test/smoke.test.mjs
 ```
 
-See `result/loomrealm-empty-app.md` for the full scaffold documentation.
+See `research/result/loomrealm-empty-app.md` for the full scaffold documentation.

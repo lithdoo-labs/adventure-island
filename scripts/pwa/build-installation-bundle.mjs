@@ -33,9 +33,9 @@
  * destination must live inside <repo>/dist/ or the system temp directory,
  * must not be a Git-tracked file, and must not sit in a protected tree.
  */
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -308,17 +308,61 @@ function insideDirectory(base, candidate) {
   return relativePath !== "" && !relativePath.startsWith("..") && !isAbsolute(relativePath);
 }
 
+async function pathFacts(target) {
+  try {
+    return await lstat(target);
+  } catch {
+    return null;
+  }
+}
+
 /**
- * The artifact may only be written inside <repo>/dist/ or the system temp
- * directory, never into a protected tree, never over a Git-tracked file. The
- * lexical check runs before any directory creation; the realpath check after
- * creation closes symlink escapes.
+ * Validates the output location and publishes the artifact atomically.
+ *
+ * Threat model (see docs/game-entry.md §5): the builder defends against
+ * filesystem entries it did not create — a destination that is (or becomes) a
+ * symlink, and symlinked/`..` parents that redirect the write out of the
+ * allowed roots (<repo>/dist/ or the system temp directory) into protected
+ * trees (research/**, glm-work/**, task/**, loom-realm/**, .github/**, …) or
+ * Git-tracked files. Validation and publication are deliberately combined:
+ *
+ *   1. Lexical gate (before touching the filesystem): the destination must be
+ *      inside <repo>/dist/ or the system temp directory, must not lexically
+ *      sit in a protected tree, and must not be a Git-tracked file.
+ *   2. The destination entry itself must be a regular file or not exist —
+ *      symlinks (including dangling ones) and directories are rejected.
+ *   3. The parent chain is materialized and then resolved via realpath; the
+ *      RESOLVED location must stay within the allowed root chosen lexically
+ *      (a dist target must resolve back inside the literal dist subtree; a
+ *      temp target must resolve back inside the system temp directory), must
+ *      not land in a protected tree, and must not resolve onto a Git-tracked
+ *      file. This closes parent-symlink redirection; an unresolvable parent
+ *      (e.g. a dangling dist symlink) fails closed with the raw fs error.
+ *   4. Publication writes an exclusive temporary file (open flag "wx" =
+ *      O_CREAT|O_EXCL, so the temp entry itself can never be a followed
+ *      symlink) in the validated real directory, re-validates the parent and
+ *      destination entry, then rename(2)s it into place. rename replaces the
+ *      destination directory entry itself and does not follow symlinks, so a
+ *      symlink swapped in after the final check is replaced, never written
+ *      through. Rebuilding over an existing regular artifact stays legal and
+ *      byte-deterministic.
+ *
+ * Residual limitation, stated honestly: Node offers no renameat/dirfd
+ * primitives, so a concurrent attacker that swaps a parent directory between
+ * the final realpath re-check and the rename can still redirect the write.
+ * The re-validation narrows that window and every observable anomaly fails
+ * closed, but this tool does not claim to defeat a racing writer with the
+ * same filesystem permissions — that is out of scope for a build tool and
+ * matches the upstream PokeMan/LoomRealm builders' guarantees.
  */
-async function assertWritableOutput(destination, gameRoot) {
+async function writeBundleSafely(destination, gameRoot, data) {
   const distRoot = join(gameRoot, "dist");
   const canonicalTmp = await realpath(tmpdir());
-  const lexicallyAllowed = insideDirectory(distRoot, destination) || insideDirectory(canonicalTmp, destination);
-  if (!lexicallyAllowed) {
+
+  // 1. Lexical gate — decide before creating anything.
+  const lexicallyInDist = insideDirectory(distRoot, destination);
+  const lexicallyInTmp = insideDirectory(canonicalTmp, destination);
+  if (!lexicallyInDist && !lexicallyInTmp) {
     throw new Error(`refusing to write outside <repo>/dist/ or the system temp directory: ${destination}`);
   }
   const relativeToRepo = relative(gameRoot, destination).replaceAll("\\", "/");
@@ -328,23 +372,78 @@ async function assertWritableOutput(destination, gameRoot) {
   if (gitTracked(gameRoot, destination)) {
     throw new Error(`refusing to overwrite a Git-tracked file: ${destination}`);
   }
-  let facts;
-  try {
-    facts = await stat(destination);
-  } catch {
-    facts = null;
+
+  // 2. The destination entry must not be a symlink (dangling included) or a
+  //    directory. lstat does not follow, so this observes the entry itself.
+  const entryFacts = await pathFacts(destination);
+  if (entryFacts !== null) {
+    if (entryFacts.isSymbolicLink()) {
+      throw new Error(`refusing to write through a symlink destination: ${destination}`);
+    }
+    if (entryFacts.isDirectory()) {
+      throw new Error(`output path is a directory: ${destination}`);
+    }
   }
-  if (facts !== null && facts.isDirectory()) {
-    throw new Error(`output path is a directory: ${destination}`);
-  }
+
+  // 3. Materialize the parent chain, then validate the RESOLVED location.
+  //    A missing dist/ is created on demand here; temp-dir targets never
+  //    require dist/ to exist (realpath(distRoot) below tolerates ENOENT).
   await mkdir(dirname(destination), { recursive: true });
-  const canonical = join(await realpath(dirname(destination)), basename(destination));
-  const canonicallyAllowed = insideDirectory(await realpath(distRoot), canonical)
-    || insideDirectory(canonicalTmp, canonical);
-  if (!canonicallyAllowed) {
-    throw new Error(`refusing to write outside <repo>/dist/ or the system temp directory (symlinked): ${destination}`);
+  const gameReal = await realpath(gameRoot);
+  const realParent = await realpath(dirname(destination));
+  const resolved = join(realParent, basename(destination));
+
+  if (lexicallyInDist) {
+    const realDist = await realpath(distRoot).catch((cause) => {
+      if (cause?.code === "ENOENT") return null;
+      throw cause;
+    });
+    const resolvedRelative = relative(gameReal, resolved).replaceAll("\\", "/");
+    const staysInDist = realDist !== null && insideDirectory(realDist, resolved)
+      && resolvedRelative.split("/")[0] === "dist";
+    if (!staysInDist) {
+      throw new Error(`refusing to write outside <repo>/dist/ (symlinked parent redirects the write): ${destination}`);
+    }
+  } else if (!insideDirectory(canonicalTmp, resolved)) {
+    throw new Error(`refusing to write outside the system temp directory (symlinked parent redirects the write): ${destination}`);
   }
-  return canonical;
+
+  // The resolved location inside the game tree must also stay out of every
+  // protected tree and off Git-tracked files, whichever allowed root was
+  // used (this also covers a TMPDIR placed inside the repository).
+  const resolvedRelativeTree = relative(gameReal, resolved);
+  const resolvedInsideTree = !resolvedRelativeTree.startsWith("..") && !isAbsolute(resolvedRelativeTree);
+  if (resolvedInsideTree) {
+    const normalized = resolvedRelativeTree.replaceAll("\\", "/");
+    if (OUTPUT_DENYLIST.some((pattern) => pattern.test(normalized))) {
+      throw new Error(`refusing to write into a protected tree (resolved): ${destination}`);
+    }
+    if (gitTracked(gameRoot, resolved)) {
+      throw new Error(`refusing to overwrite a Git-tracked file (resolved): ${destination}`);
+    }
+  }
+
+  // 4. Atomic, symlink-free publication via an exclusive same-directory
+  //    temporary file and rename. rename(2) replaces the destination entry
+  //    itself, so a symlink swapped in after the last check is destroyed,
+  //    never followed.
+  const temp = join(realParent, `.${basename(destination)}.tmp-${process.pid}-${randomBytes(6).toString("hex")}`);
+  try {
+    await writeFile(temp, data, { encoding: "utf8", flag: "wx" });
+    const parentNow = await realpath(dirname(destination)).catch(() => null);
+    if (parentNow !== realParent) {
+      throw new Error(`parent directory of the output changed during the build (fail closed): ${destination}`);
+    }
+    const lateFacts = await pathFacts(destination);
+    if (lateFacts !== null && (lateFacts.isSymbolicLink() || lateFacts.isDirectory())) {
+      throw new Error(`refusing to write through a symlink or directory destination: ${destination}`);
+    }
+    await rename(temp, destination);
+  } catch (cause) {
+    await rm(temp, { force: true }).catch(() => {});
+    throw cause;
+  }
+  return resolved;
 }
 
 // ---------------------------------------------------------------------------
@@ -450,8 +549,7 @@ export async function buildAdventureIslandInstallationBundle({
   });
 
   const destination = resolve(outputFile);
-  const canonical = await assertWritableOutput(destination, game);
-  await writeFile(canonical, `${JSON.stringify(payload)}\n`, "utf8");
+  const canonical = await writeBundleSafely(destination, game, `${JSON.stringify(payload)}\n`);
   return Object.freeze({
     outputFile: canonical,
     executableCount: payload.executables.length,

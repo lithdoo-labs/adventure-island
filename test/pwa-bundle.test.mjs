@@ -24,7 +24,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -61,6 +61,40 @@ function runCli(args, cwd = repoRootPath) {
 async function makeTempDir(prefix = "adventure-pwa-bundle-") {
   return mkdtemp(path.join(tmpdir(), prefix));
 }
+
+// A fully isolated "project root" that mimics a fresh checkout of this
+// repository: the three canonical documents plus a protected research/ tree
+// with a sentinel. Nothing here ever touches the real repository's research/.
+async function makeIsolatedGameRoot() {
+  const isolatedRoot = await mkdtemp(path.join(tmpdir(), "adventure-isolated-root-"));
+  await mkdir(path.join(isolatedRoot, "research"), { recursive: true });
+  await writeFile(path.join(isolatedRoot, "research", "keep.txt"), "sentinel-content\n", "utf8");
+  for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) {
+    await writeFile(path.join(isolatedRoot, name), await readText(new URL(name, repoRoot)), "utf8");
+  }
+  const build = (outputFile) => buildAdventureIslandInstallationBundle({
+    gameRoot: isolatedRoot,
+    outputFile,
+    verifyGitlink: false,
+    executableSources: { "subsystems/smoke.mjs": fileURLToPath(new URL("systems/loomrealm-smoke/subsystem.mjs", repoRoot)) },
+  });
+  return { root: isolatedRoot, build };
+}
+
+// Symlink tests run wherever the platform allows symlink creation; if it does
+// not (e.g. unprivileged Windows), they skip with an explicit reason instead
+// of masking the Linux CI result.
+const symlinkSupport = await (async () => {
+  const dir = await makeTempDir("adventure-symlink-probe-");
+  try {
+    await symlink(path.join(dir, "target.txt"), path.join(dir, "link"));
+    return { ok: true };
+  } catch (cause) {
+    return { ok: false, reason: `symlink creation unavailable on this platform (${cause.code ?? cause.message}); symlink rejection tests skipped` };
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+})();
 
 // ---------------------------------------------------------------------------
 // Vendored upstream validator (verbatim) — the Stage 4B consumer's schema
@@ -463,6 +497,85 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
     }
   } finally {
     await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("output path safety: a project root without dist/ supports both dist and temp targets", async () => {
+  // Regression (P0): a fresh checkout has no dist/ — a temp-directory target
+  // must not require dist/ to exist, and a dist target must create it.
+  const isolated = await makeIsolatedGameRoot();
+  try {
+    const tempTarget = path.join(await makeTempDir(), "bundle.json");
+    const tempSummary = await isolated.build(tempTarget);
+    assert.equal(JSON.parse(await readText(tempSummary.outputFile)).executables.length, 1);
+
+    const distTarget = path.join(isolated.root, "dist", "adventure-island-installation-bundle.json");
+    const distSummary = await isolated.build(distTarget);
+    const payload = JSON.parse(await readText(distSummary.outputFile));
+    assert.equal(payload.executables.length, 1);
+    assert.equal(payload.content.length, 0);
+    await assert.rejects(readText(path.join(isolated.root, "research", "bundle.json")), /ENOENT/);
+  } finally {
+    await rm(isolated.root, { recursive: true, force: true });
+  }
+});
+
+test("output path safety: a symlink destination (including dangling) is rejected without following it", {
+  skip: !symlinkSupport.ok && symlinkSupport.reason,
+}, async () => {
+  const isolated = await makeIsolatedGameRoot();
+  try {
+    await mkdir(path.join(isolated.root, "dist"), { recursive: true });
+    const sentinel = path.join(isolated.root, "research", "keep.txt");
+    const sentinelBefore = await readFile(sentinel, "utf8");
+
+    const target = path.join(isolated.root, "dist", "bundle.json");
+    await symlink("../research/keep.txt", target);
+    await assert.rejects(() => isolated.build(target), /symlink destination|refusing/);
+    assert.equal(await readFile(sentinel, "utf8"), sentinelBefore, "the sentinel behind the symlink must not be touched");
+    assert.equal((await lstat(target)).isSymbolicLink(), true, "the rejected symlink must be left in place");
+
+    const dangling = path.join(isolated.root, "dist", "dangling.json");
+    await symlink("../research/does-not-exist.txt", dangling);
+    await assert.rejects(() => isolated.build(dangling), /symlink destination|refusing/);
+    await assert.rejects(readFile(path.join(isolated.root, "research", "does-not-exist.txt")), /ENOENT/);
+    assert.equal(await readFile(sentinel, "utf8"), sentinelBefore);
+  } finally {
+    await rm(isolated.root, { recursive: true, force: true });
+  }
+});
+
+test("output path safety: a parent-directory symlink escaping into a protected tree is rejected", {
+  skip: !symlinkSupport.ok && symlinkSupport.reason,
+}, async () => {
+  const isolated = await makeIsolatedGameRoot();
+  try {
+    await mkdir(path.join(isolated.root, "dist"), { recursive: true });
+    await symlink("../research", path.join(isolated.root, "dist", "evil"));
+    const target = path.join(isolated.root, "dist", "evil", "bundle.json");
+    await assert.rejects(() => isolated.build(target), /refusing to write|protected/);
+    await assert.rejects(readFile(path.join(isolated.root, "research", "bundle.json")), /ENOENT/, "no artifact may land in the protected tree");
+    const sentinel = path.join(isolated.root, "research", "keep.txt");
+    assert.equal(await readFile(sentinel, "utf8"), "sentinel-content\n", "the sentinel must be untouched");
+  } finally {
+    await rm(isolated.root, { recursive: true, force: true });
+  }
+});
+
+test("output path safety: rebuilding over an existing regular artifact stays legal and byte-deterministic", async () => {
+  const isolated = await makeIsolatedGameRoot();
+  try {
+    const target = path.join(isolated.root, "dist", "bundle.json");
+    await mkdir(path.join(isolated.root, "dist"), { recursive: true });
+    await writeFile(target, "stale artifact\n", "utf8");
+    await isolated.build(target);
+    const first = await readFile(target, "utf8");
+    assert.notEqual(first, "stale artifact\n", "the stale artifact must be replaced");
+    await isolated.build(target);
+    assert.equal(await readFile(target, "utf8"), first, "repeated builds must be byte-identical");
+    assert.equal((await lstat(target)).isSymbolicLink(), false, "the artifact must be a regular file");
+  } finally {
+    await rm(isolated.root, { recursive: true, force: true });
   }
 });
 

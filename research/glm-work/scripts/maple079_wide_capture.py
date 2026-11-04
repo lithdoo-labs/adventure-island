@@ -31,7 +31,7 @@ TAILB_VA = IMAGE + 0x819000
 TAILB_LEN = 0xF9000
 
 OUT_DIR = ROOT / "research" / "glm-work" / "scratch" / "replay"
-WIDE = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
+WIDE = ROOT / "research" / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
 REF = ROOT / ".work" / "task-009" / "probe-window.bin"
 
 

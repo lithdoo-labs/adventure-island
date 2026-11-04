@@ -387,7 +387,7 @@ def context_disasm(buf: bytes, site: int, before: int = 3, after: int = 3) -> st
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
-    parser.add_argument("--scratch", type=Path, default=ROOT / "glm-work" / "scratch")
+    parser.add_argument("--scratch", type=Path, default=ROOT / "research" / "glm-work" / "scratch")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     args.scratch.mkdir(parents=True, exist_ok=True)

@@ -136,7 +136,7 @@ def run_thunk(uc: Uc, image: bytes, imm: int, captures: list):
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=Path, default=ROOT / "glm-work" / "result")
+    parser.add_argument("--out", type=Path, default=ROOT / "research" / "glm-work" / "result")
     parser.add_argument("--limit", type=int, default=0, help="only first N thunks (0=all)")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)

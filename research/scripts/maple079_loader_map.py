@@ -3,7 +3,7 @@
 Does not modify the input file. Example:
 
     python research/scripts/maple079_loader_map.py path\\to\\MapleStory.exe query 0x862E76
-    python scripts/maple079_loader_map.py path\\to\\MapleStory.exe regions
+    python research/scripts/maple079_loader_map.py path\\to\\MapleStory.exe regions
 """
 
 from __future__ import annotations

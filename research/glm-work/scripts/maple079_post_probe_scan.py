@@ -368,7 +368,7 @@ def main() -> None:
         "driver_string_refs": {k.decode(errors="replace"): [hex(a) for a in v] for k, v in refs.items() if v},
         "anchors": anchors,
     }
-    wide_path = ROOT / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
+    wide_path = ROOT / "research" / "glm-work" / "scratch" / "tailb-wide-at-probe.bin"
     if wide_path.exists():
         summary["round3_verify"] = round3_verify(wide_path.read_bytes())
     (args.out / "task012-scan-summary.json").write_text(

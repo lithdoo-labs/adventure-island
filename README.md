@@ -47,11 +47,13 @@ Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定�
 
 研究资料是设计参考，不是正式运行时依赖。正式代码不得从 `research/` 导入模块，也不得把原始客户端或全量 WZ / FSDB 资源提交到仓库。
 
-根目录保留少量 Agent / CI 支持文件：
+根目录现行的 AI Coding 入口只有 `scripts/issue_agent/`，由 Issue 上的 `/agent start` 和 `/agent revise` 驱动。旧 Design PR Agent 三个 Actions 和 `scripts/agent/` 已停用并删除。
 
-- `task/dev/`：旧 Design PR Agent 的设计任务入口，不属于逆向任务归档。
-- `scripts/agent/`、`scripts/issue_agent/`：受保护的 GitHub Actions Agent 自动化。
-- `glm-work/`：本地研究 Runner 的启动配置和兼容入口；实际研究资料与输出位于 `research/glm-work/`。
+- `task/dev/`：旧 Design PR 任务说明（待归档至 `research/task/dev/`，不再触发 AI Coding）。
+- `glm-work/`：本地研究 Runner 启动配置（待归档至 `research/glm-work/bootstrap/`）。
+- `research/**`：逆向研究档案，不允许 Issue Agent 的代码补丁修改。
+
+完整工程及 PWA 迁移阶段见 [迁移计划](./docs/migration/2026-11-04-issue-agent-and-pwa.md)。
 
 本地原始客户端只允许放在 `.raw/`，临时解压和工作产物放在 `.work/`；两者均为本地目录，不应提交。
 

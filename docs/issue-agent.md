@@ -31,7 +31,7 @@ An owner-only alternative is Actions → Issue Agent (OpenCode 2) → Run workfl
 | Execute | self-hosted, linux, x64, opencode, labs | Read-only checkout, no write token forwarded |
 | Publish | ubuntu-latest | Contents / Issues / Pull requests write |
 
-The publisher rejects changes to .github/, scripts/issue_agent/, existing scripts/agent/, .gitmodules, .gitignore, .raw/, AGENTS.md, .env*, and OpenCode config, as well as symlinks, submodules, oversize patches, and stale PR HEAD SHAs. An owner-authored Issue is the only permitted entry for OpenCode execution.
+The publisher rejects changes to .github/, scripts/issue_agent/, research/, the retired scripts/agent/ path, .gitmodules, .gitignore, .raw/, AGENTS.md, .env*, and OpenCode config, as well as symlinks, submodules, oversize patches, and stale PR HEAD SHAs. An owner-authored Issue is the only permitted entry for OpenCode execution.
 
 ## Persistent mapping
 
@@ -78,8 +78,10 @@ The connected ChatGPT GitHub API lacks an Actions workflow_dispatch operation; o
 - Publish failures: verify GitHub Action PR creation policy and write permissions, the approved source SHA and branch rules. If the Agent pushed branch agent/issue-N but GitHub denied Draft PR creation, enable the repository PR creation setting (or supply AGENT_GITHUB_TOKEN), then comment **/agent start** again. The workflow validates the prior Agent commit and opens the missing Draft PR **without rerunning OpenCode**. The saved Session remains available for the next /agent revise.
 - The model's session content lives on the self-hosted Runner; do not delete persistent state when cleaning a PR.
 
-## Coexistence with original Design PR workflows
+## Issue Agent as the sole AI Coding workflow
 
-The new Issue Agent listens to **ordinary Issue comments**, whereas the existing `Agent Revise` workflow listens to **PR conversation comments**. Keep `agent-implement.yml`, `agent-revise.yml`, `agent-spec-gate.yml` and their existing session data unchanged. This workflow maintains a separate `issue-agent/` data directory under the organization's existing `adventure-island` state namespace.
+The old Design PR Agent (`agent-spec-gate.yml`, `agent-implement.yml`, `agent-revise.yml` and `scripts/agent/`) has been retired. Only ordinary Issue comments containing `/agent start` or `/agent revise` (and the owner-only manual dispatch) initiate AI Coding. PR conversation comments do **not** initiate the retired agent's revision flow.
 
-The organization's shared Runner handles one job at a time. If you enable a Runner Group selected-workflow allowlist, include **both** this new workflow and the existing authorized Agent Implement / Revise workflows; otherwise existing jobs may remain queued.
+The Issue Agent keeps its own persistent state under the existing `adventure-island/issue-agent/` runner namespace; old Design PR sessions are not migrated automatically and must not be deleted as part of this source cleanup.
+
+If you use a Runner Group selected-workflow allowlist, authorize `lithdoo-labs/adventure-island/.github/workflows/issue-agent.yml@refs/heads/main`. `issue-agent-validation.yml` runs on GitHub-hosted runners. See [migration plan](./migration/2026-11-04-issue-agent-and-pwa.md) for archived entry points and the independent PWA deployment plan.

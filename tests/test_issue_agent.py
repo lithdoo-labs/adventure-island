@@ -59,7 +59,9 @@ class AuthTests(unittest.TestCase):
         for name in (".github/workflows/malicious.yml", ".env", "AGENTS.md",
                      "scripts/issue_agent/agent.py", "scripts/agent/github_api.py",
                      ".gitmodules", ".gitignore", ".raw/client.bin",
-                     "glm-work/opencode.json", "tools/.env.secret",
+                     "glm-work/opencode.json", "research/result/legacy.json",
+                     "research/glm-work/bootstrap/opencode.json",
+                     "research/task/dev/README.md", "tools/.env.secret",
                      "../escape", "a/AGENTS.md"):
             with self.subTest(name=name), self.assertRaises(RuntimeError):
                 agent.validate_paths([name])

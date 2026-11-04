@@ -14,10 +14,9 @@
 // LoomRealm APIs, and the empty application is actually booted through real
 // Main + Hostra hosting until the initial Frame completes.
 //
-// The structural rules mirrored below track the pinned submodule revision
-// (c5217e47be5a43f974e9e6ce82230077fb639c39) and are cross-checked against
-// the pinned PokeMan reference files in a test, so drift surfaces as a
-// failing assertion instead of a silent mismatch.
+// Structural mirrors are cross-checked against the canonical Adventure Island
+// entry and the new pinned generic LoomRealm PWA payload validator; the retired
+// examples/PokeMan/ fixture is intentionally no longer a runtime dependency.
 
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
@@ -339,19 +338,35 @@ test("the no-op subsystem imports, constructs, and completes Frames deterministi
   assert.deepEqual(used, [], "the no-op subsystem must not touch any scope capability or call other subsystems");
 });
 
-test("the pinned PokeMan reference topology still satisfies the same structural rules", async () => {
-  const pokemanRoot = new URL("examples/PokeMan/", loomRealmRoot);
-  const game = validateGameEntryStructural(await readText(new URL("game.json", pokemanRoot)), "PokeMan game.json");
-  assert.deepEqual(game.subsystems, [{ key: "base" }, { key: "map" }, { key: "dialogue" }]);
-  assert.equal(game.initial.subsystem, "base");
-  assert.equal(typeof game.initial.input.mapId, "number");
+test("the canonical game and smoke executable satisfy the real generic PWA payload contract", async () => {
+  const gameEntryText = await readText(new URL("game.json", repoRoot));
+  const launchManifestText = await readText(new URL("launch.pwa.json", repoRoot));
+  const game = validateGameEntryStructural(gameEntryText, "root game.json");
+  const manifest = validateLaunchManifestStructural(launchManifestText, "root launch.pwa.json");
+  assert.deepEqual(game, EXPECTED_GAME_ENTRY);
+  assert.deepEqual(manifest, EXPECTED_LAUNCH_MANIFEST);
+  assertJoinedBindings(game, manifest, "root PWA");
 
-  const pwa = validateLaunchManifestStructural(await readText(new URL("launch.pwa.json", pokemanRoot)), "PokeMan launch.pwa.json");
-  const hostra = validateLaunchManifestStructural(await readText(new URL("launch.hostra.json", pokemanRoot)), "PokeMan launch.hostra.json");
-  assert.deepEqual(pwa.subsystems, hostra.subsystems);
-  for (const binding of pwa.subsystems) {
-    await resolveInstallationModuleFile(pokemanRoot, binding.module, "PokeMan");
-  }
+  // The new framework no longer ships examples/PokeMan/. Instead validate the
+  // product against its ACTUAL generic PWA builder, not a stale example tree.
+  const { validatePwaBundlePayload } = await import(
+    new URL("apps/pwa/scripts/build-bundle.mjs", loomRealmRoot).href
+  );
+  const source = await readText(sharedSubsystemUrl);
+  const payload = {
+    formatVersion: 1,
+    gameEntryText,
+    launchManifestText,
+    presentation: JSON.parse(await readText(new URL("presentation.json", repoRoot))),
+    executables: [{
+      logicalModule: "subsystems/smoke.mjs",
+      mime: "text/javascript",
+      source,
+      contentVersion: "sha256:" + createHash("sha256").update(source).digest("hex"),
+    }],
+    content: [],
+  };
+  assert.equal(validatePwaBundlePayload(payload), payload);
 });
 
 test("the pinned loom-realm APIs this scaffold depends on are present in the submodule", async () => {
@@ -371,12 +386,11 @@ test("the pinned loom-realm APIs this scaffold depends on are present in the sub
     "packages/subsystem/src/model.ts",
     "packages/subsystem/src/outcome.ts",
     "packages/main/src/index.ts",
-    "examples/PokeMan/game.json",
-    "examples/PokeMan/launch.pwa.json",
-    "examples/PokeMan/launch.hostra.json",
-    "examples/PokeMan/subsystems/_empty.mjs",
-    "examples/PokeMan/test/map-smoke.test.mjs",
-    "examples/PokeMan/test/pwa-content.test.mjs",
+    "apps/pwa/scripts/build-bundle.mjs",
+    "apps/pwa/scripts/build-identity.mjs",
+    "apps/pwa/scripts/pwa-bundle-id.mjs",
+    "apps/pwa/scripts/run-e2e.mjs",
+    "game-libs/game-common-controls/package.json",
     "packages/game-launcher-hostra/test/e2e.test.mjs",
   ];
   for (const file of pinnedFiles) {

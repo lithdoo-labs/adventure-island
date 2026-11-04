@@ -22,7 +22,7 @@
 // payload's executable graph.
 
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -216,7 +216,9 @@ test("the CLI builds a byte-deterministic installation-bundle v1 payload", async
     assert.equal(summary.executableCount, 1);
     assert.equal(summary.contentCount, 0);
     assert.deepEqual(summary.executableModules, ["subsystems/smoke.mjs"]);
-    assert.equal(summary.frameworkSha, "c5217e47be5a43f974e9e6ce82230077fb639c39");
+    const gitlink = execFileSync("git", ["-C", repoRootPath, "rev-parse", "HEAD:loom-realm"], { encoding: "utf8" }).trim();
+    assert.match(gitlink, /^[0-9a-f]{40}$/u);
+    assert.equal(summary.frameworkSha, gitlink);
 
     const firstText = await readText(path.join(temp, "a", "bundle.json"));
     // Compact JSON with exactly one trailing newline — the same serialization

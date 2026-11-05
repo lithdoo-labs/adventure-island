@@ -444,7 +444,7 @@ const realBuilderPresent = await (async () => {
 
 test("real generic-builder integration produces a verifiable staging directory", {
   skip: !realBuilderPresent
-    && "requires a LoomRealm Gitlink >= 93648192323bf5f57996b7b54cbae641d8a53fdb with apps/pwa/scripts/build-bundle.mjs and its built SDK; the currently pinned c5217e47 has no generic builder (Stage 4B maintainer upgrade pending)",
+    && "requires the pinned LoomRealm generic builder and its generated SDK artifacts; run npm ci and npm run build:bundle inside loom-realm first",
 }, async () => {
   const result = await buildAdventureIslandPwaStaging();
   assert.equal(result.appId, STAGING_APP_ID);

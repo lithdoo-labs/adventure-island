@@ -24,7 +24,7 @@ OWNER_ID = 130959182
 MARKER = "<!-- adventure-island-issue-agent:issue={issue} -->"
 STATUS_RE = re.compile(r"<!-- adventure-island-agent-turn:issue=(\d+);comment=(\d+);turn=(\d+) -->")
 STATUS_COMMAND_RE = re.compile(r"<!-- adventure-island-agent-status:issue=(\d+);comment=(\d+) -->")
-RUN_TIMEOUT_SECONDS = 7200
+RUN_TIMEOUT_SECONDS = 14400
 STATUS_TIMEOUT_SECONDS = 600
 SESSION_RE = re.compile(r"^ses_[A-Za-z0-9_-]+$")
 PROTECTED = (".github/", "scripts/issue_agent/", "scripts/agent/", "research/",
@@ -200,8 +200,8 @@ def preflight(args):
         if not authorized_author(comment) or int(comment.get("issue_url", "").split("/")[-1]) != issue_number:
             raise RuntimeError("trigger comment was altered or mismatched")
     pr = find_agent_pr(issue_number)
-    if operation == "start" and pr:
-        raise RuntimeError("Issue already has an Agent PR; use /agent revise instead")
+    if pr and pr.get("state") != "open":
+        raise RuntimeError("Issue already has a closed Agent PR; use a new Issue")
     if operation == "revise" and (not pr or pr.get("state") != "open"):
         raise RuntimeError("Issue has no open Agent PR; use /agent start")
     if pr:
@@ -223,8 +223,7 @@ def preflight(args):
                     or not message.startswith(f"feat(agent): issue #{issue_number} turn ")):
                 raise RuntimeError("existing Issue branch was not published by this Agent")
             orphan_sha = candidate_sha
-            if operation == "start":
-                operation = "recover"
+            # Keep start: prepare creates/recovers the Draft PR before execution.
     comments = pages(f"/repos/{REPO}/issues/{issue_number}/comments")
     checkpoint = get_last_checkpoint(comments, issue_number, comment_id)
     if operation == "revise":

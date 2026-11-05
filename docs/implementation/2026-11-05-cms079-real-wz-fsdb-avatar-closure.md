@@ -4,6 +4,7 @@
 > 执行模型：一个 Owner-authored Issue、一个持久 OpenCode Session、一个 Draft PR；允许在同一 Issue 上通过多轮 /agent revise 完成。
 > 基线：Adventure Island 当前 main；LoomRealm gitlink 保持当前 pin。
 > 目标：把历史 PR #1 的 WZ→FSDB 转换器修复移植到当前 main，并使用此前已逆向验证的同一套 /shared CMS079 客户端，完成真实 Avatar 内容经当前 LoomRealm Content API 到 cms-actor Chromium 的端到端验收。
+> 执行 Issue：[ #50 — CMS079 converter and real avatar closed loop ](https://github.com/lithdoo-labs/adventure-island/issues/50)。
 
 ## 1. 最终交付
 

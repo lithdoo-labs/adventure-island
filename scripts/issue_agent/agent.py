@@ -24,7 +24,7 @@ OWNER_ID = 130959182
 MARKER = "<!-- adventure-island-issue-agent:issue={issue} -->"
 STATUS_RE = re.compile(r"<!-- adventure-island-agent-turn:issue=(\d+);comment=(\d+);turn=(\d+) -->")
 STATUS_COMMAND_RE = re.compile(r"<!-- adventure-island-agent-status:issue=(\d+);comment=(\d+) -->")
-RUN_TIMEOUT_SECONDS = 7200
+RUN_TIMEOUT_SECONDS = 14400
 STATUS_TIMEOUT_SECONDS = 600
 SESSION_RE = re.compile(r"^ses_[A-Za-z0-9_-]+$")
 PROTECTED = (".github/", "scripts/issue_agent/", "scripts/agent/", "research/",
@@ -200,8 +200,8 @@ def preflight(args):
         if not authorized_author(comment) or int(comment.get("issue_url", "").split("/")[-1]) != issue_number:
             raise RuntimeError("trigger comment was altered or mismatched")
     pr = find_agent_pr(issue_number)
-    if operation == "start" and pr:
-        raise RuntimeError("Issue already has an Agent PR; use /agent revise instead")
+    if pr and pr.get("state") != "open":
+        raise RuntimeError("Issue already has a closed Agent PR; use a new Issue")
     if operation == "revise" and (not pr or pr.get("state") != "open"):
         raise RuntimeError("Issue has no open Agent PR; use /agent start")
     if pr:
@@ -223,8 +223,7 @@ def preflight(args):
                     or not message.startswith(f"feat(agent): issue #{issue_number} turn ")):
                 raise RuntimeError("existing Issue branch was not published by this Agent")
             orphan_sha = candidate_sha
-            if operation == "start":
-                operation = "recover"
+            # Keep start: prepare creates/recovers the Draft PR before execution.
     comments = pages(f"/repos/{REPO}/issues/{issue_number}/comments")
     checkpoint = get_last_checkpoint(comments, issue_number, comment_id)
     if operation == "revise":
@@ -386,50 +385,56 @@ def stream_opencode(command, cwd, env, timeout_seconds, log_path, on_session=Non
 
     with log_path.open("ab") as log:
         try:
-            os.chmod(log_path, 0o600)
-        except OSError:
-            pass
-        process = subprocess.Popen(
-            command, cwd=cwd, env=env, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, bufsize=0, start_new_session=True)
-        selector.register(process.stdout, selectors.EVENT_READ)
-        os.set_blocking(process.stdout.fileno(), False)
-        while selector.get_map() or process.poll() is None:
-            elapsed = time.monotonic() - started
-            if elapsed >= timeout_seconds and process.poll() is None:
-                terminate_process_group(process)
-                output = output_tail.decode("utf-8", errors="replace")
-                raise OpenCodeTimeout(timeout_seconds, output)
-            ready = selector.select(timeout=1)
-            if not ready:
-                if time.monotonic() - last_heartbeat >= 60:
-                    print(f"[issue-agent] OpenCode still running ({int(elapsed)}s elapsed)",
-                          flush=True)
-                    last_heartbeat = time.monotonic()
-                continue
-            for key, _ in ready:
-                try:
-                    chunk = os.read(key.fd, 65536)
-                except BlockingIOError:
+            try:
+                os.chmod(log_path, 0o600)
+            except OSError:
+                pass
+            process = subprocess.Popen(
+                command, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, bufsize=0, start_new_session=True)
+            selector.register(process.stdout, selectors.EVENT_READ)
+            os.set_blocking(process.stdout.fileno(), False)
+            while selector.get_map() or process.poll() is None:
+                elapsed = time.monotonic() - started
+                if elapsed >= timeout_seconds and process.poll() is None:
+                    terminate_process_group(process)
+                    output = output_tail.decode("utf-8", errors="replace")
+                    raise OpenCodeTimeout(timeout_seconds, output)
+                ready = selector.select(timeout=1)
+                if not ready:
+                    if time.monotonic() - last_heartbeat >= 60:
+                        print(f"[issue-agent] OpenCode still running ({int(elapsed)}s elapsed)",
+                              flush=True)
+                        last_heartbeat = time.monotonic()
                     continue
-                if not chunk:
-                    selector.unregister(key.fileobj)
-                    continue
-                log.write(chunk)
-                log.flush()
-                output_tail.extend(chunk)
-                if len(output_tail) > 2_000_000:
-                    del output_tail[:-2_000_000]
-                pending.extend(chunk)
-                while b"\n" in pending:
-                    line, _, remainder = pending.partition(b"\n")
-                    pending = bytearray(remainder)
-                    consume_line(line)
-        if pending:
-            consume_line(bytes(pending))
+                for key, _ in ready:
+                    try:
+                        chunk = os.read(key.fd, 65536)
+                    except BlockingIOError:
+                        continue
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                        continue
+                    log.write(chunk)
+                    log.flush()
+                    output_tail.extend(chunk)
+                    if len(output_tail) > 2_000_000:
+                        del output_tail[:-2_000_000]
+                    pending.extend(chunk)
+                    while b"\n" in pending:
+                        line, _, remainder = pending.partition(b"\n")
+                        pending = bytearray(remainder)
+                        consume_line(line)
+            if pending:
+                consume_line(bytes(pending))
+        finally:
+            selector.close()
+            if process is not None:
+                if process.poll() is None:
+                    terminate_process_group(process)
+                if process.stdout is not None and not process.stdout.closed:
+                    process.stdout.close()
     return output_tail.decode("utf-8", errors="replace"), process.wait()
-
-
 def status_prompt(inp):
     return (
         f"Repository: {REPO}\nIssue #{inp['issue']}: {inp['issue_title']}\n"
@@ -448,6 +453,32 @@ def status_prompt(inp):
         "6. Any missing information or Runner prerequisites.\n"
         "Do not claim a test passed unless the prior session or current checkout contains evidence."
     )
+
+def snapshot_workspace_patch(workspace, patch_path, base_sha):
+    """Capture every safe tracked/untracked workspace change, including on failure."""
+    git("add", "-A", "--", ".",
+        ":(exclude,glob)**/__pycache__/**",
+        ":(exclude,glob)**/*.pyc",
+        ":(exclude,glob)**/.pytest_cache/**",
+        ":(exclude,glob)**/.mypy_cache/**",
+        cwd=workspace)
+    paths = git("diff", "--cached", "--name-only", "-z", base_sha, cwd=workspace).stdout.split("\0")
+    paths = [path for path in paths if path]
+    validate_paths(paths)
+    git("diff", "--cached", "--check", base_sha, cwd=workspace)
+    if paths:
+        modes = git("ls-files", "--stage", "-z", "--", *paths, cwd=workspace).stdout
+        for row in modes.split("\0"):
+            if row and row.split(" ", 1)[0] in ("120000", "160000"):
+                raise RuntimeError("symlinks or submodules are not publishable")
+    patch = subprocess.run(
+        ["git", "diff", "--cached", "--binary", base_sha], cwd=workspace,
+        capture_output=True, check=True).stdout
+    if len(patch) > MAX_PATCH_BYTES:
+        raise RuntimeError("generated patch exceeds maximum allowed size")
+    Path(patch_path).write_bytes(patch)
+    return paths, patch
+
 
 def safe_summary(summary):
     for key in ("GLM_API_KEY", "GITHUB_ACCESS_TOKEN", "GITHUB_ORG_ACCESS_TOKEN", "GH_TOKEN"):
@@ -618,27 +649,14 @@ def execute(args):
         if not session_id:
             raise RuntimeError("OpenCode completed without a recoverable session ID")
         summary = safe_summary(response_from_events(output))
-        git("add", "-A", "--", ".",
-            ":(exclude,glob)**/__pycache__/**",
-            ":(exclude,glob)**/*.pyc",
-            ":(exclude,glob)**/.pytest_cache/**",
-            ":(exclude,glob)**/.mypy_cache/**",
-            cwd=workspace)
-        paths = git("diff", "--cached", "--name-only", "-z", cwd=workspace).stdout.split("\0")
-        paths = [p for p in paths if p]
-        validate_paths(paths)
-        git("diff", "--cached", "--check", cwd=workspace)
-        patch = subprocess.run(["git", "diff", "--cached", "--binary", "HEAD"], cwd=workspace,
-                               capture_output=True, check=True).stdout
-        if len(patch) > MAX_PATCH_BYTES:
-            raise RuntimeError("generated patch exceeds maximum allowed size")
+        paths, patch = snapshot_workspace_patch(workspace, patch_path, inp["base_sha"])
         if inp["operation"] == "start" and not patch:
             raise RuntimeError("OpenCode produced no working-tree changes in Actions checkout")
-        patch_path.write_bytes(patch)
         result.update(status="ok", session_id=session_id,
                       continuity=result["continuity"] if result["continuity"] != "unavailable"
                       else ("resumed" if prior else "new"),
-                      changed_files=paths, summary=summary or "OpenCode completed successfully.")
+                      changed_files=paths, checkpoint_available=bool(patch),
+                      summary=summary or "OpenCode completed successfully.")
         metadata_payload.update({
             "session_id": session_id, "turn": inp["turn"],
             "status": "completed", "completed_at": time.time()
@@ -665,7 +683,24 @@ def execute(args):
             write_json_atomic(metadata, metadata_payload)
         except Exception:
             pass
-        patch_path.write_bytes(b"")
+        try:
+            paths, partial_patch = snapshot_workspace_patch(workspace, patch_path, inp["base_sha"])
+            result["changed_files"] = paths
+            result["checkpoint_available"] = bool(partial_patch)
+            if partial_patch:
+                result["summary"] += (
+                    f"\nRecoverable partial code checkpoint captured: "
+                    f"{len(paths)} files, {len(partial_patch)} bytes. "
+                    "The publisher can preserve this work in the existing Draft PR."
+                )
+        except Exception as snapshot_error:
+            patch_path.write_bytes(b"")
+            result["checkpoint_available"] = False
+            result["checkpoint_error"] = str(snapshot_error)[:500]
+            result["summary"] += (
+                "\nWorkspace changes could not be packaged safely: "
+                + str(snapshot_error)[:500]
+            )
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     print(f"Issue #{inp['issue']} {inp['operation']} {inp['turn']}: {result['status']} "
           f"({len(result.get('changed_files', []))} files)")
@@ -678,6 +713,85 @@ def git_push(branch):
     git("-c", "credential.helper=", "-c",
         "http.https://github.com/.extraheader=AUTHORIZATION: basic " + cred,
         "push", "origin", "HEAD:refs/heads/" + branch)
+
+
+def prepare(args):
+    """Create the Issue branch and Draft PR before OpenCode starts."""
+    inp = json.loads(Path(args.input).read_text())
+    workspace = Path.cwd().resolve()
+    operation = inp["operation"]
+    if git("rev-parse", "--show-toplevel", cwd=workspace).stdout.strip() != str(workspace):
+        raise RuntimeError("prepare checkout is not the repository root")
+    if git("rev-parse", "HEAD", cwd=workspace).stdout.strip() != inp["base_sha"]:
+        raise RuntimeError("prepare checkout differs from the approved preflight SHA")
+
+    if operation != "status":
+        branch = inp["branch"]
+        pr = find_agent_pr(inp["issue"])
+        if pr:
+            if (pr.get("state") != "open"
+                    or pr.get("head", {}).get("ref") != branch
+                    or pr.get("head", {}).get("repo", {}).get("full_name") != REPO
+                    or pr.get("base", {}).get("ref") != "main"
+                    or MARKER.format(issue=inp["issue"]) not in (pr.get("body") or "")):
+                raise RuntimeError("existing Agent PR failed provenance or open-state validation")
+            head_sha = pr.get("head", {}).get("sha")
+            if head_sha != inp["base_sha"]:
+                raise RuntimeError("existing Agent PR head changed after preflight")
+            number = pr["number"]
+        else:
+            try:
+                branch_ref = api("GET", f"/repos/{REPO}/git/ref/heads/{branch}")
+            except LookupError:
+                if operation != "start":
+                    raise RuntimeError("Agent branch is missing; refusing to create a PR without its code")
+                git("switch", "-c", branch, cwd=workspace)
+                git("config", "user.name", "github-actions[bot]", cwd=workspace)
+                git("config", "user.email",
+                    "41898282+github-actions[bot]@users.noreply.github.com", cwd=workspace)
+                git("commit", "--allow-empty", "-m",
+                    f"feat(agent): issue #{inp['issue']} turn 0 (initialize recoverable Draft PR)",
+                    cwd=workspace)
+                git_push(branch)
+                head_sha = git("rev-parse", "HEAD", cwd=workspace).stdout.strip()
+            else:
+                head_sha = branch_ref["object"]["sha"]
+                if head_sha != inp["base_sha"]:
+                    raise RuntimeError("existing Agent branch moved after preflight")
+                committed = api("GET", f"/repos/{REPO}/commits/{head_sha}")
+                message = committed.get("commit", {}).get("message", "")
+                if (committed.get("author", {}).get("login") != "github-actions[bot]"
+                        or not message.startswith(f"feat(agent): issue #{inp['issue']} turn ")):
+                    raise RuntimeError("existing Issue branch was not published by this Agent")
+
+            title = f"agent: {inp['issue_title']}"[:200]
+            body = (
+                MARKER.format(issue=inp["issue"]) + "\n\n"
+                f"Implements #{inp['issue']} using OpenCode 2 on the organization runner.\n\n"
+                "Draft PR is created before AI execution so the Issue branch and review surface "
+                "survive model errors, timeouts, and missing result artifacts. Partial safe "
+                "checkpoints are pushed here; subsequent turns update this same PR.\n\n"
+                "Post feedback on the linked Issue or in PR review, then comment "
+                "/agent revise on the Issue. Never auto-merge."
+            )
+            created = api("POST", f"/repos/{REPO}/pulls",
+                          {"title": title, "head": branch, "base": "main",
+                           "body": body, "draft": True})
+            number = created["number"]
+
+        inp["pr"] = number
+        inp["base_sha"] = head_sha
+        inp["prepared_at"] = time.time()
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(inp, ensure_ascii=False, indent=2) + "\n")
+    with Path(args.github_output).open("a") as stream:
+        stream.write(f"base_sha={inp['base_sha']}\n")
+        if inp.get("pr") is not None:
+            stream.write(f"pr_number={inp['pr']}\n")
+    print(f"Prepared Issue #{inp['issue']} operation={operation} "
+          f"branch={inp['branch']} PR={inp.get('pr')} SHA={inp['base_sha'][:12]}")
 
 
 def result_comment(inp, result, pr=None, error=None):
@@ -712,12 +826,20 @@ def result_comment(inp, result, pr=None, error=None):
     continuity = result.get("continuity", "unavailable")
     if not success and result.get("session_id"):
         continuity = "interrupted; session ID persisted for recovery"
+    if result.get("checkpoint_published"):
+        checkpoint = "partial or complete code checkpoint pushed to the PR branch"
+    elif result.get("checkpoint_available"):
+        checkpoint = "recoverable code checkpoint was captured; see publishing result"
+    else:
+        checkpoint = "no new code checkpoint; existing branch and Draft PR retained"
     body = [
         f"<!-- adventure-island-agent-turn:issue={issue};comment={command};turn={turn} -->",
         f"### OpenCode Issue Agent — turn {turn}",
         f"- Status: **{'completed' if success else 'failed / needs attention'}**",
         f"- Session: **{continuity}**",
-        f"- PR: {'#' + str(pr) if pr else 'not published'}",
+        f"- PR: {'#' + str(pr) if pr else 'not available'}",
+        f"- Branch: `{inp.get('branch', 'unknown')}`",
+        f"- Checkpoint: {checkpoint}",
         f"- Changed files: {len(changed)}",
         f"- GitHub Actions run: {os.environ.get('GITHUB_RUN_ID', 'unknown')}",
         "",
@@ -734,7 +856,8 @@ def publish(args):
     candidate_path = Path(args.result)
     result = json.loads(candidate_path.read_text()) if candidate_path.is_file() else {
         "status": "failed", "continuity": "unavailable",
-        "summary": "Executor job did not produce a result artifact."
+        "summary": "Executor did not produce a result artifact; the pre-created Draft PR is retained.",
+        "changed_files": []
     }
     if result.get("issue") not in (None, inp["issue"]):
         raise RuntimeError("result artifact belongs to another Issue")
@@ -755,6 +878,7 @@ def publish(args):
                 inp["issue"], inp["command_id"], inp["turn"]):
             print("This command already has a published result; skipping duplicate push.")
             return
+
     number = inp.get("pr")
     if inp.get("operation") == "status":
         api("POST", f"/repos/{REPO}/issues/{inp['issue']}/comments",
@@ -764,29 +888,32 @@ def publish(args):
             raise RuntimeError("OpenCode status query failed; diagnostic report was posted")
         return
 
-    failure = None
     if inp["operation"] == "recover":
-        result = {"status": "ok", "continuity": "preserved",
-                  "summary": "Recovered the existing Agent branch and created the missing Draft PR without rerunning OpenCode.",
-                  "changed_files": [], "issue": inp["issue"], "turn": inp["turn"]}
+        result = {
+            "status": "ok", "continuity": "preserved",
+            "summary": "Recovered the existing Agent branch and prepared its Draft PR without rerunning OpenCode.",
+            "changed_files": [], "issue": inp["issue"], "turn": inp["turn"],
+            "checkpoint_published": False
+        }
+
+    failure = None
     try:
-        if result.get("status") != "ok":
-            raise RuntimeError("Agent execution failed")
+        if not number:
+            raise RuntimeError("prepared Draft PR number is missing; refusing an unreviewed code push")
         if git("rev-parse", "HEAD").stdout.strip() != inp["base_sha"]:
-            raise RuntimeError("publisher checkout SHA differs from approved snapshot")
-        if inp["operation"] == "revise":
-            current = api("GET", f"/repos/{REPO}/pulls/{number}")
-            if (current["state"] != "open" or current["head"]["sha"] != inp["base_sha"]
-                    or current["head"]["ref"] != inp["branch"]):
-                raise RuntimeError("PR changed since preflight; refusing stale push")
-        if inp["operation"] == "recover":
-            current = api("GET", f"/repos/{REPO}/git/ref/heads/{inp['branch']}")
-            if current["object"]["sha"] != inp["base_sha"]:
-                raise RuntimeError("orphan Agent branch moved after preflight; refuse recovery")
+            raise RuntimeError("publisher checkout SHA differs from the prepared PR head")
+        current = api("GET", f"/repos/{REPO}/pulls/{number}")
+        if (current.get("state") != "open"
+                or current.get("head", {}).get("sha") != inp["base_sha"]
+                or current.get("head", {}).get("ref") != inp["branch"]
+                or MARKER.format(issue=inp["issue"]) not in (current.get("body") or "")):
+            raise RuntimeError("Draft PR changed or failed provenance validation; refusing stale push")
+
         patch = Path(args.patch)
-        if inp["operation"] != "recover" and (not patch.is_file() or patch.stat().st_size > MAX_PATCH_BYTES):
-            raise RuntimeError("patch artifact missing or too large")
-        if inp["operation"] != "recover" and patch.stat().st_size:
+        patch_bytes = patch.read_bytes() if patch.is_file() else b""
+        if len(patch_bytes) > MAX_PATCH_BYTES:
+            raise RuntimeError("patch artifact exceeds maximum allowed size")
+        if patch_bytes:
             git("apply", "--check", "--index", patch)
             git("apply", "--index", patch)
             paths = [x for x in git("diff", "--cached", "--name-only", "-z").stdout.split("\0") if x]
@@ -798,32 +925,40 @@ def publish(args):
                     raise RuntimeError("symlinks or submodules are not publishable")
             git("config", "user.name", "github-actions[bot]")
             git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
-            git("commit", "-m", f"feat(agent): issue #{inp['issue']} turn {inp['turn']}")
+            if result.get("status") == "ok":
+                message = f"feat(agent): issue #{inp['issue']} turn {inp['turn']}"
+            else:
+                message = f"wip(agent): issue #{inp['issue']} turn {inp['turn']} (partial checkpoint)"
+            git("commit", "-m", message)
             git_push(inp["branch"])
-        elif inp["operation"] == "start":
-            raise RuntimeError("initial implementation produced no code changes")
-        if inp["operation"] in ("start", "recover"):
-            title = f"agent: {inp['issue_title']}"[:200]
-            body = (
-                MARKER.format(issue=inp["issue"]) + "\n\n"
-                f"Implements #{inp['issue']} using OpenCode 2 on the organization runner.\n\n"
-                "Draft PR for human code review; changes and later revisions remain on "
-                f"branch {inp['branch']}.\n\n"
-                "Post feedback on the linked Issue or in PR review, then comment "
-                "/agent revise on the Issue. Never auto-merge."
-            )
-            pr = api("POST", f"/repos/{REPO}/pulls",
-                     {"title": title, "head": inp["branch"], "base": "main",
-                      "body": body, "draft": True})
-            number = pr["number"]
-        print(f"Published Issue #{inp['issue']} to PR #{number}")
+            result["checkpoint_published"] = True
+            result["checkpoint_commit"] = git("rev-parse", "HEAD").stdout.strip()
+            result["changed_files"] = paths
+        else:
+            result["checkpoint_published"] = False
+            result["changed_files"] = result.get("changed_files", [])
+            if result.get("status") == "ok" and inp["operation"] == "start":
+                result["status"] = "failed"
+                result["summary"] = (
+                    (result.get("summary", "") + "\n"
+                     "OpenCode completed without a code diff. The pre-created Draft PR and branch remain available.")
+                ).strip()
     except Exception as ex:
         failure = str(ex)
+        result["status"] = "failed"
+        result["summary"] = (
+            (result.get("summary", "") + "\nPublisher could not publish this checkpoint: " + failure[:800])
+        ).strip()
         print(f"Publish failure for Issue #{inp['issue']}: {failure}", file=sys.stderr)
+
+    # Even when execution or publication failed, always report against the
+    # already-created PR. Never delete or close the branch/PR as cleanup.
     api("POST", f"/repos/{REPO}/issues/{inp['issue']}/comments",
-        {"body": result_comment(inp, result, number if not failure else None, failure)})
+        {"body": result_comment(inp, result, number, failure)})
     if failure:
         raise RuntimeError(failure)
+    print(f"Preserved Issue #{inp['issue']} on PR #{number}; "
+          f"checkpoint_published={result.get('checkpoint_published', False)}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -832,6 +967,10 @@ def main():
     pre.add_argument("--event", required=True)
     pre.add_argument("--output", required=True)
     pre.add_argument("--github-output", required=True)
+    prep = commands.add_parser("prepare")
+    prep.add_argument("--input", required=True)
+    prep.add_argument("--output", required=True)
+    prep.add_argument("--github-output", required=True)
     exe = commands.add_parser("execute")
     exe.add_argument("--input", required=True)
     exe.add_argument("--result", required=True)
@@ -844,6 +983,8 @@ def main():
     args = parser.parse_args()
     if args.action == "preflight":
         preflight(args)
+    elif args.action == "prepare":
+        prepare(args)
     elif args.action == "publish":
         publish(args)
     else:

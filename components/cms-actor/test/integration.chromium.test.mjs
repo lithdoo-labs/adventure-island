@@ -884,3 +884,171 @@ test("stale decode work is gated, bounded and discarded; the latest plan still r
   assert.ok(settled.decodeState.peakActive <= 8, `page-side observed peak concurrency ${settled.decodeState.peakActive} must respect the cap`);
   assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
 });
+
+test("a synchronous lookup failure mid-frame releases every pin the round already acquired", { timeout: 60_000 }, async (t) => {
+  const page = await openBootstrappedPage(t);
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "baseline ready");
+
+  // The hair identity is cached with a decode of 24x18; a plan declaring a
+  // different height for it throws synchronously inside _getBitmapEntry —
+  // but only AFTER the body and head cache hits of the same round were
+  // pinned. Those pins must still be released by the round's single
+  // release path.
+  const conflicting = clonePlan();
+  mutateLayers(conflicting, (layer) => layer.id === "hair", (layer) => {
+    layer.height = 17;
+  });
+  await page.evaluate((view) => window.__applyView(view), actorView({ plan: conflicting }));
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "error", "conflict rejected");
+  assert.match(await page.evaluate(() => window.__actor().getAttribute("data-render-error")), /CONTENT_INVALID/);
+
+  // Replace the plan with one that no longer references the stand1 body and
+  // head identities: eviction must CLOSE them immediately. Leaked pins
+  // would keep them pending-close forever (diagnostics would stay > 0).
+  const jumpOnly = clonePlan();
+  jumpOnly.actions = { jump: jumpOnly.actions.jump };
+  delete jumpOnly.locomotionActions;
+  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { locomotion: "jump" }, plan: jumpOnly }));
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "replacement plan ready");
+  await waitFor(page, () => window.__actor().diagnostics().paintPending === false, "paint settled");
+  const diagnostics = await page.evaluate(() => window.__actor().diagnostics());
+  assert.equal(diagnostics.cache.pendingClose, 0, "no bitmap may remain pinned after a mid-frame lookup failure");
+  assert.equal(diagnostics.cache.loading, 0, "no reads may remain in flight");
+  assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
+});
+
+test("a draw failure with overlapping paints settles cleanly and recovers", { timeout: 90_000 }, async (t) => {
+  const page = await openBootstrappedPage(t);
+  // Gate decodes so two rounds provably overlap while awaiting entries
+  // (they share the face identity: both rounds pin the same entry).
+  await page.evaluate(() => {
+    const original = window.createImageBitmap.bind(window);
+    window.__gates = [];
+    window.createImageBitmap = (...args) => new Promise((resolve, reject) => {
+      window.__gates.push({
+        release: () => original(...args).then(resolve, reject),
+      });
+    });
+    window.__releaseAll = async () => {
+      while (window.__gates.length > 0) {
+        window.__gates.shift().release();
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+  });
+
+  // Round A: normal plan, decodes gated. Round B (after A is awaiting):
+  // extreme layout — current epoch, will throw inside _drawFrame.
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  const extreme = clonePlan();
+  const head = extreme.actions.jump.frames[0].layers.find((layer) => layer.id === "head");
+  head.anchors = { ...head.anchors, neck: [-99_000, -32] };
+  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { locomotion: "jump" }, plan: extreme }));
+  await waitFor(page, () => window.__gates.length >= 8 && window.__actor().diagnostics().decode.queued >= 1,
+    "both rounds' decodes are pending concurrently (8 running, remainder queued)");
+  await page.evaluate(() => window.__releaseAll());
+
+  // Round B is current and fails the composite guard inside the draw; its
+  // pins (and round A's stale pins) must all release through the single
+  // release path, leaving no stuck pending-close or in-flight state.
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "error", "draw failure surfaced");
+  assert.match(await page.evaluate(() => window.__actor().getAttribute("data-render-error")), /COMPOSITE_TOO_LARGE/);
+  const settled = await waitFor(page, () => {
+    const actor = window.__actor();
+    const diagnostics = actor.diagnostics();
+    return diagnostics.cache.pendingClose === 0 && diagnostics.cache.loading === 0 ? diagnostics : false;
+  }, "overlapping rounds fully released");
+  assert.ok(settled.cache.entries <= settled.cache.maxEntries, "cache within bounds after draw failure");
+
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "recovers after draw failure");
+  await waitPixel(page, POINTS.headOverBody, COLORS.head, "pixels restored");
+  assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
+});
+
+test("same-task attribute and data updates coalesce into one paint round", { timeout: 60_000 }, async (t) => {
+  const page = await openBootstrappedPage(t);
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "baseline ready");
+  await waitFor(page, () => window.__actor().diagnostics().paintPending === false, "baseline settled");
+  const before = await page.evaluate(() => {
+    const { paintRequests, paintRounds } = window.__actor().diagnostics();
+    return { paintRequests, paintRounds };
+  });
+
+  // Six attribute projections in one synchronous page task, alternating
+  // locomotion and facing, ending on stand: one coalesced paint round must
+  // read the merged final state.
+  await page.evaluate(() => {
+    for (let index = 0; index < 6; index += 1) {
+      const element = document.querySelector("cms-actor");
+      element.setAttribute("locomotion", index % 2 === 0 ? "walk" : "stand");
+      element.setAttribute("facing", index % 3 === 0 ? "left" : "right");
+    }
+  });
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "coalesced round painted");
+  await waitFor(page, () => window.__actor().diagnostics().paintPending === false, "coalesced round settled");
+  const after = await page.evaluate(() => {
+    const { paintRequests, paintRounds } = window.__actor().diagnostics();
+    return { paintRequests, paintRounds };
+  });
+  assert.ok(after.paintRequests - before.paintRequests >= 6,
+    `every update must be counted as a paint request (${after.paintRequests - before.paintRequests})`);
+  assert.equal(after.paintRounds - before.paintRounds, 1,
+    `one synchronous burst must coalesce into exactly one paint round (${after.paintRounds - before.paintRounds})`);
+  await waitPixel(page, POINTS.bodyOnly, COLORS.body, "coalesced round painted the final state");
+  assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
+});
+
+test("canvas backing store is reused across frames and only reallocated on dimension change", { timeout: 90_000 }, async (t) => {
+  const page = await openBootstrappedPage(t);
+  // Count width assignments and effective resizes (value actually changed).
+  await page.evaluate(() => {
+    window.__canvasStats = { sets: 0, resizes: 0 };
+    for (const field of ["width", "height"]) {
+      const descriptor = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, field);
+      Object.defineProperty(HTMLCanvasElement.prototype, field, {
+        configurable: true,
+        get() { return descriptor.get.call(this); },
+        set(value) {
+          if (value !== descriptor.get.call(this)) {
+            if (field === "width") window.__canvasStats.resizes += 1;
+          }
+          if (field === "width") window.__canvasStats.sets += 1;
+          descriptor.set.call(this, value);
+        },
+      });
+    }
+  });
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "stand ready");
+  const afterFirst = await page.evaluate(() => ({ ...window.__canvasStats }));
+  assert.ok(afterFirst.resizes >= 1, "the first paint allocates the backing store");
+
+  // Steady animation: stand1 frame 1, then a full walk cycle. The composite
+  // dimensions do not change, so no further resize/assignment may happen —
+  // and the per-frame markers must keep updating, proving the reused store
+  // is explicitly cleared (old pixels never bleed through).
+  await waitPixel(page, POINTS.marker, FRAME_MARKERS.stand1[1], "stand1 frame 1 marker replaces frame 0");
+  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { locomotion: "walk" } }));
+  await waitAction(page, "walk1", "walk active");
+  for (const expected of [0, 1, 2, 3]) {
+    await waitPixel(page, POINTS.marker, FRAME_MARKERS.walk1[expected], `walk1 frame ${expected} marker replaces the previous frame`);
+  }
+  const afterAnimation = await page.evaluate(() => ({ ...window.__canvasStats }));
+  assert.equal(afterAnimation.resizes, afterFirst.resizes, "steady animation must not reallocate the backing store");
+  assert.equal(afterAnimation.sets, afterFirst.sets, "steady animation must not even reassign canvas.width");
+
+  // A DPR change alters the device dimensions: exactly one reallocation.
+  await page.evaluate(() => Object.defineProperty(window, "devicePixelRatio", { value: 2, configurable: true }));
+  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { facing: "left" } }));
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "repainted at dpr 2");
+  await waitPixel(page, POINTS.bodyOnly, COLORS.body, "pixels correct after the reallocation");
+  const afterDpr = await page.evaluate(() => ({ ...window.__canvasStats }));
+  assert.equal(afterDpr.resizes, afterFirst.resizes + 1, "a DPR change reallocates exactly once");
+  assert.equal(afterDpr.sets, afterFirst.sets + 1, "width is assigned exactly once for the resize");
+
+  await page.evaluate((dpr) => Object.defineProperty(window, "devicePixelRatio", { value: dpr, configurable: true }), 1);
+  assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
+});

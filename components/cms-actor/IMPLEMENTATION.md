@@ -136,9 +136,13 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 
 **组合画布预算（COMPOSITE_CANVAS_LIMITS）**：`AvatarPlanV1` 限制的是**源位图**（每层、每帧）；锚点/原点仍可在 ±100,000 范围内把合法画布拉得极远，`devicePixelRatio` 又是环境值。因此最终合成画布在第一次给 `canvas.width/height` 赋值**之前**校验：DPR 钳制到 ≤ 8；设备像素宽/高各 ≤ 8,192；设备像素面积 ≤ 3,145,728（即 12,582,912 字节 RGBA，与单帧解码字节预算同源）。越界抛出带 `COMPOSITE_TOO_LARGE` 前缀、合成/设备尺寸与最远 layer id 的可定位错误，画布保持清空（1×1），不触发浏览器的大额分配。
 
-**过期计划的读取取消**：每个缓存条目携带自己的 `AbortController`。新计划替换（`receiveRenderData` → prune）或断开触发逐出时，仍在解码的条目**立即取消**其 in-flight 读取——延迟响应不能在可缓存层预算之外堆积 loading/pinned/pending-close 资源。最新计划仍引用的资源不会被逐出（prune 保留；LRU 上界只选已完成的条目作牺牲），因此取消永远不会波及在用读取；已完成的位图没有可取消的读取，保持「pin 归零即关闭」语义。
+**过期计划的读取取消**：每个缓存条目携带自己的 `AbortController`。新计划替换（`receiveRenderData` → prune）或断开触发逐出时，仍在解码的条目**立即取消**其 in-flight 读取——延迟响应不能在可缓存层预算之外堆积 loading/pinned/pending-close 资源。最新计划仍引用的资源不会被逐出（prune 保留；LRU 上界只选已完成的条目作牺牲），因此取消永远不会波及在用读取；已完成的位图没有可取消的读取，保持「pin 归零即关闭」语义。`loading` 计数以「位图尚未赋值」为一次性判据，晚到的过期解码拒绝也能正确归还计数。
 
-**解码并发与队列（DECODE_QUEUE_LIMITS）**：`createImageBitmap` 一旦启动便无法取消，仅靠取消无法约束解码工作。因此每次解码前先过**解码前门禁**（检查 abort/条目身份/连接状态，fetch 已返回但计划已被替换的条目不再进入解码）；并发解码硬上限 8，等待解码进入**感知取消的队列**（上限 64，超出即以 `DECODE_QUEUE_FULL` fail-closed）——逐出条目的排队解码被立即丢弃且永不启动（队列长度同步下降），出队时再次校验作为纵深防御；已在跑的过期解码无法中断，但其结果在解码后检查中立即关闭并丢弃，不进入缓存、不产生未处理 Promise。`loading` 计数以「位图尚未赋值」为一次性判据，晚到的过期解码拒绝也能正确归还计数。
+**解码并发（MAX_CONCURRENT_DECODES = 8）**：`createImageBitmap` 一旦启动便无法取消，仅靠取消无法约束解码工作。因此每次解码前先过**解码前门禁**（检查 abort/条目身份/连接状态，fetch 已返回但计划已被替换的条目不再进入解码；排队等待获得槽位后再检查一次）；并发解码硬上限 8，超出部分进入**感知取消的等待队列**——逐出条目的排队解码被立即移出队列且永不启动。队列长度由计划校验限界的资源集合约束，**不**冒充字节预算：字节边界由 `AvatarPlanV1`（compact 数据上限 + 单帧解码字节上限）承担，上游 ContentClient 的字节缓存策略另行跟踪（不属本组件）。
+
+**Paint 调度**：`_requestPaint` 把同一同步任务内的连续属性/数据/事件更新合并为**一个** paint 轮次（微任务合并；调度时即失效在途旧轮次，与旧同步语义一致）。轮次内逐层获取位图条目，`finally` 是**唯一**的释放路径——同步查找失败、过期丢弃、绘制失败与成功共用同一处 unpin，杜绝漏释放与二次释放。`diagnostics().paintRequests/paintRounds` 分别计数合并前请求与实际轮次。
+
+**合成画布复用**：设备像素尺寸与 DPR 未变化时不重新赋值 `canvas.width/height`（同值赋值也会清空位图），改为显式 `clearRect` 后按原变换重绘；尺寸或 DPR 变化时才重新分配。每帧标记色像素回归证明复用不产生残影。
 
 **位图缓存（两层预算模型）**：
 
@@ -167,8 +171,9 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 
 | 套件 | 位置 | 可复现性 | 内容 |
 |---|---|---|---|
-| 算法（Node，22 例） | `node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs` | **可复现** | 计划校验、字节预算（compact 数据 / 单画布 / 帧合计）、锚点布局、镜像、打包一致性、presentation.json 正式校验（真实 `validateWebPresentationConfigV1` / `prepareWebPresentationV1`）、组合画布与解码队列限额不变量（DPR 钳制、设备像素面积 ≤ 帧字节预算、并发/排队解码与帧层界的关系） |
-| 浏览器集成（真实 Chromium，合成 FSDB，16 例） | `node --test components/cms-actor/test/integration.chromium.test.mjs` | **可复现**（需 Chromium 与已构建的 pinned renderer dist） | 正式 `bootstrapWebPresentation()` 加载 classic 入口；`customElements.get("cms-actor")`；Projector 注入 Context/attrs/avatarPlan；`resource()` 收到正确 namespace/key/版本；Canvas 像素（锚点对齐、z 序、透明合成、镜像，DPR 1 与 2、含 `move` 轴）；`stand1`/`walk1`/`jump` 帧推进；一次性 `action` 播完恢复当前移动；快速切换动作；慢速资源不覆盖新动作；版本冲突与资源缺失的可定位诊断与恢复；断开取消 in-flight 并释放缓存、重连恢复；缓存容量上界；超大单图与同帧多图在计划校验拒绝；32 资源并发突发期间可缓存层逐次采样不超限；跨计划尺寸冲突可定位拒绝且无未处理 Promise；极远锚点（计划合法）在给画布赋值前以 `COMPOSITE_TOO_LARGE` 拒绝、画布保持 1×1（DPR 1 与 64 均如此），异常 DPR 钳制到 8 后正常渲染；延迟响应下连续替换计划时旧计划专属读取被取消、in-flight/pending-close 有界且最新计划正常渲染；**门控 `createImageBitmap` 下（响应已到达、解码悬置）连续替换计划：并发解码 ≤ 8、排队上限 64、逐出的排队解码被立即丢弃且永不启动、过期解码结果丢弃、`loading`/pending-close 归零且最新完整计划最终渲染** |
+| 算法（Node，22 例） | `node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs` | **可复现** | 计划校验、字节预算（compact 数据 / 单画布 / 帧合计）、锚点布局、镜像、打包一致性、presentation.json 正式校验（真实 `validateWebPresentationConfigV1` / `prepareWebPresentationV1`）、组合画布与解码并发限额不变量（DPR 钳制、设备像素面积 ≤ 帧字节预算、并发解码 ≤ 帧层界） |
+| 浏览器集成（真实 Chromium，合成 FSDB，20 例） | `node --test components/cms-actor/test/integration.chromium.test.mjs` | **可复现**（需 Chromium 与已构建的 pinned renderer dist） | 正式 `bootstrapWebPresentation()` 加载 classic 入口；`customElements.get("cms-actor")`；Projector 注入 Context/attrs/avatarPlan；`resource()` 收到正确 namespace/key/版本；Canvas 像素（锚点对齐、z 序、透明合成、镜像，DPR 1 与 2、含 `move` 轴）；`stand1`/`walk1`/`jump` 帧推进；一次性 `action` 播完恢复当前移动；快速切换动作；慢速资源不覆盖新动作；版本冲突与资源缺失的可定位诊断与恢复；断开取消 in-flight 并释放缓存、重连恢复；缓存容量上界；超大单图与同帧多图在计划校验拒绝；32 资源并发突发期间可缓存层逐次采样不超限；跨计划尺寸冲突可定位拒绝且无未处理 Promise；极远锚点在给画布赋值前以 `COMPOSITE_TOO_LARGE` 拒绝（DPR 1 与 64），异常 DPR 钳制到 8；延迟响应下连续替换计划时旧计划专属读取被取消且有界；门控解码下排队过期任务被丢弃、并发 ≤ 8；**帧中同步查找失败释放全部已获取 pin（pendingClose 归零）；绘制失败叠加重叠轮次后干净收敛并恢复；同一任务内多次更新合并为单一 paint 轮次；合成画布跨帧复用（无重赋值/重分配）且标记色逐帧更替、DPR 变化恰好一次重分配** |
+| 性能测量（非测试套件） | `node components/cms-actor/test/perf.chromium.mjs` | **可复现**（真实 Chromium） | 首帧就绪（DPR 1/2/3、5/9/32 层）、稳态动画的帧绘制数与单次绘制 p50/p95、画布 width 赋值/有效重分配次数、32 资源解码并发/排队峰值、30 次连续计划替换的收敛时间与请求/轮次计数、近似堆占用 |
 | 真实素材（真实 FSDB，3 例） | `node --test components/cms-actor/test/real-assets.local.test.mjs` | **仅本地**（无真实 FSDB 的 checkout 显式 skip 并给出原因） | 用本地合法取得的 079 WZ 转出的真实 FSDB（纸娃娃子集）重复同一闭环，并把转换结果与 Task 050/DESIGN 的逆向几何逐项对照。激活方式：`CMS_ACTOR_REAL_FSDB` 指向含 `[struct]Look/{00002000,00012000,00020000,00030000,01302000}.json`、`[struct]ZMap/order.json` 与 `[resource]图/` 的 FSDB 根 |
 
 浏览器集成测试使用**运行时生成的合成 PNG 和合成 FSDB**（`.work/cms-actor/[FSDB]cms/`，遵循 `content/DESIGN.md` 布局；`.work/` 已被根 `.gitignore` 忽略；身体几何取自逆向的 079 walk1 画布 27×32 / origin (19,32) / navel (-6,-20) / neck (-4,-32)），不包含任何原版游戏素材。测试把 `test/look-adapter.mjs` 当作游戏侧适配器参考实现：解析 UOL、按武器 `info` 决定移动后缀、部件缺动作不画、帧号钳制到身体时间轴。
@@ -186,7 +191,7 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 | # | 状态 | 结论 | 证据与可复现性 |
 |---|---|---|---|
 | 1 | 合成算法测试 | **通过**（22 例） | `avatar-model.test.mjs` + `browser-artifact.test.mjs`；PR-A 在 pin `9364819` 上复跑通过 |
-| 2 | LoomRealm 正式浏览器集成 | **通过**（16 例真实 Chromium，合成素材） | `integration.chromium.test.mjs`；PR-A 在 pin `9364819` 与真实 Chromium 上复跑通过；历史 PR #2 的旧 pin 证据仅作参考，不作为验收依据 |
+| 2 | LoomRealm 正式浏览器集成 | **通过**（20 例真实 Chromium，合成素材） | `integration.chromium.test.mjs`；PR-A 在 pin `9364819` 与真实 Chromium 上复跑通过；历史 PR #2 的旧 pin 证据仅作参考，不作为验收依据 |
 | 3 | 真实 CMS 079 素材验证 | **BLOCKED（本仓库无真实素材，显式 skip）** | `real-assets.local.test.mjs`；需持有合法 WZ 的使用者本地执行（`CMS_ACTOR_REAL_FSDB`）；历史 PR #2 曾在 Agent 本机通过（纸娃娃子集），该结论**不可**在本仓库复现，须在新的确认样本上重跑；装备遮挡、表情独立计时、全量 16 包转换仍属后续任务 |
 
 ## 9. 后续集成顺序

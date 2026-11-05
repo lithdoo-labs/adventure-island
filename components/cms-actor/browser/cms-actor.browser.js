@@ -387,19 +387,19 @@ const COMPOSITE_CANVAS_LIMITS = Object.freeze({
 });
 
 /**
- * Hard bounds for concurrently-running bitmap decodes.
+ * Hard cap for concurrently-running bitmap decodes.
  *
- * `createImageBitmap` cannot be cancelled once started, so cancellation alone
- * cannot bound decode work: a stream of plan replacements whose responses all
- * arrive could otherwise start unbounded decodes. Every decode therefore
- * passes a pre-decode abort/identity gate, at most `maxConcurrentDecodes`
- * decodes run at once, and waiting decodes form an abort-aware queue — queued
- * work for evicted entries is discarded without ever starting.
+ * `createImageBitmap` cannot be cancelled once started, so fetch
+ * cancellation alone cannot bound decode work: a stream of plan
+ * replacements whose responses all arrive could otherwise start unbounded
+ * decodes. Every decode passes a pre-decode abort/identity gate; at most
+ * this many decodes run at once; further decodes wait in an abort-aware
+ * queue whose jobs are discarded (never started) as soon as their entry is
+ * evicted by a newer plan or a disconnect. The queue length is bounded by
+ * the plan's validated resource set, not treated as a memory budget: byte
+ * bounds come from AvatarPlanV1 (data + per-frame decoded bytes) upstream.
  */
-const DECODE_QUEUE_LIMITS = Object.freeze({
-  maxConcurrentDecodes: 8,
-  maxQueuedDecodes: 64,
-});
+const MAX_CONCURRENT_DECODES = 8;
 
 /**
  * CMS 079 paper-doll renderer.
@@ -425,6 +425,9 @@ class CmsActor extends HTMLElementBase {
     this._abortController = null;
     this._paintEpoch = 0;
     this._paintPending = false;
+    this._paintScheduled = false; // a coalesced paint round is queued
+    this._paintRequests = 0;      // _requestPaint calls (pre-coalescing)
+    this._paintRounds = 0;        // paint rounds actually started
     this._animationHandle = 0;
     this._lastTick = null;
     this._elapsed = 0;
@@ -541,13 +544,14 @@ class CmsActor extends HTMLElementBase {
       action: this.getAttribute("data-action"),
       frameIndex: this._frameIndex,
       paintPending: this._paintPending,
+      paintRequests: this._paintRequests,
+      paintRounds: this._paintRounds,
       oneShotAction: this._oneShotAction,
       contextInjected: this._context !== null,
       decode: Object.freeze({
         active: this._decodeActive,
         queued: this._decodeQueue.length,
-        maxConcurrent: DECODE_QUEUE_LIMITS.maxConcurrentDecodes,
-        maxQueued: DECODE_QUEUE_LIMITS.maxQueuedDecodes,
+        maxConcurrent: MAX_CONCURRENT_DECODES,
       }),
       cache: Object.freeze({
         entries: Math.max(0, this._resourceCache.size - this._loadingCount),
@@ -603,51 +607,59 @@ class CmsActor extends HTMLElementBase {
   _requestPaint() {
     this._syncPosition();
     if (!this._connected || !this._canvas) return;
-    const current = this._currentFrame();
-    if (!this._context || !current) {
-      this._paintEpoch += 1;
-      this._paintPending = false;
-      this._clearCanvas();
-      this._stopAnimation();
-      return;
-    }
-    // Pause the animation clock while a new frame is being prepared/painted.
-    this._lastTick = null;
-    // `_paintFrame` owns its error handling (including synchronous throws
-    // from cache lookups); the safety net only fires if that handling itself
-    // fails, so no rejection can ever escape unhandled.
-    this._paintFrame(current).catch((error) => {
-      this._paintPending = false;
-      this._clearCanvas();
-      this.setAttribute("data-render-state", "error");
-      this.setAttribute("data-render-error", error instanceof Error ? error.message : String(error));
-      this._stopAnimation();
+    this._paintRequests += 1;
+    if (this._paintScheduled) return;
+    // Coalesce the burst: attribute/data/event updates from one projection
+    // reconcile arrive back-to-back in the same task; they only need ONE
+    // paint round reading the merged final state. Bumping the epoch here
+    // invalidates any in-flight round immediately, exactly like the
+    // synchronous paints this replaces.
+    this._paintScheduled = true;
+    this._paintEpoch += 1;
+    queueMicrotask(() => {
+      this._paintScheduled = false;
+      if (!this._connected || !this._canvas) return;
+      const current = this._currentFrame();
+      if (!this._context || !current) {
+        this._paintEpoch += 1;
+        this._paintPending = false;
+        this._clearCanvas();
+        this._stopAnimation();
+        return;
+      }
+      // Pause the animation clock while a new frame is being prepared/painted.
+      this._lastTick = null;
+      // `_paintFrame` owns its error handling (including synchronous throws
+      // from cache lookups); the safety net only fires if that handling itself
+      // fails, so no rejection can ever escape unhandled.
+      this._paintFrame(current).catch((error) => {
+        this._paintPending = false;
+        this._clearCanvas();
+        this.setAttribute("data-render-state", "error");
+        this.setAttribute("data-render-error", error instanceof Error ? error.message : String(error));
+        this._stopAnimation();
+      });
     });
   }
 
   async _paintFrame(current) {
     const epoch = ++this._paintEpoch;
     this._paintPending = true;
+    this._paintRounds += 1;
     const { actionName, frame } = current;
-    let entries = [];
+    const entries = [];
     try {
-      // Inside the try on purpose: `_getBitmapEntry` can throw synchronously
-      // (e.g. a cross-plan dimension conflict on a cache hit) and that must
-      // land in this error handling, not become an unhandled rejection.
-      entries = frame.layers.map((layer) => this._getBitmapEntry(layer));
+      // Acquire one by one: `_getBitmapEntry` can throw synchronously (e.g. a
+      // cross-plan dimension conflict on a cache hit) partway through the
+      // frame, and every pin acquired before the throw must still be
+      // released — the finally below is the single release path for every
+      // outcome (sync throw, stale discard, draw failure, success).
+      for (const layer of frame.layers) entries.push(this._getBitmapEntry(layer));
       const bitmaps = await Promise.all(entries.map((entry) => entry.promise));
       // A newer paint round, a data update or a disconnect invalidates this
       // round: stale results must never overwrite the newer action.
-      if (!this._connected || epoch !== this._paintEpoch) {
-        for (const entry of entries) this._unpinEntry(entry);
-        return;
-      }
-      const layersWithBitmaps = frame.layers.map((layer, index) => ({ layer, bitmap: bitmaps[index] }));
-      try {
-        this._drawFrame(frame, layersWithBitmaps);
-      } finally {
-        for (const entry of entries) this._unpinEntry(entry);
-      }
+      if (!this._connected || epoch !== this._paintEpoch) return;
+      this._drawFrame(frame, frame.layers.map((layer, index) => ({ layer, bitmap: bitmaps[index] })));
       this.setAttribute("data-render-state", "ready");
       this.removeAttribute("data-render-error");
       this.setAttribute("data-action", actionName);
@@ -657,13 +669,14 @@ class CmsActor extends HTMLElementBase {
       // completion establishes a fresh timestamp before accumulating delay.
       this._ensureAnimationLoop(current.action, frame);
     } catch (error) {
-      for (const entry of entries) this._unpinEntry(entry);
       if (!this._connected || epoch !== this._paintEpoch) return;
       this._paintPending = false;
       this._clearCanvas();
       this.setAttribute("data-render-state", "error");
       this.setAttribute("data-render-error", error instanceof Error ? error.message : "Unable to load avatar resources");
       this._stopAnimation();
+    } finally {
+      for (const entry of entries) this._unpinEntry(entry);
     }
   }
 
@@ -748,24 +761,17 @@ class CmsActor extends HTMLElementBase {
 
   /**
    * Acquire one of the bounded decode slots. When all slots are busy the job
-   * queues; a queued job is discarded (never started) if its entry is
-   * evicted/aborted while waiting — eviction cancels it through
-   * `entry.decodeJob`, and the dequeue path re-checks staleness as defense
-   * in depth. Overflows past `maxQueuedDecodes` fail closed with a locatable
-   * error instead of accumulating work.
+   * queues; a queued job is spliced out and rejected (never started) as soon
+   * as its entry is evicted — see `entry.decodeJob` cancellation in
+   * `_evictEntry`.
    */
-  _acquireDecodeSlot(cacheKey, entry) {
-    if (this._decodeActive < DECODE_QUEUE_LIMITS.maxConcurrentDecodes) {
+  _acquireDecodeSlot(entry) {
+    if (this._decodeActive < MAX_CONCURRENT_DECODES) {
       this._decodeActive += 1;
       return Promise.resolve();
     }
-    if (this._decodeQueue.length >= DECODE_QUEUE_LIMITS.maxQueuedDecodes) {
-      return Promise.reject(new Error(`DECODE_QUEUE_FULL more than ${DECODE_QUEUE_LIMITS.maxQueuedDecodes} avatar decodes are waiting behind ${DECODE_QUEUE_LIMITS.maxConcurrentDecodes} running ones; the host is not draining decode work`));
-    }
     return new Promise((resolve, reject) => {
       const job = {
-        key: cacheKey,
-        entry,
         started: false,
         start: () => {
           if (job.started) return;
@@ -786,18 +792,11 @@ class CmsActor extends HTMLElementBase {
     });
   }
 
-  /** Release a decode slot and hand it to the next still-live queued job. */
+  /** Release a decode slot and hand it to the next queued job. */
   _releaseDecodeSlot() {
-    this._decodeActive = Math.max(0, this._decodeActive - 1);
-    while (this._decodeQueue.length > 0 && this._decodeActive < DECODE_QUEUE_LIMITS.maxConcurrentDecodes) {
-      const job = this._decodeQueue.shift();
-      const stale = job.entry.closed || job.entry.evicted || job.entry.controller.signal.aborted
-        || this._resourceCache.get(job.key) !== job.entry;
-      if (stale) {
-        job.cancel(); // discard queued stale decode without starting it
-        continue;
-      }
-      job.start();
+    this._decodeActive -= 1;
+    while (this._decodeActive < MAX_CONCURRENT_DECODES && this._decodeQueue.length > 0) {
+      this._decodeQueue.shift().start();
     }
   }
 
@@ -809,7 +808,7 @@ class CmsActor extends HTMLElementBase {
    * closes and discards bitmaps whose entry was superseded mid-decode.
    */
   async _decodeBitmap(cacheKey, entry, controller, blob) {
-    await this._acquireDecodeSlot(cacheKey, entry);
+    await this._acquireDecodeSlot(entry);
     try {
       this._assertDecodeStillWanted(cacheKey, entry, controller);
       return await createImageBitmap(blob);
@@ -867,7 +866,6 @@ class CmsActor extends HTMLElementBase {
     // disconnect) cancels exactly this read without touching reads that the
     // latest plan still needs.
     const controller = new AbortController();
-    if (this._abortController?.signal.aborted) controller.abort();
     const entry = {
       bitmap: null, promise: null, pins: 0, evicted: false, closed: false,
       byteSize: 0, width: 0, height: 0, inCacheBytes: false, inPendingBytes: false,
@@ -927,7 +925,6 @@ class CmsActor extends HTMLElementBase {
       // It must NOT also require !entry.closed: a stale decode can reject
       // long after eviction already closed the (still-loading) entry.
       if (entry.bitmap === null) this._loadingCount -= 1;
-      if (this._loadingCount < 0) this._loadingCount = 0;
       if (this._resourceCache.get(cacheKey) === entry) this._resourceCache.delete(cacheKey);
       if (entry.inCacheBytes) {
         entry.inCacheBytes = false;
@@ -1006,13 +1003,25 @@ class CmsActor extends HTMLElementBase {
       throw new Error(`COMPOSITE_TOO_LARGE composite canvas ${cssWidth}x${cssHeight} CSS px (${deviceWidth}x${deviceHeight} device px at dpr ${dpr}) exceeds the ${COMPOSITE_CANVAS_LIMITS.maxDeviceWidth}/${COMPOSITE_CANVAS_LIMITS.maxDeviceHeight}/${COMPOSITE_CANVAS_LIMITS.maxDevicePixels} composite budget; farthest layers: ${rightmost.layer.id} at x ${Math.round(maxX)}, ${lowest.layer.id} at y ${Math.round(maxY)}`);
     }
 
-    canvas.width = deviceWidth;
-    canvas.height = deviceHeight;
+    // Reuse the backing store across animation frames: assigning
+    // canvas.width/height (even the same value) resets the bitmap, which is
+    // wasted work in the steady-animation hot path. Resize only when the
+    // device dimensions actually change; otherwise clear explicitly so the
+    // previous frame never bleeds through.
+    const resized = canvas.width !== deviceWidth || canvas.height !== deviceHeight;
+    if (resized) {
+      canvas.width = deviceWidth;
+      canvas.height = deviceHeight;
+    }
     canvas.style.width = `${cssWidth}px`;
     canvas.style.height = `${cssHeight}px`;
     canvas.style.left = `${minX}px`;
     canvas.style.top = `${minY}px`;
     context.imageSmoothingEnabled = false;
+    if (!resized) {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, deviceWidth, deviceHeight);
+    }
     const translateX = mirror ? (2 * mirrorPivotX - minX) * dpr : -minX * dpr;
     context.setTransform(dpr, 0, 0, dpr, translateX, -minY * dpr);
     if (mirror) {

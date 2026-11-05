@@ -2,20 +2,31 @@
  * cms-actor × REAL CMS 079 assets, LoomRealm Chromium closed loop (local only).
  *
  * Consumes a REAL converted FSDB (produced locally by scripts/wz_fsdb from a
- * legally obtained CMS 079 client; never committed to this repository).
+ * legally obtained CMS 079 client; never committed to this repository) and
+ * drives the FULL production stack:
+ *
+ *   converted [FSDB]cms → prepareHostraGame (PREPARE)
+ *     → prepareDesktopContentView (trusted Content Index, contentVersion)
+ *     → createDesktopContentService (Content HTTP v1, real bearer grant)
+ *     → createBoundContentClient (record / resource)
+ *     → production adapter systems/adventure-island/cms079-avatar-plan.mjs
+ *     → bounded AvatarPlanV1 with exact contentVersions
+ *     → bootstrapWebPresentation / WebProjector / PresentationResourceClient
+ *     → real Chromium pixel / animation assertions.
+ *
  * The suite skips with an explicit reason when no real FSDB is present —
  * synthetic-only checkouts (including CI) never fake this acceptance.
  *
- * Activate: convert the paper-doll subset to .work/cms-actor-real/fsdb (with a
- * locally, legally obtained CMS 079 client; the converted FSDB is never
- * committed) or point CMS_ACTOR_REAL_FSDB at a converted FSDB root containing
- * [struct]Look/{00002000,00012000,00020000,00030000,01302000}.json,
- * [struct]ZMap/order.json and [resource]图/.
+ * Activate: run scripts/wz_fsdb/convert_cms.py --scope avatar (with a locally,
+ * legally obtained CMS 079 client) or point CMS_ACTOR_REAL_FSDB at a converted
+ * FSDB root containing [struct]Look/{00002000,00012000,00020000,00030000,
+ * 01302000}.json, [struct]ZMap/order.json and [resource]图/.
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import test, { after, before } from "node:test";
 
@@ -29,10 +40,15 @@ import {
   waitFor,
   repoRoot,
 } from "./harness.mjs";
-import { buildRealAvatarPlan, readRealRecords } from "./real-look-adapter.mjs";
+import { startRealContentService } from "./real-content-service.mjs";
+import {
+  buildCms079AvatarPlan,
+  collectAvatarResourceKeys,
+  CMS079_LOOK_KEYS,
+  readCms079LookRecords,
+} from "../../../systems/adventure-island/cms079-avatar-plan.mjs";
 import { measureAvatarPlanDataBytes } from "../src/avatar-model.mjs";
 
-const IMAGE_NAMESPACE = "resource.图";
 const PRESENTATION_NAMESPACE = "resource.Presentation";
 const INSTALLATION_ID = "cms-actor-real";
 const BEARER = "Bearer cms-actor-real-token";
@@ -42,56 +58,36 @@ const realRoot = process.env.CMS_ACTOR_REAL_FSDB
   ? path.resolve(process.env.CMS_ACTOR_REAL_FSDB)
   : path.join(repoRoot, ".work", "cms-actor-real", "fsdb");
 const available = existsSync(path.join(realRoot, "[struct]Look", "00002000.json"));
-const skipReason = available ? false : `real converted FSDB not found at ${realRoot}; run the local conversion from a legally obtained client first (see components/cms-actor/IMPLEMENTATION.md §7) — this acceptance is never faked on synthetic-only checkouts`;
+const skipReason = available ? false : `real converted FSDB not found at ${realRoot}; run the local avatar conversion from a legally obtained client first (see components/cms-actor/IMPLEMENTATION.md §7) — this acceptance is never faked on synthetic-only checkouts`;
 
-const readJson = async (root, table, key) => JSON.parse(await readFile(path.join(root, `[struct]${table}`, `${key}.json`), "utf8"));
-
-async function walkResources(root, relative = "") {
-  const entries = [];
-  for (const item of await readdir(path.join(root, relative), { withFileTypes: true })) {
-    const child = relative ? `${relative}/${item.name}` : item.name;
-    if (item.isDirectory()) entries.push(...await walkResources(root, child));
-    else entries.push(child);
-  }
-  return entries;
-}
-
-async function buildIndex() {
-  const index = new Map();
-  const version = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-  const prefix = "[resource]图/";
-  for (const relative of await walkResources(realRoot)) {
-    if (!relative.startsWith(prefix)) continue;
-    const bytes = await readFile(path.join(realRoot, relative));
-    const key = relative.slice(prefix.length).replace(/\.[^.]+$/, "");
-    index.set(`${IMAGE_NAMESPACE}\0${key}`, { bytes, mime: "image/png", contentVersion: version(bytes) });
-  }
-  const scriptBytes = await readFile(path.join(repoRoot, "components", "cms-actor", "browser", "cms-actor.browser.js"));
-  index.set(`${PRESENTATION_NAMESPACE}\0cms-actor/cms-actor.browser.js`, {
-    bytes: scriptBytes,
-    mime: "text/javascript; charset=utf-8",
-    contentVersion: version(scriptBytes),
-  });
-  return index;
-}
+const sha256 = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 
 let chromium;
-let fixture;
+let contentService;
+let workDir;
 let plan;
-let index;
+let looks;
+let zmapOrder;
 
 before(async () => {
   if (skipReason) return;
   chromium = await launchChromium();
-  index = await buildIndex();
-  const { looks, zmapOrder } = await readRealRecords(realRoot, (root, table, key) => readJson(root, table, key));
-  plan = buildRealAvatarPlan(looks, zmapOrder, index);
+  workDir = await mkdtemp(path.join(tmpdir(), "cms-actor-real-"));
+  contentService = await startRealContentService({
+    fsdbRoot: realRoot,
+    installRoot: path.join(workDir, "installation"),
+  });
+  const { looks: realLooks, zmapOrder: order } = await readCms079LookRecords(contentService.content);
+  looks = realLooks;
+  zmapOrder = order;
+  plan = await buildCms079AvatarPlan(contentService.content);
 });
 
 after(async () => {
   if (skipReason) return;
   await chromium?.close().catch(() => {});
-  if (fixture) await fixture.close();
+  await contentService?.close().catch(() => {});
+  if (workDir) await rm(workDir, { recursive: true, force: true });
 });
 
 const captureFrame = (page, expected, label, timeout = 6_000) =>
@@ -102,9 +98,27 @@ const captureFrame = (page, expected, label, timeout = 6_000) =>
     return snapshot ? { hash: snapshot.hash } : false;
   }, label, timeout, expected);
 
-test("converted real records match the independently reverse-engineered 079 geometry", { skip: skipReason }, async () => {
-  const { looks, zmapOrder } = await readRealRecords(realRoot, (root, table, key) => readJson(root, table, key));
+test("ContentClient reads the five real Look records and ZMap with exact contentVersions", { skip: skipReason }, async () => {
+  const seenVersions = {};
+  for (const [part, key] of Object.entries(CMS079_LOOK_KEYS)) {
+    const record = await contentService.content.record("struct.Look", key);
+    assert.equal(record.value && typeof record.value, "object", `struct.Look/${key} must be an object`);
+    const raw = await fetch(new URL(
+      `/_lr/v1/games/${contentService.access.installationId}/records/${encodeURIComponent("struct.Look")}/${encodeURIComponent(key)}`,
+      contentService.access.origin,
+    ), { headers: { Authorization: `Bearer ${contentService.access.token}` } });
+    assert.equal(raw.status, 200);
+    assert.equal(raw.headers.get("x-loom-content-version"), record.contentVersion);
+    assert.equal(record.contentVersion, sha256(Buffer.from(await raw.arrayBuffer())));
+    seenVersions[part] = record.contentVersion;
+  }
+  assert.equal(Object.keys(seenVersions).length, 5);
+  const zmap = await contentService.content.record("struct.ZMap", "order");
+  assert.match(zmap.contentVersion, /^sha256:[0-9a-f]{64}$/);
+  assert.ok(Object.keys(zmap.value).length > 100, "real zmap order must be the full table");
+});
 
+test("converted real records match the independently reverse-engineered 079 geometry", { skip: skipReason }, async () => {
   const walk10 = looks.body.walk1["0"];
   assert.equal(walk10.delay, 180);
   assert.equal(walk10.face, 1);
@@ -142,6 +156,28 @@ test("converted real records match the independently reverse-engineered 079 geom
   assert.ok(zmapOrder.length > 100, "real zmap order must be the full table");
 });
 
+test("every avatar-plan PNG reads through the real Content Service with matching version and MIME", { skip: skipReason }, async () => {
+  const wanted = collectAvatarResourceKeys(looks);
+  const planKeys = new Set();
+  for (const action of Object.values(plan.actions)) {
+    for (const frame of action.frames) {
+      for (const layer of frame.layers) planKeys.add(layer.resource.key);
+    }
+  }
+  assert.equal(planKeys.size, wanted.size, "plan references exactly the wanted canvases");
+  for (const key of wanted) {
+    const resource = await contentService.content.resource("resource.图", key);
+    assert.equal(resource.mime, "image/png", `${key} must be served as image/png`);
+    assert.equal(resource.contentVersion, sha256(Buffer.from(resource.bytes)), `${key} contentVersion must be its body SHA-256`);
+    assert.ok(JSON.stringify(plan).includes(key), `${key} must appear in the plan`);
+  }
+  // Fail-closed: a missing canvas is CONTENT_NOT_FOUND, never a silent stand-in.
+  await assert.rejects(
+    () => contentService.content.resource("resource.图", "Look/00002000/nonexistent/9/ghost"),
+    (error) => error.code === "CONTENT_NOT_FOUND",
+  );
+});
+
 test("real avatarPlan is bounded and renderable", { skip: skipReason }, () => {
   const bytes = measureAvatarPlanDataBytes(plan);
   assert.ok(bytes > 0 && bytes <= 262_144, `real plan must fit the frozen byte cap (got ${bytes})`);
@@ -152,16 +188,38 @@ test("real avatarPlan is bounded and renderable", { skip: skipReason }, () => {
     for (const frame of action.frames) for (const layer of frame.layers) distinct.add(layer.resource.key);
   }
   assert.ok(distinct.size >= 40, `real plan should reference dozens of distinct real canvases (got ${distinct.size})`);
+  for (const action of Object.values(plan.actions)) {
+    for (const frame of action.frames) {
+      assert.ok(frame.layers[0].id === "body", "body must be the first layer of every frame");
+    }
+  }
 });
 
-test("real 079 paper doll renders through the formal LoomRealm Chromium loop", { skip: skipReason, timeout: 120_000 }, async (t) => {
-  fixture = await startContentServer({
+test("real 079 paper doll renders through the formal LoomRealm Chromium loop", { skip: skipReason, timeout: 180_000 }, async (t) => {
+  const scriptBytes = await readFile(path.join(repoRoot, "components", "cms-actor", "browser", "cms-actor.browser.js"));
+  const index = new Map();
+  const version = (bytes) => `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+  index.set(`${PRESENTATION_NAMESPACE}\0cms-actor/cms-actor.browser.js`, {
+    bytes: scriptBytes,
+    mime: "text/javascript; charset=utf-8",
+    contentVersion: version(scriptBytes),
+  });
+  const fixture = await startContentServer({
     index,
-    scriptBytes: index.get(`${PRESENTATION_NAMESPACE}\0cms-actor/cms-actor.browser.js`).bytes,
+    scriptBytes,
     scriptPath: "/presentation/cms-actor/cms-actor.browser.js",
     installationId: INSTALLATION_ID,
     bearer: BEARER,
+    // Every image read is forwarded to the REAL Content Service over the
+    // converted FSDB; only the presentation script stays local.
+    contentProxy: {
+      origin: contentService.service.origin,
+      bearer: `Bearer ${contentService.access.token}`,
+      installationId: contentService.access.installationId,
+      exceptNamespaces: [PRESENTATION_NAMESPACE],
+    },
   });
+  t.after(() => fixture.close());
   const prepared = await preparePresentation({
     origin: fixture.origin,
     index,
@@ -189,7 +247,8 @@ test("real 079 paper doll renders through the formal LoomRealm Chromium loop", {
   await waitFor(page, () => window.__canvas()?.width > 1, "real composite painted");
   assert.deepEqual(await page.evaluate(() => window.__presentationFailures), [], "no presentation failures");
 
-  // Every read carries an exact real-plan identity + expected version.
+  // Every read carries an exact real-plan identity + expected version, and
+  // was answered by the real Content Service behind the proxy.
   const planIdentities = new Set();
   for (const action of Object.values(plan.actions)) {
     for (const frame of action.frames) {
@@ -199,6 +258,15 @@ test("real 079 paper doll renders through the formal LoomRealm Chromium loop", {
   const calls = await page.evaluate(() => window.__resourceCalls.map(({ namespace, key, expectedContentVersion }) => `${namespace}\0${key}\0${expectedContentVersion}`));
   assert.ok(calls.length > 0, "real resources must be fetched");
   for (const identity of calls) assert.ok(planIdentities.has(identity), `unexpected resource read ${identity.replace(/\0/g, " | ")}`);
+  const proxied = await page.evaluate(async ({ installationId }) => {
+    const key = "Look/00002000/walk1/0/body".split("/").map(encodeURIComponent).join("/");
+    const response = await fetch(`/_lr/v1/games/${installationId}/resources/${encodeURIComponent("resource.图")}/${key}`, {
+      headers: { Authorization: "Bearer cms-actor-real-token" },
+    });
+    return { status: response.status, version: response.headers.get("x-loom-content-version") };
+  }, { installationId: INSTALLATION_ID });
+  assert.equal(proxied.status, 200, "the harness origin proxies to the real Content Service");
+  assert.ok(planIdentities.has(`resource.图\0Look/00002000/walk1/0/body\0${proxied.version}`), "proxied body canvas carries the exact plan version");
 
   // Real art has opaque pixels both in the body band and above the neck.
   const opaque = await page.evaluate(() => ({
@@ -287,4 +355,5 @@ test("real 079 paper doll renders through the formal LoomRealm Chromium loop", {
   assert.ok(mirrored.compared > 500, `mirror comparison must cover the composite (got ${mirrored.compared})`);
   assert.ok(mirrored.opaqueCompared > 100, `mirror comparison must include opaque art pixels (got ${mirrored.opaqueCompared})`);
   assert.equal(mirrored.mismatches, 0, `facing left must mirror facing right around the body origin (${mirrored.mismatches} mismatches over ${mirrored.compared} points): ${JSON.stringify((mirrored.points ?? []).slice(0, 10))}`);
+  assert.deepEqual(page.__pageErrors, [], "no unhandled page errors");
 });

@@ -56,13 +56,25 @@ export async function launchChromium() {
  * @param {string} options.scriptPath URL path the script is served at
  * @param {string} options.installationId
  * @param {string} options.bearer full Authorization header value
+ * @param {{origin: string|URL, bearer: string, installationId: string, exceptNamespaces?: string[]}} [options.contentProxy]
+ *   Optional reverse proxy: Content HTTP resource reads for this installation
+ *   are forwarded to a REAL Content Service origin (e.g. the pinned desktop
+ *   service over a converted FSDB) instead of the in-memory index, except for
+ *   the namespaces listed in exceptNamespaces. `installationId` is the target
+ *   service's installation id; the harness installation id in the path is
+ *   rewritten to it.
  */
-export function startContentServer({ index, scriptBytes, scriptPath, installationId, bearer }) {
+export function startContentServer({ index, scriptBytes, scriptPath, installationId, bearer, contentProxy }) {
   const state = {
     delays: new Map(), // `${ns}/${key}` -> ms
     active: 0,
     requestLog: [],
+    proxied: 0,
   };
+  const proxyOrigin = contentProxy ? new URL(contentProxy.origin).origin : null;
+  const proxyExcept = new Set(contentProxy?.exceptNamespaces ?? []);
+  const proxyPrefix = `/_lr/v1/games/${encodeURIComponent(String(contentProxy?.installationId ?? ""))}/resources/`;
+  const resourcePrefix = `/_lr/v1/games/${installationId}/resources/`;
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
     try {
@@ -87,12 +99,32 @@ export function startContentServer({ index, scriptBytes, scriptPath, installatio
         response.end(scriptBytes);
         return;
       }
-      const resourcePrefix = `/_lr/v1/games/${installationId}/resources/`;
       if (url.pathname.startsWith(resourcePrefix)) {
         if (request.headers.authorization !== bearer) { response.statusCode = 401; response.end(); return; }
         const segments = url.pathname.slice(resourcePrefix.length).split("/").map((part) => decodeURIComponent(part));
         const namespace = segments.shift();
         const key = segments.join("/");
+        if (contentProxy && !proxyExcept.has(namespace)) {
+          // The Content Service only knows its own installation id; rewrite
+          // the harness installation segment, keep the rest of the identity.
+          const tail = url.pathname.slice(resourcePrefix.length);
+          const upstream = new URL(`${proxyPrefix}${tail}${url.search}`, proxyOrigin);
+          // Only forward headers that are actually present; an undefined
+          // value would make Node reject the whole request.
+          const headers = { authorization: contentProxy.bearer };
+          if (typeof request.headers["if-none-match"] === "string") headers["if-none-match"] = request.headers["if-none-match"];
+          const proxied = http.request(upstream, { method: request.method, headers }, (upstreamResponse) => {
+            state.proxied += 1;
+            response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+            upstreamResponse.pipe(response);
+          });
+          proxied.on("error", () => {
+            if (!response.headersSent) { response.statusCode = 502; }
+            response.end();
+          });
+          request.pipe(proxied);
+          return;
+        }
         const entry = index.get(`${namespace}\0${key}`);
         state.requestLog.push(`${namespace}/${key}`);
         state.active += 1;

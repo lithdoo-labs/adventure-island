@@ -275,7 +275,7 @@ class PrepareIntegrationTests(unittest.TestCase):
             old_cwd = Path.cwd()
             os.chdir(local)
             try:
-                with patch.object(agent, "api", side_effect=fake_api), \\
+                with patch.object(agent, "api", side_effect=fake_api), \
                      patch.dict(os.environ, {"GH_TOKEN": "test-token"}, clear=False):
                     agent.prepare(SimpleNamespace(input=str(input_path), output=str(output_path),
                                                   github_output=str(github_output)))
@@ -452,7 +452,7 @@ class RunnerIntegrationTests(unittest.TestCase):
         result_path = self.root / "timeout-result.json"
         patch_path = self.root / "timeout.patch"
         with patch.dict(os.environ, {"ISSUE_AGENT_STATE": str(self.state),
-                                     "OPENCODE_BIN": str(slow)}, clear=False), \\
+                                     "OPENCODE_BIN": str(slow)}, clear=False), \
              patch.object(agent, "RUN_TIMEOUT_SECONDS", 1):
             result = agent.execute(SimpleNamespace(input=str(path), source=str(self.source),
                                                    result=str(result_path), patch=str(patch_path)))

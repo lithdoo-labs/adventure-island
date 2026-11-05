@@ -46,6 +46,28 @@ class ForegroundConversionTests(unittest.TestCase):
             journal2.write_bytes(b"two\nmore\n")
             self.assertEqual(conversion.journal_bytes(state), 13)
 
+    def test_converter_child_environment_excludes_all_github_write_tokens(self):
+        secrets = {name: "secret" for name in conversion.TOKEN_NAMES}
+        with patch.dict(os.environ, secrets, clear=False):
+            env = conversion.child_env()
+        for name in secrets:
+            self.assertNotIn(name, env)
+
+    def test_checkpoint_only_journal_growth_is_not_progress(self):
+        with tempfile.TemporaryDirectory() as temp:
+            state = Path(temp)
+            path = state / "manifest/manifest/journal.jsonl"
+            path.parent.mkdir(parents=True)
+            path.write_text('{"op":"checkpoint"}\n')
+            previous = conversion.journal_positions(state)
+            with path.open("a") as handle:
+                handle.write('{"op":"pkgStart","package":"Character.wz"}\n')
+                handle.write('{"op":"stat","key":"nodes","delta":1}\n')
+            self.assertEqual(conversion.new_write_intents(previous), 0)
+            with path.open("a") as handle:
+                handle.write('{"op":"record","sha":"abc"}\n')
+            self.assertEqual(conversion.new_write_intents(previous), 1)
+
     def test_foreground_command_finishes_without_detaching(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -137,7 +159,8 @@ class ForegroundConversionTests(unittest.TestCase):
                      patch.object(conversion, "runtime_paths", return_value=(sys.executable, str(root))), \
                      patch.object(conversion, "foreground", return_value=("time_budget", 124)), \
                      patch.object(conversion, "done_packages", return_value=["Base.wz"]), \
-                     patch.object(conversion, "journal_bytes", side_effect=[old_bytes, new_bytes]), \
+                     patch.object(conversion, "journal_positions", return_value={}), \
+                     patch.object(conversion, "new_write_intents", return_value=new_bytes - old_bytes), \
                      patch.object(conversion, "subprocess") as proc, \
                      patch.dict(os.environ, {"GITHUB_REPOSITORY": conversion.REPO}, clear=False):
                     proc.run.return_value.stdout = "a" * 40

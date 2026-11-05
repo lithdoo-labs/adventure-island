@@ -1,10 +1,10 @@
-// Headless validation for the Stage 4B-0 staging orchestration
+// Headless validation for the Stage 4B staging orchestration
 // (scripts/pwa/build-staging.mjs).
 //
 // Coverage:
-//   - on the currently pinned LoomRealm (c5217e47, no generic
-//     apps/pwa/scripts/build-bundle.mjs) the orchestration fails closed with
-//     upgrade guidance, creates no fake PWA directory, and deletes nothing;
+//   - the current pinned LoomRealm generic builder is used after the framework
+//     workspace and required browser artifacts are installed/built; missing
+//     prerequisites fail closed before any staging write or deletion;
 //   - against isolated git fixtures (real gitlink via --cacheinfo 160000) and
 //     a faithful stub of the upstream generic builder (including its
 //     recursive rm of the output directory): pinned CLI arguments

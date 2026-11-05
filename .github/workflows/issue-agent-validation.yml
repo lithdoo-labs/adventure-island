@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - "scripts/issue_agent/**"
+      - ".github/workflows/cms079-full-conversion.yml"
+      - "tests/test_cms079_full_conversion.py"
       - "tests/test_issue_agent.py"
       - ".github/workflows/issue-agent.yml"
       - ".github/workflows/issue-agent-validation.yml"
@@ -34,9 +36,11 @@ jobs:
           test -f loom-realm/packages/game-launcher-hostra/package.json
           echo "Pinned LoomRealm submodule checkout verified"
       - name: Python syntax
-        run: python3 -m py_compile scripts/issue_agent/agent.py tests/test_issue_agent.py
+        run: python3 -m py_compile scripts/issue_agent/agent.py scripts/issue_agent/cms079_full_conversion.py tests/test_issue_agent.py tests/test_cms079_full_conversion.py
       - name: Unit and two-turn fake OpenCode tests
         run: python3 -m unittest discover -s tests -p 'test_issue_agent.py' -v
+      - name: CMS079 foreground lifecycle tests
+        run: python3 -m unittest discover -s tests -p 'test_cms079_full_conversion.py' -v
       - name: Verify no self-hosted Runner in tests
         run: |
           echo "All CI tests run on ubuntu-latest with no model/API keys."

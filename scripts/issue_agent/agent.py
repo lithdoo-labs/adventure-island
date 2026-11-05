@@ -9,8 +9,11 @@ import json
 import os
 from pathlib import Path
 import re
+import selectors
+import signal
 import subprocess
 import sys
+import time
 from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -20,6 +23,9 @@ OWNER_LOGIN = "lithdoo"
 OWNER_ID = 130959182
 MARKER = "<!-- adventure-island-issue-agent:issue={issue} -->"
 STATUS_RE = re.compile(r"<!-- adventure-island-agent-turn:issue=(\d+);comment=(\d+);turn=(\d+) -->")
+STATUS_COMMAND_RE = re.compile(r"<!-- adventure-island-agent-status:issue=(\d+);comment=(\d+) -->")
+RUN_TIMEOUT_SECONDS = 7200
+STATUS_TIMEOUT_SECONDS = 600
 SESSION_RE = re.compile(r"^ses_[A-Za-z0-9_-]+$")
 PROTECTED = (".github/", "scripts/issue_agent/", "scripts/agent/", "research/",
              ".git/", ".gitmodules", ".gitignore", ".env", ".raw/",
@@ -99,17 +105,16 @@ def event_request(event, name, inputs, actor):
         if not authorized_author(comment):
             raise RuntimeError("not a comment from the authorized owner")
         command = str(comment.get("body", "")).strip()
-        if command not in ("/agent start", "/agent revise"):
+        if command not in ("/agent start", "/agent revise", "/agent status"):
             raise RuntimeError("not an Issue Agent command")
         return int(issue["number"]), command.split()[-1], int(comment["id"])
     if name == "workflow_dispatch" and actor == OWNER_LOGIN:
         number = int(inputs.get("issue_number", 0))
         operation = inputs.get("operation")
-        if operation not in ("start", "revise"):
+        if operation not in ("start", "revise", "status"):
             raise RuntimeError("invalid dispatch operation")
         return number, operation, 0
     raise RuntimeError("unauthorized event")
-
 
 def branch_name(issue):
     return f"agent/issue-{issue}"
@@ -152,7 +157,7 @@ def collect_feedback(issue, operation, command_id, pr, comments, checkpoint):
         if command_id and item["id"] > command_id:
             continue
         body = (item.get("body") or "").strip()
-        if body in ("/agent start", "/agent revise") or not body:
+        if body in ("/agent start", "/agent revise", "/agent status") or not body:
             continue
         output.append((item["created_at"], "Issue comment", body))
     if pr:
@@ -205,39 +210,44 @@ def preflight(args):
                 or MARKER.format(issue=issue_number) not in (pr.get("body") or "")):
             raise RuntimeError("Agent PR provenance mismatch")
     orphan_sha = None
-    if operation == "start":
+    if operation in ("start", "status") and not pr:
         try:
             existing_ref = api("GET", f"/repos/{REPO}/git/ref/heads/{branch_name(issue_number)}")
         except LookupError:
             pass
         else:
-            orphan_sha = existing_ref["object"]["sha"]
-            committed = api("GET", f"/repos/{REPO}/commits/{orphan_sha}")
+            candidate_sha = existing_ref["object"]["sha"]
+            committed = api("GET", f"/repos/{REPO}/commits/{candidate_sha}")
             message = committed.get("commit", {}).get("message", "")
             if (committed.get("author", {}).get("login") != "github-actions[bot]"
                     or not message.startswith(f"feat(agent): issue #{issue_number} turn ")):
                 raise RuntimeError("existing Issue branch was not published by this Agent")
-            # A previous job may have pushed the branch but failed creating
-            # the PR due to GitHub Actions settings. Recover without a model run.
-            operation = "recover"
+            orphan_sha = candidate_sha
+            if operation == "start":
+                operation = "recover"
     comments = pages(f"/repos/{REPO}/issues/{issue_number}/comments")
     checkpoint = get_last_checkpoint(comments, issue_number, comment_id)
-    feedback = collect_feedback(issue_number, operation, comment_id, pr, comments, checkpoint)
-    if operation == "revise" and not feedback:
-        raise RuntimeError("No new owner feedback found since the last Agent result")
+    if operation == "revise":
+        feedback = collect_feedback(issue_number, operation, comment_id, pr, comments, checkpoint)
+        if not feedback:
+            raise RuntimeError("No new owner feedback found since the last Agent result")
+    else:
+        feedback = []
     ref = (pr["head"]["sha"] if pr else orphan_sha or
            api("GET", f"/repos/{REPO}/git/ref/heads/main")["object"]["sha"])
+    command_marker_id = (comment_id or int(os.environ.get("GITHUB_RUN_ID", "0"))
+                         if operation == "status" else comment_id)
     payload = {"repository": REPO, "issue": issue_number, "operation": operation,
-               "command_id": comment_id, "issue_title": issue["title"][:300],
+               "command_id": command_marker_id, "issue_title": issue["title"][:300],
                "issue_body": (issue.get("body") or "")[:30000],
                "branch": branch_name(issue_number), "pr": pr["number"] if pr else None,
-               "base_sha": ref, "turn": (checkpoint["turn"] + 1 if checkpoint else 1),
+               "base_sha": ref,
+               "turn": (checkpoint["turn"] + 1 if checkpoint else 1),
                "feedback": feedback}
     Path(args.output).write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
     with Path(args.github_output).open("a") as out:
         out.write(f"allowed=true\nbase_sha={ref}\nissue_number={issue_number}\noperation={operation}\n")
     print(f"Authorized {operation} for Issue #{issue_number}; expected source SHA {ref[:12]}")
-
 
 def session_id_from_events(events):
     for line in events.splitlines():
@@ -275,6 +285,170 @@ def response_from_events(events):
     return "\n".join(messages)[-5000:]
 
 
+def write_json_atomic(path, payload):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    try:
+        os.chmod(temporary, 0o600)
+    except OSError:
+        pass
+    temporary.replace(path)
+
+
+class OpenCodeTimeout(RuntimeError):
+    def __init__(self, seconds, output):
+        super().__init__(f"OpenCode exceeded its {seconds // 60}-minute execution limit")
+        self.output = output
+
+
+def discover_session_id(binary, issue, workspace, env):
+    """Recover an orphaned session by its exact title and project directory."""
+    try:
+        completed = subprocess.run(
+            [binary, "session", "list", "--max-count", "100", "--format", "json"],
+            cwd=workspace, env=env, capture_output=True, text=True,
+            timeout=40, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = json.loads(completed.stdout)
+    except ValueError:
+        return None
+    expected_title = f"adventure-island issue #{issue}".casefold()
+    expected_directory = str(Path(workspace).resolve())
+    candidates = []
+    stack = [payload]
+    while stack:
+        item = stack.pop()
+        if isinstance(item, dict):
+            session_id = item.get("id") or item.get("sessionID") or item.get("sessionId")
+            title = item.get("title")
+            directory = item.get("directory") or item.get("cwd") or item.get("path")
+            if (isinstance(session_id, str) and SESSION_RE.fullmatch(session_id)
+                    and isinstance(title, str)
+                    and title.strip().casefold() == expected_title):
+                candidates.append((session_id, str(directory) if directory else None))
+            stack.extend(value for value in item.values() if isinstance(value, (dict, list)))
+        elif isinstance(item, list):
+            stack.extend(item)
+    exact_directory = [sid for sid, directory in candidates
+                       if directory and str(Path(directory).resolve()) == expected_directory]
+    if len(exact_directory) == 1:
+        return exact_directory[0]
+    if len(exact_directory) > 1:
+        return None
+    if len(candidates) == 1 and not candidates[0][1]:
+        return candidates[0][0]
+    return None
+
+
+def terminate_process_group(process):
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait()
+
+
+def stream_opencode(command, cwd, env, timeout_seconds, log_path, on_session=None):
+    """Run OpenCode with bounded streaming logs and early session persistence."""
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    output_tail = bytearray()
+    pending = bytearray()
+    started = time.monotonic()
+    last_heartbeat = started
+    process = None
+    selector = selectors.DefaultSelector()
+
+    def consume_line(raw_line):
+        line = raw_line.decode("utf-8", errors="replace")
+        session_id = session_id_from_events(line)
+        if session_id and on_session:
+            on_session(session_id)
+        try:
+            event = json.loads(line)
+        except ValueError:
+            event = None
+        if isinstance(event, dict) and event.get("type"):
+            print(f"[issue-agent] OpenCode event: {str(event['type'])[:80]}", flush=True)
+
+    with log_path.open("ab") as log:
+        try:
+            os.chmod(log_path, 0o600)
+        except OSError:
+            pass
+        process = subprocess.Popen(
+            command, cwd=cwd, env=env, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, bufsize=0, start_new_session=True)
+        selector.register(process.stdout, selectors.EVENT_READ)
+        os.set_blocking(process.stdout.fileno(), False)
+        while selector.get_map() or process.poll() is None:
+            elapsed = time.monotonic() - started
+            if elapsed >= timeout_seconds and process.poll() is None:
+                terminate_process_group(process)
+                output = output_tail.decode("utf-8", errors="replace")
+                raise OpenCodeTimeout(timeout_seconds, output)
+            ready = selector.select(timeout=1)
+            if not ready:
+                if time.monotonic() - last_heartbeat >= 60:
+                    print(f"[issue-agent] OpenCode still running ({int(elapsed)}s elapsed)",
+                          flush=True)
+                    last_heartbeat = time.monotonic()
+                continue
+            for key, _ in ready:
+                try:
+                    chunk = os.read(key.fd, 65536)
+                except BlockingIOError:
+                    continue
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                log.write(chunk)
+                log.flush()
+                output_tail.extend(chunk)
+                if len(output_tail) > 2_000_000:
+                    del output_tail[:-2_000_000]
+                pending.extend(chunk)
+                while b"\n" in pending:
+                    line, _, remainder = pending.partition(b"\n")
+                    pending = bytearray(remainder)
+                    consume_line(line)
+        if pending:
+            consume_line(bytes(pending))
+    return output_tail.decode("utf-8", errors="replace"), process.wait()
+
+
+def status_prompt(inp):
+    return (
+        f"Repository: {REPO}\nIssue #{inp['issue']}: {inp['issue_title']}\n"
+        f"Original task specification:\n{inp.get('issue_body', '')}\n\n"
+        "This is a STATUS-ONLY request in the existing Issue Agent session. "
+        "Review the prior conversation and the current checked-out repository state. "
+        "Do not edit, create, delete, rename, format, or otherwise modify any files. "
+        "Do not run mutating commands, git add/commit/push, or publish anything. "
+        "Use read-only inspection only.\n\n"
+        "Return a concise, evidence-based report with these headings:\n"
+        "1. Work completed (distinguish committed/published from uncommitted work).\n"
+        "2. Current task phase and the last known concrete action.\n"
+        "3. Current blockers, errors, or uncertainty.\n"
+        "4. Can the original task continue? Answer YES, NO, or CONDITIONAL and explain.\n"
+        "5. The exact next steps needed to continue safely.\n"
+        "6. Any missing information or Runner prerequisites.\n"
+        "Do not claim a test passed unless the prior session or current checkout contains evidence."
+    )
+
 def safe_summary(summary):
     for key in ("GLM_API_KEY", "GITHUB_ACCESS_TOKEN", "GITHUB_ORG_ACCESS_TOKEN", "GH_TOKEN"):
         secret = os.environ.get(key, "")
@@ -287,33 +461,116 @@ def execute(args):
     inp = json.loads(Path(args.input).read_text())
     result_path = Path(args.result)
     patch_path = Path(args.patch)
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    patch_path.parent.mkdir(parents=True, exist_ok=True)
     patch_path.write_bytes(b"")
     state = Path(os.environ["ISSUE_AGENT_STATE"]) / "issues" / f"issue-{inp['issue']}"
-    # OpenCode V2 must operate in the actual Actions checkout, not a copied .git tree.
     workspace = Path(args.source).resolve()
     metadata = state / "metadata.json"
     result = {"status": "failed", "issue": inp["issue"], "turn": inp["turn"],
               "session_id": None, "continuity": "unavailable", "summary": ""}
+    prior = None
+    env = os.environ.copy()
+    for key in ("GH_TOKEN", "GITHUB_TOKEN", "AGENT_GITHUB_TOKEN",
+                "GITHUB_ACCESS_TOKEN", "GITHUB_ORG_ACCESS_TOKEN"):
+        env.pop(key, None)
+    env["OPENCODE_DISABLE_PROJECT_CONFIG"] = "1"
+    env["OPENCODE_DISABLE_EXTERNAL_SKILLS"] = "1"
+    binary = os.getenv("OPENCODE_BIN", "opencode2")
+    log_path = state / "logs" / (
+        f"{inp['operation']}-{inp['turn']}-{inp.get('command_id') or 'dispatch'}.ndjson")
+    metadata_payload = None
     try:
         state.mkdir(parents=True, exist_ok=True)
         prior = json.loads(metadata.read_text()) if metadata.exists() else None
-        if inp["operation"] == "revise" and not prior:
-            raise RuntimeError("persistent Issue session metadata missing")
+        if prior and prior.get("issue") != inp["issue"]:
+            raise RuntimeError("persistent session belongs to a different Issue")
+
+        if inp["operation"] == "status":
+            candidate = (prior or {}).get("session_id", "")
+            if not SESSION_RE.fullmatch(candidate):
+                candidate = discover_session_id(binary, inp["issue"], workspace, env)
+            if not candidate:
+                result.update(
+                    status="unavailable", continuity="unavailable",
+                    summary=("No unique existing OpenCode session could be recovered for this Issue. "
+                             "No new model session was started. The previous run may have timed out "
+                             "before its session ID was persisted; check the Runner OpenCode session "
+                             "store and local execution log before attempting a fresh start."))
+                result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+                return result
+            verify = subprocess.run(
+                [binary, "session", "export", "--standalone", candidate],
+                cwd=workspace, env=env, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, timeout=40, check=False)
+            if verify.returncode:
+                result.update(
+                    status="unavailable", continuity="unavailable",
+                    session_id=candidate,
+                    summary=("A matching session entry was found, but OpenCode could not export it. "
+                             "The session was not queried and no replacement session was created."))
+                result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+                return result
+            if git("rev-parse", "--show-toplevel", cwd=workspace).stdout.strip() != str(workspace):
+                raise RuntimeError("status checkout is not the expected Git worktree root")
+            if git("rev-parse", "HEAD", cwd=workspace).stdout.strip() != inp["base_sha"]:
+                raise RuntimeError("status checkout differs from preflight approved SHA")
+            if git("status", "--porcelain", "--untracked-files=all", cwd=workspace).stdout.strip():
+                raise RuntimeError("status checkout is not clean; refusing read-only session query")
+            continuity = "resumed" if (prior or {}).get("session_id") == candidate else "recovered"
+            metadata_payload = dict(prior or {})
+            metadata_payload.update({
+                "issue": inp["issue"], "session_id": candidate,
+                "status": "status_query_running", "last_status_started_at": time.time(),
+                "workspace": str(workspace), "last_log": str(log_path)
+            })
+            write_json_atomic(metadata, metadata_payload)
+            result.update(session_id=candidate, continuity=continuity)
+            command = [binary, "run", "--standalone", "--auto", "--format", "json",
+                       "--session", candidate, status_prompt(inp)]
+            output, returncode = stream_opencode(
+                command, workspace, env, STATUS_TIMEOUT_SECONDS, log_path)
+            if returncode != 0:
+                raise RuntimeError(f"OpenCode status query failed with exit code {returncode}")
+            summary = safe_summary(response_from_events(output))
+            if not summary.strip():
+                raise RuntimeError("OpenCode status query completed without a readable report")
+            dirty = git("status", "--porcelain", "--untracked-files=all", cwd=workspace).stdout.strip()
+            if dirty:
+                git("reset", "--hard", "HEAD", cwd=workspace)
+                git("clean", "-fd", cwd=workspace)
+                raise RuntimeError("status query attempted to modify the checkout; changes were discarded")
+            result.update(status="ok", summary=summary, changed_files=[])
+            metadata_payload.update({
+                "status": "available", "last_status_at": time.time(),
+                "last_status_summary": summary[:5000]
+            })
+            write_json_atomic(metadata, metadata_payload)
+            result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+            return result
+
         if prior:
-            if prior.get("issue") != inp["issue"]:
-                raise RuntimeError("persistent session belongs to a different Issue")
-            # An initial publish failure may leave a valid session but no PR.
-            # /agent start retries should resume it, not silently reset context.
             candidate = prior.get("session_id", "")
             if not SESSION_RE.fullmatch(candidate):
-                raise RuntimeError("persistent session ID invalid")
-            verify = subprocess.run([os.getenv("OPENCODE_BIN", "opencode2"),
-                                     "session", "export", "--standalone", candidate],
-                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                    timeout=40, check=False)
+                candidate = discover_session_id(binary, inp["issue"], workspace, env)
+                if not candidate:
+                    raise RuntimeError("persistent session ID missing and no unique Runner session could be recovered")
+                result["continuity"] = "recovered"
+            else:
+                result["continuity"] = "resumed"
+            verify = subprocess.run(
+                [binary, "session", "export", "--standalone", candidate],
+                cwd=workspace, env=env, stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL, timeout=40, check=False)
             if verify.returncode:
                 raise RuntimeError("existing OpenCode session missing; not silently starting a new one")
-            result.update(session_id=candidate, continuity="resumed")
+            result["session_id"] = candidate
+        elif inp["operation"] == "revise":
+            candidate = discover_session_id(binary, inp["issue"], workspace, env)
+            if not candidate:
+                raise RuntimeError("persistent Issue session metadata missing and no unique session could be recovered")
+            result.update(session_id=candidate, continuity="recovered")
+
         if git("rev-parse", "--show-toplevel", cwd=workspace).stdout.strip() != str(workspace):
             raise RuntimeError("Actions checkout is not the expected Git worktree root")
         if git("rev-parse", "HEAD", cwd=workspace).stdout.strip() != inp["base_sha"]:
@@ -332,29 +589,35 @@ def execute(args):
             "Do not run git push, git commit, gh or attempt to publish a PR. "
             "Report what changed, what tests ran and remaining risks."
         )
-        env = os.environ.copy()
-        for key in ("GH_TOKEN", "GITHUB_TOKEN", "AGENT_GITHUB_TOKEN",
-                    "GITHUB_ACCESS_TOKEN", "GITHUB_ORG_ACCESS_TOKEN"):
-            env.pop(key, None)
-        env["OPENCODE_DISABLE_PROJECT_CONFIG"] = "1"
-        env["OPENCODE_DISABLE_EXTERNAL_SKILLS"] = "1"
-        binary = os.getenv("OPENCODE_BIN", "opencode2")
+        metadata_payload = {
+            "issue": inp["issue"], "session_id": result["session_id"],
+            "turn": inp["turn"], "status": "running",
+            "started_at": time.time(), "workspace": str(workspace),
+            "last_log": str(log_path)
+        }
+        write_json_atomic(metadata, metadata_payload)
+
+        def persist_session(session_id):
+            result["session_id"] = session_id
+            metadata_payload["session_id"] = session_id
+            metadata_payload["status"] = "running"
+            metadata_payload["last_event_at"] = time.time()
+            write_json_atomic(metadata, metadata_payload)
+
         command = [binary, "run", "--standalone", "--auto", "--format", "json"]
         if result["session_id"]:
             command.extend(["--session", result["session_id"]])
         else:
             command.extend(["--title", f"adventure-island issue #{inp['issue']}"])
-        completed = subprocess.run(command + [prompt], cwd=workspace, env=env,
-                                   capture_output=True, text=True, timeout=4800, check=False)
-        if completed.returncode != 0:
-            raise RuntimeError("OpenCode process failed with exit code " + str(completed.returncode))
-        session_id = result["session_id"] or session_id_from_events(completed.stdout)
+        command.append(prompt)
+        output, returncode = stream_opencode(
+            command, workspace, env, RUN_TIMEOUT_SECONDS, log_path, persist_session)
+        if returncode != 0:
+            raise RuntimeError("OpenCode process failed with exit code " + str(returncode))
+        session_id = result["session_id"] or session_id_from_events(output)
         if not session_id:
             raise RuntimeError("OpenCode completed without a recoverable session ID")
-        summary = safe_summary(response_from_events(completed.stdout))
-        # Python tests may create bytecode/cache files alongside trusted scripts.
-        # Do not stage these generated artifacts; keep all real changes subject
-        # to validate_paths() checks (including protected .github/ and scripts).
+        summary = safe_summary(response_from_events(output))
         git("add", "-A", "--", ".",
             ":(exclude,glob)**/__pycache__/**",
             ":(exclude,glob)**/*.pyc",
@@ -373,17 +636,40 @@ def execute(args):
             raise RuntimeError("OpenCode produced no working-tree changes in Actions checkout")
         patch_path.write_bytes(patch)
         result.update(status="ok", session_id=session_id,
-                      continuity="resumed" if prior else "new",
+                      continuity=result["continuity"] if result["continuity"] != "unavailable"
+                      else ("resumed" if prior else "new"),
                       changed_files=paths, summary=summary or "OpenCode completed successfully.")
-        metadata.write_text(json.dumps({"issue": inp["issue"], "session_id": session_id,
-                                        "turn": inp["turn"]}, indent=2) + "\n")
+        metadata_payload.update({
+            "session_id": session_id, "turn": inp["turn"],
+            "status": "completed", "completed_at": time.time()
+        })
+        write_json_atomic(metadata, metadata_payload)
     except Exception as ex:
-        result["summary"] = "Executor validation failed: " + str(ex)[:500]
+        result["status"] = "failed"
+        partial = getattr(ex, "output", "")
+        partial_summary = safe_summary(response_from_events(partial)) if partial else ""
+        result["summary"] = "Executor failed: " + str(ex)[:500]
+        if partial_summary:
+            result["summary"] += "\nLast model output before failure:\n" + partial_summary[:2500]
+        if result.get("session_id"):
+            result["continuity"] = "interrupted"
+        if metadata_payload is None:
+            metadata_payload = dict(prior or {})
+        metadata_payload.update({
+            "issue": inp["issue"], "session_id": result.get("session_id"),
+            "turn": inp.get("turn"), "status": "interrupted",
+            "last_error": str(ex)[:1000], "last_interrupted_at": time.time(),
+            "last_log": str(log_path)
+        })
+        try:
+            write_json_atomic(metadata, metadata_payload)
+        except Exception:
+            pass
         patch_path.write_bytes(b"")
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
-    print(f"Issue #{inp['issue']} turn {inp['turn']}: {result['status']} "
+    print(f"Issue #{inp['issue']} {inp['operation']} {inp['turn']}: {result['status']} "
           f"({len(result.get('changed_files', []))} files)")
-
+    return result
 
 def git_push(branch):
     token = os.environ["GH_TOKEN"]
@@ -397,14 +683,40 @@ def git_push(branch):
 def result_comment(inp, result, pr=None, error=None):
     issue = inp["issue"]
     command = inp["command_id"]
+    if inp.get("operation") == "status":
+        marker = f"<!-- adventure-island-agent-status:issue={issue};comment={command} -->"
+        status = result.get("status")
+        if status == "ok":
+            label = "AI status retrieved"
+        elif status == "unavailable":
+            label = "existing AI session unavailable"
+        else:
+            label = "status query failed"
+        return "\n".join([
+            marker,
+            "### OpenCode Issue Agent — status check",
+            f"- Status: **{label}**",
+            f"- Session: **{result.get('continuity', 'unavailable')}**",
+            f"- Existing PR: {'#' + str(pr) if pr else 'not published'}",
+            f"- GitHub Actions run: {os.environ.get('GITHUB_RUN_ID', 'unknown')}",
+            "",
+            "#### AI progress and recommendation",
+            safe_summary(result.get("summary", "") or "No status report available."),
+            "",
+            "This status check does not consume owner feedback, modify the code patch, "
+            "or advance the coding checkpoint."
+        ])[:12000]
     turn = inp["turn"]
     success = not error and result.get("status") == "ok"
     changed = result.get("changed_files", [])
+    continuity = result.get("continuity", "unavailable")
+    if not success and result.get("session_id"):
+        continuity = "interrupted; session ID persisted for recovery"
     body = [
         f"<!-- adventure-island-agent-turn:issue={issue};comment={command};turn={turn} -->",
         f"### OpenCode Issue Agent — turn {turn}",
         f"- Status: **{'completed' if success else 'failed / needs attention'}**",
-        f"- Session: **{result.get('continuity', 'unavailable')}**",
+        f"- Session: **{continuity}**",
         f"- PR: {'#' + str(pr) if pr else 'not published'}",
         f"- Changed files: {len(changed)}",
         f"- GitHub Actions run: {os.environ.get('GITHUB_RUN_ID', 'unknown')}",
@@ -417,7 +729,6 @@ def result_comment(inp, result, pr=None, error=None):
     body.append("\nHuman review and merge are required; this workflow never auto-merges.")
     return "\n".join(body)[:12000]
 
-
 def publish(args):
     inp = json.loads(Path(args.input).read_text())
     candidate_path = Path(args.result)
@@ -429,16 +740,30 @@ def publish(args):
         raise RuntimeError("result artifact belongs to another Issue")
     if result.get("turn") not in (None, inp["turn"]):
         raise RuntimeError("result artifact turn mismatch")
-    # Idempotence guard for rerun of the publish job.
     for comment in pages(f"/repos/{REPO}/issues/{inp['issue']}/comments"):
         if (comment.get("user") or {}).get("id") not in (41898282, OWNER_ID):
             continue
-        m = STATUS_RE.search(comment.get("body") or "")
-        if m and (int(m[1]), int(m[2]), int(m[3])) == (
+        body = comment.get("body") or ""
+        turn_match = STATUS_RE.search(body)
+        status_match = STATUS_COMMAND_RE.search(body)
+        if inp.get("operation") == "status":
+            if (status_match and int(status_match[1]) == inp["issue"]
+                    and int(status_match[2]) == inp["command_id"]):
+                print("This status command already has a published result; skipping duplicate comment.")
+                return
+        elif turn_match and (int(turn_match[1]), int(turn_match[2]), int(turn_match[3])) == (
                 inp["issue"], inp["command_id"], inp["turn"]):
             print("This command already has a published result; skipping duplicate push.")
             return
     number = inp.get("pr")
+    if inp.get("operation") == "status":
+        api("POST", f"/repos/{REPO}/issues/{inp['issue']}/comments",
+            {"body": result_comment(inp, result, number)})
+        print(f"Published read-only status report for Issue #{inp['issue']}")
+        if result.get("status") == "failed":
+            raise RuntimeError("OpenCode status query failed; diagnostic report was posted")
+        return
+
     failure = None
     if inp["operation"] == "recover":
         result = {"status": "ok", "continuity": "preserved",
@@ -467,9 +792,6 @@ def publish(args):
             paths = [x for x in git("diff", "--cached", "--name-only", "-z").stdout.split("\0") if x]
             validate_paths(paths)
             git("diff", "--cached", "--check")
-            # This repository legitimately tracks existing Git submodules.
-            # Reject only symlinks/submodules among the *changed* paths;
-            # inspecting every tracked entry would reject unrelated history.
             modes = git("ls-files", "--stage", "-z", "--", *paths).stdout
             for row in modes.split("\0"):
                 if row and row.split(" ", 1)[0] in ("120000", "160000"):
@@ -486,9 +808,9 @@ def publish(args):
                 MARKER.format(issue=inp["issue"]) + "\n\n"
                 f"Implements #{inp['issue']} using OpenCode 2 on the organization runner.\n\n"
                 "Draft PR for human code review; changes and later revisions remain on "
-                f"branch \x60{inp['branch']}\x60.\n\n"
+                f"branch {inp['branch']}.\n\n"
                 "Post feedback on the linked Issue or in PR review, then comment "
-                "\x60/agent revise\x60 on the Issue. **Never auto-merge.**"
+                "/agent revise on the Issue. Never auto-merge."
             )
             pr = api("POST", f"/repos/{REPO}/pulls",
                      {"title": title, "head": inp["branch"], "base": "main",
@@ -502,7 +824,6 @@ def publish(args):
         {"body": result_comment(inp, result, number if not failure else None, failure)})
     if failure:
         raise RuntimeError(failure)
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -521,8 +842,14 @@ def main():
     pub.add_argument("--result", required=True)
     pub.add_argument("--patch", required=True)
     args = parser.parse_args()
-    {"preflight": preflight, "execute": execute, "publish": publish}[args.action](args)
-
+    if args.action == "preflight":
+        preflight(args)
+    elif args.action == "publish":
+        publish(args)
+    else:
+        result = execute(args)
+        if result.get("status") == "failed":
+            raise SystemExit(1)
 
 if __name__ == "__main__":
     main()

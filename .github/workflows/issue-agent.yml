@@ -10,10 +10,10 @@ on:
         required: true
         type: number
       operation:
-        description: "First implementation or a revision of the same PR"
+        description: "Start, revise the same PR, or query the existing session status"
         required: true
         type: choice
-        options: [start, revise]
+        options: [start, revise, status]
 
 # GitHub Actions admits at most one running and one pending job per concurrency
 # group; newer pending commands may coalesce. Preflight collects all feedback
@@ -36,7 +36,7 @@ jobs:
            github.event.issue.pull_request == null &&
            github.event.comment.user.id == 130959182 &&
            github.event.issue.user.id == 130959182 &&
-           (github.event.comment.body == '/agent start' || github.event.comment.body == '/agent revise')) ||
+           (github.event.comment.body == '/agent start' || github.event.comment.body == '/agent revise' || github.event.comment.body == '/agent status')) ||
           (github.event_name == 'workflow_dispatch' && github.actor == 'lithdoo')
         )
       }}
@@ -82,7 +82,7 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.allowed == 'true' && needs.preflight.outputs.operation != 'recover'
     runs-on: [self-hosted, linux, x64, opencode, labs]
-    timeout-minutes: 90
+    timeout-minutes: 150
     permissions:
       contents: read
       actions: read
@@ -91,8 +91,9 @@ jobs:
         with:
           ref: ${{ needs.preflight.outputs.base_sha }}
           persist-credentials: false
-          submodules: true
+          submodules: ${{ needs.preflight.outputs.operation != 'status' }}
       - name: Validate pinned LoomRealm checkout
+        if: needs.preflight.outputs.operation != 'status'
         shell: bash
         run: |
           set -euo pipefail

@@ -11,10 +11,10 @@ This repository supports a one-Issue / one-Draft-PR / one-persistent-session wor
 4. A separate GitHub-hosted **Prepare** job creates or recovers **agent/issue-N**, pushes an empty turn-0 initialization commit when needed, and opens the Draft PR **before** OpenCode starts. A retry reuses the same branch and PR.
 5. Organization Runner **opencode-lithdoo-labs** runs OpenCode 2 with persistent metadata. GitHub write tokens are not provided to the AI runner.
 6. GitHub-hosted publisher validates and publishes a complete or partial patch to the prepared branch, then reports the outcome on the original Issue. A failed coding run never closes or deletes the Draft PR or branch.
-6. Review the Issue and PR. Add feedback to the Issue, a PR conversation, a PR review, or inline review comments.
-7. Comment **/agent revise** on the *same Issue*. The next run collects feedback since the previous report, resumes the same OpenCode session, and pushes to the same PR branch.
-8. Comment **/agent status** to query the same session without publishing code. The command reports completed work, blockers, whether continuation is feasible, and exact next steps; it never creates a new session if the old one cannot be recovered.
-9. Review the changes and manually merge. No automatic merge is implemented.
+7. Review the Issue and PR. Add feedback to the Issue, a PR conversation, a PR review, or inline review comments.
+8. Comment **/agent revise** on the *same Issue*. The next run collects feedback since the previous report, resumes the same OpenCode session, and pushes to the same PR branch.
+9. Comment **/agent status** to query the same session without publishing code. The command reports completed work, blockers, whether continuation is feasible, and exact next steps; it never creates a new session if the old one cannot be recovered.
+10. Review the changes and manually merge. No automatic merge is implemented.
 
 An owner-only alternative is Actions → Issue Agent (OpenCode 2) → Run workflow, with Issue number and **start**, **revise**, or **status** inputs.
 
@@ -88,7 +88,7 @@ The connected ChatGPT GitHub API lacks an Actions workflow_dispatch operation; o
 ## Troubleshooting
 
 - Preflight rejects unauthorized, closed, duplicate, or non-ordinary Issues, and revisions without fresh owner feedback.
-- Execute errors are reported back to the Issue when the publisher has permission; check OpenCode availability and state-volume permissions without printing API keys. A timeout is now 120 minutes (135-minute job ceiling); inspect the Runner-local `issues/issue-N/logs/` file and `metadata.json` before retrying.
+- Execute errors are reported back to the Issue when the publisher has permission; check OpenCode availability and state-volume permissions without printing API keys. A timeout is now 240 minutes (270-minute job ceiling); inspect the Runner-local `issues/issue-N/logs/` file and `metadata.json` before retrying.
 - To ask the AI for a progress assessment, comment `/agent status`. It resumes only a uniquely identified existing session, posts a read-only report, and does not advance the coding checkpoint. If no unique session is recoverable, it explicitly reports unavailable and does not silently create a new session.
 - Prepare failures: verify GitHub Action PR creation policy and write permissions. The branch is pushed before PR creation; if PR creation is denied, the branch is retained. Enable the repository PR creation setting (or supply AGENT_GITHUB_TOKEN), then comment **/agent start** again to recover the same branch and open its Draft PR.
 - Execute failures: the 4-hour OpenCode timeout leaves 30 minutes of Runner job headroom for partial patch capture and upload. Check the Issue failure report and the Runner-local log before retrying. If the runner is forcibly terminated before upload, the empty initial commit and Draft PR still remain; the latest successfully published WIP checkpoint is the recovery point.

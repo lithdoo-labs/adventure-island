@@ -67,7 +67,7 @@ test("prepareWebPresentationV1 rejects the script ref with a wrong MIME essence"
 });
 
 test("composite canvas limits keep the final backing store inside the frame byte budget", async () => {
-  const { COMPOSITE_CANVAS_LIMITS } = await import("../src/cms-actor.mjs");
+  const { COMPOSITE_CANVAS_LIMITS, DECODE_QUEUE_LIMITS, BITMAP_CACHE_LIMITS } = await import("../src/cms-actor.mjs");
   const { AVATAR_PLAN_LIMITS } = await import("../src/avatar-model.mjs");
   assert.ok(
     COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio >= 2 && COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio <= 16,
@@ -85,5 +85,17 @@ test("composite canvas limits keep the final backing store inside the frame byte
     COMPOSITE_CANVAS_LIMITS.maxDeviceWidth * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes
       && COMPOSITE_CANVAS_LIMITS.maxDeviceHeight * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes,
     "a single extreme dimension alone must stay inside the byte budget",
+  );
+  assert.ok(
+    DECODE_QUEUE_LIMITS.maxConcurrentDecodes >= 1 && DECODE_QUEUE_LIMITS.maxConcurrentDecodes <= AVATAR_PLAN_LIMITS.maxLayersPerFrame,
+    "concurrent decodes must be a real cap no larger than one frame's layer bound",
+  );
+  assert.ok(
+    DECODE_QUEUE_LIMITS.maxQueuedDecodes >= AVATAR_PLAN_LIMITS.maxLayersPerFrame,
+    "a full frame must always be queueable behind the concurrent-decode cap",
+  );
+  assert.ok(
+    DECODE_QUEUE_LIMITS.maxConcurrentDecodes + DECODE_QUEUE_LIMITS.maxQueuedDecodes <= 2 * BITMAP_CACHE_LIMITS.maxEntries,
+    "total decode work must stay proportional to the cacheable entry bound",
   );
 });

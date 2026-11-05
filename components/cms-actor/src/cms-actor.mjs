@@ -56,6 +56,21 @@ export const COMPOSITE_CANVAS_LIMITS = Object.freeze({
 });
 
 /**
+ * Hard bounds for concurrently-running bitmap decodes.
+ *
+ * `createImageBitmap` cannot be cancelled once started, so cancellation alone
+ * cannot bound decode work: a stream of plan replacements whose responses all
+ * arrive could otherwise start unbounded decodes. Every decode therefore
+ * passes a pre-decode abort/identity gate, at most `maxConcurrentDecodes`
+ * decodes run at once, and waiting decodes form an abort-aware queue — queued
+ * work for evicted entries is discarded without ever starting.
+ */
+export const DECODE_QUEUE_LIMITS = Object.freeze({
+  maxConcurrentDecodes: 8,
+  maxQueuedDecodes: 64,
+});
+
+/**
  * CMS 079 paper-doll renderer.
  * Game code resolves WZ/UOL/aliases and projects an AvatarPlanV1 into
  * RenderNode.data.avatarPlan. This element only lays out and paints that plan.
@@ -74,6 +89,8 @@ export class CmsActor extends HTMLElementBase {
     this._loadingCount = 0;      // entries whose fetch/decode is still in flight
     this._pendingCloseCount = 0; // evicted entries whose bitmap is still pinned
     this._pendingCloseBytes = 0;
+    this._decodeActive = 0;      // createImageBitmap decodes currently running
+    this._decodeQueue = [];      // decode jobs waiting for a slot (abort-aware)
     this._abortController = null;
     this._paintEpoch = 0;
     this._paintPending = false;
@@ -195,6 +212,12 @@ export class CmsActor extends HTMLElementBase {
       paintPending: this._paintPending,
       oneShotAction: this._oneShotAction,
       contextInjected: this._context !== null,
+      decode: Object.freeze({
+        active: this._decodeActive,
+        queued: this._decodeQueue.length,
+        maxConcurrent: DECODE_QUEUE_LIMITS.maxConcurrentDecodes,
+        maxQueued: DECODE_QUEUE_LIMITS.maxQueuedDecodes,
+      }),
       cache: Object.freeze({
         entries: Math.max(0, this._resourceCache.size - this._loadingCount),
         loading: Math.max(0, this._loadingCount),
@@ -346,6 +369,8 @@ export class CmsActor extends HTMLElementBase {
     // cancels a live plan's read. Completed bitmaps have no read to cancel
     // and keep the deferred-close-on-unpin semantics.
     if (entry.bitmap === null && !entry.controller.signal.aborted) entry.controller.abort();
+    // A queued (not yet started) decode for this entry must never start.
+    entry.decodeJob?.cancel();
     // Accounting moves at eviction time so `_cacheBytes` is always exactly
     // the cacheable tier, even when the close is deferred by a pin.
     if (entry.inCacheBytes) {
@@ -380,6 +405,86 @@ export class CmsActor extends HTMLElementBase {
   _unpinEntry(entry) {
     if (entry.pins > 0) entry.pins -= 1;
     if (entry.pins === 0 && entry.evicted && !entry.closed) this._closeEntry(entry);
+  }
+
+  /** Abort/identity gate evaluated before EVERY decode start. */
+  _assertDecodeStillWanted(cacheKey, entry, controller) {
+    if (!this._connected || controller.signal.aborted || entry.evicted || entry.closed
+      || this._resourceCache.get(cacheKey) !== entry) {
+      throw new DOMException("Avatar resource decode cancelled or superseded", "AbortError");
+    }
+  }
+
+  /**
+   * Acquire one of the bounded decode slots. When all slots are busy the job
+   * queues; a queued job is discarded (never started) if its entry is
+   * evicted/aborted while waiting — eviction cancels it through
+   * `entry.decodeJob`, and the dequeue path re-checks staleness as defense
+   * in depth. Overflows past `maxQueuedDecodes` fail closed with a locatable
+   * error instead of accumulating work.
+   */
+  _acquireDecodeSlot(cacheKey, entry) {
+    if (this._decodeActive < DECODE_QUEUE_LIMITS.maxConcurrentDecodes) {
+      this._decodeActive += 1;
+      return Promise.resolve();
+    }
+    if (this._decodeQueue.length >= DECODE_QUEUE_LIMITS.maxQueuedDecodes) {
+      return Promise.reject(new Error(`DECODE_QUEUE_FULL more than ${DECODE_QUEUE_LIMITS.maxQueuedDecodes} avatar decodes are waiting behind ${DECODE_QUEUE_LIMITS.maxConcurrentDecodes} running ones; the host is not draining decode work`));
+    }
+    return new Promise((resolve, reject) => {
+      const job = {
+        key: cacheKey,
+        entry,
+        started: false,
+        start: () => {
+          if (job.started) return;
+          job.started = true;
+          this._decodeActive += 1;
+          resolve();
+        },
+        cancel: () => {
+          if (job.started) return;
+          job.started = true;
+          const index = this._decodeQueue.indexOf(job);
+          if (index !== -1) this._decodeQueue.splice(index, 1);
+          reject(new DOMException("Avatar decode cancelled while queued", "AbortError"));
+        },
+      };
+      entry.decodeJob = job;
+      this._decodeQueue.push(job);
+    });
+  }
+
+  /** Release a decode slot and hand it to the next still-live queued job. */
+  _releaseDecodeSlot() {
+    this._decodeActive = Math.max(0, this._decodeActive - 1);
+    while (this._decodeQueue.length > 0 && this._decodeActive < DECODE_QUEUE_LIMITS.maxConcurrentDecodes) {
+      const job = this._decodeQueue.shift();
+      const stale = job.entry.closed || job.entry.evicted || job.entry.controller.signal.aborted
+        || this._resourceCache.get(job.key) !== job.entry;
+      if (stale) {
+        job.cancel(); // discard queued stale decode without starting it
+        continue;
+      }
+      job.start();
+    }
+  }
+
+  /**
+   * Run one bounded, guarded decode: acquire a slot (abort-aware queue),
+   * re-check staleness once the slot is granted (the queue wait may have
+   * straddled a plan replacement), then call the platform API. Decodes
+   * themselves cannot be cancelled; the post-decode check in the caller
+   * closes and discards bitmaps whose entry was superseded mid-decode.
+   */
+  async _decodeBitmap(cacheKey, entry, controller, blob) {
+    await this._acquireDecodeSlot(cacheKey, entry);
+    try {
+      this._assertDecodeStillWanted(cacheKey, entry, controller);
+      return await createImageBitmap(blob);
+    } finally {
+      this._releaseDecodeSlot();
+    }
   }
 
   /** Enforce the hard cacheable-tier bound after a completed insert. */
@@ -435,7 +540,7 @@ export class CmsActor extends HTMLElementBase {
     const entry = {
       bitmap: null, promise: null, pins: 0, evicted: false, closed: false,
       byteSize: 0, width: 0, height: 0, inCacheBytes: false, inPendingBytes: false,
-      controller,
+      controller, decodeJob: null,
     };
     this._pinEntry(entry);
     this._loadingCount += 1;
@@ -452,7 +557,11 @@ export class CmsActor extends HTMLElementBase {
         throw new Error(`CONTENT_INVALID ${resource.namespace}/${resource.key} is not an image (mime ${resolved.mime})`);
       }
       if (typeof createImageBitmap !== "function") throw new Error("createImageBitmap is not available in this browser");
-      const bitmap = await createImageBitmap(new Blob([resolved.bytes], { type: resolved.mime }));
+      // Pre-decode gate: the fetch has resolved, but the plan may have been
+      // replaced while the bytes were in flight (or while queued below) —
+      // never hand a superseded entry to the unabortable decode API.
+      this._assertDecodeStillWanted(cacheKey, entry, controller);
+      const bitmap = await this._decodeBitmap(cacheKey, entry, controller, new Blob([resolved.bytes], { type: resolved.mime }));
       if (bitmap.width !== layer.width || bitmap.height !== layer.height) {
         bitmap.close?.();
         throw new Error(`CONTENT_INVALID ${resource.namespace}/${resource.key} decoded to ${bitmap.width}x${bitmap.height} but the plan declares ${layer.width}x${layer.height}`);
@@ -481,7 +590,13 @@ export class CmsActor extends HTMLElementBase {
       }
       return bitmap;
     }).catch((error) => {
-      if (!entry.closed && entry.bitmap === null) this._loadingCount -= 1;
+      // Single-shot loading decrement: the success path decrements exactly
+      // when it assigns `entry.bitmap`, and a bitmap never returns to null,
+      // so "bitmap still null" is the precise not-yet-settled condition.
+      // It must NOT also require !entry.closed: a stale decode can reject
+      // long after eviction already closed the (still-loading) entry.
+      if (entry.bitmap === null) this._loadingCount -= 1;
+      if (this._loadingCount < 0) this._loadingCount = 0;
       if (this._resourceCache.get(cacheKey) === entry) this._resourceCache.delete(cacheKey);
       if (entry.inCacheBytes) {
         entry.inCacheBytes = false;

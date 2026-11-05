@@ -780,3 +780,107 @@ test("rapid delayed plan replacements cancel stale reads; the latest plan still 
     serverState().delays.clear();
   }
 });
+
+test("stale decode work is gated, bounded and discarded; the latest plan still renders", { timeout: 90_000 }, async (t) => {
+  const page = await openBootstrappedPage(t);
+
+  // Gate createImageBitmap: fetch responses arrive immediately (no server
+  // delay), but decodes only run when the test releases them. This exposes
+  // the decode-phase window the network-delay regression cannot reach.
+  await page.evaluate(() => {
+    const original = window.createImageBitmap.bind(window);
+    window.__decodeState = { started: 0, active: 0, peakActive: 0, completed: 0, gates: [] };
+    window.createImageBitmap = (...args) => {
+      window.__decodeState.started += 1;
+      window.__decodeState.active += 1;
+      window.__decodeState.peakActive = Math.max(window.__decodeState.peakActive, window.__decodeState.active);
+      return new Promise((resolve, reject) => {
+        window.__decodeState.gates.push({
+          release: () => {
+            window.__decodeState.active -= 1;
+            window.__decodeState.completed += 1;
+            original(...args).then(resolve, reject);
+          },
+        });
+      });
+    };
+    window.__releaseDecodes = async () => {
+      while (window.__decodeState.gates.length > 0) {
+        window.__decodeState.gates.shift().release();
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+    };
+  });
+
+  // A plan with only stand/walk/jump and no hair: replacing the full plan
+  // with it evicts every brandish1/stressSpin/hair identity.
+  const stripped = clonePlan();
+  delete stripped.actions.brandish1;
+  delete stripped.actions.stressSpin;
+  for (const action of Object.values(stripped.actions)) {
+    for (const frame of action.frames) {
+      frame.layers = frame.layers.filter((layer) => layer.id !== "hair");
+    }
+  }
+
+  // stand1 frame 0: 5 gated decodes (body, head, hair, face, weapon).
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__decodeState.started >= 5 && window.__decodeState.active === 5, "stand1 frame decodes gated");
+  // brandish1 frame 0: 4 fresh identities (face is a shared cache hit) — 8
+  // slots fill and exactly one decode must queue.
+  await page.evaluate((event) => window.__emitEvent(event), { ...RENDER_EVENT, name: "action", data: { action: "brandish1" } });
+  await waitFor(page, () => window.__actor().diagnostics().decode.queued === 1 && window.__decodeState.started === 8,
+    "decode slots saturated at the cap with one job queued");
+
+  // Replace the plan while all 8 decodes are pending: the queued brandish
+  // decode must be discarded WITHOUT ever starting, and the running set must
+  // stay at the cap.
+  await page.evaluate((view) => window.__applyView(view), actorView({ plan: stripped }));
+  const afterSwap = await page.evaluate(() => ({
+    queued: window.__actor().diagnostics().decode.queued,
+    active: window.__actor().diagnostics().decode.active,
+    started: window.__decodeState.started,
+  }));
+  assert.equal(afterSwap.queued, 0, "queued stale decodes must be discarded at eviction, before starting");
+  assert.equal(afterSwap.started, 8, "the discarded queued decode must never reach createImageBitmap");
+  assert.equal(afterSwap.active, 8, "running decodes stay capped while unabortable decodes drain");
+
+  // Rapid further replacements: a wanted hair decode queues behind the cap,
+  // then gets discarded again when the plan changes back — no growth.
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor().diagnostics().decode.queued === 1, "wanted hair decode queues behind the cap");
+  await page.evaluate((view) => window.__applyView(view), actorView({ plan: stripped }));
+  const bounded = await page.evaluate(() => ({
+    queued: window.__actor().diagnostics().decode.queued,
+    active: window.__actor().diagnostics().decode.active,
+    peakActive: window.__decodeState.peakActive,
+  }));
+  assert.equal(bounded.queued, 0, "second replacement discards the queued decode again");
+  assert.ok(bounded.active <= 8 && bounded.peakActive <= 8,
+    `concurrent decodes must never exceed the cap (active ${bounded.active}, peak ${bounded.peakActive})`);
+
+  // Release every gated decode: stale results are discarded by the
+  // post-decode checks, the stripped plan renders.
+  await page.evaluate(() => window.__releaseDecodes());
+  await waitAction(page, "stand1", "stripped plan active after decode release");
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "stripped plan ready");
+  await waitPixel(page, POINTS.bodyOnly, COLORS.body, "stripped composite painted");
+
+  // The latest FULL plan re-decodes hair through the same bounded gate and
+  // completes it.
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__decodeState.started >= 9, "hair re-decode started");
+  await page.evaluate(() => window.__releaseDecodes());
+  await waitPixel(page, POINTS.faceThroughHairHole, COLORS.face, "latest full plan rendered with hair");
+
+  const settled = await page.evaluate(() => ({
+    diagnostics: window.__actor().diagnostics(),
+    decodeState: window.__decodeState,
+  }));
+  assert.equal(settled.diagnostics.decode.active, 0, "no decode may keep a slot after settling");
+  assert.equal(settled.diagnostics.decode.queued, 0, "queue must be empty after settling");
+  assert.equal(settled.diagnostics.cache.loading, 0, "no reads may remain in flight after settling");
+  assert.equal(settled.diagnostics.cache.pendingClose, 0, "no evicted bitmaps may remain pinned after settling");
+  assert.ok(settled.decodeState.peakActive <= 8, `page-side observed peak concurrency ${settled.decodeState.peakActive} must respect the cap`);
+  assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
+});

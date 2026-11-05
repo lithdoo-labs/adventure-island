@@ -138,6 +138,8 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 
 **过期计划的读取取消**：每个缓存条目携带自己的 `AbortController`。新计划替换（`receiveRenderData` → prune）或断开触发逐出时，仍在解码的条目**立即取消**其 in-flight 读取——延迟响应不能在可缓存层预算之外堆积 loading/pinned/pending-close 资源。最新计划仍引用的资源不会被逐出（prune 保留；LRU 上界只选已完成的条目作牺牲），因此取消永远不会波及在用读取；已完成的位图没有可取消的读取，保持「pin 归零即关闭」语义。
 
+**解码并发与队列（DECODE_QUEUE_LIMITS）**：`createImageBitmap` 一旦启动便无法取消，仅靠取消无法约束解码工作。因此每次解码前先过**解码前门禁**（检查 abort/条目身份/连接状态，fetch 已返回但计划已被替换的条目不再进入解码）；并发解码硬上限 8，等待解码进入**感知取消的队列**（上限 64，超出即以 `DECODE_QUEUE_FULL` fail-closed）——逐出条目的排队解码被立即丢弃且永不启动（队列长度同步下降），出队时再次校验作为纵深防御；已在跑的过期解码无法中断，但其结果在解码后检查中立即关闭并丢弃，不进入缓存、不产生未处理 Promise。`loading` 计数以「位图尚未赋值」为一次性判据，晚到的过期解码拒绝也能正确归还计数。
+
 **位图缓存（两层预算模型）**：
 
 - **可缓存层（LRU）**：已完成解码、当前没有绘制占用的位图。硬上限 = 64 条 **或** 12,582,912 解码字节（`BITMAP_CACHE_LIMITS`），任一先到即逐出最久未用者。每次完成插入都在返回前强制执行边界，因此该层**任何时候**（含并发加载期间）都不超限；条目在逐出时即从计数中移出，即使位图因绘制 pin 而延迟 close。
@@ -165,8 +167,8 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 
 | 套件 | 位置 | 可复现性 | 内容 |
 |---|---|---|---|
-| 算法（Node，22 例） | `node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs` | **可复现** | 计划校验、字节预算（compact 数据 / 单画布 / 帧合计）、锚点布局、镜像、打包一致性、presentation.json 正式校验（真实 `validateWebPresentationConfigV1` / `prepareWebPresentationV1`）、组合画布限额不变量（DPR 钳制、设备像素面积 ≤ 帧字节预算） |
-| 浏览器集成（真实 Chromium，合成 FSDB，15 例） | `node --test components/cms-actor/test/integration.chromium.test.mjs` | **可复现**（需 Chromium 与已构建的 pinned renderer dist） | 正式 `bootstrapWebPresentation()` 加载 classic 入口；`customElements.get("cms-actor")`；Projector 注入 Context/attrs/avatarPlan；`resource()` 收到正确 namespace/key/版本；Canvas 像素（锚点对齐、z 序、透明合成、镜像，DPR 1 与 2、含 `move` 轴）；`stand1`/`walk1`/`jump` 帧推进；一次性 `action` 播完恢复当前移动；快速切换动作；慢速资源不覆盖新动作；版本冲突与资源缺失的可定位诊断与恢复；断开取消 in-flight 并释放缓存、重连恢复；缓存容量上界；超大单图与同帧多图在计划校验拒绝；32 资源并发突发期间可缓存层逐次采样不超限；跨计划尺寸冲突可定位拒绝且无未处理 Promise；**极远锚点（计划合法）在给画布赋值前以 `COMPOSITE_TOO_LARGE` 拒绝、画布保持 1×1（DPR 1 与 64 均如此），异常 DPR 钳制到 8 后正常渲染；延迟响应下连续替换计划时旧计划专属读取被取消、in-flight/pending-close 有界且最新计划正常渲染** |
+| 算法（Node，22 例） | `node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs` | **可复现** | 计划校验、字节预算（compact 数据 / 单画布 / 帧合计）、锚点布局、镜像、打包一致性、presentation.json 正式校验（真实 `validateWebPresentationConfigV1` / `prepareWebPresentationV1`）、组合画布与解码队列限额不变量（DPR 钳制、设备像素面积 ≤ 帧字节预算、并发/排队解码与帧层界的关系） |
+| 浏览器集成（真实 Chromium，合成 FSDB，16 例） | `node --test components/cms-actor/test/integration.chromium.test.mjs` | **可复现**（需 Chromium 与已构建的 pinned renderer dist） | 正式 `bootstrapWebPresentation()` 加载 classic 入口；`customElements.get("cms-actor")`；Projector 注入 Context/attrs/avatarPlan；`resource()` 收到正确 namespace/key/版本；Canvas 像素（锚点对齐、z 序、透明合成、镜像，DPR 1 与 2、含 `move` 轴）；`stand1`/`walk1`/`jump` 帧推进；一次性 `action` 播完恢复当前移动；快速切换动作；慢速资源不覆盖新动作；版本冲突与资源缺失的可定位诊断与恢复；断开取消 in-flight 并释放缓存、重连恢复；缓存容量上界；超大单图与同帧多图在计划校验拒绝；32 资源并发突发期间可缓存层逐次采样不超限；跨计划尺寸冲突可定位拒绝且无未处理 Promise；极远锚点（计划合法）在给画布赋值前以 `COMPOSITE_TOO_LARGE` 拒绝、画布保持 1×1（DPR 1 与 64 均如此），异常 DPR 钳制到 8 后正常渲染；延迟响应下连续替换计划时旧计划专属读取被取消、in-flight/pending-close 有界且最新计划正常渲染；**门控 `createImageBitmap` 下（响应已到达、解码悬置）连续替换计划：并发解码 ≤ 8、排队上限 64、逐出的排队解码被立即丢弃且永不启动、过期解码结果丢弃、`loading`/pending-close 归零且最新完整计划最终渲染** |
 | 真实素材（真实 FSDB，3 例） | `node --test components/cms-actor/test/real-assets.local.test.mjs` | **仅本地**（无真实 FSDB 的 checkout 显式 skip 并给出原因） | 用本地合法取得的 079 WZ 转出的真实 FSDB（纸娃娃子集）重复同一闭环，并把转换结果与 Task 050/DESIGN 的逆向几何逐项对照。激活方式：`CMS_ACTOR_REAL_FSDB` 指向含 `[struct]Look/{00002000,00012000,00020000,00030000,01302000}.json`、`[struct]ZMap/order.json` 与 `[resource]图/` 的 FSDB 根 |
 
 浏览器集成测试使用**运行时生成的合成 PNG 和合成 FSDB**（`.work/cms-actor/[FSDB]cms/`，遵循 `content/DESIGN.md` 布局；`.work/` 已被根 `.gitignore` 忽略；身体几何取自逆向的 079 walk1 画布 27×32 / origin (19,32) / navel (-6,-20) / neck (-4,-32)），不包含任何原版游戏素材。测试把 `test/look-adapter.mjs` 当作游戏侧适配器参考实现：解析 UOL、按武器 `info` 决定移动后缀、部件缺动作不画、帧号钳制到身体时间轴。
@@ -184,7 +186,7 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 | # | 状态 | 结论 | 证据与可复现性 |
 |---|---|---|---|
 | 1 | 合成算法测试 | **通过**（22 例） | `avatar-model.test.mjs` + `browser-artifact.test.mjs`；PR-A 在 pin `9364819` 上复跑通过 |
-| 2 | LoomRealm 正式浏览器集成 | **通过**（15 例真实 Chromium，合成素材） | `integration.chromium.test.mjs`；PR-A 在 pin `9364819` 与真实 Chromium 上复跑通过；历史 PR #2 的旧 pin 证据仅作参考，不作为验收依据 |
+| 2 | LoomRealm 正式浏览器集成 | **通过**（16 例真实 Chromium，合成素材） | `integration.chromium.test.mjs`；PR-A 在 pin `9364819` 与真实 Chromium 上复跑通过；历史 PR #2 的旧 pin 证据仅作参考，不作为验收依据 |
 | 3 | 真实 CMS 079 素材验证 | **BLOCKED（本仓库无真实素材，显式 skip）** | `real-assets.local.test.mjs`；需持有合法 WZ 的使用者本地执行（`CMS_ACTOR_REAL_FSDB`）；历史 PR #2 曾在 Agent 本机通过（纸娃娃子集），该结论**不可**在本仓库复现，须在新的确认样本上重跑；装备遮挡、表情独立计时、全量 16 包转换仍属后续任务 |
 
 ## 9. 后续集成顺序

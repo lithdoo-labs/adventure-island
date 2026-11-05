@@ -28,6 +28,62 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(agent.event_request(event, "issue_comment", {}, "lithdoo"),
                          (42, "start", 1234))
 
+    def test_owner_issue_status_command(self):
+        event = {"issue": {"number": 42, "user": {"id": agent.OWNER_ID}},
+                 "comment": {"id": 1235, "user": {"id": agent.OWNER_ID},
+                             "body": "/agent status"}}
+        self.assertEqual(agent.event_request(event, "issue_comment", {}, "lithdoo"),
+                         (42, "status", 1235))
+
+    def test_status_comment_does_not_advance_coding_checkpoint(self):
+        body = agent.result_comment(
+            {"issue": 42, "operation": "status", "command_id": 1235},
+            {"status": "ok", "continuity": "recovered",
+             "summary": "Can continue: YES."})
+        comments = [{"id": 999, "created_at": "2026-11-01T00:00:00Z",
+                     "user": {"id": 41898282}, "body": body}]
+        self.assertIsNone(agent.get_last_checkpoint(comments, 42, 0))
+
+    def test_preflight_status_does_not_require_pr_or_consume_feedback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            event = root / "event.json"
+            output = root / "input.json"
+            github_output = root / "out"
+            event.write_text(json.dumps({
+                "issue": {"number": 43, "user": {"id": agent.OWNER_ID}},
+                "comment": {"id": 777, "body": "/agent status",
+                            "user": {"id": agent.OWNER_ID}}
+            }))
+            main_sha = "b" * 40
+
+            def fake_api(method, route, payload=None):
+                if route.endswith("/issues/43"):
+                    return {"number": 43, "state": "open", "title": "Status test",
+                            "body": "Do work", "user": {"id": agent.OWNER_ID}}
+                if route.endswith("/issues/comments/777"):
+                    return {"id": 777, "user": {"id": agent.OWNER_ID},
+                            "issue_url": "https://api.github.com/repos/lithdoo-labs/adventure-island/issues/43"}
+                if "/pulls?" in route:
+                    return []
+                if route.endswith("/git/ref/heads/agent/issue-43"):
+                    raise LookupError(route)
+                if route.endswith("/git/ref/heads/main"):
+                    return {"object": {"sha": main_sha}}
+                raise AssertionError("Unexpected API: " + route)
+
+            with patch.object(agent, "api", side_effect=fake_api), \
+                 patch.object(agent, "pages", return_value=[]), \
+                 patch.dict(os.environ, {"GITHUB_EVENT_NAME": "issue_comment",
+                                         "ACTOR": "lithdoo"}, clear=False):
+                agent.preflight(SimpleNamespace(event=str(event), output=str(output),
+                                                github_output=str(github_output)))
+            payload = json.loads(output.read_text())
+            self.assertEqual(payload["operation"], "status")
+            self.assertEqual(payload["base_sha"], main_sha)
+            self.assertEqual(payload["feedback"], [])
+            self.assertIn("operation=status", github_output.read_text())
+
     def test_reject_fork_comment_or_untrusted_issue(self):
         base = {"issue": {"number": 42, "user": {"id": agent.OWNER_ID}},
                 "comment": {"id": 1234, "user": {"id": 12}, "body": "/agent start"}}
@@ -226,6 +282,94 @@ class RunnerIntegrationTests(unittest.TestCase):
             agent.execute(SimpleNamespace(input=str(path), source=str(self.source),
                                           result=str(result), patch=str(artifact)))
         return json.loads(result.read_text()), artifact.read_bytes()
+
+    def test_status_recovers_orphan_session_and_queries_same_session_read_only(self):
+        status_binary = self.root / "fake-status-opencode"
+        status_binary.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json,sys,pathlib\n"
+            "a=sys.argv[1:]\n"
+            "if a[:2]==['session','list']:\n"
+            "    print(json.dumps([{'id':'ses_testabc','title':'adventure-island issue #42','directory':str(pathlib.Path.cwd())}]))\n"
+            "elif a[:2]==['session','export']:\n"
+            "    assert 'ses_testabc' in a\n"
+            "    print('{}')\n"
+            "elif a[0]=='run':\n"
+            "    assert '--session' in a and a[a.index('--session')+1]=='ses_testabc'\n"
+            "    assert 'STATUS-ONLY' in a[-1]\n"
+            "    print(json.dumps({'type':'text','part':{'type':'text','text':'Completed converter review. Can continue: YES. Next: run the synthetic tests.'},'sessionID':'ses_testabc'}),flush=True)\n"
+            "else: raise SystemExit(9)\n"
+        )
+        status_binary.chmod(0o755)
+        path = self.root / "status-input.json"
+        path.write_text(json.dumps({
+            "issue": 42, "operation": "status", "turn": 1, "command_id": 999,
+            "issue_title": "Update README", "issue_body": "Make a change",
+            "base_sha": run("git", "rev-parse", "HEAD", cwd=self.source).stdout.strip(),
+            "branch": "agent/issue-42", "pr": None, "feedback": []
+        }))
+        result_path = self.root / "status-result.json"
+        patch_path = self.root / "status.patch"
+        with patch.dict(os.environ, {"ISSUE_AGENT_STATE": str(self.state),
+                                     "OPENCODE_BIN": str(status_binary)}, clear=False):
+            result = agent.execute(SimpleNamespace(input=str(path), source=str(self.source),
+                                                   result=str(result_path), patch=str(patch_path)))
+        self.assertEqual(result["status"], "ok", result)
+        self.assertEqual(result["continuity"], "recovered")
+        self.assertIn("Can continue: YES", result["summary"])
+        self.assertEqual(patch_path.read_bytes(), b"")
+        metadata = json.loads((self.state / "issues/issue-42/metadata.json").read_text())
+        self.assertEqual(metadata["session_id"], "ses_testabc")
+        self.assertEqual(metadata["status"], "available")
+        self.assertEqual(run("git", "status", "--porcelain", cwd=self.source).stdout, "")
+
+    def test_status_without_unique_session_never_starts_new_model_session(self):
+        status_binary = self.root / "fake-no-session-opencode"
+        marker = self.root / "model-was-run"
+        status_binary.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json,sys,pathlib\n"
+            "a=sys.argv[1:]\n"
+            "if a[:2]==['session','list']:\n"
+            "    print('[]')\n"
+            "elif a[0]=='run':\n"
+            f"    pathlib.Path({str(marker)!r}).write_text('unexpected')\n"
+            "    raise SystemExit(9)\n"
+            "else: raise SystemExit(9)\n"
+        )
+        status_binary.chmod(0o755)
+        path = self.root / "status-no-session-input.json"
+        path.write_text(json.dumps({
+            "issue": 42, "operation": "status", "turn": 1, "command_id": 1000,
+            "issue_title": "Update README", "issue_body": "Make a change",
+            "base_sha": run("git", "rev-parse", "HEAD", cwd=self.source).stdout.strip(),
+            "branch": "agent/issue-42", "pr": None, "feedback": []
+        }))
+        with patch.dict(os.environ, {"ISSUE_AGENT_STATE": str(self.state),
+                                     "OPENCODE_BIN": str(status_binary)}, clear=False):
+            result = agent.execute(SimpleNamespace(
+                input=str(path), source=str(self.source),
+                result=str(self.root / "status-no-session-result.json"),
+                patch=str(self.root / "status-no-session.patch")))
+        self.assertEqual(result["status"], "unavailable")
+        self.assertFalse(marker.exists())
+
+    def test_stream_timeout_preserves_early_session_id_and_partial_log(self):
+        slow = self.root / "fake-slow-opencode"
+        slow.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json,time\n"
+            "print(json.dumps({'type':'session.created','sessionID':'ses_testabc'}),flush=True)\n"
+            "time.sleep(5)\n"
+        )
+        slow.chmod(0o755)
+        captured = []
+        log = self.root / "timeout.ndjson"
+        with self.assertRaises(agent.OpenCodeTimeout):
+            agent.stream_opencode([str(slow)], self.source, os.environ.copy(),
+                                  1, log, captured.append)
+        self.assertEqual(captured, ["ses_testabc"])
+        self.assertIn("ses_testabc", log.read_text())
 
     def test_two_real_git_patches_keep_same_persistent_session(self):
         initial, patch_one = self.execute("start", 1)

@@ -71,9 +71,8 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
  * LoomRealm submodule: the actually checked-out framework HEAD must equal it
  * exactly. No checkout SHA is ever accepted on its own, and no SHA is
  * hardcoded here — when a maintainer updates the Gitlink through a PR, this
- * check keeps protecting the exact-revision contract without edits. (On
- * today's main the Gitlink is c5217e47be5a43f974e9e6ce82230077fb639c39, so
- * every run still validates that exact revision.)
+ * check keeps protecting the exact-revision contract without edits. (The
+ * current main Gitlink is 93648192323bf5f57996b7b54cbae641d8a53fdb.)
  */
 
 /**

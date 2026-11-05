@@ -10,7 +10,7 @@ on:
         required: true
         type: number
       operation:
-        description: "First implementation or a revision of the same PR"
+        description: "Start, revise the same PR, or query the existing session status"
         required: true
         type: choice
         options: [start, revise, status]
@@ -82,7 +82,7 @@ jobs:
     needs: preflight
     if: needs.preflight.outputs.allowed == 'true' && needs.preflight.outputs.operation != 'recover'
     runs-on: [self-hosted, linux, x64, opencode, labs]
-    timeout-minutes: 135
+    timeout-minutes: 150
     permissions:
       contents: read
       actions: read

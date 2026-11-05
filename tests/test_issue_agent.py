@@ -190,9 +190,9 @@ class AuthTests(unittest.TestCase):
                 agent.preflight(SimpleNamespace(event=str(event), output=str(snapshot),
                                                 github_output=str(output)))
             result = json.loads(snapshot.read_text())
-            self.assertEqual(result["operation"], "recover")
+            self.assertEqual(result["operation"], "start")
             self.assertEqual(result["base_sha"], sha)
-            self.assertIn("operation=recover", output.read_text())
+            self.assertIn("operation=start", output.read_text())
 
     def test_preflight_start_and_same_pr_revision(self):
         with tempfile.TemporaryDirectory() as root:
@@ -233,6 +233,65 @@ class AuthTests(unittest.TestCase):
             self.assertEqual(result["turn"], 1)
             self.assertIsNone(result["pr"])
             self.assertIn("allowed=true", output.read_text())
+
+
+
+
+class PrepareIntegrationTests(unittest.TestCase):
+    def test_prepare_pushes_recoverable_branch_and_creates_draft_before_ai(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / "origin.git"
+            run("git", "init", "--bare", "-q", str(remote))
+            local = root / "checkout"
+            run("git", "clone", "-q", str(remote), str(local))
+            run("git", "config", "user.name", "Test", cwd=local)
+            run("git", "config", "user.email", "test@example.com", cwd=local)
+            (local / "README.md").write_text("baseline\n")
+            run("git", "add", ".", cwd=local)
+            run("git", "commit", "-qm", "initial", cwd=local)
+            run("git", "push", "-q", "origin", "HEAD:refs/heads/main", cwd=local)
+            base_sha = run("git", "rev-parse", "HEAD", cwd=local).stdout.strip()
+            input_path = root / "input.json"
+            input_path.write_text(json.dumps({
+                "issue": 42, "turn": 1, "operation": "start", "command_id": 77,
+                "issue_title": "Prepare test", "issue_body": "Implement safely",
+                "branch": "agent/issue-42", "base_sha": base_sha, "pr": None
+            }))
+            output_path = root / "prepared.json"
+            github_output = root / "github-output"
+            created = []
+
+            def fake_api(method, route, payload=None):
+                if method == "GET" and "/pulls?" in route:
+                    return []
+                if method == "GET" and route.endswith("/git/ref/heads/agent/issue-42"):
+                    raise LookupError(route)
+                if method == "POST" and route.endswith("/pulls"):
+                    created.append(payload)
+                    return {"number": 88}
+                raise AssertionError(f"Unexpected API call: {method} {route}")
+
+            old_cwd = Path.cwd()
+            os.chdir(local)
+            try:
+                with patch.object(agent, "api", side_effect=fake_api), \\
+                     patch.dict(os.environ, {"GH_TOKEN": "test-token"}, clear=False):
+                    agent.prepare(SimpleNamespace(input=str(input_path), output=str(output_path),
+                                                  github_output=str(github_output)))
+            finally:
+                os.chdir(old_cwd)
+            prepared = json.loads(output_path.read_text())
+            self.assertEqual(prepared["pr"], 88)
+            self.assertNotEqual(prepared["base_sha"], base_sha)
+            self.assertEqual(len(created), 1)
+            self.assertTrue(created[0]["draft"])
+            self.assertIn("adventure-island-issue-agent:issue=42", created[0]["body"])
+            remote_sha = run("git", "ls-remote", "origin", "refs/heads/agent/issue-42", cwd=local).stdout.split()[0]
+            self.assertEqual(remote_sha, prepared["base_sha"])
+            subject = run("git", "show", "-s", "--format=%s", remote_sha, cwd=local).stdout.strip()
+            self.assertIn("turn 0", subject)
+            self.assertIn("pr_number=88", github_output.read_text())
 
 
 class RunnerIntegrationTests(unittest.TestCase):
@@ -370,6 +429,39 @@ class RunnerIntegrationTests(unittest.TestCase):
                                   1, log, captured.append)
         self.assertEqual(captured, ["ses_testabc"])
         self.assertIn("ses_testabc", log.read_text())
+
+
+    def test_timeout_captures_partial_workspace_patch_for_publisher(self):
+        slow = self.root / "fake-opencode-timeout-with-edits"
+        slow.write_text(
+            "#!/usr/bin/env python3\\n"
+            "import json,pathlib,time\\n"
+            "p=pathlib.Path('README.md')\\n"
+            "p.write_text(p.read_text()+'partial work before timeout\\n')\\n"
+            "print(json.dumps({'type':'session.created','sessionID':'ses_testabc'}),flush=True)\\n"
+            "time.sleep(5)\\n"
+        )
+        slow.chmod(0o755)
+        path = self.root / "timeout-input.json"
+        path.write_text(json.dumps({
+            "issue": 42, "operation": "start", "turn": 1,
+            "issue_title": "Update README", "issue_body": "Make a change",
+            "feedback": [], "base_sha": run("git", "rev-parse", "HEAD", cwd=self.source).stdout.strip(),
+            "branch": "agent/issue-42", "command_id": 222
+        }))
+        result_path = self.root / "timeout-result.json"
+        patch_path = self.root / "timeout.patch"
+        with patch.dict(os.environ, {"ISSUE_AGENT_STATE": str(self.state),
+                                     "OPENCODE_BIN": str(slow)}, clear=False), \\
+             patch.object(agent, "RUN_TIMEOUT_SECONDS", 1):
+            result = agent.execute(SimpleNamespace(input=str(path), source=str(self.source),
+                                                   result=str(result_path), patch=str(patch_path)))
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["session_id"], "ses_testabc")
+        self.assertTrue(result["checkpoint_available"])
+        self.assertEqual(result["changed_files"], ["README.md"])
+        self.assertIn(b"partial work before timeout", patch_path.read_bytes())
+        self.assertIn("Recoverable partial code checkpoint captured", result["summary"])
 
     def test_two_real_git_patches_keep_same_persistent_session(self):
         initial, patch_one = self.execute("start", 1)

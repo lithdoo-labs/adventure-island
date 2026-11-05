@@ -429,6 +429,16 @@ class RunnerIntegrationTests(unittest.TestCase):
         self.assertEqual(retry["session_id"], initial["session_id"])
         self.assertGreater(len(patch), 0)
 
+    def test_cli_marks_failed_executor_as_nonzero(self):
+        argv = ["agent.py", "execute", "--input", "input.json",
+                "--result", "result.json", "--patch", "patch.diff",
+                "--source", str(self.source)]
+        with patch.object(agent, "execute", return_value={"status": "failed"}), \
+             patch.object(sys, "argv", argv), \
+             self.assertRaises(SystemExit) as raised:
+            agent.main()
+        self.assertEqual(raised.exception.code, 1)
+
     def test_refuses_revision_without_persistent_session(self):
         resumed, patch = self.execute("revise", 2)
         self.assertEqual(resumed["status"], "failed")

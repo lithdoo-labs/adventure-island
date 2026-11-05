@@ -1,5 +1,5 @@
 // Headless validation for the canonical root presentation manifest
-// (PWA migration 3A).
+// (PWA migration 3A; PR-B registers the cms-actor classic script).
 //
 // Deterministic base layer: presentation.json is a valid Web Presentation
 // Config V1 as allowed by the pinned loom-realm submodule
@@ -7,9 +7,12 @@
 // packages/renderer/src/internal/web-presentation-config.ts,
 // validateWebPresentationConfigV1): an exact
 // { formatVersion, scripts, styles } object whose entries are exact
-// { namespace, key } Content resource references. The empty smoke application
-// declares no styles and no scripts, so it references no Pokeman or CMS079
-// resource.
+// { namespace, key } Content resource references. The application declares
+// exactly one script — the cms-actor classic IIFE — which the pinned PWA
+// renderer host resolves to the published Content resource
+// resource.Presentation/cms-actor/cms-actor.browser.js
+// (apps/pwa/src/renderer-host.ts prefixes `resource.` onto the declared
+// namespace when fetching bootstrap scripts from the installation Content).
 //
 // Optional deep layer (auto-enabled when the checked-out loom-realm submodule
 // has been built): the real pinned validator accepts the document.
@@ -24,7 +27,9 @@ const loomRealmRoot = new URL("loom-realm/", repoRoot);
 const EXPECTED_PRESENTATION = Object.freeze({
   formatVersion: 1,
   styles: Object.freeze([]),
-  scripts: Object.freeze([]),
+  scripts: Object.freeze([
+    Object.freeze({ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
+  ]),
 });
 
 const readText = (url) => readFile(url, "utf8");
@@ -93,14 +98,26 @@ function validatePresentationStructural(text, label) {
 // Deterministic base validation
 // ---------------------------------------------------------------------------
 
-test("the root presentation manifest is a valid empty Web Presentation Config V1", async () => {
+test("the root presentation manifest registers exactly the cms-actor classic script", async () => {
   const presentation = validatePresentationStructural(
     await readText(new URL("presentation.json", repoRoot)),
     "presentation.json (root)",
   );
   assert.deepEqual(presentation, EXPECTED_PRESENTATION);
-  assert.equal(presentation.styles.length, 0, "the empty application declares no styles");
-  assert.equal(presentation.scripts.length, 0, "the empty application declares no scripts");
+  assert.equal(presentation.styles.length, 0, "the application declares no styles");
+  assert.deepEqual(
+    presentation.scripts,
+    [{ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }],
+    "the application declares exactly the cms-actor classic script",
+  );
+
+  // The declared script must resolve, through the pinned PWA hosting
+  // convention (`resource.<namespace>`, renderer-host.ts), to the PR-A
+  // generated classic artifact — a real file that is NOT an ES module.
+  const artifact = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
+  assert.ok(artifact.length > 0, "components/cms-actor/browser/cms-actor.browser.js must exist");
+  assert.doesNotMatch(artifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the published entry must be a classic script, not an ES module");
+  assert.match(artifact, /customElements\.define\("cms-actor"/u, "the published entry must register the cms-actor element");
 });
 
 test("the mirrored Web Presentation Config rules reject malformed documents", () => {

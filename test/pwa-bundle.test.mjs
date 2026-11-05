@@ -1,5 +1,6 @@
 // Headless validation for the Adventure Island PWA installation-bundle
-// generator (PWA migration Stage 4A, scripts/pwa/build-installation-bundle.mjs).
+// generator (PWA migration Stage 4A + PR-B synthetic Content,
+// scripts/pwa/build-installation-bundle.mjs).
 //
 // Deterministic base layer (no build, no network):
 //   - the CLI produces a byte-deterministic installation-bundle v1 payload
@@ -11,9 +12,15 @@
 //     not ship that validator yet, so a byte-faithful local copy is the only
 //     offline way to check against the future Stage 4B consumer);
 //   - manifest/subsystem keys round-trip; the executable set is unique,
-//     dependency-free, and content-hashed correctly; content stays empty;
-//   - the root and apps/* shims and other non-sanctioned executable sources
-//     are rejected by the builder's import-graph rules;
+//     dependency-free, and content-hashed correctly;
+//   - the Content whitelist is exact: the cms-actor classic IIFE plus the
+//     deterministic synthetic paper-doll records/PNGs, nothing else — every
+//     identity, MIME and canonical base64 body is pinned, the Look records'
+//     embedded canvas versions equal the published PNG sha256s, and the
+//     synthetic PNGs are byte-identical to the cms-actor component fixture
+//     for every shared identity;
+//   - the root and apps/* shims, the component's ESM sources, and tampered
+//     synthetic Content are all rejected by the builder's rules;
 //   - illegal CLI usage and failing inputs are rejected without writing;
 //   - the artifact carries no research material or sensitive markers.
 //
@@ -31,10 +38,22 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  CONTENT_SCRIPT_SOURCE_BINDINGS,
   EXECUTABLE_SOURCE_BINDINGS,
   assertExecutableGraph,
   buildAdventureIslandInstallationBundle,
 } from "../scripts/pwa/build-installation-bundle.mjs";
+import {
+  IMAGE_NAMESPACE,
+  LOOK_RECORD_KEYS,
+  PRESENTATION_SCRIPT_KEY,
+  PRESENTATION_SCRIPT_NAMESPACE,
+  ZMAP_NAMESPACE,
+  LOOK_NAMESPACE,
+  buildCanonicalSyntheticAvatarContent,
+  contentEntriesToParts,
+  deriveCanonicalAvatarPlan,
+} from "../scripts/pwa/synthetic-avatar-content.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
@@ -50,6 +69,22 @@ const EXPECTED_LAUNCH_MANIFEST = Object.freeze({
   formatVersion: 1,
   subsystems: Object.freeze([{ key: "smoke", module: "subsystems/smoke.mjs" }]),
 });
+const EXPECTED_PRESENTATION = Object.freeze({
+  formatVersion: 1,
+  styles: Object.freeze([]),
+  scripts: Object.freeze([
+    Object.freeze({ namespace: "Presentation", key: PRESENTATION_SCRIPT_KEY }),
+  ]),
+});
+
+/** The exact canonical Content identity set (PR-B whitelist), sorted. */
+const expectedContentIdentities = () => {
+  const synthetic = buildCanonicalSyntheticAvatarContent();
+  return [
+    ...synthetic.entries.map(({ kind, namespace, key }) => `${kind}\0${namespace}\0${key}`),
+    `resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${PRESENTATION_SCRIPT_KEY}`,
+  ].sort();
+};
 
 const readText = (urlOrPath) => readFile(urlOrPath, "utf8");
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -63,7 +98,8 @@ async function makeTempDir(prefix = "adventure-pwa-bundle-") {
 }
 
 // A fully isolated "project root" that mimics a fresh checkout of this
-// repository: the three canonical documents plus a protected research/ tree
+// repository: the three canonical documents, the shared smoke implementation,
+// the cms-actor classic browser artifact, and a protected research/ tree
 // with a sentinel. Nothing here ever touches the real repository's research/.
 async function makeIsolatedGameRoot() {
   const isolatedRoot = await mkdtemp(path.join(tmpdir(), "adventure-isolated-root-"));
@@ -72,6 +108,12 @@ async function makeIsolatedGameRoot() {
   for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) {
     await writeFile(path.join(isolatedRoot, name), await readText(new URL(name, repoRoot)), "utf8");
   }
+  await mkdir(path.join(isolatedRoot, "components", "cms-actor", "browser"), { recursive: true });
+  await writeFile(
+    path.join(isolatedRoot, "components", "cms-actor", "browser", "cms-actor.browser.js"),
+    await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)),
+    "utf8",
+  );
   const build = (outputFile) => buildAdventureIslandInstallationBundle({
     gameRoot: isolatedRoot,
     outputFile,
@@ -214,7 +256,7 @@ test("the CLI builds a byte-deterministic installation-bundle v1 payload", async
     assert.match(first.stdout, /Prepared Adventure Island installation-bundle v1 from canonical root sources/);
     const summary = JSON.parse(first.stdout.split("\n")[1]);
     assert.equal(summary.executableCount, 1);
-    assert.equal(summary.contentCount, 0);
+    assert.equal(summary.contentCount, expectedContentIdentities().length);
     assert.deepEqual(summary.executableModules, ["subsystems/smoke.mjs"]);
     const gitlink = execFileSync("git", ["-C", repoRootPath, "rev-parse", "HEAD:loom-realm"], { encoding: "utf8" }).trim();
     assert.match(gitlink, /^[0-9a-f]{40}$/u);
@@ -257,7 +299,7 @@ test("the payload schema and provenance are exact", async () => {
     assert.deepEqual(JSON.parse(payload.gameEntryText), EXPECTED_GAME_ENTRY);
     assert.equal(payload.launchManifestText, await readText(new URL("launch.pwa.json", repoRoot)));
     assert.deepEqual(JSON.parse(payload.launchManifestText), EXPECTED_LAUNCH_MANIFEST);
-    assert.deepEqual(payload.presentation, { formatVersion: 1, styles: [], scripts: [] });
+    assert.deepEqual(payload.presentation, EXPECTED_PRESENTATION);
     assert.deepEqual(payload.presentation, JSON.parse(await readText(new URL("presentation.json", repoRoot))));
 
     // Exactly one executable: the dependency-free shared implementation —
@@ -272,7 +314,116 @@ test("the payload schema and provenance are exact", async () => {
     assert.notEqual(executable.source, await readText(new URL("apps/pwa/subsystems/smoke.mjs", repoRoot)));
     assert.equal(executable.contentVersion, `sha256:${sha256(executable.source)}`);
 
-    assert.deepEqual(payload.content, []);
+    // The Content set is the exact PR-B whitelist, canonically ordered.
+    assert.deepEqual(
+      payload.content.map((entry) => [entry.kind, entry.namespace, entry.key].join("\0")),
+      expectedContentIdentities(),
+      "the Content whitelist must be exact (identity and order)",
+    );
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("the Content whitelist is exact: cms-actor IIFE plus deterministic synthetic paper-doll Content only", async () => {
+  const temp = await makeTempDir();
+  try {
+    const run = runCli(["--output", path.join(temp, "bundle.json")]);
+    assert.equal(run.status, 0, `CLI must succeed (stderr: ${run.stderr})`);
+    const payload = JSON.parse(await readText(path.join(temp, "bundle.json")));
+    const synthetic = buildCanonicalSyntheticAvatarContent();
+    const scriptBytes = await readFile(fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)));
+
+    for (const entry of payload.content) {
+      assert.deepEqual(Object.keys(entry), ["kind", "namespace", "key", "mime", "encoding", "body"], "content entries must have exactly the payload schema keys");
+      assert.equal(entry.encoding, "base64");
+      const bytes = Buffer.from(entry.body, "base64");
+      assert.equal(bytes.toString("base64"), entry.body, "content bodies must be canonical base64");
+      if (entry.kind === "resource" && entry.namespace === PRESENTATION_SCRIPT_NAMESPACE) {
+        assert.equal(entry.key, PRESENTATION_SCRIPT_KEY);
+        assert.equal(entry.mime, "text/javascript; charset=utf-8");
+        assert.ok(bytes.equals(scriptBytes), "the published presentation script must be the PR-A classic artifact, byte for byte");
+        assert.doesNotMatch(bytes.toString("utf8"), /(^|\n)\s*(import|export)\s*[({"'\s]/u, "ES module sources must never be published as classic scripts");
+      } else if (entry.kind === "resource") {
+        assert.equal(entry.namespace, "resource.图");
+        assert.equal(entry.mime, "image/png");
+        assert.deepEqual(bytes.subarray(1, 4), Buffer.from([0x50, 0x4e, 0x47]), "image resources must be PNGs");
+      } else {
+        assert.equal(entry.kind, "record");
+        assert.ok([ZMAP_NAMESPACE, LOOK_NAMESPACE].includes(entry.namespace), "records must be the synthetic ZMap/Look tables");
+        assert.ok(!entry.key.includes("/"), "record keys must be flat");
+        assert.equal(entry.mime, "application/json; charset=utf-8");
+        JSON.parse(bytes.toString("utf8"));
+      }
+    }
+
+    // Every synthetic entry is byte-identical to the canonical generator,
+    // and every generator entry is published (no extras, no omissions).
+    const published = new Map(payload.content.map((entry) => [[entry.kind, entry.namespace, entry.key].join("\0"), Buffer.from(entry.body, "base64")]));
+    for (const { kind, namespace, key, mime, bytes } of synthetic.entries) {
+      const observed = published.get(`${kind}\0${namespace}\0${key}`);
+      assert.ok(observed !== undefined, `generator entry ${namespace}/${key} must be published`);
+      assert.ok(observed.equals(bytes), `published bytes for ${namespace}/${key} must equal the canonical generator`);
+      assert.equal(payload.content.find((entry) => entry.namespace === namespace && entry.key === key).mime, mime);
+    }
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("published synthetic Content is internally consistent and matches the cms-actor component fixture", async () => {
+  const temp = await makeTempDir();
+  try {
+    const run = runCli(["--output", path.join(temp, "bundle.json")]);
+    assert.equal(run.status, 0, `CLI must succeed (stderr: ${run.stderr})`);
+    const payload = JSON.parse(await readText(path.join(temp, "bundle.json")));
+
+    // Identity uniqueness across the whole published set.
+    const identities = payload.content.map((entry) => [entry.kind, entry.namespace, entry.key].join("\0"));
+    assert.equal(new Set(identities).size, identities.length, "Content identities must be unique");
+
+    // The published parts derive a valid AvatarPlanV1 (the builder proved the
+    // same during assembly; re-derive independently here).
+    const parts = contentEntriesToParts(payload.content);
+    const plan = deriveCanonicalAvatarPlan(parts);
+    assert.deepEqual(Object.keys(plan.actions).sort(), ["jump", "stand1", "walk1"]);
+    assert.deepEqual(plan.zOrder, parts.zmap.order);
+
+    // Every Look-record canvas references a published PNG whose sha256 equals
+    // the version stamped in the record (identity/version consistency).
+    for (const [kind, record] of Object.entries(parts.looks)) {
+      for (const action of Object.values(record.actions)) {
+        for (const frame of action.frames ?? []) {
+          for (const canvas of frame.canvases) {
+            const image = parts.images.get(`resource\0${IMAGE_NAMESPACE}\0${canvas.resource}`);
+            assert.ok(image !== undefined, `record canvas ${canvas.resource} must reference a published resource`);
+            assert.equal(image.contentVersion, canvas.contentVersion, `record version for ${canvas.resource} must equal the published resource sha256`);
+            const layer = Object.values(plan.actions).flatMap((a) => a.frames).flatMap((f) => f.layers).find((l) => l.resource.key === canvas.resource);
+            assert.ok(layer !== undefined, `record canvas ${canvas.resource} must be reachable from the derived plan`);
+            assert.equal(layer.resource.contentVersion, image.contentVersion, "plan versions must equal the published resource versions");
+            assert.equal(`${layer.width}x${layer.height}`, `${canvas.width}x${canvas.height}`, "plan dimensions must equal the record dimensions");
+          }
+        }
+      }
+    }
+
+    // The canonical synthetic PNGs are byte-identical to the cms-actor
+    // component synthetic fixture for every shared identity: the canonical
+    // Content cannot drift from the fixture that validates the renderer.
+    const { generateSyntheticFsdb } = await import("../components/cms-actor/test/synthetic-fsdb.mjs");
+    const componentRoot = fileURLToPath(new URL("components/cms-actor", repoRoot));
+    const fsdb = generateSyntheticFsdb(path.join(temp, "component-fixture"), {
+      scriptBytes: await readFile(path.join(componentRoot, "browser", "cms-actor.browser.js")),
+    });
+    let shared = 0;
+    for (const { kind, namespace, key, bytes } of buildCanonicalSyntheticAvatarContent().entries) {
+      const componentEntry = fsdb.index.get(`${namespace}\0${key}`);
+      if (componentEntry === undefined) continue;
+      shared += 1;
+      assert.ok(componentEntry.bytes.equals(bytes), `canonical ${namespace}/${key} must equal the component fixture bytes`);
+    }
+    assert.equal(shared, 17, "every canonical PNG must exist in the component fixture");
+    await rm(path.join(temp, "component-fixture"), { recursive: true, force: true });
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -430,6 +581,88 @@ test("non-sanctioned executable sources are rejected — never the shims", async
   }
 });
 
+test("non-sanctioned Content script sources are rejected — never the ESM sources", async () => {
+  const temp = await makeTempDir();
+  try {
+    const identity = `resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${PRESENTATION_SCRIPT_KEY}`;
+    // The component's authored ESM sources must never be published as the
+    // classic presentation script.
+    for (const esmSource of ["src/cms-actor.mjs", "src/avatar-model.mjs"]) {
+      await assert.rejects(
+        buildAdventureIslandInstallationBundle({
+          outputFile: path.join(temp, `out-${path.basename(esmSource)}.json`),
+          verifyGitlink: false,
+          contentScriptSources: {
+            [identity]: `components/cms-actor/${esmSource}`,
+          },
+        }),
+        /classic script|module syntax/,
+        `publishing ${esmSource} as the Content script must be rejected`,
+      );
+    }
+    // A binding that does not name a resource identity is rejected.
+    await assert.rejects(
+      buildAdventureIslandInstallationBundle({
+        outputFile: path.join(temp, "out-kind.json"),
+        verifyGitlink: false,
+        contentScriptSources: { [`record\0${PRESENTATION_SCRIPT_NAMESPACE}\0x`]: "components/cms-actor/browser/cms-actor.browser.js" },
+      }),
+      /must publish resource entries/,
+    );
+    await assert.rejects(readText(path.join(temp, "out-kind.json")), /ENOENT/, "rejections must not write an artifact");
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
+test("tampered synthetic Content fails the builder's consistency checks", async () => {
+  const temp = await makeTempDir();
+  try {
+    const canonical = buildCanonicalSyntheticAvatarContent();
+    const output = path.join(temp, "bundle.json");
+    const buildWith = (syntheticContent) => buildAdventureIslandInstallationBundle({
+      outputFile: output,
+      verifyGitlink: false,
+      syntheticContent,
+    });
+
+    // A record whose canvas version no longer matches the published PNG.
+    const withHairRecordTampered = (tamper) => () => ({
+      entries: canonical.entries.map((entry) => {
+        if (entry.namespace !== LOOK_NAMESPACE || entry.key !== LOOK_RECORD_KEYS.hair) return entry;
+        const value = JSON.parse(entry.bytes.toString("utf8"));
+        tamper(value);
+        return { ...entry, bytes: Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8") };
+      }),
+    });
+    await assert.rejects(
+      buildWith(withHairRecordTampered((value) => {
+        value.actions.stand1.frames[0].canvases[0].contentVersion = `sha256:${"0".repeat(64)}`;
+      })),
+      /stamps sha256:0+ for Look\/00030000\/stand1\/0\/hair/u,
+      "a record/PNG version mismatch must be rejected",
+    );
+
+    // A dropped PNG referenced by the records.
+    await assert.rejects(buildWith(() => ({
+      entries: canonical.entries.filter((entry) => entry.key !== "Look/00020000/default/0/face"),
+    })), /references unpublished resource|missing/, "dropping a referenced PNG must be rejected");
+
+    // A record replaced by a different kind at the same identity.
+    await assert.rejects(buildWith(() => ({
+      entries: canonical.entries.map((entry) => (entry.namespace === ZMAP_NAMESPACE && entry.key === "order"
+        ? { ...entry, kind: "group" }
+        : entry)),
+    })), /groups are not part of the canonical synthetic Content set/, "unexpected kinds must be rejected");
+
+    // The untampered canonical generator still builds.
+    const summary = await buildWith(() => canonical);
+    assert.equal(summary.contentCount, expectedContentIdentities().length);
+  } finally {
+    await rm(temp, { recursive: true, force: true });
+  }
+});
+
 test("illegal CLI usage and failing inputs are rejected without writing output", async () => {
   const badArgSets = [
     [],
@@ -475,12 +708,17 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
     const fixture = await makeTempDir("adventure-pwa-fixture-");
     try {
       const writeFixture = async (documents) => {
-        await Promise.all(Object.entries(documents).map(([name, text]) => writeFile(path.join(fixture, name), text, "utf8")));
+        await Promise.all(Object.entries(documents).map(async ([name, text]) => {
+          const target = path.join(fixture, name);
+          await mkdir(path.dirname(target), { recursive: true });
+          await writeFile(target, text, "utf8");
+        }));
       };
       const game = await readText(new URL("game.json", repoRoot));
       const manifest = await readText(new URL("launch.pwa.json", repoRoot));
       const presentation = await readText(new URL("presentation.json", repoRoot));
-      const baseDocuments = { "game.json": game, "launch.pwa.json": manifest, "presentation.json": presentation };
+      const componentScript = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
+      const baseDocuments = { "game.json": game, "launch.pwa.json": manifest, "presentation.json": presentation, "components/cms-actor/browser/cms-actor.browser.js": componentScript };
       const output = path.join(temp, "fixture-bundle.json");
       const runBuild = () => buildAdventureIslandInstallationBundle({
         gameRoot: fixture,
@@ -516,6 +754,11 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
         "a presentation resource without Content must be rejected",
       );
       await rejectFixture(
+        { "presentation.json": JSON.stringify({ formatVersion: 1, styles: [], scripts: [{ namespace: "Presentation", key: "ghost/ghost.browser.js" }] }) },
+        /has no Content entry/,
+        "a presentation script without a matching published resource must be rejected",
+      );
+      await rejectFixture(
         { "game.json": "{ not json" },
         /not valid JSON/,
         "a corrupt Game Entry must be rejected",
@@ -547,7 +790,7 @@ test("output path safety: a project root without dist/ supports both dist and te
     const distSummary = await isolated.build(distTarget);
     const payload = JSON.parse(await readText(distSummary.outputFile));
     assert.equal(payload.executables.length, 1);
-    assert.equal(payload.content.length, 0);
+    assert.equal(payload.content.length, expectedContentIdentities().length);
     await assert.rejects(readText(path.join(isolated.root, "research", "bundle.json")), /ENOENT/);
 
     // Multi-level missing parents are created along the trusted chain — both
@@ -709,9 +952,15 @@ test("the artifact carries no research material or sensitive markers", async () 
       "launch.pwa.json",
       "presentation.json",
       ...Object.values(EXECUTABLE_SOURCE_BINDINGS),
+      ...Object.values(CONTENT_SCRIPT_SOURCE_BINDINGS),
     ];
     for (const input of whitelisted) {
-      assert.match(input, /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/)/u, `input whitelist entry must stay canonical: ${input}`);
+      assert.match(input, /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/|components\/cms-actor\/browser\/)/u, `input whitelist entry must stay canonical: ${input}`);
+    }
+    // The synthetic Content itself is generated, never read from disk: no
+    // path outside the frozen whitelist can contribute Content bytes.
+    for (const entry of buildCanonicalSyntheticAvatarContent().entries) {
+      assert.ok(Buffer.isBuffer(entry.bytes), "synthetic entries must be generated bytes");
     }
   } finally {
     await rm(temp, { recursive: true, force: true });

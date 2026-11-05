@@ -582,5 +582,41 @@ class PublishIntegrationTests(unittest.TestCase):
                 os.chdir(original_cwd)
 
 
+    def test_status_publisher_posts_issue_report_without_creating_pr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            input_path = root / "input.json"
+            result_path = root / "result.json"
+            patch_path = root / "empty.patch"
+            input_path.write_text(json.dumps({
+                "issue": 42, "turn": 1, "operation": "status",
+                "command_id": 987, "pr": None, "branch": "agent/issue-42"
+            }))
+            result_path.write_text(json.dumps({
+                "issue": 42, "turn": 1, "status": "unavailable",
+                "continuity": "unavailable",
+                "summary": "No unique existing session was found."
+            }))
+            patch_path.write_bytes(b"")
+            posted = []
+
+            def fake_api(method, route, payload=None):
+                if method == "POST" and route.endswith("/issues/42/comments"):
+                    posted.append(payload["body"])
+                    return {"id": 1}
+                raise AssertionError(f"Unexpected API call: {method} {route}")
+
+            with patch.object(agent, "api", side_effect=fake_api), \
+                 patch.object(agent, "pages", return_value=[]), \
+                 patch.dict(os.environ, {"GH_TOKEN": "test-token"}, clear=False):
+                agent.publish(SimpleNamespace(input=str(input_path),
+                                              result=str(result_path),
+                                              patch=str(patch_path)))
+            self.assertEqual(len(posted), 1)
+            self.assertIn("existing AI session unavailable", posted[0])
+            self.assertIn("No unique existing session", posted[0])
+            self.assertIn("does not consume owner feedback", posted[0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -448,7 +448,7 @@ def status_prompt(inp):
         "Do not claim a test passed unless the prior session or current checkout contains evidence."
     )
 
-def snapshot_workspace_patch(workspace, patch_path):
+def snapshot_workspace_patch(workspace, patch_path, base_sha):
     """Capture every safe tracked/untracked workspace change, including on failure."""
     git("add", "-A", "--", ".",
         ":(exclude,glob)**/__pycache__/**",
@@ -456,16 +456,16 @@ def snapshot_workspace_patch(workspace, patch_path):
         ":(exclude,glob)**/.pytest_cache/**",
         ":(exclude,glob)**/.mypy_cache/**",
         cwd=workspace)
-    paths = git("diff", "--cached", "--name-only", "-z", cwd=workspace).stdout.split("\0")
+    paths = git("diff", "--cached", "--name-only", "-z", base_sha, cwd=workspace).stdout.split("\0")
     paths = [path for path in paths if path]
     validate_paths(paths)
-    git("diff", "--cached", "--check", cwd=workspace)
+    git("diff", "--cached", "--check", base_sha, cwd=workspace)
     modes = git("ls-files", "--stage", "-z", "--", *paths, cwd=workspace).stdout
     for row in modes.split("\0"):
         if row and row.split(" ", 1)[0] in ("120000", "160000"):
             raise RuntimeError("symlinks or submodules are not publishable")
     patch = subprocess.run(
-        ["git", "diff", "--cached", "--binary", "HEAD"], cwd=workspace,
+        ["git", "diff", "--cached", "--binary", base_sha], cwd=workspace,
         capture_output=True, check=True).stdout
     if len(patch) > MAX_PATCH_BYTES:
         raise RuntimeError("generated patch exceeds maximum allowed size")
@@ -642,7 +642,7 @@ def execute(args):
         if not session_id:
             raise RuntimeError("OpenCode completed without a recoverable session ID")
         summary = safe_summary(response_from_events(output))
-        paths, patch = snapshot_workspace_patch(workspace, patch_path)
+        paths, patch = snapshot_workspace_patch(workspace, patch_path, inp["base_sha"])
         if inp["operation"] == "start" and not patch:
             raise RuntimeError("OpenCode produced no working-tree changes in Actions checkout")
         result.update(status="ok", session_id=session_id,

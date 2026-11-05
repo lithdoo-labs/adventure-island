@@ -69,3 +69,26 @@ test("brandish action links resolve onto swingOF canvases and keep ZMap order", 
   assert.ok(plan.zOrder.indexOf("hair") < plan.zOrder.indexOf("body"));
   assert.deepEqual(zNamesFromRecord({ cap: null, body: null }), ["cap", "body"]);
 });
+
+test("an unframed face default canvas is frame 0", () => {
+  const body = {
+    stand1: { 0: { body: canvas("Look/body/stand", "body", [16, 31], { navel: [0, 0] }), face: 1, delay: 500 } },
+    walk1: { 0: { body: canvas("Look/body/walk", "body", [16, 31], { navel: [0, 0] }), face: 1, delay: 180 } },
+    jump: { 0: { body: canvas("Look/body/jump", "body", [16, 31], { navel: [0, 0] }), face: 0, delay: 200 } },
+    brandish1: { 0: { action: "swingOF", frame: 0, delay: 120 } },
+    swingOF: { 0: { body: canvas("Look/body/swing", "body", [16, 31], { navel: [0, 0] }), face: 1, delay: 120 } },
+  };
+  const face = { default: { face: canvas("Look/face/default", "face", [8, 8], { brow: [0, 0] }) } };
+  const plan = buildProductionAvatarPlan({
+    body,
+    head: {},
+    face,
+    hair: {},
+    weapon: { info: { stand: 1, walk: 1 } },
+    zOrder,
+    versions: versionsFor(["Look/body/stand", "Look/body/walk", "Look/body/jump", "Look/body/swing", "Look/face/default"]),
+  });
+  const standFace = plan.actions.stand1.frames[0].layers.find((layer) => layer.id === "face");
+  assert.equal(standFace.resource.key, "Look/face/default");
+  assert.equal(plan.actions.jump.frames[0].layers.some((layer) => layer.id === "face"), false);
+});

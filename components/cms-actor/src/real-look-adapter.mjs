@@ -64,9 +64,15 @@ function partConcrete(look, actionName, frameIndex) {
   const direct = resolveConcrete(look, actionName, frameIndex);
   if (direct) return direct;
   const action = look?.[actionName];
-  if (!action || typeof action !== "object") return null;
+  if (!action || typeof action !== "object" || Array.isArray(action)) return null;
   const keys = numericKeys(action);
-  if (keys.length === 0) return null;
+  if (keys.length === 0) {
+    // CMS079 Face/00020000 default is one canvas, not a numbered frame.
+    if (frameIndex === 0 && Object.values(action).some(isCanvas)) {
+      return { actionName, frameIndex: 0, node: action, delay: action.delay };
+    }
+    return null;
+  }
   const clamped = Number(keys[Math.min(frameIndex, keys.length - 1)]);
   return resolveConcrete(look, actionName, clamped);
 }

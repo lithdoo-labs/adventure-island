@@ -157,7 +157,7 @@ def collect_feedback(issue, operation, command_id, pr, comments, checkpoint):
         if command_id and item["id"] > command_id:
             continue
         body = (item.get("body") or "").strip()
-        if body in ("/agent start", "/agent revise") or not body:
+        if body in ("/agent start", "/agent revise", "/agent status") or not body:
             continue
         output.append((item["created_at"], "Issue comment", body))
     if pr:

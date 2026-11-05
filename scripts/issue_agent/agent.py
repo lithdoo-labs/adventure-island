@@ -965,6 +965,15 @@ def main():
     exe.add_argument("--result", required=True)
     exe.add_argument("--patch", required=True)
     exe.add_argument("--source", required=True)
+    prep = commands.add_parser("prepare")
+    prep.add_argument("--input", required=True)
+    prep.add_argument("--output", required=True)
+    prep.add_argument("--github-output", required=True)
+    exe = commands.add_parser("execute")
+    exe.add_argument("--input", required=True)
+    exe.add_argument("--result", required=True)
+    exe.add_argument("--patch", required=True)
+    exe.add_argument("--source", required=True)
     pub = commands.add_parser("publish")
     pub.add_argument("--input", required=True)
     pub.add_argument("--result", required=True)
@@ -972,6 +981,8 @@ def main():
     args = parser.parse_args()
     if args.action == "preflight":
         preflight(args)
+    elif args.action == "prepare":
+        prepare(args)
     elif args.action == "publish":
         publish(args)
     else:

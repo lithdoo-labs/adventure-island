@@ -511,6 +511,10 @@ def execute(args):
                              "The session was not queried and no replacement session was created."))
                 result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
                 return result
+            if git("rev-parse", "--show-toplevel", cwd=workspace).stdout.strip() != str(workspace):
+                raise RuntimeError("status checkout is not the expected Git worktree root")
+            if git("rev-parse", "HEAD", cwd=workspace).stdout.strip() != inp["base_sha"]:
+                raise RuntimeError("status checkout differs from preflight approved SHA")
             if git("status", "--porcelain", "--untracked-files=all", cwd=workspace).stdout.strip():
                 raise RuntimeError("status checkout is not clean; refusing read-only session query")
             continuity = "resumed" if (prior or {}).get("session_id") == candidate else "recovered"

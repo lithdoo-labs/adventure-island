@@ -542,7 +542,7 @@ class RunnerIntegrationTests(unittest.TestCase):
 class PublishIntegrationTests(unittest.TestCase):
     """Exercise a real bare Git remote across start and revise publications."""
 
-    def test_recover_existing_branch_creates_one_draft_without_patch(self):
+    def test_recover_prepared_draft_without_patch(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             local = root / "checkout"
@@ -552,41 +552,37 @@ class PublishIntegrationTests(unittest.TestCase):
             run("git", "config", "user.email", "test@example.com", cwd=local)
             (local / "README.md").write_text("Existing AI implementation\n")
             run("git", "add", ".", cwd=local)
-            run("git", "commit", "-qm", "feat(agent): issue #42 turn 1", cwd=local)
+            run("git", "commit", "-qm", "feat(agent): issue #42 turn 0", cwd=local)
             sha = run("git", "rev-parse", "HEAD", cwd=local).stdout.strip()
             input_path = root / "input.json"
             input_path.write_text(json.dumps({
                 "issue": 42, "turn": 2, "operation": "recover",
                 "command_id": 1001, "branch": "agent/issue-42",
-                "base_sha": sha, "pr": None, "issue_title": "Recover test"
+                "base_sha": sha, "pr": 88, "issue_title": "Recover test"
             }))
             posts = []
             def fake_api(method, route, payload=None):
-                if method == "GET" and route.endswith("/git/ref/heads/agent/issue-42"):
-                    return {"object": {"sha": sha}}
-                if method == "POST" and route.endswith("/pulls"):
-                    posts.append(("pr", payload))
-                    return {"number": 88}
+                if method == "GET" and route.endswith("/pulls/88"):
+                    return {"state": "open", "head": {"sha": sha, "ref": "agent/issue-42"},
+                            "body": agent.MARKER.format(issue=42)}
                 if method == "POST" and route.endswith("/issues/42/comments"):
-                    posts.append(("comment", payload))
+                    posts.append(payload["body"])
                     return {"id": 33}
                 raise AssertionError(f"Unexpected {method} {route}")
             old_cwd = Path.cwd()
             os.chdir(local)
             try:
-                with patch.object(agent, "api", side_effect=fake_api), \
-                     patch.object(agent, "pages", return_value=[]), \
-                     patch.dict(os.environ, {"GH_TOKEN": "test-token"}, clear=False):
+                with patch.object(agent, "api", side_effect=fake_api), patch.object(agent, "pages", return_value=[]), patch.dict(os.environ, {"GH_TOKEN": "test-token"}, clear=False):
                     agent.publish(SimpleNamespace(
                         input=str(input_path),
                         result=str(root / "does-not-exist.json"),
                         patch=str(root / "does-not-exist.patch")))
             finally:
                 os.chdir(old_cwd)
-            self.assertEqual([kind for kind, _ in posts], ["pr", "comment"])
-            self.assertTrue(posts[0][1]["draft"])
-            self.assertIn("PR: #88", posts[1][1]["body"])
-            self.assertIn("Session: **preserved**", posts[1][1]["body"])
+            self.assertEqual(len(posts), 1)
+            self.assertIn("PR: #88", posts[0])
+            self.assertIn("Session: **preserved**", posts[0])
+            self.assertIn("existing branch and Draft PR retained", posts[0])
 
     def test_first_turn_opens_draft_and_next_turn_reuses_pr(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -605,19 +601,19 @@ class PublishIntegrationTests(unittest.TestCase):
             run("git", "commit", "-qm", "base with existing special Git mode", cwd=repository)
             self.assertIn("120000", run("git", "ls-files", "--stage", cwd=repository).stdout)
             run("git", "push", "-q", "origin", "HEAD:refs/heads/main", cwd=repository)
+            run("git", "switch", "-c", "agent/issue-42", cwd=repository)
+            run("git", "commit", "--allow-empty", "-qm", "feat(agent): issue #42 turn 0", cwd=repository)
+            run("git", "push", "-q", "origin", "agent/issue-42", cwd=repository)
             base_sha = run("git", "rev-parse", "HEAD", cwd=repository).stdout.strip()
             comments = []
-            created = []
             pr_number = 88
             current_sha = base_sha
 
             def fake_api(method, route, payload=None):
-                if method == "POST" and route.endswith("/pulls"):
-                    created.append(payload)
-                    return {"number": pr_number}
                 if method == "GET" and route.endswith("/pulls/88"):
                     return {"state": "open", "head": {
-                        "sha": current_sha, "ref": "agent/issue-42"}}
+                        "sha": current_sha, "ref": "agent/issue-42"},
+                        "body": agent.MARKER.format(issue=42)}
                 if method == "POST" and route.endswith("/issues/42/comments"):
                     comments.append(payload["body"])
                     return {"id": 1}
@@ -635,7 +631,7 @@ class PublishIntegrationTests(unittest.TestCase):
                         "operation": operation, "command_id": 100 + turn,
                         "branch": "agent/issue-42",
                         "base_sha": current_sha,
-                        "pr": pr_number if turn == 2 else None,
+                        "pr": pr_number,
                         "issue_title": "Test Issue"
                     }))
                     result_path.write_text(json.dumps({
@@ -658,16 +654,13 @@ class PublishIntegrationTests(unittest.TestCase):
                                                       patch=str(patch_path)))
                     self.assertIn("PR: #88", comments[-1])
                     self.assertIn("issue=42", comments[-1])
-                    if turn == 1:
-                        self.assertEqual(len(created), 1)
-                        self.assertTrue(created[0]["draft"])
-                        self.assertIn("adventure-island-issue-agent:issue=42", created[0]["body"])
+                    self.assertIn("PR: #88", comments[-1])
                     # Fetch the published branch into the local checkout, as the
                     # next preflight/checkout would do in GitHub Actions.
                     run("git", "fetch", "-q", "origin", "agent/issue-42", cwd=repository)
                     current_sha = run("git", "rev-parse", "FETCH_HEAD", cwd=repository).stdout.strip()
                     run("git", "reset", "--hard", "FETCH_HEAD", cwd=repository)
-                self.assertEqual(len(created), 1, "revision must NOT create another PR")
+                self.assertEqual(len(comments), 2, "both turns report to the same pre-created PR")
                 self.assertEqual(len(comments), 2)
                 self.assertIn("updated\nupdated\n", (repository / "README.md").read_text())
             finally:

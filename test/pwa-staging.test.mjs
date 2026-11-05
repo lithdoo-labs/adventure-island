@@ -429,8 +429,8 @@ test("staging verifies the builder's real output and fails on divergence", async
 });
 
 // ---------------------------------------------------------------------------
-// Real integration — runs only once the pinned LoomRealm provides the
-// generic builder; until then it reports an explicit skip, never a pass.
+// Real integration — requires the pinned LoomRealm workspace and generated
+// SDK artifacts to be installed/built. CI prepares them and rejects skips.
 // ---------------------------------------------------------------------------
 
 const realBuilderPresent = await (async () => {

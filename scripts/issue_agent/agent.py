@@ -339,7 +339,7 @@ def discover_session_id(binary, issue, workspace, env):
         return exact_directory[0]
     if len(exact_directory) > 1:
         return None
-    if len(candidates) == 1:
+    if len(candidates) == 1 and not candidates[0][1]:
         return candidates[0][0]
     return None
 

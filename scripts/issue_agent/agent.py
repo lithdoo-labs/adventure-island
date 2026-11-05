@@ -23,7 +23,7 @@ OWNER_LOGIN = "lithdoo"
 OWNER_ID = 130959182
 MARKER = "<!-- adventure-island-issue-agent:issue={issue} -->"
 STATUS_RE = re.compile(r"<!-- adventure-island-agent-turn:issue=(\d+);comment=(\d+);turn=(\d+) -->")
-STATUS_COMMAND_RE = re.compile(r"<!-- adventure-island-agent-status:issue=(\\d+);comment=(\\d+) -->")
+STATUS_COMMAND_RE = re.compile(r"<!-- adventure-island-agent-status:issue=(\d+);comment=(\d+) -->")
 RUN_TIMEOUT_SECONDS = 7200
 STATUS_TIMEOUT_SECONDS = 600
 SESSION_RE = re.compile(r"^ses_[A-Za-z0-9_-]+$")

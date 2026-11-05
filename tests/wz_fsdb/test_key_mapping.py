@@ -59,7 +59,7 @@ class KeyMappingTest(unittest.TestCase):
             self.assertEqual(convert_cms.quest_table(stem), table)
 
     def test_logged_collisions_cover_eleven_real_keys(self):
-        payload = json.loads((ROOT / "result" / "64-wz-fsdb-key-collisions.json").read_text(encoding="utf-8"))
+        payload = json.loads((Path(__file__).resolve().parent / "fixtures" / "64-wz-fsdb-key-collisions.json").read_text(encoding="utf-8"))
         rows = payload["collisions"]
         self.assertEqual(len(rows), 11)
         counts = {}
@@ -72,7 +72,7 @@ class KeyMappingTest(unittest.TestCase):
         self.assertEqual(counts, {"Look": 5, "Item": 2, "MapEffect": 4})
 
     def test_all_eleven_logged_collisions_preserve_every_source(self):
-        payload = json.loads((ROOT / "result" / "64-wz-fsdb-key-collisions.json").read_text(encoding="utf-8"))
+        payload = json.loads((Path(__file__).resolve().parent / "fixtures" / "64-wz-fsdb-key-collisions.json").read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as tmp:
             store = convert_cms.Store(Path(tmp), roundtrip=False)
             for entry in payload["collisions"]:

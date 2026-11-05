@@ -69,7 +69,7 @@ class UolResolutionTest(unittest.TestCase):
         self.assertFalse(record["resolved"])
 
     def test_logged_uol_diagnostics_separate_unknown_from_missing(self):
-        payload = json.loads((ROOT / "result" / "64-wz-fsdb-uol-diagnostics.json").read_text(encoding="utf-8"))
+        payload = json.loads((Path(__file__).resolve().parent / "fixtures" / "64-wz-fsdb-uol-diagnostics.json").read_text(encoding="utf-8"))
         unique = payload["unique_nodes"]
         self.assertEqual(unique["cycle"], 1)
         self.assertGreater(unique["dangling"], 0)

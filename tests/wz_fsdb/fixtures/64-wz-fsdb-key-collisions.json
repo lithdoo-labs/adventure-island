@@ -1,0 +1,265 @@
+{
+  "source": "convert-all.json collision keys, with source paths from a name-only WZ walk",
+  "count": 11,
+  "collisions": [
+    {
+      "table": "Look",
+      "key": "01004123",
+      "sources": [
+        {
+          "wz": "Character.wz",
+          "path": "Cap/01004123.img"
+        },
+        {
+          "wz": "Character.wz",
+          "path": "Shoes/01004123.img"
+        }
+      ],
+      "failure": "duplicate_fsdb_key",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "Cap/01004123.img",
+      "dropped_sources": [
+        "Shoes/01004123.img"
+      ]
+    },
+    {
+      "table": "Look",
+      "key": "01002913",
+      "sources": [
+        {
+          "wz": "Character.wz",
+          "path": "Cap/01002913.img"
+        },
+        {
+          "wz": "Character.wz",
+          "path": "Longcoat/01002913.img"
+        }
+      ],
+      "failure": "duplicate_fsdb_key",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "Cap/01002913.img",
+      "dropped_sources": [
+        "Longcoat/01002913.img"
+      ]
+    },
+    {
+      "table": "Look",
+      "key": "01003561",
+      "sources": [
+        {
+          "wz": "Character.wz",
+          "path": "Cap/01003561.img"
+        },
+        {
+          "wz": "Character.wz",
+          "path": "Accessory/01003561.img"
+        }
+      ],
+      "failure": "duplicate_fsdb_key",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "Cap/01003561.img",
+      "dropped_sources": [
+        "Accessory/01003561.img"
+      ]
+    },
+    {
+      "table": "Look",
+      "key": "01004397",
+      "sources": [
+        {
+          "wz": "Character.wz",
+          "path": "Cap/01004397.img"
+        },
+        {
+          "wz": "Character.wz",
+          "path": "Accessory/01004397.img"
+        }
+      ],
+      "failure": "duplicate_fsdb_key",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "Cap/01004397.img",
+      "dropped_sources": [
+        "Accessory/01004397.img"
+      ]
+    },
+    {
+      "table": "Look",
+      "key": "01092090",
+      "sources": [
+        {
+          "wz": "Character.wz",
+          "path": "Shield/01092090.img"
+        },
+        {
+          "wz": "Character.wz",
+          "path": "Weapon/01092090.img"
+        }
+      ],
+      "failure": "duplicate_fsdb_key",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "Shield/01092090.img",
+      "dropped_sources": [
+        "Weapon/01092090.img"
+      ]
+    },
+    {
+      "table": "Item",
+      "key": "02520000",
+      "sources": [
+        {
+          "wz": "Item.wz",
+          "path": "Consume/0253.img",
+          "node": "02520000"
+        },
+        {
+          "wz": "Item.wz",
+          "path": "Consume/0252.img",
+          "node": "02520000"
+        }
+      ],
+      "failure": "duplicate_fsdb_key",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": {
+        "image": "Consume/0253.img",
+        "node": "02520000"
+      },
+      "dropped_sources": [
+        {
+          "image": "Consume/0252.img",
+          "node": "02520000"
+        }
+      ]
+    },
+    {
+      "table": "Item",
+      "key": "03994081",
+      "sources": [
+        {
+          "wz": "Item.wz",
+          "path": "Install/0399.img",
+          "node": "03994041/03994081"
+        },
+        {
+          "wz": "Item.wz",
+          "path": "Install/0399.img",
+          "node": "03994081"
+        }
+      ],
+      "failure": "duplicate_fsdb_key",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": {
+        "image": "Install/0399.img",
+        "node": "03994041/03994081"
+      },
+      "dropped_sources": [
+        {
+          "image": "Install/0399.img",
+          "node": "03994081"
+        }
+      ]
+    },
+    {
+      "table": "MapEffect",
+      "key": "DragonTiger",
+      "sources": [
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "dragonTiger"
+        },
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "DragonTiger"
+        }
+      ],
+      "failure": "casefold_filesystem_collision",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "dragonTiger",
+      "dropped_sources": [
+        "DragonTiger"
+      ],
+      "cause": "Effect.img has two category names that differ only by case. write_struct uses path.exists(), which treats them as one file."
+    },
+    {
+      "table": "MapEffect",
+      "key": "PvP",
+      "sources": [
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "pvp"
+        },
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "PvP"
+        }
+      ],
+      "failure": "casefold_filesystem_collision",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "pvp",
+      "dropped_sources": [
+        "PvP"
+      ],
+      "cause": "Effect.img has two category names that differ only by case. write_struct uses path.exists(), which treats them as one file."
+    },
+    {
+      "table": "MapEffect",
+      "key": "spinOff1",
+      "sources": [
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "spinoff1"
+        },
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "spinOff1"
+        }
+      ],
+      "failure": "casefold_filesystem_collision",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "spinoff1",
+      "dropped_sources": [
+        "spinOff1"
+      ],
+      "cause": "Effect.img has two category names that differ only by case. write_struct uses path.exists(), which treats them as one file."
+    },
+    {
+      "table": "MapEffect",
+      "key": "Event",
+      "sources": [
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "event"
+        },
+        {
+          "wz": "Map.wz",
+          "path": "Effect.img",
+          "node": "Event"
+        }
+      ],
+      "failure": "casefold_filesystem_collision",
+      "current_behavior": "later_record_dropped",
+      "required_behavior": "preserve_all_sources",
+      "kept_source": "event",
+      "dropped_sources": [
+        "Event"
+      ],
+      "cause": "Effect.img has two category names that differ only by case. write_struct uses path.exists(), which treats them as one file."
+    }
+  ]
+}

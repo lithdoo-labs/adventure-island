@@ -1,0 +1,729 @@
+{
+  "source": "name-only canvas and sound walk, same acceptance rule as convert_cms.valid_segment",
+  "count": 65,
+  "reasons": {
+    "trailing_whitespace": 60,
+    "illegal_character": 2,
+    "leading_whitespace": 2,
+    "leading_dot": 1
+  },
+  "paths": [
+    {
+      "source_wz": "Character.wz",
+      "source_path": "Cap/01002697/backDefault /default",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "backDefault "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Character.wz",
+      "source_path": "Cape/01102670 /backDefault/default",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "01102670 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Character.wz",
+      "source_path": "Cape/01102670 /default/default",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "01102670 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Character.wz",
+      "source_path": "Cape/01102670 /info/icon",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "01102670 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Character.wz",
+      "source_path": "Cape/01102670 /info/iconRaw",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "01102670 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Etc.wz",
+      "source_path": "pachinkoCygnus/reach/2/reach/30 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "30 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Item.wz",
+      "source_path": "Install/0301/03010355/effect2/5 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "5 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Item.wz",
+      "source_path": "Install/0301/03010405/effect2/5 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "5 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Item.wz",
+      "source_path": "Install/0301/03010569/effect2/5 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "5 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Item.wz",
+      "source_path": "Install/0301/03010899/effect2/5 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "5 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/KualaLumpur_MY/Adventure Rides/adventure/3/3 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "3 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /0/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /1/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /10/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /11/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /12/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /13/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /14/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /15/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /16/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /2/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /3/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /4/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /5/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /6/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /7/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/NightMarketTW/NightMarketField/ladder /9/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /0/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /1/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /10/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /11/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /12/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /13/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /14/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /15/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /16/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /17/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /2/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /3/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /4/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /5/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /6/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /7/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /8/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/SeoMoonJungTW/SeoMoonJungField/ladder /9/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "ladder "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/ShanghaiCN/waitan/house05/3/1 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "1 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/etc/coconut/fontTime/:",
+      "reason": "illegal_character",
+      "bad_segments": [
+        ":"
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/houseTC/house5/elevator /0/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "elevator "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/houseTC/house5/elevator /1/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "elevator "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/houseTC/house5/elevator /2/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "elevator "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Map.wz",
+      "source_path": "Obj/shouwahouseJP/plasticsurgery /basic/0/0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "plasticsurgery "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /0",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /1",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /2",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /3",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /4",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /5",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /6",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /7",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "2141000/breath /8",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "breath "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Npc.wz",
+      "source_path": "9110102/oh/4 ",
+      "reason": "trailing_whitespace",
+      "bad_segments": [
+        "4 "
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Sound.wz",
+      "source_path": "Pet/5000011/ rise",
+      "reason": "leading_whitespace",
+      "bad_segments": [
+        " rise"
+      ],
+      "target_table": "resource.图",
+      "design_table": "resource.音",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "Sound.wz",
+      "source_path": "Pet/5000021/ rise",
+      "reason": "leading_whitespace",
+      "bad_segments": [
+        " rise"
+      ],
+      "target_table": "resource.图",
+      "design_table": "resource.音",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "UI.wz",
+      "source_path": "UIWindow/Memo/FontTime/.",
+      "reason": "leading_dot",
+      "bad_segments": [
+        "."
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    },
+    {
+      "source_wz": "UI.wz",
+      "source_path": "UIWindow/Memo/FontTime/:",
+      "reason": "illegal_character",
+      "bad_segments": [
+        ":"
+      ],
+      "target_table": "resource.图",
+      "proposed_key": null,
+      "status": "unresolved"
+    }
+  ]
+}

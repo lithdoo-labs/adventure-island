@@ -81,7 +81,7 @@ class ResourceNameTest(unittest.TestCase):
             self.assertEqual(len(list((Path(tmp) / "[resource]音").rglob("mark*"))), 2)
 
     def test_logged_invalid_paths_are_sixty_five_unresolved_names(self):
-        payload = json.loads((ROOT / "result" / "64-wz-fsdb-invalid-paths.json").read_text(encoding="utf-8"))
+        payload = json.loads((Path(__file__).resolve().parent / "fixtures" / "64-wz-fsdb-invalid-paths.json").read_text(encoding="utf-8"))
         rows = payload["paths"]
         self.assertEqual(len(rows), 65)
         self.assertEqual(payload["count"], 65)
@@ -97,7 +97,7 @@ class ResourceNameTest(unittest.TestCase):
                 self.fail(row["source_path"])
 
     def test_invalid_path_manifest_has_lossless_legal_mappings(self):
-        payload = json.loads((ROOT / "result" / "64-wz-fsdb-invalid-paths.json").read_text(encoding="utf-8"))
+        payload = json.loads((Path(__file__).resolve().parent / "fixtures" / "64-wz-fsdb-invalid-paths.json").read_text(encoding="utf-8"))
         source_to_key = {}
         for entry in payload["paths"]:
             original = entry["source_path"]

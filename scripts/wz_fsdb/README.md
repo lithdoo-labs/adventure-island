@@ -14,7 +14,7 @@ From the repository root:
 python -m unittest discover -s tests/wz_fsdb -v
 ```
 
-These tests build their own nodes and files. They do not need a WZ archive. Tests named `test_repair_*` cover the original repair targets. They now pass in the synthetic-only CI suite. Previous failures are preserved as historical evidence in `result/64-wz-fsdb-repair-input.md`; see `result/65-wz-fsdb-repair-patch.md` for the patch, current verification and outstanding local WZ checks.
+These tests build their own nodes and files. They do not need a WZ archive. Tests named `test_repair_*` cover the original repair targets. Three tests also read the recorded collision, invalid-path, and UOL diagnostics from `tests/wz_fsdb/fixtures/`. Those JSON files are the same blobs as PR #1 `result/64-wz-fsdb-*.json`; `result/` itself is not part of this tree.
 
 ## Conversion
 

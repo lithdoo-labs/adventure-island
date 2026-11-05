@@ -77,9 +77,9 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 
 /**
  * The frozen input whitelist: logical module → physical source inside this
- * repository. Stage 4A publishes the dependency-free shared implementation
- * directly (empty import graph). A future Stage 4B may replace the physical
- * path with a built self-contained bundle — never the root shim.
+ * repository. The current PWA integration publishes the dependency-free
+ * shared Smoke implementation directly (empty import graph). A later
+ * self-contained Smoke build may replace this physical path — never the root shim.
  */
 export const EXECUTABLE_SOURCE_BINDINGS = Object.freeze(
   Object.freeze({

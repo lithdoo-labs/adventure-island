@@ -819,12 +819,20 @@ def result_comment(inp, result, pr=None, error=None):
     continuity = result.get("continuity", "unavailable")
     if not success and result.get("session_id"):
         continuity = "interrupted; session ID persisted for recovery"
+    if result.get("checkpoint_published"):
+        checkpoint = "partial or complete code checkpoint pushed to the PR branch"
+    elif result.get("checkpoint_available"):
+        checkpoint = "recoverable code checkpoint was captured; see publishing result"
+    else:
+        checkpoint = "no new code checkpoint; existing branch and Draft PR retained"
     body = [
         f"<!-- adventure-island-agent-turn:issue={issue};comment={command};turn={turn} -->",
         f"### OpenCode Issue Agent — turn {turn}",
         f"- Status: **{'completed' if success else 'failed / needs attention'}**",
         f"- Session: **{continuity}**",
-        f"- PR: {'#' + str(pr) if pr else 'not published'}",
+        f"- PR: {'#' + str(pr) if pr else 'not available'}",
+        f"- Branch: `{inp.get('branch', 'unknown')}`",
+        f"- Checkpoint: {checkpoint}",
         f"- Changed files: {len(changed)}",
         f"- GitHub Actions run: {os.environ.get('GITHUB_RUN_ID', 'unknown')}",
         "",
@@ -841,7 +849,8 @@ def publish(args):
     candidate_path = Path(args.result)
     result = json.loads(candidate_path.read_text()) if candidate_path.is_file() else {
         "status": "failed", "continuity": "unavailable",
-        "summary": "Executor job did not produce a result artifact."
+        "summary": "Executor did not produce a result artifact; the pre-created Draft PR is retained.",
+        "changed_files": []
     }
     if result.get("issue") not in (None, inp["issue"]):
         raise RuntimeError("result artifact belongs to another Issue")
@@ -862,6 +871,7 @@ def publish(args):
                 inp["issue"], inp["command_id"], inp["turn"]):
             print("This command already has a published result; skipping duplicate push.")
             return
+
     number = inp.get("pr")
     if inp.get("operation") == "status":
         api("POST", f"/repos/{REPO}/issues/{inp['issue']}/comments",
@@ -871,29 +881,32 @@ def publish(args):
             raise RuntimeError("OpenCode status query failed; diagnostic report was posted")
         return
 
-    failure = None
     if inp["operation"] == "recover":
-        result = {"status": "ok", "continuity": "preserved",
-                  "summary": "Recovered the existing Agent branch and created the missing Draft PR without rerunning OpenCode.",
-                  "changed_files": [], "issue": inp["issue"], "turn": inp["turn"]}
+        result = {
+            "status": "ok", "continuity": "preserved",
+            "summary": "Recovered the existing Agent branch and prepared its Draft PR without rerunning OpenCode.",
+            "changed_files": [], "issue": inp["issue"], "turn": inp["turn"],
+            "checkpoint_published": False
+        }
+
+    failure = None
     try:
-        if result.get("status") != "ok":
-            raise RuntimeError("Agent execution failed")
+        if not number:
+            raise RuntimeError("prepared Draft PR number is missing; refusing an unreviewed code push")
         if git("rev-parse", "HEAD").stdout.strip() != inp["base_sha"]:
-            raise RuntimeError("publisher checkout SHA differs from approved snapshot")
-        if inp["operation"] == "revise":
-            current = api("GET", f"/repos/{REPO}/pulls/{number}")
-            if (current["state"] != "open" or current["head"]["sha"] != inp["base_sha"]
-                    or current["head"]["ref"] != inp["branch"]):
-                raise RuntimeError("PR changed since preflight; refusing stale push")
-        if inp["operation"] == "recover":
-            current = api("GET", f"/repos/{REPO}/git/ref/heads/{inp['branch']}")
-            if current["object"]["sha"] != inp["base_sha"]:
-                raise RuntimeError("orphan Agent branch moved after preflight; refuse recovery")
+            raise RuntimeError("publisher checkout SHA differs from the prepared PR head")
+        current = api("GET", f"/repos/{REPO}/pulls/{number}")
+        if (current.get("state") != "open"
+                or current.get("head", {}).get("sha") != inp["base_sha"]
+                or current.get("head", {}).get("ref") != inp["branch"]
+                or MARKER.format(issue=inp["issue"]) not in (current.get("body") or "")):
+            raise RuntimeError("Draft PR changed or failed provenance validation; refusing stale push")
+
         patch = Path(args.patch)
-        if inp["operation"] != "recover" and (not patch.is_file() or patch.stat().st_size > MAX_PATCH_BYTES):
-            raise RuntimeError("patch artifact missing or too large")
-        if inp["operation"] != "recover" and patch.stat().st_size:
+        patch_bytes = patch.read_bytes() if patch.is_file() else b""
+        if len(patch_bytes) > MAX_PATCH_BYTES:
+            raise RuntimeError("patch artifact exceeds maximum allowed size")
+        if patch_bytes:
             git("apply", "--check", "--index", patch)
             git("apply", "--index", patch)
             paths = [x for x in git("diff", "--cached", "--name-only", "-z").stdout.split("\0") if x]
@@ -905,32 +918,40 @@ def publish(args):
                     raise RuntimeError("symlinks or submodules are not publishable")
             git("config", "user.name", "github-actions[bot]")
             git("config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com")
-            git("commit", "-m", f"feat(agent): issue #{inp['issue']} turn {inp['turn']}")
+            if result.get("status") == "ok":
+                message = f"feat(agent): issue #{inp['issue']} turn {inp['turn']}"
+            else:
+                message = f"wip(agent): issue #{inp['issue']} turn {inp['turn']} (partial checkpoint)"
+            git("commit", "-m", message)
             git_push(inp["branch"])
-        elif inp["operation"] == "start":
-            raise RuntimeError("initial implementation produced no code changes")
-        if inp["operation"] in ("start", "recover"):
-            title = f"agent: {inp['issue_title']}"[:200]
-            body = (
-                MARKER.format(issue=inp["issue"]) + "\n\n"
-                f"Implements #{inp['issue']} using OpenCode 2 on the organization runner.\n\n"
-                "Draft PR for human code review; changes and later revisions remain on "
-                f"branch {inp['branch']}.\n\n"
-                "Post feedback on the linked Issue or in PR review, then comment "
-                "/agent revise on the Issue. Never auto-merge."
-            )
-            pr = api("POST", f"/repos/{REPO}/pulls",
-                     {"title": title, "head": inp["branch"], "base": "main",
-                      "body": body, "draft": True})
-            number = pr["number"]
-        print(f"Published Issue #{inp['issue']} to PR #{number}")
+            result["checkpoint_published"] = True
+            result["checkpoint_commit"] = git("rev-parse", "HEAD").stdout.strip()
+            result["changed_files"] = paths
+        else:
+            result["checkpoint_published"] = False
+            result["changed_files"] = result.get("changed_files", [])
+            if result.get("status") == "ok" and inp["operation"] == "start":
+                result["status"] = "failed"
+                result["summary"] = (
+                    (result.get("summary", "") + "\n"
+                     "OpenCode completed without a code diff. The pre-created Draft PR and branch remain available.")
+                ).strip()
     except Exception as ex:
         failure = str(ex)
+        result["status"] = "failed"
+        result["summary"] = (
+            (result.get("summary", "") + "\nPublisher could not publish this checkpoint: " + failure[:800])
+        ).strip()
         print(f"Publish failure for Issue #{inp['issue']}: {failure}", file=sys.stderr)
+
+    # Even when execution or publication failed, always report against the
+    # already-created PR. Never delete or close the branch/PR as cleanup.
     api("POST", f"/repos/{REPO}/issues/{inp['issue']}/comments",
-        {"body": result_comment(inp, result, number if not failure else None, failure)})
+        {"body": result_comment(inp, result, number, failure)})
     if failure:
         raise RuntimeError(failure)
+    print(f"Preserved Issue #{inp['issue']} on PR #{number}; "
+          f"checkpoint_published={result.get('checkpoint_published', False)}")
 
 def main():
     parser = argparse.ArgumentParser()

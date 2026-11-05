@@ -3,7 +3,7 @@
 //
 // Deterministic base layer: presentation.json is a valid Web Presentation
 // Config V1 as allowed by the pinned loom-realm submodule
-// (c5217e47be5a43f974e9e6ce82230077fb639c39,
+// (93648192323bf5f57996b7b54cbae641d8a53fdb,
 // packages/renderer/src/internal/web-presentation-config.ts,
 // validateWebPresentationConfigV1): an exact
 // { formatVersion, scripts, styles } object whose entries are exact

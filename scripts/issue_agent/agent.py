@@ -448,6 +448,31 @@ def status_prompt(inp):
         "Do not claim a test passed unless the prior session or current checkout contains evidence."
     )
 
+def snapshot_workspace_patch(workspace, patch_path):
+    """Capture every safe tracked/untracked workspace change, including on failure."""
+    git("add", "-A", "--", ".",
+        ":(exclude,glob)**/__pycache__/**",
+        ":(exclude,glob)**/*.pyc",
+        ":(exclude,glob)**/.pytest_cache/**",
+        ":(exclude,glob)**/.mypy_cache/**",
+        cwd=workspace)
+    paths = git("diff", "--cached", "--name-only", "-z", cwd=workspace).stdout.split("\0")
+    paths = [path for path in paths if path]
+    validate_paths(paths)
+    git("diff", "--cached", "--check", cwd=workspace)
+    modes = git("ls-files", "--stage", "-z", "--", *paths, cwd=workspace).stdout
+    for row in modes.split("\0"):
+        if row and row.split(" ", 1)[0] in ("120000", "160000"):
+            raise RuntimeError("symlinks or submodules are not publishable")
+    patch = subprocess.run(
+        ["git", "diff", "--cached", "--binary", "HEAD"], cwd=workspace,
+        capture_output=True, check=True).stdout
+    if len(patch) > MAX_PATCH_BYTES:
+        raise RuntimeError("generated patch exceeds maximum allowed size")
+    Path(patch_path).write_bytes(patch)
+    return paths, patch
+
+
 def safe_summary(summary):
     for key in ("GLM_API_KEY", "GITHUB_ACCESS_TOKEN", "GITHUB_ORG_ACCESS_TOKEN", "GH_TOKEN"):
         secret = os.environ.get(key, "")
@@ -617,27 +642,14 @@ def execute(args):
         if not session_id:
             raise RuntimeError("OpenCode completed without a recoverable session ID")
         summary = safe_summary(response_from_events(output))
-        git("add", "-A", "--", ".",
-            ":(exclude,glob)**/__pycache__/**",
-            ":(exclude,glob)**/*.pyc",
-            ":(exclude,glob)**/.pytest_cache/**",
-            ":(exclude,glob)**/.mypy_cache/**",
-            cwd=workspace)
-        paths = git("diff", "--cached", "--name-only", "-z", cwd=workspace).stdout.split("\0")
-        paths = [p for p in paths if p]
-        validate_paths(paths)
-        git("diff", "--cached", "--check", cwd=workspace)
-        patch = subprocess.run(["git", "diff", "--cached", "--binary", "HEAD"], cwd=workspace,
-                               capture_output=True, check=True).stdout
-        if len(patch) > MAX_PATCH_BYTES:
-            raise RuntimeError("generated patch exceeds maximum allowed size")
+        paths, patch = snapshot_workspace_patch(workspace, patch_path)
         if inp["operation"] == "start" and not patch:
             raise RuntimeError("OpenCode produced no working-tree changes in Actions checkout")
-        patch_path.write_bytes(patch)
         result.update(status="ok", session_id=session_id,
                       continuity=result["continuity"] if result["continuity"] != "unavailable"
                       else ("resumed" if prior else "new"),
-                      changed_files=paths, summary=summary or "OpenCode completed successfully.")
+                      changed_files=paths, checkpoint_available=bool(patch),
+                      summary=summary or "OpenCode completed successfully.")
         metadata_payload.update({
             "session_id": session_id, "turn": inp["turn"],
             "status": "completed", "completed_at": time.time()
@@ -664,7 +676,24 @@ def execute(args):
             write_json_atomic(metadata, metadata_payload)
         except Exception:
             pass
-        patch_path.write_bytes(b"")
+        try:
+            paths, partial_patch = snapshot_workspace_patch(workspace, patch_path)
+            result["changed_files"] = paths
+            result["checkpoint_available"] = bool(partial_patch)
+            if partial_patch:
+                result["summary"] += (
+                    f"\nRecoverable partial code checkpoint captured: "
+                    f"{len(paths)} files, {len(partial_patch)} bytes. "
+                    "The publisher can preserve this work in the existing Draft PR."
+                )
+        except Exception as snapshot_error:
+            patch_path.write_bytes(b"")
+            result["checkpoint_available"] = False
+            result["checkpoint_error"] = str(snapshot_error)[:500]
+            result["summary"] += (
+                "\nWorkspace changes could not be packaged safely: "
+                + str(snapshot_error)[:500]
+            )
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     print(f"Issue #{inp['issue']} {inp['operation']} {inp['turn']}: {result['status']} "
           f"({len(result.get('changed_files', []))} files)")

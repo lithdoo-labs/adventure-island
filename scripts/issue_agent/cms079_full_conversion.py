@@ -18,6 +18,16 @@ PACKAGES = ("Base.wz", "Character.wz", "Effect.wz", "Etc.wz", "Item.wz", "Map.wz
             "Sound.wz", "String.wz", "TamingMob.wz", "UI.wz")
 MAX_ROUNDS = 32
 SECONDS = 230 * 60
+TOKEN_NAMES = ("GH_TOKEN", "GITHUB_TOKEN", "AGENT_GITHUB_TOKEN",
+               "GITHUB_ACCESS_TOKEN", "GITHUB_ORG_ACCESS_TOKEN")
+
+
+def child_env():
+    """Never pass GitHub credentials into PR-authored converter code."""
+    env = os.environ.copy()
+    for key in TOKEN_NAMES:
+        env.pop(key, None)
+    return env
 
 
 def github(method, path, payload=None):
@@ -52,6 +62,31 @@ def journal_bytes(state):
         state / "manifest/journal.jsonl",
         state / "manifest/manifest/journal.jsonl"
     ) if p.is_file())
+
+
+def journal_positions(state):
+    paths = (state / "manifest/journal.jsonl",
+             state / "manifest/manifest/journal.jsonl")
+    return {str(path): path.stat().st_size for path in paths if path.is_file()}
+
+
+def new_write_intents(previous_positions):
+    """Only actual new output intents count as durable conversion progress."""
+    count = 0
+    for name, offset in previous_positions.items():
+        path = Path(name)
+        if not path.is_file() or path.stat().st_size < offset:
+            continue
+        with path.open("rb") as handle:
+            handle.seek(offset)
+            for raw in handle:
+                try:
+                    event = json.loads(raw)
+                except (ValueError, UnicodeDecodeError):
+                    continue
+                if event.get("op") in ("record", "group", "resource") and event.get("sha"):
+                    count += 1
+    return count
 
 
 def runtime_paths(work):
@@ -90,7 +125,7 @@ def runtime_paths(work):
     for python in dict.fromkeys(candidates):
         result = subprocess.run(
             [python, "-c", "import PIL,numpy; from wzpy import WzFile; from wzpy.canvas import decode_canvas"],
-            env={**os.environ, "PYTHONPATH": str(wzpy_parent)},
+            env={**child_env(), "PYTHONPATH": str(wzpy_parent)},
             capture_output=True, text=True, timeout=30,
         )
         if result.returncode == 0:
@@ -120,7 +155,7 @@ def foreground(cmd, cwd, log, limit=SECONDS):
     with log.open("ab", buffering=0) as stream:
         process = subprocess.Popen(cmd, cwd=cwd, stdout=stream, stderr=subprocess.STDOUT,
                                    start_new_session=True,
-                                   env={**os.environ, "PYTHONUNBUFFERED": "1"})
+                                   env={**child_env(), "PYTHONUNBUFFERED": "1"})
         try:
             while True:
                 try:
@@ -179,7 +214,7 @@ def run(source, round_number):
         python, wzpy = runtime_paths(WORK)
         previous = done_packages(state)
         if len(previous) != 16:
-            old_journal = journal_bytes(state)
+            old_journal = journal_positions(state)
             command = [python, "-u", str(source / "scripts/wz_fsdb/convert_cms.py"),
                        "--scope", "all", "--wz-root", str(WZ), "--wzpy", wzpy,
                        "--out", str(WORK / "fsdb-all/[FSDB]cms"),
@@ -195,9 +230,9 @@ def run(source, round_number):
             if len(completed) < 16:
                 if outcome != "time_budget":
                     raise RuntimeError("converter exited successfully before 16/16; refusing false success")
-                delta = journal_bytes(state) - old_journal
-                if delta <= 0 and len(completed) <= len(previous):
-                    raise RuntimeError("no durable progress in this round; refusing endless retries")
+                new_outputs = new_write_intents(old_journal)
+                if new_outputs <= 0 and len(completed) <= len(previous):
+                    raise RuntimeError("no new output intents or completed packages this round; refusing endless retries")
                 if round_number >= MAX_ROUNDS:
                     raise RuntimeError("32 continuation rounds reached; manual review required")
                 github("POST", "/repos/" + REPO + "/actions/workflows/cms079-full-conversion.yml/dispatches",
@@ -205,7 +240,7 @@ def run(source, round_number):
                                                   "round_number": str(round_number + 1)}})
                 issue_report("PARTIAL; follow-up run auto-dispatched", completed,
                              "The foreground conversion reached its 230-minute budget. "
-                             "Journal increased by " + str(delta) + " bytes. "
+                             "New output intents=" + str(new_outputs) + ". "
                              "The next run resumes this exact persistent batch state.", sha)
                 return 0
         complete = done_packages(state)

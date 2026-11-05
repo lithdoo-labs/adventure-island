@@ -1,0 +1,78 @@
+name: CMS079 full WZ conversion (foreground, resumable)
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Only the existing Issue #50 is authorized"
+        required: true
+        type: string
+        default: "50"
+      round_number:
+        description: "Automatic recovery round; keep 1 for a manual start"
+        required: true
+        type: string
+        default: "1"
+
+# One converter process at a time, across owner comments and automatic
+# workflow_dispatch continuations. Never kill a running round to start another.
+concurrency:
+  group: cms079-issue-50-full-conversion
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  foreground:
+    name: Convert all 16 data WZ packages in foreground
+    if: >-
+      ${{
+        github.repository == 'lithdoo-labs/adventure-island' &&
+        (
+          (
+            github.event_name == 'issue_comment' &&
+            github.event.issue.number == 50 &&
+            github.event.issue.pull_request == null &&
+            github.event.comment.user.id == 130959182 &&
+            github.event.issue.user.id == 130959182 &&
+            github.event.comment.body == '/convert all'
+          ) ||
+          (
+            github.event_name == 'workflow_dispatch' &&
+            inputs.issue_number == '50' &&
+            (github.actor == 'lithdoo' || github.actor == 'github-actions[bot]')
+          )
+        )
+      }}
+    runs-on: [self-hosted, linux, x64, opencode, labs]
+    timeout-minutes: 270
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+    steps:
+      - name: Checkout reviewed controller from main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: ops
+          persist-credentials: false
+      - name: Checkout existing Draft PR #53 source
+        uses: actions/checkout@v4
+        with:
+          ref: agent/issue-50
+          path: source
+          persist-credentials: false
+      - name: Run conversion and automatically resume interrupted batches
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN || github.token }}
+          CMS079_ROUND: ${{ inputs.round_number || '1' }}
+        run: |
+          set -euo pipefail
+          python3 "$GITHUB_WORKSPACE/ops/scripts/issue_agent/cms079_full_conversion.py" \
+            --source "$GITHUB_WORKSPACE/source" \
+            --round "$CMS079_ROUND"

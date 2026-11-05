@@ -35,13 +35,16 @@ python scripts/wz_fsdb/convert_cms.py --scope <phase1|all|avatar> \
 
 ## Resumable batches (scope `all`)
 
-A full 16-package conversion takes hours; one process run may be interrupted. With `--batch-state <dir>`:
+A full 16-package conversion takes hours; one process run may be interrupted. With `--batch-state <dir>` the run is crash-safe:
 
-- Each package writes `<dir>/<Package>.json` on completion: package name, input SHA-256, converter commit, status, elapsed time, counters and an output summary.
-- Completed packages are skipped; a re-run of an interrupted package continues at-most-once through persisted manifests (record keys, group keys, resource identities, directory-name folds and alias tables live in `<dir>/manifest/`, never only in process memory).
-- Cross-package resource conflicts are detected and aliased exactly as in a single-process run.
-- Batch state written by a different converter commit is refused instead of silently extended.
+- Every output write is preceded by a journaled intent (identity + expected file SHA-256) in `<dir>/manifest/journal.jsonl`, executed as an atomic temp-file + `os.replace`, and confirmed by the file itself: an intent counts as committed iff its final file exists with the recorded hash. Directory-name folds, record remaps, alias candidates, resource aliases, collisions, errors and accounting counters are journaled too, so conflict decisions replay identically.
+- On startup the journal is replayed: ops up to the last checkpoint (package completion) are trusted; later intents are verified against disk, so a kill between "output written" and "checkpoint" reuses the complete output, a kill before the write simply re-does the item, and an interrupted package never misjudges its own partial output as a key collision or triggers `resource-overwrite-refused`. Same-source items resume at-most-once; genuine different-source conflicts still alias exactly as in a single-process run.
+- A `pkgStats` snapshot at each package start plus exact write-op deltas keep the accounting counters correct across interruptions; traversal counters (nodes, UOL classes) re-accumulate when the interrupted package is re-parsed.
+- Each package writes `<dir>/<Package>.json` on completion: package name, input SHA-256, converter identity, status, elapsed time, counters and an output summary. Completed packages are skipped.
+- The converter identity is a hash of the converter source itself (repository commit recorded alongside): batch state produced by a different converter is refused instead of silently extended, while doc/test-only commits between rounds do not force regeneration.
 - When all 16 packages are complete, run `--finalize` (or let a full single-process run finalize itself): it writes the `struct.WzRecordAlias` table, the table metadata and the aggregate summary.
+
+Crash-window model: process kill at any point is fully covered by the journal (intent lines are flushed to the OS before each write). Machine-level crashes can additionally lose journal tail lines; such an uncommitted final file is detected by hash mismatch and rewritten on the next encounter. Synthetic fault-injection tests (`tests/wz_fsdb/test_crash_recovery.py`) kill real conversions before the write, after the write and after a checkpoint, and assert byte-identical equivalence with an uninterrupted run.
 
 Never reuse or incrementally overwrite a prior generated FSDB: construct a new output root.
 

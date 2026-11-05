@@ -148,8 +148,8 @@ class BatchResumeTest(unittest.TestCase):
             root = Path(tmp) / "out"
             state = Path(tmp) / "state" / "manifest"
             first = convert_cms.Store(root, roundtrip=False, resume_dir=state)
-            first.stats["canvases"] += 7
-            first.stats["uol_dangling"] += 2
+            first.bump_stat("canvases", 7)
+            first.bump_stat("uol_dangling", 2)
             first.flush_resume_state()
             second = convert_cms.Store(root, roundtrip=False, resume_dir=state)
             self.assertEqual(second.stats["canvases"], 7)

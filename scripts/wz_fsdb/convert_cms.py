@@ -11,16 +11,46 @@ Scopes:
 
 - ``phase1`` — the historical minimal sample (three maps + one body + Bgm00).
 - ``all`` — the complete 16 data packages. With ``--batch-state`` the run is
-  resumable per package: every table/group/resource write is deduplicated
-  across processes through persisted manifests, so an interrupted package
-  can be re-run without overwriting or duplicating output, and completed
-  packages are skipped. ``--finalize`` closes an ``all`` run (record alias
-  table, metadata, aggregate summary).
+  crash-safe resumable per package (see `Crash-safety protocol` below).
+  ``--finalize`` closes an ``all`` run (record alias table, metadata,
+  aggregate summary).
 - ``avatar`` — the minimal real paper-doll subset: the five Look records
   (body/head/face/hair/weapon), ``struct.ZMap/order`` and only the Canvas
   PNGs actually referenced by the tested actions. The Look records keep the
   full converted subtree; canvases outside the tested actions are counted
   (``canvasesOutOfScope``) instead of written.
+
+Crash-safety protocol (scope ``all`` + ``--batch-state``)
+---------------------------------------------------------
+
+Every mutating decision and output write goes through an append-only
+write-ahead journal (``<batch-state>/manifest/journal.jsonl``) plus atomic
+file replacement, so an interrupted process (any kill, at any point) resumes
+without duplicating output, misjudging its own partial output as a key
+collision, or overwriting genuine cross-source conflict data:
+
+1. *Intent first*: before an output file is written, an intent record
+   (identity + expected file SHA-256) is appended to the journal and flushed
+   to the OS.
+2. *Atomic write*: output bytes go to a unique temporary file in the target
+   directory and are `os.replace`d onto the final path. Final paths never
+   hold partial bytes.
+3. *Completion is the file*: an intent counts as committed iff its final file
+   exists with the recorded hash. On startup the journal is replayed;
+   intents after the last checkpoint/pkgStart marker are verified against
+   disk (missing/mismatched ⇒ re-done on the next encounter; a stale final
+   file from an uncommitted intent is overwritten by the atomic write, which
+   is safe because different-source writes are always journaled first).
+4. *Decision journaling*: directory-name folds, record remaps/alias
+   candidates, resource aliases, collision/error/stat events are journaled
+   too, so conflict decisions replay identically.
+5. *Stats*: a ``pkgStats`` snapshot is journaled at each package start;
+   replay restores that snapshot and re-applies the (exact) write-op deltas
+   after it. Traversal counters (nodes, UOL classes) re-accumulate when the
+   interrupted package is re-parsed, so final counts stay exact.
+6. *Converter identity guard*: batch state records a hash of the converter
+   source itself; state produced by a different converter is refused instead
+   of silently extended.
 """
 from __future__ import annotations
 
@@ -222,31 +252,58 @@ def file_sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def bytes_sha256(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
 def converter_commit() -> str:
-    """Commit of the repository that owns this script, or ``unknown``."""
-    repo = git_repo(Path(__file__).resolve())
-    if repo is None:
-        return "unknown"
+    """Identity of the converter itself: hash of this script's source.
+
+    Deliberately NOT the repository commit: the Publisher commits every turn
+    (docs/tests included), which would otherwise force regenerating a
+    multi-hour conversion even when the converter is unchanged. Any change to
+    the converter source changes this identity, and batch state produced by a
+    different identity is refused (see `run_batches`). The repository commit
+    is recorded alongside as metadata.
+    """
     try:
-        return subprocess.run(
-            ["git", "-C", str(repo), "rev-parse", "HEAD"],
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
+        source = Path(__file__).read_bytes()
     except Exception:
         return "unknown"
+    identity = "src:" + hashlib.sha256(source).hexdigest()[:16]
+    repo = git_repo(Path(__file__).resolve())
+    if repo is not None:
+        try:
+            commit = subprocess.run(
+                ["git", "-C", str(repo), "rev-parse", "HEAD"],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+            return f"{identity}@{commit[:12]}"
+        except Exception:
+            pass
+    return identity
+
+
+class _KillSimulated(Exception):
+    """Raised by fault injection to simulate an abrupt process kill."""
 
 
 class Store:
-    """FSDB writer.
+    """FSDB writer with a crash-safe write-ahead journal.
 
-    ``resume_dir`` (batch mode) persists the conflict tables (record keys,
-    group keys, resource identities, directory-name folds, aliases) so a new
-    process continues an ``all`` run without relying on in-memory state.
+    Modes:
 
-    ``resource_filter`` (avatar mode) restricts which canvases are written;
-    skipped canvases are counted, never silently dropped from the records.
+    - ``resume_dir`` set (batch mode): every decision and output write is
+      journaled before/around execution as described in the module docstring;
+      a new process replays the journal and verifies un-checkpointed intents
+      against disk, so interrupted packages resume at-most-once.
+    - ``resource_filter`` (avatar mode): restricts which canvases are written;
+      skipped canvases are counted, never silently dropped from records.
+    - ``dry_run``: compute resource keys without touching disk or decoders.
 
-    ``dry_run`` computes resource keys without touching disk or decoders.
+    Kill simulation (used by the synthetic crash tests): set
+    ``kill_after_writes``/``kill_before_write_index`` and the writer raises
+    `_KillSimulated` at the chosen point, exactly like an abrupt kill.
     """
 
     def __init__(self, root: Path, roundtrip: bool, keep_pixels: bool = False,
@@ -275,95 +332,185 @@ class Store:
         self._record_source_by_key = {}
         self._resume_records = {}
         self._resume_groups = set()
-        self._resume_pending = {"records": [], "groups": [], "resources": []}
+        self._live_groups = set()
+        self._alias_seen = set()
         self.converted_packages = []
+        self.kill_after_writes: int | None = None
+        self.kill_before_write_index: int | None = None
+        self._write_counter = 0
+        self._journal = None
+        self._journal_path = None
         if resume_dir is not None and not dry_run:
-            self._load_resume_state()
+            self._open_journal_and_replay()
 
-    # ---- persisted batch state ------------------------------------------
+    # ---- journal ----------------------------------------------------------
 
-    def _manifest_path(self) -> Path:
-        return self.resume_dir / "manifest"
-
-    def _load_resume_state(self) -> None:
-        manifest = self._manifest_path()
+    def _open_journal_and_replay(self) -> None:
+        manifest = self.resume_dir / "manifest"
         manifest.mkdir(parents=True, exist_ok=True)
-        records = manifest / "records.jsonl"
-        if records.exists():
-            for line in records.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
+        self._journal_path = manifest / "journal.jsonl"
+        if self._journal_path.exists() and self._journal_path.stat().st_size > 0:
+            self._replay_journal()
+        self._journal = self._journal_path.open("a", encoding="utf-8", newline="\n")
+
+    def _append_op(self, op: dict) -> None:
+        if self._journal is None:
+            return
+        self._journal.write(dumps(op) + "\n")
+        self._journal.flush()
+
+    def _replay_apply(self, op: dict) -> None:
+        """Apply one journal op to the in-memory state (no disk writes)."""
+        kind = op["op"]
+        if kind == "record":
+            self._resume_records[(op["table"], op["key"], op.get("source"))] = op["storedKey"]
+            self._struct_keys.setdefault(op["table"], {})[op["storedKey"].casefold()] = op["storedKey"]
+            self._record_source_by_key[(op["table"], op["storedKey"])] = op.get("source")
+            self.stats["struct"] += 1
+        elif kind == "group":
+            self._resume_groups.add((op["table"], op["key"]))
+            self.stats["groupFiles"] += 1
+            self.stats["groupRows"] += op.get("rows", 0)
+        elif kind == "resource":
+            self.resources[(op["table"], op["key"].casefold())] = (op["key"], op["ext"], op["digest"])
+            self._resource_variant_keys[(op["table"], op["sourceKey"], op["ext"], op["digest"])] = op["key"]
+            self.stats["resources"] += 1
+            if op.get("kind") == "sound":
+                self.stats["sounds"] += 1
+                self.stats["soundBytes"] += op.get("bytes", 0)
+            else:
+                self.stats["canvases"] += 1
+        elif kind == "dirmap":
+            parent = tuple(op["parent"])
+            self._resource_directory_names.setdefault((op["table"], parent), {})[op["raw"]] = op["piece"]
+        elif kind == "recordRemap":
+            self.record_remaps.append(op["entry"])
+            self.stats["rekeyedRecords"] += 1
+        elif kind == "aliasIndex":
+            self.record_alias_index[(op["table"], op["foldedKey"])] = op["candidates"]
+        elif kind == "resourceAlias":
+            self.resource_aliases.append(op["entry"])
+            self._alias_seen.add((op["entry"]["table"], tuple(op["entry"]["originalParts"]),
+                                  op["entry"]["storedKey"], op["entry"]["reason"]))
+            self.stats["resourceAliases"] += 1
+        elif kind == "collision":
+            self.collisions.append(op["entry"])
+            self.stats["keyCollisions"] += 1
+        elif kind == "error":
+            self.stats["errors"] += 1
+            if len(self.errors) < 80:
+                self.errors.append(op["entry"])
+        elif kind == "stat":
+            self.stats[op["key"]] += op.get("delta", 1)
+        elif kind == "pkgStats":
+            self.stats = Counter(op["stats"])
+        elif kind in ("checkpoint", "pkgStart"):
+            pass
+
+    def _verify_intent(self, op: dict) -> bool:
+        """Does the final file for this intent exist with the recorded hash?"""
+        kind = op["op"]
+        try:
+            if kind == "record":
+                path = self.root / f"[struct]{op['table']}" / f"{op['storedKey']}.json"
+            elif kind == "group":
+                path = self.root / f"[group]{op['table']}" / f"{op['key']}.jsonl"
+            elif kind == "resource":
+                path = self.root / f"[resource]{op['table']}"
+                for part in op["key"].split("/")[:-1]:
+                    path = path / part
+                path = path / f"{op['key'].rsplit('/', 1)[-1]}.{op['ext']}"
+            else:
+                return True
+            return path.is_file() and file_sha256(path) == op["sha"]
+        except Exception:
+            return False
+
+    def _replay_journal(self) -> None:
+        """Rebuild state from the journal.
+
+        Ops up to the last checkpoint/pkgStart marker are trusted (their
+        package completed); later intents are verified against disk before
+        being applied, so an intent whose write never landed is re-done on
+        the next encounter instead of poisoning the maps.
+        """
+        trusted: list[dict] = []
+        pending: list[dict] = []
+        with self._journal_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
                     continue
-                row = json.loads(line)
-                self._resume_records[(row["table"], row["key"], row.get("source"))] = row["storedKey"]
-        groups = manifest / "groups.jsonl"
-        if groups.exists():
-            for line in groups.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                row = json.loads(line)
-                self._resume_groups.add((row["table"], row["key"]))
-        resources = manifest / "resources.jsonl"
-        if resources.exists():
-            for line in resources.read_text(encoding="utf-8").splitlines():
-                if not line.strip():
-                    continue
-                row = json.loads(line)
-                self.resources[(row["table"], row["key"].casefold())] = (row["key"], row["ext"], row["digest"])
-                variant = (row["table"], row["sourceKey"], row["ext"], row["digest"])
-                self._resource_variant_keys[variant] = row["key"]
-        state = manifest / "converter-state.json"
-        if state.exists():
-            payload = json.loads(state.read_text(encoding="utf-8"))
-            self.record_remaps = payload.get("recordRemaps", [])
-            self.resource_aliases = payload.get("resourceAliases", [])
-            for row in payload.get("recordAliasIndex", []):
-                self.record_alias_index[(row["table"], row["foldedKey"])] = row["candidates"]
-            for token, mapping in payload.get("resourceDirectoryNames", {}).items():
-                table, _, parent = token.partition("\0")
-                self._resource_directory_names[(table, tuple(parent.split("/") if parent else ()))] = dict(mapping)
-            saved = payload.get("stats", {})
-            for key, value in saved.items():
-                self.stats[key] = self.stats[key] + value if key in self.stats else value
+                try:
+                    op = json.loads(line)
+                except Exception:
+                    continue  # torn tail line (kill mid-write); its file is verified/picked up below if complete
+                if op.get("op") in ("checkpoint", "pkgStats", "pkgStart"):
+                    trusted.extend(pending)
+                    trusted.append(op)
+                    pending = []
+                else:
+                    pending.append(op)
+        for op in trusted:
+            self._replay_apply(op)
+        recovered = 0
+        for op in pending:
+            if op.get("op") in ("record", "group", "resource"):
+                if self._verify_intent(op):
+                    self._replay_apply(op)
+                    recovered += 1
+                # else: intent without a complete file — drop; the source item
+                # is re-encountered and rewritten (a stale final file, if any,
+                # is overwritten by the atomic write of the same identity).
+            else:
+                self._replay_apply(op)
+        if trusted or pending:
+            print(f"journal replay: {len(trusted)} trusted ops, {len(pending)} after last checkpoint, "
+                  f"{recovered} verified outputs recovered", flush=True)
 
     def flush_resume_state(self) -> None:
-        """Persist conflict tables and append this run's writes."""
+        """Checkpoint: everything journaled so far is complete on disk."""
         if self.resume_dir is None or self.dry_run:
             return
-        manifest = self._manifest_path()
-        manifest.mkdir(parents=True, exist_ok=True)
-        for name, rows in (("records", self._resume_pending["records"]),
-                           ("groups", self._resume_pending["groups"]),
-                           ("resources", self._resume_pending["resources"])):
-            if rows:
-                with (manifest / f"{name}.jsonl").open("a", encoding="utf-8", newline="\n") as handle:
-                    for row in rows:
-                        handle.write(dumps(row) + "\n")
-        self._resume_pending = {"records": [], "groups": [], "resources": []}
-        alias_index = [
-            {"table": table, "foldedKey": folded_key, "candidates": candidates}
-            for (table, folded_key), candidates in self.record_alias_index.items()
-        ]
-        directories = {
-            f"{table}\0{'/'.join(parent)}": mapping
-            for (table, parent), mapping in self._resource_directory_names.items()
-        }
-        payload = {
-            "recordRemaps": self.record_remaps,
-            "resourceAliases": self.resource_aliases,
-            "recordAliasIndex": alias_index,
-            "resourceDirectoryNames": directories,
-            "stats": dict(self.stats),
-        }
-        tmp = manifest / "converter-state.json.tmp"
-        tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-        tmp.replace(manifest / "converter-state.json")
+        self._append_op({"op": "checkpoint", "at": time.time()})
 
-    # ---- tables ---------------------------------------------------------
+    def journal_package_start(self, package: str) -> None:
+        """Snapshot stats + mark the package boundary in the journal."""
+        if self.resume_dir is None or self.dry_run:
+            return
+        self._append_op({"op": "pkgStart", "package": package})
+        self._append_op({"op": "pkgStats", "stats": dict(self.stats)})
+
+    # ---- atomic output writes --------------------------------------------
+
+    def _write_atomic(self, directory: Path, final_name: str, payload: bytes) -> str:
+        """Write bytes via a unique temp file + os.replace onto the final path."""
+        self._write_counter += 1
+        if self.kill_before_write_index == self._write_counter:
+            raise _KillSimulated(f"kill before write #{self._write_counter}")
+        directory.mkdir(parents=True, exist_ok=True)
+        tmp = directory / f".{final_name}.tmp-{os.getpid()}-{self._write_counter}"
+        with tmp.open("wb") as handle:
+            handle.write(payload)
+        os.replace(tmp, directory / final_name)
+        if self.kill_after_writes == self._write_counter:
+            raise _KillSimulated(f"kill after write #{self._write_counter}")
+        return bytes_sha256(payload)
 
     def note_error(self, kind: str, path: str, error: str) -> None:
+        entry = {"kind": kind, "path": path, "error": error}
         self.stats["errors"] += 1
         if len(self.errors) < 80:
-            self.errors.append({"kind": kind, "path": path, "error": error})
+            self.errors.append(entry)
+        if self._journal is not None:
+            self._append_op({"op": "error", "entry": entry})
+
+    def bump_stat(self, key: str, delta: int = 1) -> None:
+        self.stats[key] += delta
+        if self._journal is not None:
+            self._append_op({"op": "stat", "key": key, "delta": delta})
+
+    # ---- tables ---------------------------------------------------------
 
     def table(self, kind: str, name: str) -> Path:
         if not valid_segment(name):
@@ -377,37 +524,46 @@ class Store:
         if not valid_segment(key):
             self.note_error("key", f"{table}/{key}", "invalid-name")
             return False
-        if self.resume_dir is not None:
-            resumed = self._resume_records.get((table, key, source))
-            if resumed is not None:
-                self.stats["recordsResumed"] += 1
-                return True
+        if (table, key, source) in self._resume_records:
+            self.stats["recordsResumed"] += 1
+            return True
         folder = self.table("struct", table)
         if table not in self._struct_keys:
-            previous = {}
-            for item in folder.glob("*.json"):
-                folded = item.stem.casefold()
-                if folded in previous and previous[folded] != item.stem:
-                    raise ValueError("existing-casefold-collision")
-                previous[folded] = item.stem
-            self._struct_keys[table] = previous
+            # In journal mode the replayed maps are authoritative: a same-key
+            # file absent from the maps is an uncommitted leftover of our own
+            # and is legitimately replaced by the atomic write below. Only
+            # non-journaled modes keep the historical on-disk guard.
+            if self._journal is None:
+                previous = {}
+                for item in folder.glob("*.json"):
+                    folded = item.stem.casefold()
+                    if folded in previous and previous[folded] != item.stem:
+                        raise ValueError("existing-casefold-collision")
+                    previous[folded] = item.stem
+                self._struct_keys[table] = previous
+            else:
+                self._struct_keys[table] = {}
         used = self._struct_keys[table]
         actual = key
-        if key.casefold() in used or (folder / f"{key}.json").exists():
+        conflict = key.casefold() in used
+        if self._journal is None:
+            conflict = conflict or (folder / f"{key}.json").exists()
+        if conflict:
             basis = source if source is not None else dumps(value)
             actual = unique_name(key, table + "/" + key + "/" + basis)
             attempt = 0
             while actual.casefold() in used or (folder / f"{actual}.json").exists():
                 attempt += 1
                 actual = unique_name(key, table + "/" + key + "/" + basis + "/" + str(attempt))
-            self.record_remaps.append({
-                "table": table, "originalKey": key, "storedKey": actual,
-                "source": source, "reason": "duplicate-or-casefold-key"
-            })
+            entry = {"table": table, "originalKey": key, "storedKey": actual,
+                     "source": source, "reason": "duplicate-or-casefold-key"}
+            self.record_remaps.append(entry)
             self.stats["rekeyedRecords"] += 1
-        path = folder / f"{actual}.json"
-        with path.open("x", encoding="utf-8", newline="\n") as handle:
-            handle.write(dumps(value) + "\n")
+            if self._journal is not None:
+                self._append_op({"op": "recordRemap", "entry": entry})
+        payload = dumps(value).encode("utf-8") + b"\n"
+        sha = self._append_intent({"op": "record", "table": table, "key": key,
+                                   "source": source, "storedKey": actual}, folder, f"{actual}.json", payload)
         used[actual.casefold()] = actual
         self._record_source_by_key[(table, actual)] = source
         if actual != key:
@@ -415,16 +571,27 @@ class Store:
             candidates = self.record_alias_index.setdefault(alias_id, [])
             if not candidates:
                 primary_key = used.get(key.casefold())
-                if primary_key is not None:
+                if primary_key is not None and primary_key != actual:
                     candidates.append({
                         "key": primary_key,
                         "source": self._record_source_by_key.get((table, primary_key)),
                     })
             candidates.append({"key": actual, "source": source})
-        if self.resume_dir is not None:
-            self._resume_pending["records"].append({"table": table, "key": key, "source": source, "storedKey": actual})
+            if self._journal is not None:
+                self._append_op({"op": "aliasIndex", "table": table,
+                                 "foldedKey": key.casefold(), "candidates": candidates})
         self.stats["struct"] += 1
         return True
+
+    def _append_intent(self, op: dict, folder: Path, final_name: str, payload: bytes) -> str:
+        """Journal-then-write-atomically; returns the payload SHA-256."""
+        if self._journal is None and (folder / final_name).exists():
+            raise ValueError("resource-overwrite-refused")
+        if self._journal is not None:
+            op = dict(op)
+            op["sha"] = bytes_sha256(payload)
+            self._append_op(op)
+        return self._write_atomic(folder, final_name, payload)
 
     def write_group(self, table: str, key: str, rows: list[dict]) -> None:
         if not valid_segment(key):
@@ -433,18 +600,31 @@ class Store:
         if (table, key) in self._resume_groups:
             self.stats["groupsResumed"] += 1
             return
-        path = self.table("group", table) / f"{key}.jsonl"
-        if path.exists():
-            self.collisions.append({"table": table, "key": key})
+        if (table, key) in self._live_groups or (
+                self._journal is None and (self.table("group", table) / f"{key}.jsonl").exists()):
+            entry = {"table": table, "key": key}
+            self.collisions.append(entry)
             self.stats["keyCollisions"] += 1
+            if self._journal is not None:
+                self._append_op({"op": "collision", "entry": entry})
             return
         text = "".join(dumps(row) + "\n" for row in rows)
-        with path.open("x", encoding="utf-8", newline="\n") as handle:
-            handle.write(text)
-        if self.resume_dir is not None:
-            self._resume_pending["groups"].append({"table": table, "key": key, "rows": len(rows)})
+        self._append_intent({"op": "group", "table": table, "key": key, "rows": len(rows)},
+                            self.table("group", table), f"{key}.jsonl", text.encode("utf-8"))
+        self._live_groups.add((table, key))
         self.stats["groupFiles"] += 1
         self.stats["groupRows"] += len(rows)
+
+    def _note_resource_alias(self, entry: dict) -> None:
+        """Append + journal a resource alias, idempotently across attempts."""
+        token = (entry["table"], tuple(entry["originalParts"]), entry["storedKey"], entry["reason"])
+        if token in self._alias_seen:
+            return
+        self._alias_seen.add(token)
+        self.resource_aliases.append(entry)
+        self.stats["resourceAliases"] += 1
+        if self._journal is not None:
+            self._append_op({"op": "resourceAlias", "entry": entry})
 
     def _safe_parts(self, table: str, source: list[str]) -> list[str]:
         token = (table, tuple(source))
@@ -468,15 +648,17 @@ class Store:
                         attempt += 1
                         piece = unique_name(base, raw + "/" + str(attempt))
                 entries[raw] = piece
+                if self._journal is not None:
+                    self._append_op({"op": "dirmap", "table": table,
+                                     "parent": list(parent[1]), "raw": raw, "piece": piece})
             output.append(piece)
         output.append(fsdb_resource_segment(source[-1]))
         if output != source:
             self._resource_path_cache[token] = tuple(output)
-            self.resource_aliases.append({
+            self._note_resource_alias({
                 "table": table, "originalParts": list(source), "storedKey": "/".join(output),
                 "reason": "invalid-or-casefold-segment",
             })
-            self.stats["resourceAliases"] += 1
         return output
 
     def _choose_resource(self, table: str, parts: list[str], digest: str, ext: str):
@@ -484,7 +666,7 @@ class Store:
 
         Returns ``(stored_parts, reused, source_key)`` or ``None`` on an
         invalid path/extension. ``source_key`` is the un-aliased logical key
-        the manifest needs to rebuild the variant table across batches.
+        the journal needs to rebuild the variant table across batches.
         """
         if not parts or any(not isinstance(p, str) for p in parts):
             self.note_error("resource", repr(parts), "invalid-path")
@@ -497,8 +679,8 @@ class Store:
         variant = (table, key, ext, digest)
         previous_variant = self._resource_variant_keys.get(variant)
         if previous_variant is not None:
-            # Same payload already assigned (possibly an alias from a previous
-            # batch): deterministically reuse that exact stored key.
+            # Same payload already assigned (possibly an alias decided in an
+            # earlier batch): deterministically reuse that exact stored key.
             self.stats["resourceReuse"] += 1
             return previous_variant.split("/"), True, key
         prior = self.resources.get((table, key.casefold()))
@@ -522,12 +704,17 @@ class Store:
             attempt += 1
             output[-1] = unique_name(source_leaf, table + "/" + key + "/" + ext + "/" + digest + "/" + str(attempt))
         self._resource_variant_keys[variant] = "/".join(output)
-        self.resource_aliases.append({
+        self._note_resource_alias({
             "table": table, "originalParts": list(parts), "storedKey": "/".join(output),
             "reason": reason
         })
-        self.stats["resourceAliases"] += 1
         return output, False, key
+
+    def _png_bytes(self, image) -> bytes:
+        from io import BytesIO
+        buffer = BytesIO()
+        image.save(buffer, format="PNG", compress_level=1)
+        return buffer.getvalue()
 
     def write_png(self, parts: list[str], image, digest: str) -> str | None:
         if self.dry_run:
@@ -542,26 +729,22 @@ class Store:
         if self.resource_filter is not None and key not in self.resource_filter:
             self.stats["canvasesOutOfScope"] += 1
             return key
-        path = self.table("resource", CANVAS_RESOURCE_TABLE)
+        directory = self.table("resource", CANVAS_RESOURCE_TABLE)
         for part in actual[:-1]:
-            path = path / part
-        path.mkdir(parents=True, exist_ok=True)
-        file = path / f"{actual[-1]}.png"
-        if file.exists():
-            raise ValueError("resource-overwrite-refused")
-        image.save(file, format="PNG", compress_level=1)
+            directory = directory / part
+        payload = self._png_bytes(image)
+        self._append_intent({"op": "resource", "table": CANVAS_RESOURCE_TABLE, "key": key,
+                             "sourceKey": source_key, "ext": "png", "digest": digest, "kind": "canvas"},
+                            directory, f"{actual[-1]}.png", payload)
         if self.roundtrip:
-            opened = Image.open(file).convert("RGBA")
+            from io import BytesIO
+            opened = Image.open(BytesIO(payload)).convert("RGBA")
             if opened.size != image.size or hashlib.sha256(opened.tobytes()).hexdigest() != digest:
                 self.note_error("png", key, "roundtrip")
                 self.stats["pngRoundtripFail"] += 1
             else:
                 self.stats["pngRoundtripOk"] += 1
         self.resources[(CANVAS_RESOURCE_TABLE, key.casefold())] = (key, "png", digest)
-        if self.resume_dir is not None:
-            self._resume_pending["resources"].append(
-                {"table": CANVAS_RESOURCE_TABLE, "key": key, "sourceKey": source_key,
-                 "ext": "png", "digest": digest})
         if self.keep_pixels:
             self.pixel_rows.append({"key": key, "w": image.width, "h": image.height, "sha256": digest})
         self.stats["resources"] += 1
@@ -579,20 +762,14 @@ class Store:
         key = "/".join(actual)
         if reused:
             return key
-        path = self.table("resource", SOUND_RESOURCE_TABLE)
+        directory = self.table("resource", SOUND_RESOURCE_TABLE)
         for part in actual[:-1]:
-            path = path / part
-        path.mkdir(parents=True, exist_ok=True)
-        file = path / f"{actual[-1]}.{ext}"
-        with file.open("xb") as handle:
-            handle.write(payload)
-        if hashlib.sha256(file.read_bytes()).hexdigest() != digest:
-            self.note_error("sound", key, "reread")
+            directory = directory / part
+        self._append_intent({"op": "resource", "table": SOUND_RESOURCE_TABLE, "key": key,
+                             "sourceKey": source_key, "ext": ext, "digest": digest,
+                             "kind": "sound", "bytes": len(payload)},
+                            directory, f"{actual[-1]}.{ext}", payload)
         self.resources[(SOUND_RESOURCE_TABLE, key.casefold())] = (key, ext, digest)
-        if self.resume_dir is not None:
-            self._resume_pending["resources"].append(
-                {"table": SOUND_RESOURCE_TABLE, "key": key, "sourceKey": source_key,
-                 "ext": ext, "digest": digest})
         self.stats["resources"] += 1
         self.stats["sounds"] += 1
         self.stats["soundBytes"] += len(payload)
@@ -894,9 +1071,9 @@ def convert_string(store: Store, img, stem: str) -> None:
     for trail, value in leaves:
         key, reason = string_record_key(trail, seen)
         if reason == "encoded-path":
-            store.stats["encodedStringKeys"] += 1
+            store.bump_stat("encodedStringKeys")
         elif reason == "duplicate-trail-disambiguated":
-            store.stats["rekeyedStringTrails"] += 1
+            store.bump_stat("rekeyedStringTrails")
         elif reason == "invalid-name":
             store.note_error("string", f"{table}/{'.'.join(trail)}", "invalid-name")
             continue
@@ -1504,7 +1681,7 @@ def load_batch_states(batch_dir: Path) -> dict[str, dict]:
         return states
     for item in sorted(batch_dir.glob("*.json")):
         try:
-            states[item.stem] = json.loads(item.read_text(encoding="utf-8"))
+            states[item.stem] = json.loads(item.read_text(encoding="utf8"))
         except Exception:
             continue
     return states
@@ -1513,17 +1690,18 @@ def load_batch_states(batch_dir: Path) -> dict[str, dict]:
 def write_batch_state(batch_dir: Path, package: str, payload: dict) -> None:
     batch_dir.mkdir(parents=True, exist_ok=True)
     tmp = batch_dir / f"{package}.json.tmp"
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf8")
     tmp.replace(batch_dir / f"{package}.json")
 
 
 def run_batches(args, store: Store, client: Path) -> list[str]:
-    """Run the ``all`` plan with resumable, at-most-once package batches."""
+    """Run the ``all`` plan with crash-safe resumable package batches."""
     batch_dir = Path(args.batch_state)
     commit = converter_commit()
     previous = load_batch_states(batch_dir)
     for package, state in previous.items():
-        if state.get("status") == "complete" and state.get("converterCommit") not in (None, commit, "unknown"):
+        if state.get("status") == "complete" and state.get("converterCommit") not in (None, commit) \
+                and str(state.get("converterCommit", "")).split("@")[0] != commit.split("@")[0]:
             raise SystemExit(
                 f"batch-state for {package} was produced by converter {state.get('converterCommit')} "
                 f"but this run is {commit}; regenerate the output or pass the matching checkout")
@@ -1545,6 +1723,7 @@ def run_batches(args, store: Store, client: Path) -> list[str]:
         started = time.time()
         input_sha = file_sha256(client / package)
         print(f"OPEN {package} sha256={input_sha} commit={commit}", flush=True)
+        store.journal_package_start(package)
         wz = open_package(client, package)
         try:
             func(store, wz, "all")
@@ -1610,7 +1789,7 @@ def write_report(args, summary: dict, label: str) -> None:
         return
     report_dir.mkdir(parents=True, exist_ok=True)
     (report_dir / f"convert-{label}.json").write_text(
-        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf8"
     )
 
 

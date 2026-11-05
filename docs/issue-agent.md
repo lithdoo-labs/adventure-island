@@ -78,7 +78,7 @@ These tests do **not** use the real GLM API or consume the organization's Runner
 After reviewing and merging the implementation to main, the owner should:
 
 1. Create an Issue as lithdoo, for example: *Add docs/issue-agent-e2e.md with one short Hello World paragraph, without changing other files.*
-2. Comment **/agent start**. Verify a run at Actions → Issue Agent (OpenCode 2) completes on **opencode-lithdoo-labs**, opens one Draft PR, and comments a summary back on the Issue.
+2. Comment **/agent start**. Verify a run at Actions → Issue Agent (OpenCode 2) completes on **opencode-lithdoo-labs**, creates the Draft PR before model execution, then comments the execution summary back on the Issue.
 3. In that Issue, comment: *Change the paragraph to say Hello Adventure Island.* Then comment **/agent revise**.
 4. Verify the second run updates the **same PR number** and branch, and reports **Session: resumed**. Confirm the real implementation diff changed.
 5. Do not merge the test PR automatically. If desired, close and clean up the test Issue/PR only after storing required session data.

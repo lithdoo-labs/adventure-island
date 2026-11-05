@@ -69,7 +69,7 @@ receiveRenderEvent({ name: "action", data: { action: "brandish1" } })
 
 LoomRealm Web Presentation Config v1 只以 ordered classic `<script src>` 加载业务脚本。组件因此交付 `browser/cms-actor.browser.js`（由 `scripts/build.mjs` 从 `src/` 确定性生成的 IIFE，无模块语法），并以 `presentation.json` 声明 Content 逻辑标识 `resource.Presentation/cms-actor/cms-actor.browser.js`（MIME essence `text/javascript`）。平台 PREPARE 固定版本与私有 browserSource；Renderer Window 用正式 `bootstrapWebPresentation()` 评估，`window.onload` 后才开始投影。
 
-`avatarPlan` 有硬边界：序列化后的 `RenderNode.data` 不超过 262,144 compact UTF-8 字节（Render Update v1 冻结上限），动作 ≤ 32、每动作帧 ≤ 128、每帧画布 ≤ 32、锚点 ≤ 8，同一资源在计划内尺寸声明必须一致。计划只承载当前角色需要的动作，不携带全量人物/装备目录。部署步骤见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+`avatarPlan` 有硬边界：序列化后的 `RenderNode.data` 不超过 262,144 compact UTF-8 字节（Render Update v1 冻结上限），动作 ≤ 32、每动作帧 ≤ 128、每帧画布 ≤ 32、锚点 ≤ 8，同一资源在计划内尺寸声明必须一致。计划只承载当前角色需要的动作，不携带全量人物/装备目录。最终合成画布同样有界：`devicePixelRatio` 钳制 ≤ 8，设备像素宽/高各 ≤ 8,192、面积 ≤ 3,145,728 设备像素（12 MiB RGBA），越界在给 `canvas` 赋值前以可定位错误拒绝。部署步骤见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
 
 ## 图放在哪
 

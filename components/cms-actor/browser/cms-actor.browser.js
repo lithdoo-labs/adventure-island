@@ -364,6 +364,29 @@ const BITMAP_CACHE_LIMITS = Object.freeze({
 });
 
 /**
+ * Hard bounds for the FINAL composite backing store.
+ *
+ * `AVATAR_PLAN_LIMITS` bounds the SOURCE bitmaps (per layer and per frame),
+ * but anchor/origin values up to ±100,000 can place valid layers very far
+ * apart, and `devicePixelRatio` is an environmental value that can be
+ * arbitrarily large. Without this guard the first `canvas.width/height`
+ * assignment could request a multi-gigabyte backing store. Every rejection
+ * happens BEFORE either canvas dimension is assigned.
+ */
+const COMPOSITE_CANVAS_LIMITS = Object.freeze({
+  /** Host devicePixelRatio is clamped into [1, maxDevicePixelRatio]. */
+  maxDevicePixelRatio: 8,
+  maxDeviceWidth: 8_192,
+  maxDeviceHeight: 8_192,
+  /**
+   * Max device pixels (width×height) of the composite; at 4 bytes per pixel
+   * this ties the backing store to the same byte budget as one frame's
+   * decoded sources (`AVATAR_PLAN_LIMITS.maxDecodedFrameBytes`).
+   */
+  maxDevicePixels: Math.floor(AVATAR_PLAN_LIMITS.maxDecodedFrameBytes / 4),
+});
+
+/**
  * CMS 079 paper-doll renderer.
  * Game code resolves WZ/UOL/aliases and projects an AvatarPlanV1 into
  * RenderNode.data.avatarPlan. This element only lays out and paints that plan.
@@ -646,6 +669,14 @@ class CmsActor extends HTMLElementBase {
   _evictEntry(key, entry) {
     this._resourceCache.delete(key);
     entry.evicted = true;
+    // A stale plan (or disconnect) no longer wants this identity: cancel an
+    // in-flight read NOW so delayed responses cannot accumulate unbounded
+    // loading/pinned/pending-close work behind the cacheable-tier bound.
+    // Entries still referenced by the latest plan are never evicted (pruning
+    // keeps them; the LRU bound only picks completed entries), so this never
+    // cancels a live plan's read. Completed bitmaps have no read to cancel
+    // and keep the deferred-close-on-unpin semantics.
+    if (entry.bitmap === null && !entry.controller.signal.aborted) entry.controller.abort();
     // Accounting moves at eviction time so `_cacheBytes` is always exactly
     // the cacheable tier, even when the close is deferred by a pin.
     if (entry.inCacheBytes) {
@@ -727,10 +758,15 @@ class CmsActor extends HTMLElementBase {
       return cached;
     }
 
-    const controller = this._abortController ?? new AbortController();
+    // Per-entry controller: evicting a still-decoding entry (stale plan or
+    // disconnect) cancels exactly this read without touching reads that the
+    // latest plan still needs.
+    const controller = new AbortController();
+    if (this._abortController?.signal.aborted) controller.abort();
     const entry = {
       bitmap: null, promise: null, pins: 0, evicted: false, closed: false,
       byteSize: 0, width: 0, height: 0, inCacheBytes: false, inPendingBytes: false,
+      controller,
     };
     this._pinEntry(entry);
     this._loadingCount += 1;
@@ -816,16 +852,47 @@ class CmsActor extends HTMLElementBase {
     const rects = drawItems.map((item) => mirror
       ? mirrorBounds(item, mirrorPivotX)
       : { left: item.left, right: item.left + item.width, top: item.top, bottom: item.top + item.height });
-    const minX = Math.floor(Math.min(...rects.map((rect) => rect.left)));
-    const maxX = Math.ceil(Math.max(...rects.map((rect) => rect.right)));
-    const minY = Math.floor(Math.min(...rects.map((rect) => rect.top)));
-    const maxY = Math.ceil(Math.max(...rects.map((rect) => rect.bottom)));
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    let rightmost = drawItems[0];
+    let lowest = drawItems[0];
+    for (let index = 0; index < rects.length; index += 1) {
+      const rect = rects[index];
+      if (rect.left < minX) minX = rect.left;
+      if (rect.right > maxX) { maxX = rect.right; rightmost = drawItems[index]; }
+      if (rect.top < minY) minY = rect.top;
+      if (rect.bottom > maxY) { maxY = rect.bottom; lowest = drawItems[index]; }
+    }
+    minX = Math.floor(minX);
+    maxX = Math.ceil(maxX);
+    minY = Math.floor(minY);
+    maxY = Math.ceil(maxY);
     const cssWidth = Math.max(1, maxX - minX);
     const cssHeight = Math.max(1, maxY - minY);
-    const dpr = Math.max(1, Number(globalThis.devicePixelRatio) || 1);
+    // devicePixelRatio is environmental (about:flags, zoom, embedded hosts)
+    // and can be absurd; clamp it so no host can scale the backing store
+    // past the budget below.
+    const rawDpr = Number(globalThis.devicePixelRatio);
+    const dpr = Number.isFinite(rawDpr) && rawDpr > 1
+      ? Math.min(rawDpr, COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio)
+      : 1;
 
-    canvas.width = Math.ceil(cssWidth * dpr);
-    canvas.height = Math.ceil(cssHeight * dpr);
+    // Plan validation bounds each SOURCE bitmap, but ±100,000 anchors/origins
+    // can still separate valid layers enormously. Reject before the first
+    // canvas dimension assignment, or the browser would attempt the huge
+    // allocation itself.
+    const deviceWidth = Math.ceil(cssWidth * dpr);
+    const deviceHeight = Math.ceil(cssHeight * dpr);
+    if (deviceWidth > COMPOSITE_CANVAS_LIMITS.maxDeviceWidth
+      || deviceHeight > COMPOSITE_CANVAS_LIMITS.maxDeviceHeight
+      || deviceWidth * deviceHeight > COMPOSITE_CANVAS_LIMITS.maxDevicePixels) {
+      throw new Error(`COMPOSITE_TOO_LARGE composite canvas ${cssWidth}x${cssHeight} CSS px (${deviceWidth}x${deviceHeight} device px at dpr ${dpr}) exceeds the ${COMPOSITE_CANVAS_LIMITS.maxDeviceWidth}/${COMPOSITE_CANVAS_LIMITS.maxDeviceHeight}/${COMPOSITE_CANVAS_LIMITS.maxDevicePixels} composite budget; farthest layers: ${rightmost.layer.id} at x ${Math.round(maxX)}, ${lowest.layer.id} at y ${Math.round(maxY)}`);
+    }
+
+    canvas.width = deviceWidth;
+    canvas.height = deviceHeight;
     canvas.style.width = `${cssWidth}px`;
     canvas.style.height = `${cssHeight}px`;
     canvas.style.left = `${minX}px`;

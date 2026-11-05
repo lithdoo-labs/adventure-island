@@ -65,3 +65,25 @@ test("prepareWebPresentationV1 rejects the script ref with a wrong MIME essence"
     /Invalid prepared bootstrap resource/,
   );
 });
+
+test("composite canvas limits keep the final backing store inside the frame byte budget", async () => {
+  const { COMPOSITE_CANVAS_LIMITS } = await import("../src/cms-actor.mjs");
+  const { AVATAR_PLAN_LIMITS } = await import("../src/avatar-model.mjs");
+  assert.ok(
+    COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio >= 2 && COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio <= 16,
+    "retina DPRs must pass through unclamped while absurd host ratios are clamped",
+  );
+  assert.ok(
+    COMPOSITE_CANVAS_LIMITS.maxDevicePixels * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes,
+    "the composite backing store must never exceed the decoded-frame byte budget",
+  );
+  assert.ok(
+    COMPOSITE_CANVAS_LIMITS.maxDeviceWidth * COMPOSITE_CANVAS_LIMITS.maxDeviceHeight >= COMPOSITE_CANVAS_LIMITS.maxDevicePixels,
+    "the per-dimension caps must not preclude reaching the area budget",
+  );
+  assert.ok(
+    COMPOSITE_CANVAS_LIMITS.maxDeviceWidth * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes
+      && COMPOSITE_CANVAS_LIMITS.maxDeviceHeight * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes,
+    "a single extreme dimension alone must stay inside the byte budget",
+  );
+});

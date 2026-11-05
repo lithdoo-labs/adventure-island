@@ -679,3 +679,104 @@ test("left/right mirroring is pixel-exact at deviceScaleFactor 1 and 2, includin
     assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], `no unhandled page errors at dsf ${deviceScaleFactor}`);
   }
 });
+
+test("composite canvas bounds reject extreme layouts before any allocation, at any DPR", { timeout: 90_000 }, async (t) => {
+  const page = await openBootstrappedPage(t);
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "baseline ready");
+
+  // Valid per AvatarPlanV1 (every anchor stays inside the ±100,000 bound)
+  // but the head's neck anchor places it ~99,000 px from the body: the
+  // composite would be ~99,000 CSS px wide.
+  const extreme = clonePlan();
+  const head = extreme.actions.jump.frames[0].layers.find((layer) => layer.id === "head");
+  head.anchors = { ...head.anchors, neck: [-99_000, -32] };
+  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { locomotion: "jump" }, plan: extreme }));
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "error", "extreme layout rejected");
+  const rejection = await page.evaluate(() => ({
+    message: window.__actor().getAttribute("data-render-error"),
+    width: window.__actor().shadowRoot.querySelector("canvas").width,
+    height: window.__actor().shadowRoot.querySelector("canvas").height,
+  }));
+  assert.match(rejection.message, /COMPOSITE_TOO_LARGE/);
+  assert.match(rejection.message, /device px/);
+  assert.ok(rejection.message.includes("head"), `diagnostic must name the farthest layer (${rejection.message})`);
+  assert.equal(rejection.width, 1, "rejection must happen before any canvas allocation");
+  assert.equal(rejection.height, 1, "rejection must happen before any canvas allocation");
+
+  // An absurd host devicePixelRatio must not make a VALID plan allocate a
+  // huge backing store either: the ratio is clamped before sizing.
+  await page.evaluate(() => Object.defineProperty(window, "devicePixelRatio", { value: 64, configurable: true }));
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "normal plan ready at clamped dpr");
+  const clamped = await page.evaluate(() => {
+    const canvas = window.__canvas();
+    return { device: canvas.width, deviceArea: canvas.width * canvas.height, css: Number.parseFloat(canvas.style.width) };
+  });
+  assert.equal(clamped.device, Math.ceil(clamped.css * 8), "backing store must use the clamped dpr (8), not the host dpr (64)");
+  assert.ok(clamped.deviceArea <= 3_145_728, "clamped backing store must stay inside the device-pixel budget");
+
+  // The extreme layout stays rejected at the same absurd DPR, again without
+  // any allocation: the canvas must shrink back from the painted 8× store
+  // to the cleared 1×1 state.
+  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { locomotion: "jump" }, plan: extreme }));
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "error"
+    && window.__canvas()?.width === 1, "extreme layout still rejected at dpr 64");
+  const rejection64 = await page.evaluate(() => window.__actor().getAttribute("data-render-error"));
+  assert.match(rejection64, /COMPOSITE_TOO_LARGE/);
+
+  await page.evaluate((dpr) => Object.defineProperty(window, "devicePixelRatio", { value: dpr, configurable: true }), 1);
+  await page.evaluate((view) => window.__applyView(view), actorView());
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "normal plan ready again at dpr 1");
+  await waitPixel(page, POINTS.bodyOnly, COLORS.body, "normal rendering restored at dpr 1");
+  assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
+});
+
+test("rapid delayed plan replacements cancel stale reads; the latest plan still renders", { timeout: 90_000 }, async (t) => {
+  const page = await openBootstrappedPage(t);
+  const hairless = clonePlan();
+  for (const action of Object.values(hairless.actions)) {
+    for (const frame of action.frames) {
+      frame.layers = frame.layers.filter((layer) => layer.id !== "hair");
+    }
+  }
+
+  // Slow every image response so reads linger across the plan swaps.
+  const imageIdentities = [...fsdb.index.keys()]
+    .map((identity) => identity.split("\0"))
+    .filter(([namespace]) => namespace === "resource.图")
+    .map(([namespace, key]) => `${namespace}/${key}`);
+  for (const identity of imageIdentities) serverState().delays.set(identity, 900);
+
+  try {
+    let sawInFlight = false;
+    for (let round = 0; round < 6; round += 1) {
+      const plan = round % 2 === 0 ? hairless : avatarPlan;
+      await page.evaluate((view) => window.__applyView(view), actorView({ plan }));
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      const diagnostics = await page.evaluate(() => window.__actor().diagnostics());
+      sawInFlight = sawInFlight || diagnostics.cache.loading >= 1;
+      assert.ok(diagnostics.cache.loading <= 16,
+        `in-flight reads must stay bounded across plan replacements (saw ${diagnostics.cache.loading})`);
+    }
+    assert.ok(sawInFlight, "the stream must actually leave reads in flight");
+
+    serverState().delays.clear();
+    await page.evaluate((view) => window.__applyView(view), actorView());
+    await waitAction(page, "stand1", "latest plan active");
+    await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "latest plan ready");
+    await waitPixel(page, POINTS.faceThroughHairHole, COLORS.face, "hair restored by the latest plan");
+
+    const calls = await page.evaluate(() => window.__resourceCalls);
+    assert.ok(calls.some((call) => call.aborted), "stale-plan reads must be cancelled, not left running");
+    const settled = await page.evaluate(() => window.__actor().diagnostics());
+    assert.equal(settled.cache.loading, 0, "no reads may remain in flight after settling");
+    assert.equal(settled.cache.pendingClose, 0, "no evicted bitmaps may remain pinned after settling");
+    assert.ok(settled.cache.entries <= settled.cache.maxEntries, "cache within the entry cap");
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    assert.equal(serverState().active, 0, "server must not keep cancelled requests open");
+    assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
+  } finally {
+    serverState().delays.clear();
+  }
+});

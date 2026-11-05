@@ -8,9 +8,8 @@
 //   - the payload satisfies the upstream generic bundle validator
 //     validatePwaBundlePayload (vendored verbatim below from loom-realm
 //     93648192323bf5f57996b7b54cbae641d8a53fdb,
-//     apps/pwa/scripts/build-bundle.mjs; the pinned submodule c5217e47 does
-//     not ship that validator yet, so a byte-faithful local copy is the only
-//     offline way to check against the future Stage 4B consumer);
+//     apps/pwa/scripts/build-bundle.mjs; the local mirror remains calibrated
+//     against the same validator used by the pinned generic PWA builder);
 //   - manifest/subsystem keys round-trip; the executable set is unique,
 //     dependency-free, and content-hashed correctly;
 //   - the Content whitelist is exact: the cms-actor classic IIFE plus the

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cms-actor 合成人物预览</title>
+  <style>
+    :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; background: #171923; color: #edf0f7; }
+    body { margin: 0; padding: 24px; }
+    main { max-width: 880px; margin: 0 auto; }
+    h1 { font-size: 1.4rem; margin: 0 0 8px; }
+    p { color: #aab2c5; line-height: 1.5; }
+    .stage { position: relative; height: 300px; overflow: hidden; border: 1px solid #41475a; border-radius: 12px; background-color: #202637; background-image: linear-gradient(#343b4f 1px, transparent 1px), linear-gradient(90deg, #343b4f 1px, transparent 1px); background-size: 24px 24px; }
+    .ground { position: absolute; left: 0; right: 0; bottom: 44px; height: 2px; background: #9ba5bc; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+    button { border: 1px solid #4b5670; border-radius: 8px; padding: 8px 12px; color: inherit; background: #2b3348; cursor: pointer; }
+    button:hover { background: #39445e; }
+    code { color: #c6d5ff; }
+    #status { min-height: 1.5em; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>cms-actor 合成人物预览</h1>
+    <p>仅使用运行时生成的合成 PNG；模拟 LoomRealm 的 <code>PresentationResourceClient</code>，不读取本地 WZ、FSDB 或正式 Content Index。</p>
+    <div class="stage" id="stage"><div class="ground"></div></div>
+    <div class="controls">
+      <button data-locomotion="stand">站立</button>
+      <button data-locomotion="walk">行走</button>
+      <button data-locomotion="jump">跳跃</button>
+      <button id="left">朝左</button>
+      <button id="right">朝右</button>
+      <button id="action">播放一次挥砍</button>
+      <button id="move-left">向左移动</button>
+      <button id="move-right">向右移动</button>
+    </div>
+    <p id="status" role="status">正在生成合成素材……</p>
+  </main>
+  <!-- The shipped classic-script entry (same artifact the platform loads
+       through bootstrapWebPresentation); the page harness below only drives
+       the registered element. -->
+  <script src="../browser/cms-actor.browser.js"></script>
+  <script type="module" src="./preview.mjs"></script>
+</body>
+</html>

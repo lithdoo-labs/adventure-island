@@ -1,0 +1,7 @@
+{
+  "formatVersion": 1,
+  "styles": [],
+  "scripts": [
+    { "namespace": "resource.Presentation", "key": "cms-actor/cms-actor.browser.js" }
+  ]
+}

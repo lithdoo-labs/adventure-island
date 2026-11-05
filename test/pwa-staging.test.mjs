@@ -1,10 +1,10 @@
-// Headless validation for the Stage 4B-0 staging orchestration
+// Headless validation for the Stage 4B staging orchestration
 // (scripts/pwa/build-staging.mjs).
 //
 // Coverage:
-//   - on the currently pinned LoomRealm (c5217e47, no generic
-//     apps/pwa/scripts/build-bundle.mjs) the orchestration fails closed with
-//     upgrade guidance, creates no fake PWA directory, and deletes nothing;
+//   - the current pinned LoomRealm generic builder is used after the framework
+//     workspace and required browser artifacts are installed/built; missing
+//     prerequisites fail closed before any staging write or deletion;
 //   - against isolated git fixtures (real gitlink via --cacheinfo 160000) and
 //     a faithful stub of the upstream generic builder (including its
 //     recursive rm of the output directory): pinned CLI arguments
@@ -33,10 +33,16 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { STAGING_APP_ID, STAGING_BASE_PATH, buildAdventureIslandPwaStaging } from "../scripts/pwa/build-staging.mjs";
+import {
+  PRESENTATION_SCRIPT_KEY,
+  PRESENTATION_SCRIPT_NAMESPACE,
+  buildCanonicalSyntheticAvatarContent,
+} from "../scripts/pwa/synthetic-avatar-content.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
 const stagingScriptPath = fileURLToPath(new URL("../scripts/pwa/build-staging.mjs", import.meta.url));
+const CANONICAL_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
 
 const readText = (target) => readFile(target, "utf8");
 
@@ -57,9 +63,10 @@ async function makeTempDir(prefix = "adventure-staging-") {
 }
 
 // Isolated "project root" fixture: canonical documents, shared smoke
-// implementation, a protected research/ tree with a sentinel, and a REAL
-// gitlink (git update-index --cacheinfo 160000) pointing at the embedded
-// framework repository — exactly the pin contract of a real checkout.
+// implementation, the cms-actor classic browser artifact, a protected
+// research/ tree with a sentinel, and a REAL gitlink (git update-index
+// --cacheinfo 160000) pointing at the embedded framework repository —
+// exactly the pin contract of a real checkout.
 async function makeStagingFixture() {
   const game = await makeTempDir("adventure-staging-fixture-");
   await mkdir(path.join(game, "research"), { recursive: true });
@@ -71,6 +78,11 @@ async function makeStagingFixture() {
   await copyFile(
     fileURLToPath(new URL("systems/loomrealm-smoke/subsystem.mjs", repoRoot)),
     path.join(game, "systems", "loomrealm-smoke", "subsystem.mjs"),
+  );
+  await mkdir(path.join(game, "components", "cms-actor", "browser"), { recursive: true });
+  await copyFile(
+    fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)),
+    path.join(game, "components", "cms-actor", "browser", "cms-actor.browser.js"),
   );
 
   const framework = path.join(game, "loom-realm");
@@ -223,7 +235,22 @@ test("staging orchestrates payload and generic builder with pinned arguments", a
     assert.equal(payload.formatVersion, 1);
     assert.equal(payload.executables.length, 1);
     assert.equal(payload.executables[0].logicalModule, "subsystems/smoke.mjs");
-    assert.deepEqual(payload.content, []);
+    // The canonical PR-B Content whitelist travels through staging intact:
+    // the cms-actor classic IIFE plus the deterministic synthetic records and
+    // PNGs — nothing else may appear in the staged bundle.
+    assert.equal(payload.content.length, CANONICAL_CONTENT_COUNT);
+    assert.ok(
+      payload.content.some((entry) => entry.kind === "resource"
+        && entry.namespace === PRESENTATION_SCRIPT_NAMESPACE
+        && entry.key === PRESENTATION_SCRIPT_KEY),
+      "the staged bundle must carry the cms-actor classic IIFE",
+    );
+    assert.ok(
+      payload.content.every((entry) => entry.kind === "record"
+        ? entry.namespace === "struct.ZMap" || entry.namespace === "struct.Look"
+        : entry.namespace === PRESENTATION_SCRIPT_NAMESPACE || entry.namespace === "resource.图"),
+      "no unrelated Content may enter the staged bundle",
+    );
 
     // The builder output verifies against the product inputs.
     const generation = JSON.parse(await readText(path.join(stagingDir, "generation.json")));
@@ -402,8 +429,8 @@ test("staging verifies the builder's real output and fails on divergence", async
 });
 
 // ---------------------------------------------------------------------------
-// Real integration — runs only once the pinned LoomRealm provides the
-// generic builder; until then it reports an explicit skip, never a pass.
+// Real integration — requires the pinned LoomRealm workspace and generated
+// SDK artifacts to be installed/built. CI prepares them and rejects skips.
 // ---------------------------------------------------------------------------
 
 const realBuilderPresent = await (async () => {
@@ -417,7 +444,7 @@ const realBuilderPresent = await (async () => {
 
 test("real generic-builder integration produces a verifiable staging directory", {
   skip: !realBuilderPresent
-    && "requires a LoomRealm Gitlink >= 93648192323bf5f57996b7b54cbae641d8a53fdb with apps/pwa/scripts/build-bundle.mjs and its built SDK; the currently pinned c5217e47 has no generic builder (Stage 4B maintainer upgrade pending)",
+    && "requires the pinned LoomRealm generic builder and its generated SDK artifacts; run npm ci and npm run build:bundle inside loom-realm first",
 }, async () => {
   const result = await buildAdventureIslandPwaStaging();
   assert.equal(result.appId, STAGING_APP_ID);

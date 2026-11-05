@@ -1,0 +1,289 @@
+/**
+ * PR-B test-only cms-actor projection fixture (issue #48).
+ *
+ * This module composes the installation-bundle payload for an ISOLATED
+ * component-projection E2E: it reuses the CANONICAL Adventure Island payload
+ * produced by scripts/pwa/build-installation-bundle.mjs verbatim — the same
+ * presentation config, the same synthetic Content (cms-actor classic IIFE,
+ * struct.ZMap / struct.Look records, synthetic PNGs) — and swaps only the
+ * Game Entry / launch manifest for a test-only subsystem that projects an
+ * AvatarPlan through the real Render pipeline. The canonical game.json smoke
+ * startup contract is untouched.
+ *
+ * The generated executable is dependency-free ESM (empty import graph, like
+ * the smoke executable) and:
+ *   - re-reads every published synthetic record through the REAL Content API
+ *     (scope.content.record) inside the PWA worker and cross-checks it against
+ *     the values the bundle generator produced (identity + version paths);
+ *   - derives nothing on its own: the projected AvatarPlanV1 is the one the
+ *     builder proved consistent with the published Content;
+ *   - runs a deterministic director loop (stand → walk → jump → version
+ *     conflict → recovery → missing resource → recovery → disconnect →
+ *     reconnect) so a real Chromium can observe each phase through the real
+ *     PWA + Service Worker + Renderer Projector path;
+ *   - never completes its Frame (like the upstream demo subsystem), so the
+ *     projection stays live while the E2E observes it, and returns
+ *     `cancelled` when the session shuts down.
+ *
+ * Test-only: nothing here is part of the shipped game, and the canonical
+ * staging build never executes this subsystem.
+ */
+import { createHash } from "node:crypto";
+
+import {
+  LOOK_NAMESPACE,
+  LOOK_RECORD_KEYS,
+  ZMAP_NAMESPACE,
+  contentEntriesToParts,
+  deriveCanonicalAvatarPlan,
+} from "../scripts/pwa/synthetic-avatar-content.mjs";
+
+export const FIXTURE_SUBSYSTEM_KEY = "avatar-fixture";
+export const FIXTURE_LOGICAL_MODULE = "subsystems/avatar-fixture.mjs";
+export const FIXTURE_STATUS_SELECTOR = "#avatar-fixture-status";
+
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+/**
+ * Generate the classic dependency-free fixture subsystem module source.
+ *
+ * @param {{ plan: object, zmap: object, looks: Record<string, object> }} parts
+ *   the canonical parts derived from the published Content entries.
+ */
+export function avatarFixtureSubsystemSource({ plan, zmap, looks }) {
+  const constants = JSON.stringify({
+    plan,
+    zmap,
+    looks,
+    lookIds: LOOK_RECORD_KEYS,
+    namespaces: { zmap: ZMAP_NAMESPACE, look: LOOK_NAMESPACE },
+  });
+  return `/*! cms-actor PR-B projection fixture — TEST-ONLY (test/pwa-avatar-fixture.mjs).
+ * Generated from the canonical Adventure Island installation bundle; the
+ * projected AvatarPlanV1 and every expected record value below are exactly
+ * what scripts/pwa/build-installation-bundle.mjs published. */
+const CONSTANTS = JSON.parse(${JSON.stringify(constants)});
+const PLAN = CONSTANTS.plan;
+const ZMAP = CONSTANTS.zmap;
+const LOOKS = CONSTANTS.looks;
+const LOOK_IDS = CONSTANTS.lookIds;
+const ZMAP_NAMESPACE = CONSTANTS.namespaces.zmap;
+const LOOK_NAMESPACE = CONSTANTS.namespaces.look;
+
+const STATUS_KEY = "avatar-fixture-status";
+const ZERO_VERSION = "sha256:" + "0".repeat(64);
+const MISSING_FACE_KEY = "Look/" + LOOK_IDS.face + "/default/0/ghost";
+
+function statusRoot(phase, cycle) {
+  return {
+    key: STATUS_KEY,
+    tag: "lr-demo-panel",
+    attrs: {
+      id: STATUS_KEY,
+      "data-phase": phase,
+      "data-cycle": String(cycle),
+      // Carried in EVERY replace() so the one-shot record-verification
+      // verdict stays observable for the whole fixture lifetime (the
+      // projector removes managed attributes absent from a replacement).
+      "data-records": recordsState,
+    },
+    data: { title: "cms-actor PWA fixture" },
+    children: [],
+  };
+}
+
+let recordsState = "pending";
+// The pinned RenderManager forbids reusing a removed node key inside a
+// domain, so every re-addition of the actor after a "gone" phase uses a
+// fresh key (the element identity legitimately changes on reconnect).
+let actorSerial = 0;
+
+function actorRoot(plan, locomotion) {
+  actorSerial += 1;
+  return actorRootWithKey("avatar-fixture-actor-" + actorSerial, plan, locomotion);
+}
+
+function actorRootWithKey(key, plan, locomotion) {
+  return {
+    key: key,
+    tag: "cms-actor",
+    attrs: {
+      x: "0",
+      y: "0",
+      locomotion: locomotion,
+      facing: "right",
+      skin: "0",
+      face: LOOK_IDS.face,
+      hair: LOOK_IDS.hair,
+      expression: "default",
+      equips: "",
+    },
+    data: { avatarPlan: plan },
+    children: [],
+  };
+}
+
+function clonePlan(mutate) {
+  const clone = JSON.parse(JSON.stringify(PLAN));
+  mutate(clone);
+  return clone;
+}
+
+/** A plan whose hair resource carries a wrong (well-formed) contentVersion. */
+function versionConflictPlan() {
+  return clonePlan((plan) => {
+    for (const action of Object.values(plan.actions)) {
+      for (const frame of action.frames) {
+        for (const layer of frame.layers) {
+          if (layer.id === "hair") layer.resource.contentVersion = ZERO_VERSION;
+        }
+      }
+    }
+  });
+}
+
+/** A plan whose face resource key does not exist in the published Content. */
+function missingResourcePlan() {
+  return clonePlan((plan) => {
+    for (const action of Object.values(plan.actions)) {
+      for (const frame of action.frames) {
+        for (const layer of frame.layers) {
+          if (layer.id === "face") layer.resource.key = MISSING_FACE_KEY;
+        }
+      }
+    }
+  });
+}
+
+/** Re-read every published record through the real Content API and compare. */
+async function verifyPublishedRecords(scope) {
+  const zmap = await scope.content.record(ZMAP_NAMESPACE, "order");
+  if (JSON.stringify(zmap.value) !== JSON.stringify(ZMAP)) {
+    throw new Error("published struct.ZMap/order does not match the canonical record");
+  }
+  for (const [kind, record] of Object.entries(LOOKS)) {
+    const read = await scope.content.record(LOOK_NAMESPACE, LOOK_IDS[kind]);
+    if (JSON.stringify(read.value) !== JSON.stringify(record)) {
+      throw new Error("published struct.Look/" + LOOK_IDS[kind] + " does not match the canonical " + kind + " record");
+    }
+  }
+}
+
+function wait(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal.aborted) { resolve(); return; }
+    const timer = setTimeout(() => { signal.removeEventListener("abort", onAbort); resolve(); }, ms);
+    const onAbort = () => { clearTimeout(timer); resolve(); };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+export default function defineAvatarFixtureSubsystem(scope) {
+  return {
+    async frame(frame) {
+      const signal = frame.signal;
+      const domain = scope.createRenderDomain({ zIndex: 0, roots: [statusRoot("boot", 0)] });
+      const setPhase = (phase, extra) => domain.update({
+        nodes: [{ key: STATUS_KEY, attrs: { set: { "data-phase": phase, ...(extra ?? {}) } } }],
+      });
+      try {
+        try {
+          await verifyPublishedRecords(scope);
+          recordsState = "verified";
+          setPhase("records-verified", { "data-records": "verified" });
+        } catch (cause) {
+          recordsState = "invalid";
+          setPhase("records-invalid", { "data-records": "invalid", "data-error": String((cause && cause.message) || cause) });
+          await wait(600_000, signal);
+          return { type: "cancelled" };
+        }
+        let cycle = 1;
+        let actorKey = null;
+        const projectActor = (phase, plan, locomotion) => {
+          const root = actorRoot(plan, locomotion);
+          actorKey = root.key;
+          domain.replace({ zIndex: 0, roots: [statusRoot(phase, cycle), root] });
+        };
+        const updateActor = (mutation) => domain.update({ nodes: [{ key: actorKey, ...mutation }] });
+        // Each step resolves early on session shutdown; a 'true' result means
+        // aborted so the director stops before touching the closing domain.
+        const step = async (ms) => { await wait(ms, signal); return signal.aborted; };
+        while (!signal.aborted) {
+          cycle += 1;
+          projectActor("stand", PLAN, "stand");
+          if (await step(1_600)) break;
+          setPhase("walk");
+          updateActor({ attrs: { set: { locomotion: "walk" } } });
+          if (await step(1_600)) break;
+          setPhase("jump");
+          updateActor({ attrs: { set: { locomotion: "jump" } } });
+          if (await step(1_200)) break;
+          setPhase("version-conflict");
+          updateActor({ data: { set: { avatarPlan: versionConflictPlan() } } });
+          if (await step(1_500)) break;
+          setPhase("version-recover");
+          updateActor({ data: { set: { avatarPlan: PLAN } } });
+          if (await step(1_500)) break;
+          setPhase("missing");
+          updateActor({ data: { set: { avatarPlan: missingResourcePlan() } } });
+          if (await step(1_500)) break;
+          setPhase("missing-recover");
+          updateActor({ data: { set: { avatarPlan: PLAN } } });
+          if (await step(1_200)) break;
+          setPhase("gone");
+          actorKey = null;
+          domain.replace({ zIndex: 0, roots: [statusRoot("gone", cycle)] });
+          if (await step(1_200)) break;
+          setPhase("back");
+          projectActor("back", PLAN, "stand");
+          if (await step(1_600)) break;
+        }
+      } finally {
+        try { domain.close(); } catch { /* the runtime tears down with us */ }
+      }
+      return { type: "cancelled" };
+    },
+  };
+}
+`;
+}
+
+/**
+ * Compose the test-only fixture payload from the canonical product payload.
+ * Only the Game Entry / launch manifest / executable set differ; the
+ * presentation config and the whole Content set are reused verbatim so the
+ * E2E exercises exactly what `npm run pwa:bundle` publishes.
+ */
+export function composeAvatarFixturePayload({ canonicalPayload }) {
+  if (canonicalPayload === null || typeof canonicalPayload !== "object") {
+    throw new TypeError("canonicalPayload is required");
+  }
+  const parts = contentEntriesToParts(canonicalPayload.content);
+  const plan = deriveCanonicalAvatarPlan(parts);
+  const source = avatarFixtureSubsystemSource({ plan, zmap: parts.zmap, looks: parts.looks });
+  const gameEntryText = JSON.stringify({
+    formatVersion: 1,
+    initial: { subsystem: FIXTURE_SUBSYSTEM_KEY, input: null },
+    subsystems: [{ key: FIXTURE_SUBSYSTEM_KEY }],
+  });
+  const launchManifestText = JSON.stringify({
+    formatVersion: 1,
+    subsystems: [{ key: FIXTURE_SUBSYSTEM_KEY, module: FIXTURE_LOGICAL_MODULE }],
+  });
+  return Object.freeze({
+    payload: Object.freeze({
+      formatVersion: 1,
+      gameEntryText,
+      launchManifestText,
+      presentation: canonicalPayload.presentation,
+      executables: Object.freeze([Object.freeze({
+        logicalModule: FIXTURE_LOGICAL_MODULE,
+        mime: "text/javascript",
+        source,
+        contentVersion: `sha256:${sha256(source)}`,
+      })]),
+      content: canonicalPayload.content,
+    }),
+    plan: Object.freeze(plan),
+  });
+}

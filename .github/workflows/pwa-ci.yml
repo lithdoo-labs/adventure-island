@@ -7,6 +7,8 @@ on:
       - "game.json"
       - "launch.*.json"
       - "presentation.json"
+      - "components/cms-actor/**"
+      - "docs/game-entry.md"
       - "subsystems/**"
       - "systems/loomrealm-smoke/**"
       - "scripts/pwa/**"
@@ -21,6 +23,8 @@ on:
       - "game.json"
       - "launch.*.json"
       - "presentation.json"
+      - "components/cms-actor/**"
+      - "docs/game-entry.md"
       - "subsystems/**"
       - "systems/loomrealm-smoke/**"
       - "scripts/pwa/**"
@@ -89,6 +93,31 @@ jobs:
             --output-dir "$GITHUB_WORKSPACE/dist/staging/adventure-island"
           npm run build --prefix loom-realm --workspace @loomrealm/game-launcher-hostra
 
+      - name: Install Chromium for component and PWA browser tests
+        shell: bash
+        run: |
+          cd loom-realm
+          npx playwright install --with-deps chromium
+
+      - name: cms-actor — generated classic artifact and Node tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node components/cms-actor/scripts/build.mjs --check
+          node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs | tee "$RUNNER_TEMP/cms-actor-node.tap"
+          grep -Fxq '# fail 0' "$RUNNER_TEMP/cms-actor-node.tap"
+          grep -Fxq '# skipped 0' "$RUNNER_TEMP/cms-actor-node.tap"
+          grep -Eq '^# pass [1-9][0-9]*$' "$RUNNER_TEMP/cms-actor-node.tap"
+
+      - name: cms-actor — real Chromium integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test components/cms-actor/test/integration.chromium.test.mjs | tee "$RUNNER_TEMP/cms-actor-chromium.tap"
+          grep -Fxq '# fail 0' "$RUNNER_TEMP/cms-actor-chromium.tap"
+          grep -Fxq '# skipped 0' "$RUNNER_TEMP/cms-actor-chromium.tap"
+          grep -Eq '^# pass [1-9][0-9]*$' "$RUNNER_TEMP/cms-actor-chromium.tap"
+
       - name: Root tests — real LoomRealm integration may not be skipped
         shell: bash
         run: |
@@ -117,19 +146,15 @@ jobs:
             assert.equal(generation.basePath,"/pwa/adventure-island/");
             assert.match(bundle.bundleId,/^loomrealm-pwa-sha256-[0-9a-f]{64}$/);
             assert.equal(bundle.executables.length,1);
-            assert.equal(bundle.content.length,0);
+            assert.equal(bundle.content.length,24);
             assert.equal(bundle.executables[0].logicalModule,"subsystems/smoke.mjs");
+            assert.deepEqual(bundle.presentation,{formatVersion:1,styles:[],scripts:[{namespace:"Presentation",key:"cms-actor/cms-actor.browser.js"}]});
+            assert(bundle.content.some((entry)=>entry.kind==="resource"&&entry.namespace==="resource.Presentation"&&entry.key==="cms-actor/cms-actor.browser.js"));
             for (const file of ["index.html","window.js","session-worker.js","worker-runner.js","service-worker.js"]) {
               assert((await stat(root+file)).isFile(),file);
             }
             console.log("Real LoomRealm generic staging verified");
           '
-
-      - name: Install Chromium for browser smoke
-        shell: bash
-        run: |
-          cd loom-realm
-          npx playwright install --with-deps chromium
 
       - name: Browser Smoke — /pwa/adventure-island/ and Service Worker
         shell: bash
@@ -139,4 +164,7 @@ jobs:
           mkdir -p "$target"
           cp -a dist/staging/adventure-island/. "$target/"
           LOOMREALM_PWA_BASE_PATH=/pwa/adventure-island/ \
-            node loom-realm/apps/pwa/scripts/run-e2e.mjs staging "$GITHUB_WORKSPACE/test/pwa-browser.e2e.test.mjs"
+            node loom-realm/apps/pwa/scripts/run-e2e.mjs staging "$GITHUB_WORKSPACE/test/pwa-browser.e2e.test.mjs" | tee "$RUNNER_TEMP/adventure-island-pwa-e2e.tap"
+          grep -Fxq '# fail 0' "$RUNNER_TEMP/adventure-island-pwa-e2e.tap"
+          grep -Fxq '# skipped 0' "$RUNNER_TEMP/adventure-island-pwa-e2e.tap"
+          grep -Eq '^# pass [1-9][0-9]*$' "$RUNNER_TEMP/adventure-island-pwa-e2e.tap"

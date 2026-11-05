@@ -385,50 +385,56 @@ def stream_opencode(command, cwd, env, timeout_seconds, log_path, on_session=Non
 
     with log_path.open("ab") as log:
         try:
-            os.chmod(log_path, 0o600)
-        except OSError:
-            pass
-        process = subprocess.Popen(
-            command, cwd=cwd, env=env, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, bufsize=0, start_new_session=True)
-        selector.register(process.stdout, selectors.EVENT_READ)
-        os.set_blocking(process.stdout.fileno(), False)
-        while selector.get_map() or process.poll() is None:
-            elapsed = time.monotonic() - started
-            if elapsed >= timeout_seconds and process.poll() is None:
-                terminate_process_group(process)
-                output = output_tail.decode("utf-8", errors="replace")
-                raise OpenCodeTimeout(timeout_seconds, output)
-            ready = selector.select(timeout=1)
-            if not ready:
-                if time.monotonic() - last_heartbeat >= 60:
-                    print(f"[issue-agent] OpenCode still running ({int(elapsed)}s elapsed)",
-                          flush=True)
-                    last_heartbeat = time.monotonic()
-                continue
-            for key, _ in ready:
-                try:
-                    chunk = os.read(key.fd, 65536)
-                except BlockingIOError:
+            try:
+                os.chmod(log_path, 0o600)
+            except OSError:
+                pass
+            process = subprocess.Popen(
+                command, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, bufsize=0, start_new_session=True)
+            selector.register(process.stdout, selectors.EVENT_READ)
+            os.set_blocking(process.stdout.fileno(), False)
+            while selector.get_map() or process.poll() is None:
+                elapsed = time.monotonic() - started
+                if elapsed >= timeout_seconds and process.poll() is None:
+                    terminate_process_group(process)
+                    output = output_tail.decode("utf-8", errors="replace")
+                    raise OpenCodeTimeout(timeout_seconds, output)
+                ready = selector.select(timeout=1)
+                if not ready:
+                    if time.monotonic() - last_heartbeat >= 60:
+                        print(f"[issue-agent] OpenCode still running ({int(elapsed)}s elapsed)",
+                              flush=True)
+                        last_heartbeat = time.monotonic()
                     continue
-                if not chunk:
-                    selector.unregister(key.fileobj)
-                    continue
-                log.write(chunk)
-                log.flush()
-                output_tail.extend(chunk)
-                if len(output_tail) > 2_000_000:
-                    del output_tail[:-2_000_000]
-                pending.extend(chunk)
-                while b"\n" in pending:
-                    line, _, remainder = pending.partition(b"\n")
-                    pending = bytearray(remainder)
-                    consume_line(line)
-        if pending:
-            consume_line(bytes(pending))
+                for key, _ in ready:
+                    try:
+                        chunk = os.read(key.fd, 65536)
+                    except BlockingIOError:
+                        continue
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                        continue
+                    log.write(chunk)
+                    log.flush()
+                    output_tail.extend(chunk)
+                    if len(output_tail) > 2_000_000:
+                        del output_tail[:-2_000_000]
+                    pending.extend(chunk)
+                    while b"\n" in pending:
+                        line, _, remainder = pending.partition(b"\n")
+                        pending = bytearray(remainder)
+                        consume_line(line)
+            if pending:
+                consume_line(bytes(pending))
+        finally:
+            selector.close()
+            if process is not None:
+                if process.poll() is None:
+                    terminate_process_group(process)
+                if process.stdout is not None and not process.stdout.closed:
+                    process.stdout.close()
     return output_tail.decode("utf-8", errors="replace"), process.wait()
-
-
 def status_prompt(inp):
     return (
         f"Repository: {REPO}\nIssue #{inp['issue']}: {inp['issue_title']}\n"

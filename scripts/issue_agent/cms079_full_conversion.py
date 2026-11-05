@@ -278,7 +278,10 @@ def main():
     args = parser.parse_args()
     if not 1 <= args.round <= MAX_ROUNDS:
         raise SystemExit("invalid conversion round")
-    raise SystemExit(run(args.source.resolve(), args.round))
+    # Owner-requested pause: do not execute or dispatch automated remote conversion.
+    # Keep the controller for reference; local conversion uses convert_cms.py directly.
+    print("CMS079 remote conversion PAUSED by owner: no conversion and no retry dispatched.", flush=True)
+    return
 
 
 if __name__ == "__main__":

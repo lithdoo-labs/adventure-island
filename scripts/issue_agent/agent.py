@@ -235,8 +235,10 @@ def preflight(args):
         feedback = []
     ref = (pr["head"]["sha"] if pr else orphan_sha or
            api("GET", f"/repos/{REPO}/git/ref/heads/main")["object"]["sha"])
+    command_marker_id = (comment_id or int(os.environ.get("GITHUB_RUN_ID", "0"))
+                         if operation == "status" else comment_id)
     payload = {"repository": REPO, "issue": issue_number, "operation": operation,
-               "command_id": comment_id, "issue_title": issue["title"][:300],
+               "command_id": command_marker_id, "issue_title": issue["title"][:300],
                "issue_body": (issue.get("body") or "")[:30000],
                "branch": branch_name(issue_number), "pr": pr["number"] if pr else None,
                "base_sha": ref,

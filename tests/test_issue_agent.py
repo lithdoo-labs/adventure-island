@@ -485,7 +485,7 @@ class RunnerIntegrationTests(unittest.TestCase):
             "#!/usr/bin/env python3\n"
             "import json,pathlib,time\n"
             "p=pathlib.Path('README.md')\n"
-            "p.write_text(p.read_text()+'partial work before timeout\n')\n"
+            "p.write_text(p.read_text()+'partial work before timeout\\n')\n"
             "print(json.dumps({'type':'session.created','sessionID':'ses_testabc'}),flush=True)\n"
             "time.sleep(5)\n"
         )
@@ -848,7 +848,7 @@ class PublishIntegrationTests(unittest.TestCase):
             self.assertEqual(len(comments), 1)
             self.assertIn("PR: #88", comments[0])
             self.assertIn("Publishing error", comments[0])
-            self.assertIn("Draft PR changed", comments[0]) if "Draft PR changed" in comments[0] else self.assertIn("patch", comments[0].lower())
+            self.assertIn("Publisher could not publish this checkpoint", comments[0])
 
     def test_missing_runner_artifact_keeps_existing_branch_and_draft_pr(self):
         with tempfile.TemporaryDirectory() as tmp:

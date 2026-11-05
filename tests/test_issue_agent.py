@@ -667,6 +667,134 @@ class PublishIntegrationTests(unittest.TestCase):
                 os.chdir(original_cwd)
 
 
+    def test_failed_execution_pushes_partial_checkpoint_to_existing_draft_pr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / "origin.git"
+            run("git", "init", "--bare", "-q", str(remote))
+            local = root / "checkout"
+            run("git", "clone", "-q", str(remote), str(local))
+            run("git", "config", "user.name", "Test", cwd=local)
+            run("git", "config", "user.email", "test@example.com", cwd=local)
+            (local / "README.md").write_text("baseline\n")
+            run("git", "add", ".", cwd=local)
+            run("git", "commit", "-qm", "main baseline", cwd=local)
+            run("git", "push", "-q", "origin", "HEAD:refs/heads/main", cwd=local)
+            run("git", "switch", "-c", "agent/issue-42", cwd=local)
+            run("git", "commit", "--allow-empty", "-qm", "feat(agent): issue #42 turn 0", cwd=local)
+            run("git", "push", "-q", "origin", "agent/issue-42", cwd=local)
+            base_sha = run("git", "rev-parse", "HEAD", cwd=local).stdout.strip()
+
+            (local / "README.md").write_text("baseline\npartial implementation survives timeout\n")
+            patch_bytes = subprocess.run(
+                ["git", "diff", "--binary", "HEAD"], cwd=local,
+                capture_output=True, check=True).stdout
+            patch_path = root / "partial.patch"
+            patch_path.write_bytes(patch_bytes)
+            run("git", "reset", "--hard", "HEAD", cwd=local)
+
+            input_path = root / "input.json"
+            input_path.write_text(json.dumps({
+                "issue": 42, "turn": 1, "operation": "start", "command_id": 901,
+                "branch": "agent/issue-42", "base_sha": base_sha, "pr": 88,
+                "issue_title": "Partial checkpoint test"
+            }))
+            result_path = root / "result.json"
+            result_path.write_text(json.dumps({
+                "issue": 42, "turn": 1, "status": "failed",
+                "session_id": "ses_testabc", "continuity": "interrupted",
+                "summary": "OpenCode exceeded its 240-minute execution limit.",
+                "changed_files": ["README.md"], "checkpoint_available": True
+            }))
+            comments = []
+
+            def fake_api(method, route, payload=None):
+                if method == "GET" and route.endswith("/pulls/88"):
+                    return {"state": "open",
+                            "head": {"sha": base_sha, "ref": "agent/issue-42"},
+                            "body": agent.MARKER.format(issue=42)}
+                if method == "POST" and route.endswith("/issues/42/comments"):
+                    comments.append(payload["body"])
+                    return {"id": 1}
+                raise AssertionError(f"Unexpected API call: {method} {route}")
+
+            old_cwd = Path.cwd()
+            os.chdir(local)
+            try:
+                with patch.object(agent, "api", side_effect=fake_api), \
+                     patch.object(agent, "pages", return_value=[]), \
+                     patch.dict(os.environ, {"GH_TOKEN": "test-token"}, clear=False):
+                    agent.publish(SimpleNamespace(input=str(input_path),
+                                                  result=str(result_path),
+                                                  patch=str(patch_path)))
+            finally:
+                os.chdir(old_cwd)
+
+            run("git", "fetch", "-q", "origin", "agent/issue-42", cwd=local)
+            remote_sha = run("git", "rev-parse", "FETCH_HEAD", cwd=local).stdout.strip()
+            subject = run("git", "show", "-s", "--format=%s", remote_sha, cwd=local).stdout.strip()
+            content = run("git", "show", "FETCH_HEAD:README.md", cwd=local).stdout
+            self.assertIn("wip(agent): issue #42 turn 1", subject)
+            self.assertIn("partial implementation survives timeout", content)
+            self.assertEqual(len(comments), 1)
+            self.assertIn("Status: **failed / needs attention**", comments[0])
+            self.assertIn("PR: #88", comments[0])
+            self.assertIn("partial or complete code checkpoint pushed", comments[0])
+
+    def test_missing_runner_artifact_keeps_existing_branch_and_draft_pr(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote = root / "origin.git"
+            run("git", "init", "--bare", "-q", str(remote))
+            local = root / "checkout"
+            run("git", "clone", "-q", str(remote), str(local))
+            run("git", "config", "user.name", "Test", cwd=local)
+            run("git", "config", "user.email", "test@example.com", cwd=local)
+            (local / "README.md").write_text("baseline\n")
+            run("git", "add", ".", cwd=local)
+            run("git", "commit", "-qm", "main baseline", cwd=local)
+            run("git", "push", "-q", "origin", "HEAD:refs/heads/main", cwd=local)
+            run("git", "switch", "-c", "agent/issue-42", cwd=local)
+            run("git", "commit", "--allow-empty", "-qm", "feat(agent): issue #42 turn 0", cwd=local)
+            run("git", "push", "-q", "origin", "agent/issue-42", cwd=local)
+            base_sha = run("git", "rev-parse", "HEAD", cwd=local).stdout.strip()
+            input_path = root / "input.json"
+            input_path.write_text(json.dumps({
+                "issue": 42, "turn": 1, "operation": "start", "command_id": 902,
+                "branch": "agent/issue-42", "base_sha": base_sha, "pr": 88,
+                "issue_title": "Runner interruption test"
+            }))
+            comments = []
+
+            def fake_api(method, route, payload=None):
+                if method == "GET" and route.endswith("/pulls/88"):
+                    return {"state": "open",
+                            "head": {"sha": base_sha, "ref": "agent/issue-42"},
+                            "body": agent.MARKER.format(issue=42)}
+                if method == "POST" and route.endswith("/issues/42/comments"):
+                    comments.append(payload["body"])
+                    return {"id": 1}
+                raise AssertionError(f"Unexpected API call: {method} {route}")
+
+            old_cwd = Path.cwd()
+            os.chdir(local)
+            try:
+                with patch.object(agent, "api", side_effect=fake_api), \
+                     patch.object(agent, "pages", return_value=[]), \
+                     patch.dict(os.environ, {"GH_TOKEN": "test-token"}, clear=False):
+                    agent.publish(SimpleNamespace(input=str(input_path),
+                                                  result=str(root / "missing-result.json"),
+                                                  patch=str(root / "missing.patch")))
+            finally:
+                os.chdir(old_cwd)
+
+            remote_sha = run("git", "ls-remote", "origin", "refs/heads/agent/issue-42", cwd=local).stdout.split()[0]
+            self.assertEqual(remote_sha, base_sha)
+            self.assertEqual(len(comments), 1)
+            self.assertIn("PR: #88", comments[0])
+            self.assertIn("no new code checkpoint; existing branch and Draft PR retained", comments[0])
+            self.assertIn("Executor did not produce a result artifact", comments[0])
+
     def test_status_publisher_posts_issue_report_without_creating_pr(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

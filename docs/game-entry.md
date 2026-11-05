@@ -105,7 +105,11 @@ executable 的导入图有硬性约束：只接受相对导入，且整张导入
       "source": "<systems/loomrealm-smoke/subsystem.mjs 原文>",
       "contentVersion": "sha256:<source 的 SHA-256>" }
   ],
-  "content": ["<固定白名单中的 24 项：cms-actor classic IIFE、6 条 struct 记录、17 张合成 PNG>"]
+  "content": [
+    { "kind": "record", "namespace": "struct.ZMap", "key": "order",
+      "mime": "application/json; charset=utf-8", "encoding": "base64", "body": "<canonical Base64>" }
+    // ... 固定白名单共 24 项：1 个 classic IIFE、6 条 struct 记录、17 张合成 PNG
+  ]
 }
 ```
 

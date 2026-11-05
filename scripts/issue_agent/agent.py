@@ -460,10 +460,11 @@ def snapshot_workspace_patch(workspace, patch_path, base_sha):
     paths = [path for path in paths if path]
     validate_paths(paths)
     git("diff", "--cached", "--check", base_sha, cwd=workspace)
-    modes = git("ls-files", "--stage", "-z", "--", *paths, cwd=workspace).stdout
-    for row in modes.split("\0"):
-        if row and row.split(" ", 1)[0] in ("120000", "160000"):
-            raise RuntimeError("symlinks or submodules are not publishable")
+    if paths:
+        modes = git("ls-files", "--stage", "-z", "--", *paths, cwd=workspace).stdout
+        for row in modes.split("\0"):
+            if row and row.split(" ", 1)[0] in ("120000", "160000"):
+                raise RuntimeError("symlinks or submodules are not publishable")
     patch = subprocess.run(
         ["git", "diff", "--cached", "--binary", base_sha], cwd=workspace,
         capture_output=True, check=True).stdout

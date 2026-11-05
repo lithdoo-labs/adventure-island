@@ -6,14 +6,16 @@ This repository supports a one-Issue / one-Draft-PR / one-persistent-session wor
 
 1. Create an ordinary Issue **as lithdoo**, with requirements and acceptance criteria.
 2. Comment **/agent start** on the Issue. Only comments made by GitHub user ID 130959182 are authorized.
+   - Comment **/agent status** at any time to ask the existing OpenCode session for a read-only progress report and a recommendation on whether/how to continue. Status does not consume owner feedback or advance the coding checkpoint.
 3. GitHub-hosted preflight validates the live Issue and author, finds the canonical branch, and snapshots the Issue.
 4. Organization Runner **opencode-lithdoo-labs** runs OpenCode 2 with persistent metadata. GitHub write tokens are not provided to the AI runner.
 5. GitHub-hosted publisher validates the patch, pushes to **agent/issue-N**, creates a Draft PR, and comments results on the original Issue.
 6. Review the Issue and PR. Add feedback to the Issue, a PR conversation, a PR review, or inline review comments.
 7. Comment **/agent revise** on the *same Issue*. The next run collects feedback since the previous report, resumes the same OpenCode session, and pushes to the same PR branch.
-8. Review the changes and manually merge. No automatic merge is implemented.
+8. Comment **/agent status** to query the same session without publishing code. The command reports completed work, blockers, whether continuation is feasible, and exact next steps; it never creates a new session if the old one cannot be recovered.
+9. Review the changes and manually merge. No automatic merge is implemented.
 
-An owner-only alternative is Actions → Issue Agent (OpenCode 2) → Run workflow, with Issue number and **start** or **revise** inputs.
+An owner-only alternative is Actions → Issue Agent (OpenCode 2) → Run workflow, with Issue number and **start**, **revise**, or **status** inputs.
 
 ## GitHub and Runner prerequisites
 
@@ -40,9 +42,12 @@ The publisher rejects changes to .github/, scripts/issue_agent/, research/, the 
 - Session metadata: **/runner/state/lithdoo-labs-org/agent-projects/adventure-island/issue-agent/issues/issue-N/metadata.json**
 - Execution worktree: **$GITHUB_WORKSPACE** in the organization Runner job (the trusted checkout is refreshed each turn). OpenCode runs directly in this worktree; its **session data**, not the checkout, is persisted separately.
 - OpenCode data: **/runner/state/lithdoo-labs-org/agent-projects/adventure-island/issue-agent/opencode-data**
+- Per-Issue NDJSON execution logs: **issues/issue-N/logs/** under the same persistent state root. Logs stay on the organization Runner and are not uploaded as artifacts. Session metadata is atomically written before execution and updated as soon as the first session ID event is observed.
 - Published Issue comments contain a marker identifying the processed turn and triggering comment. Only markers from the Actions bot or authorized owner are trusted; other public commenters cannot forge checkpoints.
 
-A revision refuses to start if the original session has been lost; it does not pretend a new model session has the same context. After a failed first publication with no PR, a fresh /agent start resumes the saved initial session rather than discarding it. PRs that are already closed or merged cannot be revised. Use a new Issue for a new task.
+A revision refuses to start if the original session has been lost; it does not pretend a new model session has the same context. If metadata is missing or the session ID was not saved, the Runner attempts a unique recovery using `opencode2 session list --max-count 100 --format json`, matching the exact Issue title and project directory. Ambiguous matches are never guessed. After a failed first publication with no PR, a fresh /agent start resumes a recovered session rather than discarding it. PRs that are already closed or merged cannot be revised. Use a new Issue for a new task.
+
+The OpenCode subprocess timeout is **120 minutes**; the organization Runner Execute job timeout is **135 minutes**, leaving time for result-artifact upload and cleanup. Output is streamed to a Runner-local NDJSON log, a one-minute heartbeat is printed to Actions, and the process group is terminated on timeout. Partial model output and any recovered session ID are retained in the result/metadata for the publisher's failure report. Executor failures exit non-zero instead of being reported as a successful Execute job.
 
 GitHub Actions concurrency avoids overlapping running jobs for the same Issue, but GitHub can replace pending jobs. The next accepted revision includes all owner-authored feedback since the most recent published checkpoint. A changed PR HEAD makes the current publication fail rather than overwriting human commits.
 
@@ -56,6 +61,7 @@ Open a PR with these changes. The **Issue Agent Validation** workflow exercises:
 - Protected-path rejection
 - Two consecutive OpenCode turns through a fake OpenCode CLI using a real disposable Git repository
 - Resume of the exact same session and rejection of missing session state
+- Orphan-session discovery, read-only `/agent status`, status idempotence, and early session persistence on timeout
 
 These tests do **not** use the real GLM API or consume the organization's Runner.
 
@@ -74,7 +80,8 @@ The connected ChatGPT GitHub API lacks an Actions workflow_dispatch operation; o
 ## Troubleshooting
 
 - Preflight rejects unauthorized, closed, duplicate, or non-ordinary Issues, and revisions without fresh owner feedback.
-- Execute errors are reported back to the Issue when the publisher has permission; check OpenCode availability and state-volume permissions without printing API keys.
+- Execute errors are reported back to the Issue when the publisher has permission; check OpenCode availability and state-volume permissions without printing API keys. A timeout is now 120 minutes (135-minute job ceiling); inspect the Runner-local `issues/issue-N/logs/` file and `metadata.json` before retrying.
+- To ask the AI for a progress assessment, comment `/agent status`. It resumes only a uniquely identified existing session, posts a read-only report, and does not advance the coding checkpoint. If no unique session is recoverable, it explicitly reports unavailable and does not silently create a new session.
 - Publish failures: verify GitHub Action PR creation policy and write permissions, the approved source SHA and branch rules. If the Agent pushed branch agent/issue-N but GitHub denied Draft PR creation, enable the repository PR creation setting (or supply AGENT_GITHUB_TOKEN), then comment **/agent start** again. The workflow validates the prior Agent commit and opens the missing Draft PR **without rerunning OpenCode**. The saved Session remains available for the next /agent revise.
 - The model's session content lives on the self-hosted Runner; do not delete persistent state when cleaning a PR.
 

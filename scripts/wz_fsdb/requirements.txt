@@ -1,0 +1,6 @@
+pillow>=10.0
+
+# numpy and pycryptodome are imported by the external wzpy package during a
+# real conversion. This repository does not vendor that package.
+numpy>=1.24
+pycryptodome>=3.20

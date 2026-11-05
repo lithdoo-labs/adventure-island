@@ -319,7 +319,7 @@ class RunnerIntegrationTests(unittest.TestCase):
             "    assert a[0]=='run'\n"
             "    if '--session' in a: assert a[a.index('--session')+1]=='ses_testabc'\n"
             "    p=pathlib.Path('README.md')\n"
-            "    p.write_text(p.read_text()+'OpenCode changed the project.\\n')\n"
+            "    p.write_text(p.read_text()+'OpenCode changed the project.\n')\n"
             "    print(json.dumps({'type':'text','part':{'type':'text','text':'Implemented and checked the changes.'},'sessionID':'ses_testabc'}))\n"
         )
         self.binary.chmod(0o755)
@@ -434,12 +434,12 @@ class RunnerIntegrationTests(unittest.TestCase):
     def test_timeout_captures_partial_workspace_patch_for_publisher(self):
         slow = self.root / "fake-opencode-timeout-with-edits"
         slow.write_text(
-            "#!/usr/bin/env python3\\n"
-            "import json,pathlib,time\\n"
-            "p=pathlib.Path('README.md')\\n"
-            "p.write_text(p.read_text()+'partial work before timeout\\n')\\n"
-            "print(json.dumps({'type':'session.created','sessionID':'ses_testabc'}),flush=True)\\n"
-            "time.sleep(5)\\n"
+            "#!/usr/bin/env python3\n"
+            "import json,pathlib,time\n"
+            "p=pathlib.Path('README.md')\n"
+            "p.write_text(p.read_text()+'partial work before timeout\n')\n"
+            "print(json.dumps({'type':'session.created','sessionID':'ses_testabc'}),flush=True)\n"
+            "time.sleep(5)\n"
         )
         slow.chmod(0o755)
         path = self.root / "timeout-input.json"

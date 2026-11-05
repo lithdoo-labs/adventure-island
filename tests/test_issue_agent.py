@@ -210,7 +210,7 @@ class AuthTests(unittest.TestCase):
             def fake_api(method, route, payload=None):
                 if route.endswith("/issues/42"):
                     return {"number": 42, "state": "open", "title": "Retry",
-                            "body": "Continue"}
+                            "body": "Continue", "user": {"id": agent.OWNER_ID}}
                 if route.endswith("/issues/comments/300"):
                     return {"id": 300, "user": {"id": agent.OWNER_ID},
                             "issue_url": "https://api.github.com/repos/lithdoo-labs/adventure-island/issues/42"}
@@ -367,7 +367,7 @@ class RunnerIntegrationTests(unittest.TestCase):
             "    assert a[0]=='run'\n"
             "    if '--session' in a: assert a[a.index('--session')+1]=='ses_testabc'\n"
             "    p=pathlib.Path('README.md')\n"
-            "    p.write_text(p.read_text()+'OpenCode changed the project.\n')\n"
+            "    p.write_text(p.read_text()+'OpenCode changed the project.\\n')\n"
             "    print(json.dumps({'type':'text','part':{'type':'text','text':'Implemented and checked the changes.'},'sessionID':'ses_testabc'}))\n"
         )
         self.binary.chmod(0o755)

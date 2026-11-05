@@ -86,6 +86,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: read
     outputs:
       base_sha: ${{ steps.prepare.outputs.base_sha }}
       pr_number: ${{ steps.prepare.outputs.pr_number }}

@@ -708,6 +708,85 @@ def git_push(branch):
         "push", "origin", "HEAD:refs/heads/" + branch)
 
 
+def prepare(args):
+    """Create the Issue branch and Draft PR before OpenCode starts."""
+    inp = json.loads(Path(args.input).read_text())
+    workspace = Path.cwd().resolve()
+    operation = inp["operation"]
+    if git("rev-parse", "--show-toplevel", cwd=workspace).stdout.strip() != str(workspace):
+        raise RuntimeError("prepare checkout is not the repository root")
+    if git("rev-parse", "HEAD", cwd=workspace).stdout.strip() != inp["base_sha"]:
+        raise RuntimeError("prepare checkout differs from the approved preflight SHA")
+
+    if operation != "status":
+        branch = inp["branch"]
+        pr = find_agent_pr(inp["issue"])
+        if pr:
+            if (pr.get("state") != "open"
+                    or pr.get("head", {}).get("ref") != branch
+                    or pr.get("head", {}).get("repo", {}).get("full_name") != REPO
+                    or pr.get("base", {}).get("ref") != "main"
+                    or MARKER.format(issue=inp["issue"]) not in (pr.get("body") or "")):
+                raise RuntimeError("existing Agent PR failed provenance or open-state validation")
+            head_sha = pr.get("head", {}).get("sha")
+            if head_sha != inp["base_sha"]:
+                raise RuntimeError("existing Agent PR head changed after preflight")
+            number = pr["number"]
+        else:
+            try:
+                branch_ref = api("GET", f"/repos/{REPO}/git/ref/heads/{branch}")
+            except LookupError:
+                if operation != "start":
+                    raise RuntimeError("Agent branch is missing; refusing to create a PR without its code")
+                git("switch", "-c", branch, cwd=workspace)
+                git("config", "user.name", "github-actions[bot]", cwd=workspace)
+                git("config", "user.email",
+                    "41898282+github-actions[bot]@users.noreply.github.com", cwd=workspace)
+                git("commit", "--allow-empty", "-m",
+                    f"feat(agent): issue #{inp['issue']} turn 0 (initialize recoverable Draft PR)",
+                    cwd=workspace)
+                git_push(branch)
+                head_sha = git("rev-parse", "HEAD", cwd=workspace).stdout.strip()
+            else:
+                head_sha = branch_ref["object"]["sha"]
+                if head_sha != inp["base_sha"]:
+                    raise RuntimeError("existing Agent branch moved after preflight")
+                committed = api("GET", f"/repos/{REPO}/commits/{head_sha}")
+                message = committed.get("commit", {}).get("message", "")
+                if (committed.get("author", {}).get("login") != "github-actions[bot]"
+                        or not message.startswith(f"feat(agent): issue #{inp['issue']} turn ")):
+                    raise RuntimeError("existing Issue branch was not published by this Agent")
+
+            title = f"agent: {inp['issue_title']}"[:200]
+            body = (
+                MARKER.format(issue=inp["issue"]) + "\n\n"
+                f"Implements #{inp['issue']} using OpenCode 2 on the organization runner.\n\n"
+                "Draft PR is created before AI execution so the Issue branch and review surface "
+                "survive model errors, timeouts, and missing result artifacts. Partial safe "
+                "checkpoints are pushed here; subsequent turns update this same PR.\n\n"
+                "Post feedback on the linked Issue or in PR review, then comment "
+                "/agent revise on the Issue. Never auto-merge."
+            )
+            created = api("POST", f"/repos/{REPO}/pulls",
+                          {"title": title, "head": branch, "base": "main",
+                           "body": body, "draft": True})
+            number = created["number"]
+
+        inp["pr"] = number
+        inp["base_sha"] = head_sha
+        inp["prepared_at"] = time.time()
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(inp, ensure_ascii=False, indent=2) + "\n")
+    with Path(args.github_output).open("a") as stream:
+        stream.write(f"base_sha={inp['base_sha']}\n")
+        if inp.get("pr") is not None:
+            stream.write(f"pr_number={inp['pr']}\n")
+    print(f"Prepared Issue #{inp['issue']} operation={operation} "
+          f"branch={inp['branch']} PR={inp.get('pr')} SHA={inp['base_sha'][:12]}")
+
+
 def result_comment(inp, result, pr=None, error=None):
     issue = inp["issue"]
     command = inp["command_id"]

@@ -677,7 +677,7 @@ def execute(args):
         except Exception:
             pass
         try:
-            paths, partial_patch = snapshot_workspace_patch(workspace, patch_path)
+            paths, partial_patch = snapshot_workspace_patch(workspace, patch_path, inp["base_sha"])
             result["changed_files"] = paths
             result["checkpoint_available"] = bool(partial_patch)
             if partial_patch:

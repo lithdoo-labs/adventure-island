@@ -271,7 +271,7 @@ try {
 
 推荐在现有 `assembleSyntheticContent` 的派生/版本检查完成后将该 Plan 序列化加入 Content，重新应用现有 identity、排序、base64 和字节验证；确保重新读取的记录与被验证的 Plan 完全一致。RenderNode 仍按 `data: { avatarPlan: record.value }` 投影。严格保留 `262,144` 字节 RenderNode data 上限和每个 PNG 的精确 `contentVersion`、MIME、身份引用。绝不把 PNG base64、文件路径、真实 WZ 放进 Plan。
 
-目前 `buildAvatarPlan` 位于 `components/cms-actor/test/look-adapter.mjs`，且其 `layerFor()` **暗中导入** `./synthetic-fsdb.mjs` 中的 `IMAGE_NAMESPACE`。**明确决策：抽取为纯构建函数**：`content/build-avatar-plan.mjs` 由调用者显式传入 `looks`、`zOrder`、资源 `index` 以及 `{ imageNamespace, expression }`，内部仅负责 UOL/锚点/帧映射和资源版本的 `AvatarPlanV1` 派生，**零 `components/cms-actor/test/**` 导入**。资源键 `imageNamespace + "\\0" + canvas.resource` 使用调用者提供的身份；运行时 Map 不调用它。
+目前 `buildAvatarPlan` 位于 `components/cms-actor/test/look-adapter.mjs`，且其 `layerFor()` **暗中导入** `./synthetic-fsdb.mjs` 中的 `IMAGE_NAMESPACE`。**明确决策：抽取为纯构建函数**：`content/build-avatar-plan.mjs` 由调用者显式传入 `looks`、`zOrder`、资源 `index` 以及 `{ imageNamespace, expression }`，内部仅负责 UOL/锚点/帧映射和资源版本的 `AvatarPlanV1` 派生，**零 `components/cms-actor/test/**` 导入**。资源键 `imageNamespace + "\0" + canvas.resource` 使用调用者提供的身份；运行时 Map 不调用它。
 
 **迁移兼容：** `components/cms-actor/test/look-adapter.mjs` 继续导出旧函数签名的薄 wrapper，自己从 `./synthetic-fsdb.mjs` 提供 `IMAGE_NAMESPACE`，再转调正式构建函数；现有测试和 `withResourceVersion` 继续运行。`scripts/pwa/synthetic-avatar-content.mjs` 改为直接导入纯构建函数，并传入已声明的 `IMAGE_NAMESPACE`；保持原 `deriveCanonicalAvatarPlan()` 的哈希验证与 Snapshot 行为。现有 synthetic PNG/Look 生成器的测试夹具来源依然允许**作为构建期合成数据**，但不能反向污染**纯 AvatarPlan 适配器**，更不得进入正式 Worker 运行代码；这不等于把全部测试素材提升为领域模型。
 

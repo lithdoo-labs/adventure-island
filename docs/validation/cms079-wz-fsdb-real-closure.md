@@ -135,3 +135,21 @@ node --max-old-space-size=8192 components/cms-actor/test/real-cms079-closure.mjs
 - 按本次授权，没有推送 `main`，没有开 PR，也没有关闭 Issue #50 或 PR #1。
 
 因此 Issue #50 保持打开。本地 `main` 只包含已验证的源码、合成测试和本报告。
+
+## 2026-11-06 复核
+
+同一棵本地 `main`（当时 `38dddfb273653b9ed077301dabe9fcf7eee68067`）上重新执行了身份、测试和真实 Chromium。`scripts/wz_fsdb/convert_cms.py` 的 blob 仍是 PR #1 的 `c3951951aecbfe720e19c43e495043c2e2ddd293`，所以没有另起一份全量 FSDB。
+
+| 检查 | 结果 |
+| --- | --- |
+| 17 个 WZ 重新计算 SHA-256 | 与 Task 023 基线 17/17 一致 |
+| `wzpy.crypto.WZ_IV["EMS"]` | `B9 7D 63 E9`。`TamingMob.wz` 以 EMS 打开，version 79，16 个 IMG |
+| FSDB 抽查 | `Look/00002000` 的 islot 为 Bd；`body.png` 魔数 `89 50 4E 47`；`FloralLife.mp3` 1,376,392 字节；`WzRecordAlias` 11 个文件；`ZMap/order` 149 个键；`[struct]Look/.info.meta` 存在 |
+| `python -m unittest discover -s tests/wz_fsdb -v` | 26 通过 |
+| `npm test` | 42 通过，3 跳过，0 失败 |
+| `node components/cms-actor/scripts/build.mjs --check` | 通过 |
+| `node --test` cms-actor 模型、浏览器包与合成 Chromium | 44 通过，0 跳过 |
+| `npm run pwa:bundle` 与 `npm run pwa:staging` | 退出码 0。framework SHA 仍是 `93648192323bf5f57996b7b54cbae641d8a53fdb` |
+| 真实 Content + Chromium | 退出码 0，耗时 3,809,910 ms，结束于 2026-11-06T02:20:03.423Z。证据：`E:\cms079-pr1-work\reports\content-avatar-2026-11-06-session.json` |
+
+这次 Chromium 的 Look 版本、声音 SHA-256、Tile 分组、49 个资源和左右镜像哈希与上一份 `content-avatar.json` 相同。`prepareDesktopContentView` 再次打开了全量 FSDB。没有发现新的 CONVERTER_DEFECT。

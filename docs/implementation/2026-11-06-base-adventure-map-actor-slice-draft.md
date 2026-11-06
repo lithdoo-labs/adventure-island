@@ -1,110 +1,77 @@
-# Adventure Island 基础运行切片：Base → Adventure Map → Actor（草案）
+# Adventure Island 基础运行切片：Base → Adventure Map → Actor
 
-> 状态：**Draft / 仅供评审，尚未实施**
+> **状态：Draft / 设计已收敛，等待实现与实测；不是已通过的验收报告**
 >
-> 日期：2026-11-06
+> 日期：2026-11-06 · 设计基线：[Adventure Island `main@a1992512`](https://github.com/lithdoo-labs/adventure-island/commit/a1992512ac62a40595c3e7ca812363d1112ae043)
 >
-> 仓库：`lithdoo-labs/adventure-island`
+> LoomRealm 固定 gitlink：`93648192323bf5f57996b7b54cbae641d8a53fdb`，**不得顺带升级**。
 >
-> 设计基线：`main@a1992512ac62a40595c3e7ca812363d1112ae043`
->
-> LoomRealm 固定 gitlink：`93648192323bf5f57996b7b54cbae641d8a53fdb`；**此任务不得顺带升级 submodule**。
+> 关系：[总设计](../../DESIGN.md) · [canonical Game Entry](../game-entry.md) · [cms-actor 契约](../../components/cms-actor/IMPLEMENTATION.md)
 
-## 1. 目标与范围
+## 1. 目标、完成定义与非目标
 
-在现有 canonical Game Entry 的 Smoke 启动链上引入两个正式 Subsystem：
+**目标：** 正式 Adventure Island PWA 进入 `base`，由其调用 `adventure-map`。页面中央展示唯一的合成 `cms-actor`；键盘方向键与兼容手柄的**十字键（D-pad）**驱动站立、行走、跳跃动作及左右朝向，松键恢复站立，窗口变化仍居中。全过程使用固定 LoomRealm 的真实 Input → Frame → Render → Content → Web Presentation 链路，而不是独立演示页或测试专用 Subsystem。
 
-1. **`base`** 作为初始 Subsystem，创建并持有一个 `game-controls-input` 组件，将键盘、手柄统一映射为 LoomRealm Controls 输入。
-2. **`adventure-map`** 由 `base` 通过 `frame.call("adventure-map", null)` 打开；持有一个 RenderDomain，向 Renderer 投影唯一的 `cms-actor`。
-3. Actor 使用仓库已有的**合成纸娃娃素材**与 `AvatarPlanV1`，初始站立，并固定在当前视口的视觉中心。
-4. Adventure Map 在活跃 Frame 中接收规范化方向输入，仅更新 Actor 的 `locomotion` / `facing`。不执行地图物理或世界坐标模拟。
-5. 使真实 PWA / Chromium 路径可操作、可测试；Hostra 保持平台入口语义一致，并明确列出尚未打通的 Content 前置条件。
+**完成定义（PWA）：** canonical Game Entry 成功启动并保持活跃；Controls 脚本和 Actor 脚本均由已发布的 Content 注册；合成 AvatarPlan/PNG 成功呈现；真实 Chromium 键盘操作与状态释放、Viewport resize、Frame 清理经 E2E 验证；现有 PWA/组件测试及安全构建规则无回归。
 
-**这不是 `DESIGN.md` 中完整“人物可移动、两张场景互通”首个可玩里程碑。** 本文定义的是它之前更小的技术垂直切片，用于验证输入、Frame、Render、Content、打包之间的真实闭环。
+**非目标：** 真实地图、世界位置、移动物理 Tick、重力、立足线、传送门、镜头跟随、NPC、技能、Shared State 持久化、CMS079 WZ 导入和线上部署。此切片不等于 [首个可玩里程碑](../../DESIGN.md)；Actor 动画可以“走”和“跳”，但**绝不声称已经具备物理移动**。
 
-## 2. 当前基线和可以复用的成果
+**平台验收边界：** 本次交付以 PWA 完整闭环为硬门槛；`launch.hostra.json` 保持相同逻辑绑定，但 Hostra 实机/Content 安装单独报告 `PASS / BLOCKED`。没有 Hostra 的同名 Content 就不能写“Desktop 已通过”。
 
-| 项目 | 当前状态 | 本任务动作 |
-|---|---|---|
-| `game.json` | `initial.subsystem="smoke"`，仅声明 Smoke | 改为 `base`，声明 `base` / `adventure-map` |
-| `launch.pwa.json` / `launch.hostra.json` | 仅绑定 `subsystems/smoke.mjs` | 双平台增加两项绑定 |
-| `systems/loomrealm-smoke/subsystem.mjs` | 无依赖、单帧完成 | 保留为独立 Smoke 测试样本，不再是游戏入口 |
-| `components/cms-actor/` | 已实现 classic script、`locomotion`、`facing`、`avatarPlan`、Renderer 接入 | 直接复用，不修改组件 ABI |
-| `scripts/pwa/synthetic-avatar-content.mjs` | 已生成 `struct.ZMap`、`struct.Look`、合成 PNG；能在构建/测试侧推导 AvatarPlan | 将正式 Actor 所需的 AvatarPlan 固化为可读取 Content 记录 |
-| `test/pwa-avatar-fixture.mjs` | **测试专用**的 Actor 投影脚本，不属于正式游戏 | 借鉴其 RenderNode 和 Content 约束，不将 fixture 提升为正式 Subsystem |
-| `scripts/pwa/build-installation-bundle.mjs` | 固定白名单，只允许无依赖 Smoke executable | 支持 `base` / `adventure-map` 的自包含打包，保持图校验、安全与确定性 |
-| `package.json` / 测试 | 现有 Smoke 假设写死在测试中 | 加入依赖和回归测试，明确替换正式启动预期 |
-
-相关现有代码：
-
-- [PokeMan Base](https://github.com/lithdoo-labs/pokeman/blob/main/subsystems/base.mjs) 与 [PokeMan Map 输入消费](https://github.com/lithdoo-labs/pokeman/blob/main/subsystems/map.mjs)：设计参照，仅复用调用/输入模式，不引用其 RPG Map。
-- [LoomRealm Controls Consumer](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/game-libs/game-common-controls/src/consumer.ts) 与 [Directional Tracker](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/game-libs/game-common-controls/src/directional-controls.ts)。
-- [cms-actor 实施契约](../../components/cms-actor/IMPLEMENTATION.md)、[根入口约束](../game-entry.md)、[游戏阶段设计](../../DESIGN.md)。
-
-## 3. 运行拓扑与权威边界
+## 2. 最小拓扑及源码组织
 
 ```text
 Main / Session
-  └─ Base Frame (initial)
-       ├─ RenderDomain: game-controls-input    [唯一通用输入 Producer]
-       └─ frame.call("adventure-map", null)
-            └─ Adventure Map Frame
-                 ├─ Presentation Events: controls.state / controls.event
-                 ├─ Directional Controls Tracker
-                 ├─ Viewport: 当前有效尺寸
-                 ├─ Content: 只读 bootstrap AvatarPlan
+  └─ base Frame
+       ├─ RenderDomain: game-controls-input
+       │    └─ Keyboard + compatible gamepad D-pad
+       │         → controls.state / controls.event (top active Frame)
+       └─ await frame.call("adventure-map", null)
+            └─ adventure-map Frame
+                 ├─ createControlsConsumer + createDirectionalControlsTracker
+                 ├─ scope.viewport (展示坐标)
+                 ├─ scope.content.record (只读 AvatarPlan)
                  └─ RenderDomain: cms-actor
-                      ├─ attrs: x, y, locomotion, facing, ...
+                      ├─ attrs: x, y, locomotion, facing
                       └─ data: { avatarPlan }
-                               ↓
-                      Renderer / Web Presentation
-                               ↓
-                      cms-actor + PNG Resource API
+                           ↓ Renderer / WebProjector
+                      cms-actor classic script + Content PNG
 ```
 
-**职责划分：**
+**唯一职责：**
 
-- `base` 拥有输入 Producer 的生命周期，不读取原始 DOM 按键，不判断角色动作，也不持有 Actor。
-- `adventure-map` 拥有输入解释和当前 Actor 演示状态，并负责渲染数据投影；它不直接访问 `window`、`document`、`navigator.getGamepads()`。
-- `cms-actor` 仅根据属性、已解析的 `avatarPlan` 和 Resource API 进行逐帧绘制；组件不决定位移、重力、碰撞、输入优先级。
-- `AvatarPlan` 及其引用图片属于不可变 Content；当前输入状态属于活跃 Frame 的临时局部状态，**不进入 Shared State**。后续真正的位置/世界事实再根据权威模型确定归属。
-- 不把 PokeMan 专属 Map/Battle 逻辑或 Adventure Island 的场地规则放进 LoomRealm 基础框架。
+| 所有者 | 只做什么 | 明确不做什么 |
+|---|---|---|
+| `base` | 创建并持有单个 `game-controls-input`，`await frame.call`，退出时关闭输入 RenderDomain | 不监听 DOM、不管理角色、不解释输入 |
+| `adventure-map` | 接收统一 Controls，维护本次 Frame 的方向/朝向/动作，投影一个 Actor | 不直接碰 DOM、不处理真实地图物理 |
+| `cms-actor` | 基于 attrs 和有效 AvatarPlan 绘制动画及资源 | 不接收按键、不持有游戏世界状态 |
+| `Content` | 提供预先验证、只读的 AvatarPlan 和版本固定的 PNG | 不携带输入事实或用户私有 WZ |
+| `LoomRealm` | Frame/Activation、Presentation Event、RenderDomain、Viewport、Content 通道 | 不接收本游戏专属玩法规则 |
 
-## 4. Game Entry 与目录规划
+当前方向/动作只是 Frame 局部临时展示状态，**不入 Shared State**。以后真正的世界坐标和场地权威由 Adventure Island 独立 Game Library/Subsystem 设计，不复用 PokeMan 的格子 Map/Battle 模型。
 
-建议在现有项目的 `systems/` 组织正式实现，同时与当前 canonical 根安装入口保持一致：
+**单一源码原则：**
 
 ```text
 game.json
 launch.pwa.json
 launch.hostra.json
-presentation.json              # 复用既有 cms-actor classic script
+presentation.json
 
-systems/
-  base/subsystem.mjs
-  adventure-map/subsystem.mjs
+systems/base/subsystem.mjs           # 唯一 Base 实现
+systems/adventure-map/subsystem.mjs  # 唯一 Adventure Map 实现
+subsystems/base.mjs                  # 根 Hostra 安装入口薄绑定
+subsystems/adventure-map.mjs         # 根 Hostra 安装入口薄绑定
 
-subsystems/                    # 根 canonical 安装入口绑定
-  base.mjs
-  adventure-map.mjs
-
-apps/
-  pwa/subsystems/              # 如兼容测试仍使用旧安装根，保留映射
-    base.mjs
-    adventure-map.mjs
-  hostra/subsystems/
-    base.mjs
-    adventure-map.mjs
-
-scripts/pwa/
-  synthetic-avatar-content.mjs
-  build-installation-bundle.mjs
-
-test/
-  ...                          # Game Entry / 输入 / 浏览器端到端验收
+content/build-avatar-plan.mjs        # 现有参考适配算法抽为正式构建模块
+scripts/pwa/synthetic-avatar-content.mjs
+scripts/pwa/build-installation-bundle.mjs
+test/...
 ```
 
-拟议 `game.json`：
+**决策：只迁移根 canonical Game Entry。** 现有 `apps/pwa/*`、`apps/hostra/*` 的 Smoke 文件视为历史兼容/隔离测试入口，**本切片不为它们新建四份同名 shim**。同步修改 [docs/game-entry.md](../game-entry.md) 与旧测试的“三份 Game Entry 必须等同 Smoke”假设，明确哪些验证属于新的 canonical 入口、哪些仍属于 legacy Smoke。旧 Smoke Subsystem 可以保留作为隔离测试夹具，正式入口不再引用。最终根 Hostra 安装入口仅为对 `systems/*` 的 re-export；PWA 发布的是编译后的自包含 executable，**不是 shim 源码**。
+
+根 `game.json` 的目标内容：
 
 ```json
 {
@@ -117,7 +84,7 @@ test/
 }
 ```
 
-拟议 `launch.pwa.json` 与 `launch.hostra.json`（逻辑 key 和 module 保持一致）：
+根 `launch.pwa.json` 和 `launch.hostra.json` 的目标逻辑映射一致：
 
 ```json
 {
@@ -129,68 +96,73 @@ test/
 }
 ```
 
-根安装入口/Hostra shim 可以转发 `systems/*/subsystem.mjs`；**PWA executable 不得直接发布跨安装根的 shim**。现有 Smoke 文件是否继续保留在旧目录，由回归测试和独立开发工具的兼容需求决定；正式 Game Entry 不再引用它。
+### Base 的约定
 
-## 5. Base Subsystem
-
-以 PokeMan 的模式实现，保持薄封装：
+依照 [PokeMan Base](https://github.com/lithdoo-labs/pokeman/blob/main/subsystems/base.mjs)：
 
 ```js
+import { defineSubsystem } from "@loomrealm/subsystem";
+
 export default defineSubsystem((scope) => ({
   async frame(frame) {
-    const domain = scope.createRenderDomain({
+    const controls = scope.createRenderDomain({
       zIndex: 10,
       roots: [{
         key: "game-controls-input",
         tag: "game-controls-input",
         attrs: {},
         data: {},
-        children: [],
-      }],
+        children: []
+      }]
     });
     try {
       return await frame.call("adventure-map", null);
     } finally {
-      domain.close();
+      controls.close();
     }
-  },
+  }
 }));
 ```
 
-上例省略 `defineSubsystem` 导入。父 Frame 必须 `await frame.call`，并在子 Frame 结束/失败/取消时执行 `finally`。不要为键盘和手柄分别注册重复 Producer，也不在 Base 中监听消费侧的 `controls.*` 事件。
+父 Frame 在子 Frame 活跃期间持续持有输入组件；子 Frame 结束、失败或取消时由 `finally` 关闭。**不**同时挂载 `game-keyboard-input` 与 `game-gamepad-input`，避免同一物理按键在原始频道和统一频道形成重复输入。
 
-## 6. Adventure Map Subsystem
+## 3. 输入、动作、居中和生命周期
 
-### 6.1 展示节点
+### 3.1 Controls 的真实注册与输入边界
 
-渲染域只放一个稳定 key 的 `cms-actor` 节点：
+**P0：注册脚本必须进入正式 Presentation。** `game-controls-input` **不是** Renderer 内置元素，它由固定 LoomRealm `@loomrealm-game/common-controls` 的 **classic IIFE** `game-libs/game-common-controls/dist/browser/device-input.browser.js` 注册（也会定义原始设备组件）。目前根 `presentation.json` 只有 `cms-actor`，必须改为：
 
-```js
+```json
 {
-  key: "adventure-player",
-  tag: "cms-actor",
-  attrs: {
-    x: "0", y: "0",
-    locomotion: "stand",
-    facing: "right",
-    skin: "0", face: "00020000",
-    hair: "00030000", expression: "default",
-    equips: ""
-  },
-  data: { avatarPlan },
-  children: []
+  "formatVersion": 1,
+  "styles": [],
+  "scripts": [
+    { "namespace": "Presentation", "key": "controls/device-input.browser.js" },
+    { "namespace": "Presentation", "key": "cms-actor/cms-actor.browser.js" }
+  ]
 }
 ```
 
-`avatarPlan` 必须是有效的 `AvatarPlanV1`，动作映射至少为 `stand→stand1`、`walk→walk1`、`jump→jump`。**只在初始化时设置一次 data**；后续方向改变走 `domain.update({ nodes: [{ key, attrs: { set: ... } }] })`，不要反复 `replace` 节点和 AvatarPlan。
+对应的安装 Content 必须存在两个 resource（顺序与上表一致）：
 
-初始位置/窗口改变时，从 `scope.viewport.current`、`scope.viewport.subscribe` 获得有效尺寸。`cms-actor` 的 `x/y` 指向**身体原点**（近脚部）而不是视觉中心，演示期可用 `x = round(width/2)`、`y = round(height/2 + 16)`。其中 16 像素是合成角色的临时视觉偏移，验收时需要以实际合成画面复核；未来改为由 sprite bounds 计算，**不得把临时展示偏移当作场地世界坐标**。Viewport 为 `null` 或无效尺寸时保持上一次位置。
+- `resource.Presentation / controls/device-input.browser.js`：来源为**先构建**的、固定 gitlink 对应的 common-controls 浏览器产物。
+- `resource.Presentation / cms-actor/cms-actor.browser.js`：复用仓库现有已验证 classic script。
 
-### 6.2 方向状态与输入映射
+根 [PWA Bundle Builder](../../scripts/pwa/build-installation-bundle.mjs) 的 `CONTENT_SCRIPT_SOURCE_BINDINGS` 加入前者的**受控固定路径**，而非扫描任何 dist 目录或临时复制到 Git 跟踪目录。保留 classic script 语法、Content identity、MIME、哈希、白名单和引用完整性校验。**只安装 npm 包不会注册 Web Component**，不发布脚本也不会采集输入。
 
-在 Adventure Map 活跃 Frame 内创建：
+此版本的 [统一输入契约](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/game-libs/game-common-controls/game-controls-input.md) 将 `ArrowUp/Down/Left/Right` 与兼容手柄 **D-pad** 归一化为 `up/down/left/right`；**模拟摇杆轴不产生方向值**。设备支持以固定版本实现为准：standard mapping，以及明确定义的已验证设备例外；非受支持的手柄不能宣称通过。输入仅在窗口可用、键盘捕获允许时生效；消费者不要使用 `dispatchEvent(new KeyboardEvent(...))` 验证真实采集，因为非可信键盘事件会被忽略。
+
+### 3.2 Adventure Map 控制契约
+
+`adventure-map` 进入活跃 Frame 后，使用两个现成公开函数，而非自建 held-key 状态机：
 
 ```js
+import { defineSubsystem, cancelled, failed } from "@loomrealm/subsystem";
+import {
+  createControlsConsumer,
+  createDirectionalControlsTracker
+} from "@loomrealm-game/common-controls/subsystem";
+
 const directions = createDirectionalControlsTracker();
 const consumer = createControlsConsumer(
   scope.presentationEvents,
@@ -203,111 +175,129 @@ const consumer = createControlsConsumer(
     onEvent(event) {
       directions.acceptEvent(event);
       applyDirection(directions.direction);
-    },
+    }
   }
 );
 ```
 
-使用 LoomRealm 的 `controls.state`（含键盘/手柄归一化后的 held 集合）和 `controls.event`（down/up 变化）；不重复建立本地原始设备监听。Tracker 对多键按住和释放顺序负责；Consumer 对 stale/reset 生命周期负责。
+每个新 Frame/Activation 使用全新的方向 Tracker，从 `null` 开始；Consumer 自动处理 `controls.state` 的 freshness/stale-reset，并按 `controls.event` 处理有效 down/up。输入 Producer 使用 `broadcast:"top-frame"`，所以 Base 可以持有组件，Adventure Map 作为当前 Top Active Frame 接收事件。新 Frame 不继承旧输入事件；持续按住的事实可由之后新到达的 State 刷新恢复，**不保证刚刚激活后的第一下按键在 Interest 建立前必达**。测试必须等到订阅/界面可交互之后再发可信键盘输入。
 
-第一版映射：
+动作映射固定为以下**演示策略**，不扩展 `cms-actor` 的公开动作值：
 
-| 当前有效方向 | locomotion | facing | 世界位置 |
+| 有效方向 | `locomotion` | `facing` | 实际位移 |
 |---|---|---|---|
-| `null` | `stand` | 保持最近朝向 | 固定 |
-| `left` | `walk` | `left` | 固定 |
-| `right` | `walk` | `right` | 固定 |
-| `up` | `jump` | 保持最近朝向 | 固定 |
-| `down` | `stand` | 保持最近朝向 | 固定 |
+| `null` | `stand` | 保留最后朝向 | 无 |
+| `left` | `walk` | `left` | 无 |
+| `right` | `walk` | `right` | 无 |
+| `up` | `jump` | 保留最后朝向 | 无 |
+| `down` | `stand` | 保留最后朝向 | 无 |
 
-上下键的行为仅为演示约定：当前 `cms-actor` 没有 crouch/ladder 的 `locomotion`，**不新造无对应动画的动作值**。`jump` 仅切换现有非循环动画，不含跳跃速度、重力或落地状态；按键释放恢复 `stand`，左右方向释放也应恢复 `stand`。多键按住时尊重 Tracker 的当前有效方向，避免把每一个 keydown 当作独立状态写入。
+现有 AvatarPlan 对应 `stand→stand1`、`walk→walk1`、`jump→jump`。`jump` 为非循环动作，进入后播放一次并保持末帧，直到动作状态改变；不意味着角色离地、落地或有跳跃物理。多个方向同时按住时使用 Tracker 当前有效方向，释放后恢复剩余有效方向或 `stand`；重复/同值状态不产生额外渲染更新。仅更新改变的 `locomotion` / `facing` attrs，不重新发送 AvatarPlan。
 
-为减少渲染更新，仅当 `locomotion` 或 `facing` 实际发生变化才发送一次 attrs delta；状态恢复不能丢失最后面向方向。
+### 3.3 Actor、Viewport 与资源读取
 
-### 6.3 Frame 生命周期
+- 开始时从 `scope.content.record("struct.AdventureAvatarPlan", "bootstrap", { signal: frame.signal })` 读取**Plan 本体**；失败返回明确的 `failed({ code: "ADVENTURE_AVATAR_CONTENT_UNAVAILABLE" })`，取消返回 `cancelled()`。不要吞掉错误后展示空 Actor。
+- 初始化一次 `scope.createRenderDomain({ zIndex: 0, roots: [ { key: "adventure-player", tag: "cms-actor", attrs: {...}, data: { avatarPlan }, children: [] } ] })`，Actor 的稳定 key 不复用为新节点。初始 `locomotion=stand`、`facing=right`；外观 attrs 继续遵循 [cms-actor 既有契约](../../components/cms-actor/IMPLEMENTATION.md)。
+- `cms-actor` 的 `x/y` 是身体原点（接近脚底），不是 sprite 中心或世界坐标。演示期通过 `scope.viewport.current`、`subscribe` 更新 `x=round(width/2)`、`y=round(height/2+16)`；`+16` 是仅对当前合成图有效的待验证视觉偏移，不属于领域常量。Viewport 为 `null`、无效或零尺寸时不更新。首次有效尺寸及 resize 都需要验证。
+- `domain.update({ nodes: [{ key, attrs: { set: changedAttrs } }] })` 只包含变化项；`avatarPlan` 在创建节点时传入一次，`cms-actor` 内部管理 Canvas、帧序列和 PNG Resource cache。
 
-- 创建顺序：读取 Content → 建立 RenderDomain → 订阅 Viewport → 注册 Controls Consumer → 保持 Frame 活跃。
-- 运行期间不自行完成 Frame；直到 `frame.signal` 取消再退出，返回 `cancelled()`（具体取消/异常路径要按 pinned API 测试）。
-- `finally` 依次关闭 Consumer、取消 Viewport 订阅、关闭 RenderDomain。组件的位图/异步资源由 Renderer 与 `cms-actor` 断开生命周期释放。
-- Content 失败应该返回可定位的 `failed({code})`，不能默默展示空 Actor；Frame 已取消时优先走取消路径。
-- 同一个 Actor key 只使用一次，不做无意义的“删除又重新插入”操作，避免 RenderManager 的 key 复用限制。
+**Frame 生命周期必须封闭：**
 
-## 7. 合成 Content 与 AvatarPlan
+1. `Content` 读取成功且尚未取消 → 创建 RenderDomain → 注册 Viewport 订阅和 Controls Consumer；在订阅后立即处理 `viewport.current`，避免遗漏首个尺寸。
+2. 第一版无自然游戏结束条件，Frame 保持活跃直到 `frame.signal` 取消；不能在初始化之后立即返回 `completed`，否则输入和 Renderer 很快被关闭。
+3. `try/finally` 统一关闭 Controls Consumer、Viewport 订阅和 RenderDomain；包含初始化中途抛错、Frame 被取消和正常退出。关闭后回调不得再调用 `domain.update`；必要时用本地 `closed` 标记抑制迟到回调。
+4. Base 的 `finally` 随 `frame.call` 结束再关闭输入 Producer；资源解码与 Canvas 清理由 `cms-actor` 断开生命周期负责。
 
-当前项目的合成纸娃娃资源已通过 `scripts/pwa/synthetic-avatar-content.mjs` 生成；它提供 `struct.ZMap/order`、5 个 `struct.Look` 记录及所需的 PNG。`test/pwa-avatar-fixture.mjs` 用于**隔离测试**，不能当正式运行时依赖。正式方案：
+## 4. Content、构建依赖与 CI
 
-1. 构建时依据仓库现有 synthetic Look、ZMap、Resource identity/`contentVersion` 推导 AvatarPlan，并通过现有 `validateAvatarPlan` 验证；不得在 Subsystem 中读取 PNG、解析 WZ 或导入 test-only fixture。
-2. 在安装 Content 中新增约定记录（暂定）：`kind=record`、`namespace=struct.AdventureAvatarPlan`、`key=bootstrap`、MIME `application/json`，记录值为**Plan 本体**，不是包了一层 `avatarPlan` 的对象。
-3. Adventure Map 在 Frame 开始时执行 `scope.content.record("struct.AdventureAvatarPlan", "bootstrap", { signal: frame.signal })`，然后将 `record.value` 放进 `RenderNode.data.avatarPlan`。
-4. 计划仍只引用现有 Content Resource 身份和精确哈希版本；构建阶段需校验每个资源的存在性、版本、PNG MIME 和 Actor 的 `RenderNode.data` 大小上限（262,144 字节）。不得嵌入图片 base64 或本地路径到 AvatarPlan。
-5. 既有根 `presentation.json` 的 `cms-actor` classic script 注册保持不变；该组件仍通过 Renderer 的 ResourceClient 读 PNG。
+### 4.1 不引入第二套 Avatar 管线
 
-**待实现决策**：当前 `buildAvatarPlan` 参考适配器位于 `components/cms-actor/test/look-adapter.mjs`。首版可在构建期复用算法，但不能让游戏正式运行依赖 test 路径；宜将生产级派生逻辑抽离到 `content/` 的可测试构建模块并让原 fixture 复用，避免复制两套适配器。是否直接新增缓存 Plan Record 还是由准备阶段 materialize，需要在实现 PR 中以确定性、大小边界和 Hostra Content 接入成本比较后固定。
+复用 [`synthetic-avatar-content.mjs`](../../scripts/pwa/synthetic-avatar-content.mjs) 已生成的 `struct.ZMap/order`、5 条 `struct.Look` 记录、合成 PNG，以及现有 `deriveCanonicalAvatarPlan()` 资源图校验。**构建期**派生一次 `AvatarPlanV1` 并新增只读记录：
 
-**Hostra 补充**：PWA 的 installation-bundle 能安装上述合成 Content，不代表 Hostra 自动获得同一 Content。Hostra 验收前要为相同逻辑身份准备可读取的 FSDB/Content 安装材料；不允许默认为存在，也不允许拷贝真实 CMS079 资产入库。
+| 属性 | 固定值 |
+|---|---|
+| `kind` | `record` |
+| `namespace` | `struct.AdventureAvatarPlan` |
+| `key` | `bootstrap` |
+| MIME | `application/json; charset=utf-8` |
+| Value | 经校验的 AvatarPlan 本体；不是外包一层 `{ avatarPlan }` |
 
-## 8. PWA 打包与依赖调整
+推荐在现有 `assembleSyntheticContent` 的派生/版本检查完成后将该 Plan 序列化加入 Content，重新应用现有 identity、排序、base64 和字节验证；确保重新读取的记录与被验证的 Plan 完全一致。RenderNode 仍按 `data: { avatarPlan: record.value }` 投影。严格保留 `262,144` 字节 RenderNode data 上限和每个 PNG 的精确 `contentVersion`、MIME、身份引用。绝不把 PNG base64、文件路径、真实 WZ 放进 Plan。
 
-现有 `scripts/pwa/build-installation-bundle.mjs` 的 executable 白名单和零导入规则只针对单文件 Smoke。新增的正式 Subsystem 要使用 `@loomrealm/subsystem` / `@loomrealm-game/common-controls/subsystem`，故需要同步：
+目前 `buildAvatarPlan` 适配器位于 `components/cms-actor/test/look-adapter.mjs`。**明确决策：只做一次小型抽取**——迁至 `content/build-avatar-plan.mjs`，原 test adapter 作为测试兼容转发/导入；`scripts/pwa/synthetic-avatar-content.mjs` 改为导入正式构建模块。**不**新增运行时 Adapter、Avatar Repository、泛用 Content 索引或真实素材流水线。现有 `test/pwa-avatar-fixture.mjs` 仍为单独测试，禁止作为正式 Subsystem。
 
-1. 受控白名单从 `subsystems/smoke.mjs` 更新为 `subsystems/base.mjs` 与 `subsystems/adventure-map.mjs` 对应的 **`systems/*/subsystem.mjs` 源文件**；模块数量/顺序和 manifest 相互验证。
-2. 借鉴 PokeMan 的 product-owned 构建脚本，用 `esbuild` 对每个入口生成 `bundle:true`、`format:"esm"`、`platform:"browser"`、`write:false` 的**自包含**模块；只发布构建结果，不能直接把裸依赖源码或越根 shim 提交给 PWA Builder。
-3. 保留现有导入图禁令（无裸模块导入、越根导入、非字面量动态 import）、可执行源 SHA-256 与 provenance、Content 白名单与版本验证、确定性输出及安全写盘。不要为了通过打包删除安全检查。
-4. 按 PokeMan 当前 `package.json` 的实际做法为根工程建立可解析 pinned LoomRealm 包与 common-controls 的 npm workspace/依赖关系；同步 lockfile、构建顺序与 CI。**不能假定在 submodule 内构建后，根源码中的裸包导入必然可解析。**
-5. 更新 PWA 浏览器启动测试：之前 Smoke 会快速 `settled`，而 Adventure Map 是常驻 Frame，新的正常状态应为可交互的 `ready`；断言不得只检查自定义元素是否注册。
+### 4.2 构建顺序和发布策略（P0）
 
-此任务不修改 `loom-realm` gitlink、不借用 PokeMan 本地工程的构建产物、不触碰线上部署、Docker、密钥或真实 WZ。
+新的 `base` / `adventure-map` 需要 `@loomrealm/subsystem` 和 `@loomrealm-game/common-controls/subsystem`，当前 Adventure Island 根 `package.json` 不含依赖/workspaces。必须参考 [PokeMan 产品侧构建](https://github.com/lithdoo-labs/pokeman/blob/main/scripts/pwa/build-installation-bundle.mjs) 配置根 npm workspaces/本地依赖、锁定 lockfile、明确可重复的 CI 安装和构建链。
 
-## 9. 测试与验收标准
+**强制执行顺序：**
 
-### 单元与契约验证
+```text
+checkout + 精确 gitlink 校验
+  → 安装根工程/固定 LoomRealm 的锁定依赖
+  → 构建需用的 @loomrealm/* 依赖及 @loomrealm-game/common-controls
+  → 取得 common-controls dist/browser/device-input.browser.js
+  → esbuild(bundle=true, format=esm, platform=browser) 两个 Subsystem
+  → 生成 installation-bundle（2 executable + 2 classic scripts + synthetic Content）
+  → 通用 LoomRealm PWA Builder → staging
+  → root 契约测试 + canonical Chromium/Service Worker E2E
+```
 
-- [ ] Base 创建单个 `game-controls-input`，调用 `frame.call("adventure-map", null)`，子 Frame 结束时关闭自己的 RenderDomain。
-- [ ] Game Entry / PWA / Hostra manifest key 集合精确匹配；根 canonical 和暂存 `apps/*` 路径的角色明确。
-- [ ] Directional Tracker：`left/right/up/down`、组合按住、最后有效方向、释放返回、`controls.state` 刷新和 stale-reset 均正确；手柄方向经公共输入层映射一致。
-- [ ] Actor 的 `avatarPlan` 内容合法、资源版本匹配、大小不超限；资源未命中、版本冲突、Frame 取消都能明确失败或退出。
-- [ ] `domain.update` 仅修改变化的 attrs，不重新发布完整 `avatarPlan`；Viewport resize 时只更新 `x/y`。
-- [ ] 取消 Frame 后输入监听、Viewport 订阅和 RenderDomain 全部关闭。
-- [ ] PWA 自包含打包无越根引用、无裸包导入，受控白名单、安全写盘、确定性及原有负例测试仍生效。
+实作时要按 npm workspace 依赖拓扑确定具体命令，并在全新 CI checkout 使用锁定依赖验证；不能混用两套未经验证的 `node_modules` 解析假设。`pwa:bundle` 本身不得静默读取尚未构建的 Controls 文件；缺失即明确失败并提示依赖构建。
 
-### 真实集成验证
+调整 `EXECUTABLE_SOURCE_BINDINGS` 为两个受控源文件（`systems/base/subsystem.mjs`、`systems/adventure-map/subsystem.mjs`），再编译为**自包含 executable**。保留现有 `assertExecutableGraph` 的零外部导入图、禁止动态/越根导入和 Node-only API 规则，打包后才计算 `sha256` 和 `contentVersion`。`CONTENT_SCRIPT_SOURCE_BINDINGS` 的 Controls 产物路径也必须受白名单约束。保留已经有的资源引用完整性、输出路径防护、确定性和负例测试，不迁入 LoomRealm `examples`。
 
-- [ ] 在真实 Chromium + Service Worker 的 **canonical** PWA 启动流程，进入 `base` → `adventure-map`，产品保持可交互 `ready`，而非测试 fixture 单独通过。
-- [ ] 页面上只出现一个真正投影的 `cms-actor`，已有合成 PNG 成功加载、`data-render-state=ready`，没有版本或资源错误。
-- [ ] 模拟键盘按下/释放 `← → ↑ ↓`，确认动作切换为 `walk1/stand1/jump`，左右朝向正确，松开返回站立。
-- [ ] 验证无持续横向位移；Viewport 缩放后角色仍居中。
-- [ ] 手柄输入如 CI 缺少真实设备，应使用公共 Controls 的确定性注入/仿真测试；真实设备操作保留为人工验收，**不得把仅有键盘 E2E 宣称为手柄实机通过**。
-- [ ] Hostra 在有相同 synthetic Content 的前提下完成启动/Actor 验证；缺 Content 时报告 BLOCKED，不能计为通过。
+根 `presentation.json` 要有两项脚本；Content 要在旧合成内容基础上新增**一个 Controls 脚本 + 一个 AvatarPlan Record**。所有写死旧 Content 数量 `24`、单 executable、`subsystems/smoke.mjs` 的断言均应更新，不能只改 `game.json`。
 
-### 本切片完成定义
+**CI 必改的文件/约定：**
 
-**至少具备真实 canonical PWA 的键盘可操作闭环、正确的组件渲染、负例与清理测试、无回归的 bundle CI。** 手柄真实设备和 Hostra 实体安装分别报告实际状态，不能借用其他环境的通过结果。
+- `.github/workflows/pwa-ci.yml`：在 `npm run pwa:bundle` 前构建所需依赖和 Controls IIFE，执行根工程的确定性安装；保留准确 gitlink、研究素材隔离、无 skip 的测试门禁。
+- Workflow `paths`：由 `systems/loomrealm-smoke/**` 扩展至 `systems/**`，覆盖 `content/**`、`package-lock.json` 及新建的实现/打包测试。文档 PR 可按流程手动触发；代码 PR 不得因路径过滤绕过 E2E。
+- `test/game-entry.test.mjs`：将 canonical `base` 与 legacy `apps/*` Smoke 的测试分离，不再强制三份 Game Entry 等于 Smoke；新增 Base → Map 调用契约。
+- `test/pwa-bundle.test.mjs`、`test/pwa-browser.e2e.test.mjs`：更新数量/身份/发布白名单与正式启动期望；过去 Smoke 单 Frame `settled` 的预期改为持久活跃的可交互状态（以 pinned Runtime 实际观测为准）。
+- `docs/game-entry.md` 和 `README.md`：描述新的 canonical 入口，准确标注过渡 Smoke 文件，不保留陈旧的 Smoke 作为正式应用的说明。
 
-## 10. 分阶段落地建议
+不更新 gitlink，不提交第三方控制器文件、CMS079 客户端、WZ、真实 FSDB 或密钥，不改生产部署。
 
-| 阶段 | 交付 | 关键门槛 |
+## 5. 验收矩阵与故障闭环
+
+| 范围 | 必须验证 | 合格证据 |
 |---|---|---|
-| A. 入口与 Base | Game Entry、两个绑定、`base` 及其单测 | Base 能持有输入并调用 Adventure Map；构建基线明确 |
-| B. Map 控制与 Render | `adventure-map`、方向映射、Viewport、Actor 节点 | 可以独立测试 attrs delta 与取消清理 |
-| C. Content 正式化 | 产出 bootstrap AvatarPlan 记录，保留合成 PNG 精确版本 | 不再依赖测试 fixture 作为运行时 |
-| D. PWA 集成 | 两个自包含 executable、安装包、正式 Chromium E2E | Canonical PWA 真实按键闭环通过 |
-| E. Hostra 验收 | 相同 Content 的 Desktop 安装及验证 | 依据可复现结果独立标记 PASS/BLOCKED |
+| Game Entry | `base` 是初始 Frame；它打开 `adventure-map` 并在子 Frame 活跃时保持输入组件 | Frame/RenderDomain 单元契约 |
+| 脚本/Content | 两份 classic script 均进入 Presentation 与发布 Content；组件已注册且非 `data-input-disabled=duplicate` | staging Bundle 引用 + 真浏览器断言 |
+| Input | `ArrowLeft/Right/Up/Down` 真实 down/up；组合按键、释放、blur/stale reset；D-pad 统一方向 | Controls 单测 + Chromium `page.keyboard.down/up` + 手柄仿真 |
+| Actor | `stand1 / walk1 / jump` 与 facing 正确，松开恢复；无世界位移；Viewport resize 仍居中 | Chromium 实际 `data-action`/`data-render-state` 与像素/位置验证 |
+| Render/Content | AvatarPlan 正确，资源哈希一致，PNG 真加载；方向变化不重发 Plan | 根 Content 合法性、DOM 观察、RenderDomain update 断言 |
+| 生命周期 | Frame 中止后 Consumer、Viewport 订阅、Map Domain 及 Base Domain 关闭；无迟到修改 | 主动取消/异常分支单测与 PWA E2E |
+| 构建回归 | 两个 self-contained executable、哈希/白名单正确、确定性/安全路径测试通过，原 Actor fixture 可运行 | CI 中重新构建 + 完整 `npm test` + 无跳过 Chromium |
 
-各阶段均不包括场地运行库、真实运动、地图层、立足线、传送门、NPC、怪物、技能或 Shared State 角色持久化。
+**特别约定：** 新 `game-controls-input` 检查 `isTrusted`，自动化集成必须使用 Playwright 的真实键盘操作，而不是 `page.evaluate(() => dispatchEvent(...))` 伪造事件。测试先验证页面已可交互再发输入；非激活 Frame 的早到事件不能要求重放。
 
-## 11. 尚待评审的设计点
+**验收报告必须区分：**
 
-1. **源代码入口**：是否以 `systems/*/subsystem.mjs` 为唯一实现并保留根安装 shim；避免三套重复源码。
-2. **AvatarPlan 生产化**：将测试适配器移到正式 `content/` 构建模块，还是独立固定生成记录。两者都必须维持哈希引用、字节上限和可复现测试。
-3. **视口居中基准**：临时 `+16` 身体原点偏移只适用于当前合成图；最终用测量数据确定。
-4. **Hostra 预备方式**：指定本地 synthetic FSDB / Content 安装路径，不能把 PWA 专属 payload 当成 Desktop 资源。
-5. **旧 Smoke 测试**：保留独立 fixture 和测试，更新“正式产品只能立刻 settled”的旧断言，不要简单删除覆盖率。
-6. **输入语义**：本切片 `up=jump`、`down=stand` 仅用于动作验证；正式 CMS079 场地输入将在 Game Library + 物理 Tick 建立后重新定义。
+- **PWA：** `PASS` 仅当 canonical PWA 的真实端到端输入、Content、Actor、取消清理通过；旧 `test/pwa-avatar-fixture.mjs` 单独通过不足以认定达标。
+- **手柄：** 可通过 deterministic Controls/D-pad 注入证明映射；实机控制器测试未做时写 `DEVICE UNVERIFIED`，不得写“实机已通过”。模拟摇杆属于明确的非目标。
+- **Hostra：** `launch.hostra.json` 配置同构不等于正式运行成功。若没有相同逻辑身份的 synthetic FSDB/Content 及其可重放安装/启动过程，验收写 `BLOCKED`；可另开任务建立 Desktop Content 安装，不阻断本次 PWA 切片。
 
-## 12. 进入后续可玩里程碑的条件
+## 6. 实施边界与交付顺序
 
-完成本草案切片之后，再根据 [`DESIGN.md`](../../DESIGN.md) 实施独立的横版场地 Game Library：世界坐标与可重复 Tick、foothold、走跳/重力、场景边界、双向传送门、两张合成场景与跟随摄像机。后续地图逻辑应消费**同一份公共 Controls**，把输入映射成权威移动意图；不能用本切片的假 `walk` 动画代替真实位置模拟。
+| 步骤 | 唯一交付 | 退出条件 |
+|---|---|---|
+| A | 根 Game Entry、两个唯一 Subsystem、根绑定与测试迁移 | Base → Map Frame 与输入域生命周期可测 |
+| B | Controls 浏览器脚本注册、受控发布、输入 Tracker → Actor attrs、Viewport | 键盘/方向状态单测，唯一 Actor 正确投影 |
+| C | 将现有构建期 AvatarPlan 正式发布为 Record；清理 test adapter 依赖 | 合成资源经 Content 可读取、哈希与大小合格 |
+| D | 根依赖/锁文件、两个自包含 Bundle、CI 顺序和真实 canonical PWA E2E | 完成第 5 节 PWA 全部 PASS |
+| E（独立） | Hostra synthetic Content 准备与实体运行验证 | 有证据则 PASS，否则清楚标 BLOCKED |
 
----
+**不要把步骤 A–D 拆成分别“宣布功能完成”的里程碑；只有 D 通过才形成真正的 PWA 垂直闭环。** 后续可玩场地要另行实现独立的横版物理 Game Library；当前 `adventure-map` 的动作状态仅是未来领域移动意图到 RenderNode 的最简替身。
 
-**评审结论（待填写）：** 未评审。本文是方案草案，所有示例代码与路径均为拟议，未声称已合并、已运行或已通过 CI。
+### 设计决策已固定
+
+- 用 LoomRealm **统一 Controls**，不再自建键盘/手柄监听器。
+- `base` 管理唯一 Producer，`adventure-map` 作为 Top Active Frame 管理 Consumer；`cms-actor` 不变。
+- 两个业务 Subsystem 各一份源码；根入口为 shim；`apps/*` Smoke 保持 legacy，不复制四份新源码。
+- 仅合成素材、构建期一次 AvatarPlan 派生、Content Record；不进行 WZ/FSDB 重导入。
+- PWA 为本次硬验收；Hostra 作为独立平台资格，不以静态 manifest 假冒完成。
+- 仅在 Adventure Island 仓库实现，不升级 `loom-realm`，不开发 PokeMan 专属 Map/Battle。
+
+**状态：待编码与资格验证。** 文档明确了最低工作集与验收条件；任何 `PASS` 都必须附实际 CI/浏览器执行证据，不能从草案推断。

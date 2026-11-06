@@ -1,0 +1,25 @@
+name: CMS079 backup archive checks
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/wz_fsdb/backup_artifacts.py'
+      - 'tests/test_cms079_backup.py'
+      - '.github/workflows/cms079-backup-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup-fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compile backup utility and offline tests
+        run: python3 -m py_compile scripts/wz_fsdb/backup_artifacts.py tests/test_cms079_backup.py
+      - name: Copy and verify tiny FSDB/report fixtures (no real WZ needed)
+        run: python3 -m unittest discover -s tests -p 'test_cms079_backup.py' -v

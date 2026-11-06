@@ -2,11 +2,53 @@ import {
   AVATAR_PLAN_LIMITS,
   formatSkippedLayers,
   frameDuration,
+  frameHolds,
   layoutFrame,
-  mirrorBounds,
+  placeAnchoredLayers,
   resolveActionName,
+  rotatePoint,
   validateAvatarPlan,
 } from "./avatar-model.mjs";
+
+function actionSignature(action) {
+  if (!action) return "";
+  return JSON.stringify(action.frames.map((frame) => ({
+    delay: frame.delay ?? null,
+    move: frame.move ?? null,
+    flip: Boolean(frame.flip),
+    rotate: frame.rotate ?? 0,
+    showFace: frame.showFace !== false,
+    layers: frame.layers.map((layer) => [
+      layer.id,
+      layer.z,
+      layer.resource.namespace,
+      layer.resource.key,
+      layer.resource.contentVersion,
+      layer.width,
+      layer.height,
+      layer.source ?? null,
+      layer.origin,
+    ]),
+  })));
+}
+
+function expressionSignature(expression) {
+  if (!expression) return "";
+  return JSON.stringify({
+    name: expression.name,
+    frames: (expression.frames ?? []).map((frame) => ({
+      delay: frame.delay ?? null,
+      layers: (frame.layers ?? []).map((layer) => [
+        layer.id,
+        layer.resource.key,
+        layer.resource.contentVersion,
+        layer.width,
+        layer.height,
+        layer.source ?? null,
+      ]),
+    })),
+  });
+}
 
 const HTMLElementBase = globalThis.HTMLElement ?? class {};
 const OBSERVED_ATTRIBUTES = ["x", "y", "locomotion", "facing", "skin", "face", "hair", "expression", "equips"];
@@ -103,6 +145,13 @@ export class CmsActor extends HTMLElementBase {
     this._frameIndex = 0;
     this._activeActionName = null;
     this._oneShotAction = null;
+    this._pendingAction = null;
+    this._fallbackAction = null;
+    this._rememberedAction = null;
+    this._rememberedBodyKey = null;
+    this._expressionFrameIndex = 0;
+    this._expressionElapsed = 0;
+    this._expressionSignature = "";
     this._connected = false;
 
     if (typeof this.attachShadow === "function") {
@@ -146,6 +195,7 @@ export class CmsActor extends HTMLElementBase {
       this._syncPosition();
       return;
     }
+    if (name === "locomotion") this._fallbackAction = null;
     if ((name === "locomotion" || name === "facing") && this._connected) this._requestPaint();
     // skin/face/hair/equips are selectors for the game-side adapter. Their
     // resolved appearance arrives in the next retained avatarPlan update.
@@ -168,13 +218,13 @@ export class CmsActor extends HTMLElementBase {
       if (candidate === undefined || candidate === null) {
         throw new TypeError("avatarPlan is required in RenderNode.data");
       }
-      this._plan = validateAvatarPlan(candidate);
-      this._pruneResourceCache(this._plan);
+      const plan = validateAvatarPlan(candidate);
+      const previous = this._plan;
+      this._plan = plan;
+      this._pruneResourceCache(plan);
       this.removeAttribute("data-render-error");
-      this._activeActionName = null;
-      this._frameIndex = 0;
-      this._elapsed = 0;
-      this._oneShotAction = null;
+      this._adoptPlan(previous);
+      this._settleZeroDelay();
       this._requestPaint();
     } catch (error) {
       this._paintEpoch += 1;
@@ -189,14 +239,21 @@ export class CmsActor extends HTMLElementBase {
 
   /** Receives one-shot, transient Render Events; they are never retained in data. */
   receiveRenderEvent(event) {
-    if (event?.name !== "action" || typeof event.data?.action !== "string") return;
+    if (event?.name !== "action" || typeof event.data?.action !== "string" || event.data.action.length === 0) return;
     const actionName = event.data.action;
-    if (!this._plan?.actions?.[actionName]) return;
+    if (!this._plan?.actions?.[actionName]) {
+      this._pendingAction = actionName;
+      return;
+    }
+    this._pendingAction = null;
+    this._fallbackAction = null;
     this._oneShotAction = actionName;
     this._activeActionName = actionName;
     this._frameIndex = 0;
     this._elapsed = 0;
     this._lastTick = null;
+    this._rememberPlayed(actionName);
+    this._settleZeroDelay();
     this._requestPaint();
   }
 
@@ -216,6 +273,11 @@ export class CmsActor extends HTMLElementBase {
       paintRequests: this._paintRequests,
       paintRounds: this._paintRounds,
       oneShotAction: this._oneShotAction,
+      pendingAction: this._pendingAction,
+      fallbackAction: this._fallbackAction,
+      rememberedAction: this._rememberedAction,
+      rememberedBodyKey: this._rememberedBodyKey,
+      expressionFrame: this._expressionFrameIndex,
       contextInjected: this._context !== null,
       decode: Object.freeze({
         active: this._decodeActive,
@@ -251,6 +313,7 @@ export class CmsActor extends HTMLElementBase {
 
   _resolveActiveAction() {
     if (this._oneShotAction && this._plan?.actions?.[this._oneShotAction]) return this._oneShotAction;
+    if (this._fallbackAction && this._plan?.actions?.[this._fallbackAction]) return this._fallbackAction;
     return resolveActionName(this._plan, this.getAttribute?.("locomotion") ?? "stand");
   }
 
@@ -262,7 +325,140 @@ export class CmsActor extends HTMLElementBase {
       this._elapsed = 0;
       this._lastTick = null;
     }
+    this._rememberPlayed(next);
     return next;
+  }
+
+  _rememberPlayed(actionName) {
+    if (!actionName || !this._plan?.bodyKey || !this._plan.actions?.[actionName]) return;
+    this._rememberedBodyKey = this._plan.bodyKey;
+    this._rememberedAction = actionName;
+  }
+
+  _standActionName(plan = this._plan) {
+    const named = plan?.locomotionActions?.stand;
+    if (named && plan.actions?.[named]) return named;
+    return resolveActionName(plan, "stand");
+  }
+
+  /**
+   * Apply the plan/event handshake from the adventure adapter contract.
+   * A pending action name is consumed by this plan only. An in-progress
+   * one-shot survives a plan replacement when its frame list is unchanged.
+   * A bodyKey change forgets the previous body's pose.
+   */
+  _adoptPlan(previous) {
+    const plan = this._plan;
+    const pending = this._pendingAction;
+    this._pendingAction = null;
+    const bodyChanged = Boolean(previous?.bodyKey) && plan.bodyKey !== previous.bodyKey;
+    if (bodyChanged) {
+      this._rememberedAction = null;
+      this._rememberedBodyKey = null;
+      this._oneShotAction = null;
+      this._fallbackAction = null;
+    }
+    const previousOneShot = bodyChanged ? null : this._oneShotAction;
+    const previousFrame = this._frameIndex;
+    const previousElapsed = this._elapsed;
+    const previousActive = this._activeActionName;
+
+    const assign = (actionName, keepClock) => {
+      this._activeActionName = actionName;
+      if (keepClock && actionName && plan.actions[actionName]) {
+        this._frameIndex = Math.min(previousFrame, plan.actions[actionName].frames.length - 1);
+        this._elapsed = previousElapsed;
+      } else {
+        this._frameIndex = 0;
+        this._elapsed = 0;
+      }
+      this._lastTick = null;
+    };
+    const sameFrames = (name) => Boolean(previous?.actions?.[name])
+      && actionSignature(previous.actions[name]) === actionSignature(plan.actions[name]);
+
+    if (pending && plan.actions[pending]) {
+      this._fallbackAction = null;
+      this._oneShotAction = pending;
+      assign(pending, false);
+    } else if (pending) {
+      const remembered = !bodyChanged && plan.bodyKey && this._rememberedBodyKey === plan.bodyKey
+        ? this._rememberedAction
+        : null;
+      const stand = this._standActionName(plan);
+      const walk = plan.locomotionActions?.walk;
+      const jump = plan.locomotionActions?.jump;
+      if (remembered && plan.actions[remembered]) {
+        const locomotion = remembered === stand || remembered === walk || remembered === jump;
+        this._fallbackAction = null;
+        if (locomotion) {
+          this._oneShotAction = null;
+          assign(remembered, previousActive === remembered && sameFrames(remembered));
+        } else {
+          this._oneShotAction = remembered;
+          assign(remembered, sameFrames(remembered));
+        }
+      } else if (plan.bodyKey) {
+        this._oneShotAction = null;
+        this._fallbackAction = stand;
+        assign(stand, false);
+      } else {
+        this._oneShotAction = null;
+        this._fallbackAction = null;
+        assign(this._resolveActiveAction(), false);
+      }
+    } else if (!bodyChanged && previousOneShot && plan.actions[previousOneShot]) {
+      this._fallbackAction = null;
+      this._oneShotAction = previousOneShot;
+      assign(previousOneShot, sameFrames(previousOneShot));
+    } else {
+      this._oneShotAction = null;
+      this._fallbackAction = null;
+      const next = this._resolveActiveAction();
+      assign(next, !bodyChanged && previousActive === next && sameFrames(next));
+    }
+
+    const signature = expressionSignature(plan.expression);
+    if (signature !== this._expressionSignature) {
+      this._expressionFrameIndex = 0;
+      this._expressionElapsed = 0;
+      this._expressionSignature = signature;
+    } else if (plan.expression?.frames?.length) {
+      this._expressionFrameIndex = Math.min(this._expressionFrameIndex, plan.expression.frames.length - 1);
+    }
+    this._rememberPlayed(this._activeActionName);
+  }
+
+  _expressionLayersFor(frame) {
+    if (frame?.showFace === false) return [];
+    const expression = this._plan?.expression;
+    if (!expression?.frames?.length) return [];
+    const index = Math.min(this._expressionFrameIndex, expression.frames.length - 1);
+    this._expressionFrameIndex = index;
+    return expression.frames[index].layers ?? [];
+  }
+
+  /** Skip zero-duration frames before they are held. A one-shot's last zero frame ends it. */
+  _settleZeroDelay() {
+    let safety = 0;
+    while (this._plan && safety < 32) {
+      safety += 1;
+      const current = this._currentFrame();
+      if (!current || frameHolds(current.frame) || frameDuration(current.frame) > 0) return;
+      const last = current.action.frames.length - 1;
+      const isLast = this._frameIndex >= last;
+      if (isLast && this._oneShotAction) {
+        this._oneShotAction = null;
+        this._activeActionName = null;
+        this._frameIndex = 0;
+        this._elapsed = 0;
+        this._lastTick = null;
+        continue;
+      }
+      if (isLast && !current.action.loop) return;
+      this._frameIndex = isLast ? 0 : this._frameIndex + 1;
+      this._elapsed = 0;
+    }
   }
 
   _currentFrame() {
@@ -288,6 +484,7 @@ export class CmsActor extends HTMLElementBase {
     queueMicrotask(() => {
       this._paintScheduled = false;
       if (!this._connected || !this._canvas) return;
+      this._settleZeroDelay();
       const current = this._currentFrame();
       if (!this._context || !current) {
         this._paintEpoch += 1;
@@ -323,16 +520,20 @@ export class CmsActor extends HTMLElementBase {
       // frame, and every pin acquired before the throw must still be
       // released — the finally below is the single release path for every
       // outcome (sync throw, stale discard, draw failure, success).
-      for (const layer of frame.layers) entries.push(this._getBitmapEntry(layer));
+      const expressionLayers = this._expressionLayersFor(frame);
+      const layers = [...frame.layers, ...expressionLayers];
+      for (const layer of layers) entries.push(this._getBitmapEntry(layer));
       const bitmaps = await Promise.all(entries.map((entry) => entry.promise));
       // A newer paint round, a data update or a disconnect invalidates this
       // round: stale results must never overwrite the newer action.
       if (!this._connected || epoch !== this._paintEpoch) return;
-      this._drawFrame(frame, frame.layers.map((layer, index) => ({ layer, bitmap: bitmaps[index] })));
+      this._drawFrame(frame, layers.map((layer, index) => ({ layer, bitmap: bitmaps[index] })), expressionLayers);
       this.setAttribute("data-render-state", "ready");
       this.removeAttribute("data-render-error");
       this.setAttribute("data-action", actionName);
       this.setAttribute("data-frame", String(this._frameIndex));
+      if (this._plan.expression) this.setAttribute("data-expression-frame", String(this._expressionFrameIndex));
+      else this.removeAttribute("data-expression-frame");
       this._paintPending = false;
       // The clock remains paused while painting; the first RAF after this
       // completion establishes a fresh timestamp before accumulating delay.
@@ -356,11 +557,13 @@ export class CmsActor extends HTMLElementBase {
   /** Release entries the current plan no longer references. */
   _pruneResourceCache(plan) {
     const used = new Set();
-    for (const action of Object.values(plan.actions)) {
-      for (const frame of action.frames) {
-        for (const layer of frame.layers) used.add(this._resourceKey(layer.resource));
+    const collect = (frames) => {
+      for (const frame of frames ?? []) {
+        for (const layer of frame.layers ?? []) used.add(this._resourceKey(layer.resource));
       }
-    }
+    };
+    for (const action of Object.values(plan.actions)) collect(action.frames);
+    collect(plan.expression?.frames);
     for (const [key, entry] of [...this._resourceCache]) {
       if (used.has(key)) continue;
       this._evictEntry(key, entry);
@@ -521,7 +724,7 @@ export class CmsActor extends HTMLElementBase {
       // decode to the same pixels it did before. A new plan declaring
       // different dimensions for a cached identity is rejected with a
       // locatable error instead of silently painting a stretched bitmap.
-      if (cached.bitmap !== null && (cached.width !== layer.width || cached.height !== layer.height)) {
+      if (cached.bitmap !== null && !this._bitmapCoversLayer(layer, cached.width, cached.height)) {
         throw new Error(`CONTENT_INVALID ${resource.namespace}/${resource.key} declares ${layer.width}x${layer.height} but the cached decode of the same identity and version is ${cached.width}x${cached.height}`);
       }
       // Refresh LRU recency.
@@ -560,7 +763,7 @@ export class CmsActor extends HTMLElementBase {
       // never hand a superseded entry to the unabortable decode API.
       this._assertDecodeStillWanted(cacheKey, entry, controller);
       const bitmap = await this._decodeBitmap(cacheKey, entry, controller, new Blob([resolved.bytes], { type: resolved.mime }));
-      if (bitmap.width !== layer.width || bitmap.height !== layer.height) {
+      if (!this._bitmapCoversLayer(layer, bitmap.width, bitmap.height)) {
         bitmap.close?.();
         throw new Error(`CONTENT_INVALID ${resource.namespace}/${resource.key} decoded to ${bitmap.width}x${bitmap.height} but the plan declares ${layer.width}x${layer.height}`);
       }
@@ -610,7 +813,17 @@ export class CmsActor extends HTMLElementBase {
     return entry;
   }
 
-  _drawFrame(frame, layersWithBitmaps) {
+  _bitmapCoversLayer(layer, bitmapWidth, bitmapHeight) {
+    if (layer.source) {
+      const source = layer.source;
+      return source.x >= 0 && source.y >= 0
+        && source.x + source.w <= bitmapWidth
+        && source.y + source.h <= bitmapHeight;
+    }
+    return bitmapWidth === layer.width && bitmapHeight === layer.height;
+  }
+
+  _drawFrame(frame, layersWithBitmaps, expressionLayers = []) {
     const canvas = this._canvas;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Canvas 2D context is unavailable for cms-actor");
@@ -618,21 +831,55 @@ export class CmsActor extends HTMLElementBase {
     const mirror = Boolean(facingLeft) !== Boolean(frame.flip);
     const mirrorPivotX = frame.move?.[0] ?? 0;
     const layout = layoutFrame(frame, this._plan.zOrder, 0, 0);
-    const drawItems = layout.drawOrder
+    const base = { x: frame.move?.[0] ?? 0, y: frame.move?.[1] ?? 0 };
+    const placedExpression = expressionLayers.length
+      ? placeAnchoredLayers(expressionLayers, layout.anchors, base)
+      : { positioned: [], skipped: [] };
+    for (const item of placedExpression.positioned) item.index += frame.layers.length;
+    const orderIndex = new Map(this._plan.zOrder.map((z, index) => [z, index]));
+    const positioned = [...layout.positioned, ...placedExpression.positioned].sort((a, b) => {
+      const zDelta = (orderIndex.get(b.layer.z) ?? 0) - (orderIndex.get(a.layer.z) ?? 0);
+      return zDelta || a.index - b.index;
+    });
+    const drawItems = positioned
       .map((item) => {
         const entry = layersWithBitmaps.find((candidate) => candidate.layer === item.layer);
         return entry ? { ...item, bitmap: entry.bitmap } : null;
       })
       .filter(Boolean);
+    const skipped = [...layout.skipped, ...placedExpression.skipped];
 
     if (drawItems.length === 0) {
       this._clearCanvas();
+      if (skipped.length > 0) this.setAttribute("data-skipped-layers", formatSkippedLayers(skipped));
+      else this.removeAttribute("data-skipped-layers");
       return;
     }
 
-    const rects = drawItems.map((item) => mirror
-      ? mirrorBounds(item, mirrorPivotX)
-      : { left: item.left, right: item.left + item.width, top: item.top, bottom: item.top + item.height });
+    const bodyItem = layout.positioned.find((item) => item.layer.id === "body") ?? layout.positioned[0];
+    const originX = bodyItem?.originX ?? mirrorPivotX;
+    const originY = bodyItem?.originY ?? (frame.move?.[1] ?? 0);
+    const rotate = frame.rotate;
+    const rects = drawItems.map((item) => {
+      const corners = [
+        [item.left, item.top],
+        [item.left + item.width, item.top],
+        [item.left + item.width, item.top + item.height],
+        [item.left, item.top + item.height],
+      ].map(([x, y]) => rotate ? rotatePoint(x, y, originX, originY, rotate) : [x, y]);
+      let left = Infinity;
+      let right = -Infinity;
+      let top = Infinity;
+      let bottom = -Infinity;
+      for (const [x, y] of corners) {
+        const mirroredX = mirror ? (2 * mirrorPivotX - x) : x;
+        if (mirroredX < left) left = mirroredX;
+        if (mirroredX > right) right = mirroredX;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+      return { left, right, top, bottom };
+    });
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -700,22 +947,43 @@ export class CmsActor extends HTMLElementBase {
       // Compensate so flipped texels land exactly on 2*pivot - x.
       context.translate(-1, 0);
     }
+    if (rotate) {
+      context.translate(originX, originY);
+      context.rotate(rotate * Math.PI / 180);
+      context.translate(-originX, -originY);
+    }
 
     for (const item of drawItems) {
-      context.drawImage(item.bitmap, item.left, item.top, item.width, item.height);
+      const source = item.layer.source;
+      if (source) {
+        context.drawImage(item.bitmap, source.x, source.y, source.w, source.h, item.left, item.top, item.width, item.height);
+      } else {
+        context.drawImage(item.bitmap, item.left, item.top, item.width, item.height);
+      }
     }
-    if (layout.skipped.length > 0) this.setAttribute("data-skipped-layers", formatSkippedLayers(layout.skipped));
+    if (skipped.length > 0) this.setAttribute("data-skipped-layers", formatSkippedLayers(skipped));
     else this.removeAttribute("data-skipped-layers");
   }
 
+  _expressionCanAdvance() {
+    const frames = this._plan?.expression?.frames;
+    if (!frames || frames.length < 2) return false;
+    const frame = frames[Math.min(this._expressionFrameIndex, frames.length - 1)];
+    return frame?.delay !== undefined;
+  }
+
   _ensureAnimationLoop(action, frame) {
-    const canAdvance = frameDuration(frame) > 0
-      && (this._oneShotAction !== null || (action.loop && action.frames.length > 1));
-    if (!canAdvance) {
+    const duration = frameDuration(frame);
+    const holds = frameHolds(frame);
+    const zeroSkips = !holds && duration === 0 && (
+      this._frameIndex < action.frames.length - 1 || action.loop || this._oneShotAction
+    );
+    const timed = duration > 0 && (this._oneShotAction !== null || (action.loop && action.frames.length > 1));
+    if (!zeroSkips && !timed && !this._expressionCanAdvance()) {
       this._stopAnimation();
       return;
     }
-    if (!this._animationHandle) {
+    if (!this._animationHandle && typeof requestAnimationFrame === "function") {
       this._animationHandle = requestAnimationFrame((time) => this._tick(time));
     }
   }
@@ -733,14 +1001,19 @@ export class CmsActor extends HTMLElementBase {
     const delta = Math.min(250, Math.max(0, time - this._lastTick));
     this._lastTick = time;
     this._elapsed += delta;
+    this._expressionElapsed += delta;
 
     let frame = current.frame;
-    let duration = frameDuration(frame);
     let changed = false;
     let safety = 0;
-    while (duration > 0 && this._elapsed >= duration && safety < 32) {
-      this._elapsed -= duration;
+    while (safety < 32) {
+      if (frameHolds(frame)) break;
+      const duration = frameDuration(frame);
       const isLast = this._frameIndex >= current.action.frames.length - 1;
+      const terminalHold = isLast && !this._oneShotAction && !current.action.loop;
+      if (terminalHold && duration === 0) break;
+      if (duration > 0 && this._elapsed < duration) break;
+      if (duration > 0) this._elapsed -= duration;
       if (isLast && this._oneShotAction) {
         this._oneShotAction = null;
         this._activeActionName = null;
@@ -749,19 +1022,20 @@ export class CmsActor extends HTMLElementBase {
         changed = true;
         break;
       }
-      if (isLast && !current.action.loop) {
+      if (terminalHold) {
         this._frameIndex = current.action.frames.length - 1;
         this._elapsed = 0;
         this._stopAnimation();
-        return;
+        break;
       }
       this._frameIndex = isLast ? 0 : this._frameIndex + 1;
-      frame = current.action.frames[this._frameIndex];
-      duration = frameDuration(frame);
+      const next = this._currentFrame();
+      if (!next) break;
+      frame = next.frame;
       changed = true;
       safety += 1;
-      if (duration === 0) break;
     }
+    if (this._advanceExpression()) changed = true;
 
     if (changed) {
       this._lastTick = null;
@@ -770,8 +1044,32 @@ export class CmsActor extends HTMLElementBase {
       this._ensureAnimationLoop(current.action, current.frame);
     }
   }
+
+  _advanceExpression() {
+    const frames = this._plan?.expression?.frames;
+    if (!frames || frames.length < 2) return false;
+    let changed = false;
+    let safety = 0;
+    while (safety < 32) {
+      const index = Math.min(this._expressionFrameIndex, frames.length - 1);
+      this._expressionFrameIndex = index;
+      const frame = frames[index];
+      if (frame.delay === undefined) break;
+      const duration = Math.abs(frame.delay);
+      if (duration > 0 && this._expressionElapsed < duration) break;
+      if (duration > 0) this._expressionElapsed -= duration;
+      this._expressionFrameIndex = (index + 1) % frames.length;
+      changed = true;
+      safety += 1;
+      const next = frames[this._expressionFrameIndex];
+      if (next.delay === undefined) break;
+      if (Math.abs(next.delay) > 0 && this._expressionElapsed < Math.abs(next.delay)) break;
+    }
+    return changed;
+  }
+
   _stopAnimation() {
-    if (this._animationHandle) cancelAnimationFrame(this._animationHandle);
+    if (this._animationHandle && typeof cancelAnimationFrame === "function") cancelAnimationFrame(this._animationHandle);
     this._animationHandle = 0;
     this._lastTick = null;
   }

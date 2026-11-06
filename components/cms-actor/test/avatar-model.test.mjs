@@ -4,11 +4,14 @@ import {
   AVATAR_PLAN_LIMITS,
   formatSkippedLayers,
   frameDuration,
+  frameHolds,
   layoutFrame,
   measureAvatarPlanDataBytes,
   measureCompactJsonBytes,
   mirrorBounds,
+  placeAnchoredLayers,
   resolveActionName,
+  rotatePoint,
   validateAvatarPlan,
 } from "../src/avatar-model.mjs";
 
@@ -176,6 +179,9 @@ test("uses WZ delay magnitude and resolves adapter-selected locomotion actions",
   const candidate = plan();
   assert.equal(frameDuration({ delay: -200 }), 200);
   assert.equal(frameDuration({}), 0);
+  assert.equal(frameDuration({ delay: 0 }), 0);
+  assert.equal(frameHolds({}), true);
+  assert.equal(frameHolds({ delay: 0 }), false);
   assert.equal(resolveActionName(candidate, "stand"), "stand1");
   assert.equal(resolveActionName(candidate, "walk"), "stand1");
   assert.equal(resolveActionName(candidate, "jump"), "jump");
@@ -191,6 +197,38 @@ test("skips a layer whose required anchor cannot be resolved, with a locatable d
   const result = layoutFrame(frame, candidate.zOrder);
   assert.deepEqual(result.skipped, [{ id: "detached", anchors: ["missing", "gone"] }]);
   assert.equal(formatSkippedLayers(result.skipped), "detached[needs=missing+gone]");
+});
+
+test("allows many sprite sizes on one atlas page and rejects a source that disagrees with width", () => {
+  const candidate = plan();
+  const body = candidate.actions.stand1.frames[0].layers[0];
+  body.resource = { namespace: "resource.Avatar", key: "part/body/00002000/0", contentVersion: version };
+  body.source = { x: 295, y: 198, w: 24, h: 32 };
+  const arm = layer("arm", "body", [8, 8]);
+  arm.resource = { ...body.resource };
+  arm.width = 8;
+  arm.height = 14;
+  arm.source = { x: 1, y: 2, w: 8, h: 14 };
+  candidate.actions.stand1.frames[0].layers.push(arm);
+  assert.equal(validateAvatarPlan(candidate).formatVersion, 1);
+
+  arm.source.w = 9;
+  assert.throws(() => validateAvatarPlan(candidate), /source\.w\/h must equal width\/height/);
+});
+
+test("places an expression layer on the body frame's anchors", () => {
+  const candidate = plan();
+  const layout = layoutFrame(candidate.actions.stand1.frames[0], candidate.zOrder);
+  const face = layer("face", "face", [6, 5], { brow: [0, -5] });
+  const placed = placeAnchoredLayers([face], layout.anchors, { x: 0, y: 0 });
+  assert.equal(placed.skipped.length, 0);
+  assert.deepEqual([placed.positioned[0].originX, placed.positioned[0].originY], [0, -24]);
+});
+
+test("rotates a point clockwise around the body origin", () => {
+  assert.deepEqual(rotatePoint(10, 0, 0, 0, 90), [0, 10]);
+  assert.deepEqual(rotatePoint(10, 0, 0, 0, 180), [-10, 0]);
+  assert.deepEqual(rotatePoint(10, 0, 0, 0, 270), [0, -10]);
 });
 
 test("mirrors a layer around the frame body origin, including frame move", () => {

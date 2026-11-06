@@ -1,5 +1,4 @@
 import {
-  AVATAR_PLAN_LIMITS,
   formatSkippedLayers,
   frameDuration,
   frameHolds,

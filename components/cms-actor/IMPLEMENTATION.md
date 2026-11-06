@@ -110,8 +110,7 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 | 项 | 上界 |
 |---|---|
 | 序列化 `RenderNode.data`（compact JSON UTF-8） | **262,144 字节**（冻结协议上限） |
-| 单画布解码字节（`width×height×4`） | **12,582,912 字节**（`maxDecodedFrameBytes`，与缓存字节预算同源） |
-| 单帧全部画布解码字节合计 | **12,582,912 字节**（工作集策略，见 §6） |
+| 图集解码字节 | **无固定上限**；`width/height` 是小图尺寸，不能代表整页 `ImageBitmap` 的内存 |
 | `zOrder` 条目 | 64 |
 | `actions` 条数 | 32 |
 | 每动作帧数 | 128 |
@@ -149,23 +148,22 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 
 读取按 `(namespace, key, expectedContentVersion)` 进行，结果必须满足：返回 `contentVersion` 与请求完全一致；MIME essence 属于 `image/*`。没有 `source` 时，解码尺寸必须等于层上的 `width` × `height`。有 `source` 时，解码的是整页，源矩形必须落在页面内，页面尺寸可以大于小图。
 
-**组合画布预算（COMPOSITE_CANVAS_LIMITS）**：`AvatarPlanV1` 限制的是**源位图**（每层、每帧）；锚点/原点仍可在 ±100,000 范围内把合法画布拉得极远，`devicePixelRatio` 又是环境值。因此最终合成画布在第一次给 `canvas.width/height` 赋值**之前**校验：DPR 钳制到 ≤ 8；设备像素宽/高各 ≤ 8,192；设备像素面积 ≤ 3,145,728（即 12,582,912 字节 RGBA，与单帧解码字节预算同源）。越界抛出带 `COMPOSITE_TOO_LARGE` 前缀、合成/设备尺寸与最远 layer id 的可定位错误，画布保持清空（1×1），不触发浏览器的大额分配。
+**最终合成 Canvas 安全界限（COMPOSITE_CANVAS_LIMITS）**：与图集解码**无关**的输出画布保护。DPR 最多 8，设备像素宽/高各最多 8,192，输出画布设备像素最多 3,145,728。它拦截极端锚点造成的巨大 Canvas，**不限制图集页面的解码字节、缓存字节或整帧图集工作集**。
 
-**过期计划的读取取消**：每个缓存条目携带自己的 `AbortController`。新计划替换（`receiveRenderData` → prune）或断开触发逐出时，仍在解码的条目**立即取消**其 in-flight 读取——延迟响应不能在可缓存层预算之外堆积 loading/pinned/pending-close 资源。最新计划仍引用的资源不会被逐出（prune 保留；LRU 上界只选已完成的条目作牺牲），因此取消永远不会波及在用读取；已完成的位图没有可取消的读取，保持「pin 归零即关闭」语义。`loading` 计数以「位图尚未赋值」为一次性判据，晚到的过期解码拒绝也能正确归还计数。
+**过期计划的读取取消**：每个缓存条目携带自己的 `AbortController`。新计划替换（`receiveRenderData` → prune）或断开触发逐出时，仍在解码的条目**立即取消**其 in-flight 读取——延迟响应不会为已经淘汰的计划继续堆积 loading/pinned/pending-close 资源。最新计划仍引用的资源不会被逐出（prune 保留；LRU 上界只选已完成的条目作牺牲），因此取消永远不会波及在用读取；已完成的位图没有可取消的读取，保持「pin 归零即关闭」语义。`loading` 计数以「位图尚未赋值」为一次性判据，晚到的过期解码拒绝也能正确归还计数。
 
-**解码并发（MAX_CONCURRENT_DECODES = 8）**：`createImageBitmap` 一旦启动便无法取消，仅靠取消无法约束解码工作。因此每次解码前先过**解码前门禁**（检查 abort/条目身份/连接状态，fetch 已返回但计划已被替换的条目不再进入解码；排队等待获得槽位后再检查一次）；并发解码硬上限 8，超出部分进入**感知取消的等待队列**——逐出条目的排队解码被立即移出队列且永不启动。队列长度由计划校验限界的资源集合约束，**不**冒充字节预算：字节边界由 `AvatarPlanV1`（compact 数据上限 + 单帧解码字节上限）承担，上游 ContentClient 的字节缓存策略另行跟踪（不属本组件）。
+**解码并发（MAX_CONCURRENT_DECODES = 8）**：`createImageBitmap` 一旦启动便无法取消，仅靠取消无法约束解码工作。因此每次解码前先过**解码前门禁**（检查 abort/条目身份/连接状态，fetch 已返回但计划已被替换的条目不再进入解码；排队等待获得槽位后再检查一次）；并发解码硬上限 8，超出部分进入**感知取消的等待队列**——逐出条目的排队解码被立即移出队列且永不启动。队列长度由计划校验限界的资源集合约束，**不**冒充字节预算：`AvatarPlanV1` 只保证冻结的 compact 数据协议上限；不设图集页字节预算，上游 ContentClient 的字节缓存策略另行跟踪（不属本组件）。
 
 **Paint 调度**：`_requestPaint` 把同一同步任务内的连续属性/数据/事件更新合并为**一个** paint 轮次（微任务合并；调度时即失效在途旧轮次，与旧同步语义一致）。轮次内逐层获取位图条目，`finally` 是**唯一**的释放路径——同步查找失败、过期丢弃、绘制失败与成功共用同一处 unpin，杜绝漏释放与二次释放。`diagnostics().paintRequests/paintRounds` 分别计数合并前请求与实际轮次。
 
 **合成画布复用**：设备像素尺寸与 DPR 未变化时不重新赋值 `canvas.width/height`（同值赋值也会清空位图），改为显式 `clearRect` 后按原变换重绘；尺寸或 DPR 变化时才重新分配。每帧标记色像素回归证明复用不产生残影。
 
-**位图缓存（两层预算模型）**：
+**位图缓存（图集页 LRU，无解码字节预算）**：
 
-- **可缓存层（LRU）**：已完成解码、当前没有绘制占用的位图。硬上限 = 64 条 **或** 12,582,912 解码字节（`BITMAP_CACHE_LIMITS`），任一先到即逐出最久未用者。每次完成插入都在返回前强制执行边界，因此该层**任何时候**（含并发加载期间）都不超限；条目在逐出时即从计数中移出，即使位图因绘制 pin 而延迟 close。
-- **工作集层**：正在解码或被一次绘制 pin 的位图，绝不中途逐出。由计划校验限界：每帧 ≤ 32 层、每帧解码字节 ≤ `maxDecodedFrameBytes`，因此工作集不会无界绕过预算，也不会永久超限。
-- 单张超过字节预算的画布在计划校验即拒绝（可定位错误）；防御路径下它只作为工作集使用、永不进入缓存。
-- `receiveRenderData` 接受新计划时，先释放旧计划不再引用的条目（计划驱动生命周期）；断开（`disconnectedCallback`）立即中止 in-flight 读取、停表、关闭并清空全部 `ImageBitmap`，重连按需重建。
-- `diagnostics()`（非 ABI）分层报告 `entries/bytes`（可缓存层）、`loading`、`pendingClose/pendingCloseBytes`，供容量与泄漏断言。
+- **整页缓存**：按 `namespace + key + contentVersion` 缓存整张 `ImageBitmap`，同一页的多张小图共用一次读取和解码。最多保留 64 个缓存条目只是 **LRU 复用策略**，不是帧能否绘制的门槛；**不设 12 MiB 或其他固定字节预算**。
+- **逐层裁剪校验**：`Promise.all` 返回整页位图后，逐层核对 `source` 是否落在实际页面大小内。冷缓存同一页有两张裁剪时，也不能仅检查第一个。
+- **生命周期**：在途读取保持取消和过期判定；绘制中位图被 pin，最后 unpin 时可以关闭；新计划可清理不再使用的页面，断连全部释放。
+- **监控**：`diagnostics().cache.bytes` 为解码缓存的真实字节计数，不再有 `maxBytes` 字段。无固定解码字节上限是产品选择，过大的图集或同时驻留过多页面依然可能使浏览器内存不足；PNG 版本、MIME、尺寸与源矩形仍必须校验。
 
 **跨计划尺寸一致性**：缓存条目记录解码尺寸；同一 `(namespace, key, contentVersion)` 在后续计划中声明不同尺寸时，命中缓存即同步拒绝（`CONTENT_INVALID … declares WxH but the cached decode … is W'×H'`），错误进入该次绘制的错误处理，不会产生未处理 Promise，也不会把位图拉伸绘制。
 

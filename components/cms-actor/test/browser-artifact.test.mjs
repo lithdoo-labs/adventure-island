@@ -66,28 +66,17 @@ test("prepareWebPresentationV1 rejects the script ref with a wrong MIME essence"
   );
 });
 
-test("composite canvas limits keep the final backing store inside the frame byte budget", async () => {
+test("final canvas safety and decode concurrency are independent of atlas byte limits", async () => {
   const { COMPOSITE_CANVAS_LIMITS, MAX_CONCURRENT_DECODES } = await import("../src/cms-actor.mjs");
   const { AVATAR_PLAN_LIMITS } = await import("../src/avatar-model.mjs");
-  assert.ok(
-    COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio >= 2 && COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio <= 16,
-    "retina DPRs must pass through unclamped while absurd host ratios are clamped",
-  );
-  assert.ok(
-    COMPOSITE_CANVAS_LIMITS.maxDevicePixels * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes,
-    "the composite backing store must never exceed the decoded-frame byte budget",
-  );
-  assert.ok(
-    COMPOSITE_CANVAS_LIMITS.maxDeviceWidth * COMPOSITE_CANVAS_LIMITS.maxDeviceHeight >= COMPOSITE_CANVAS_LIMITS.maxDevicePixels,
-    "the per-dimension caps must not preclude reaching the area budget",
-  );
-  assert.ok(
-    COMPOSITE_CANVAS_LIMITS.maxDeviceWidth * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes
-      && COMPOSITE_CANVAS_LIMITS.maxDeviceHeight * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes,
-    "a single extreme dimension alone must stay inside the byte budget",
-  );
-  assert.ok(
-    MAX_CONCURRENT_DECODES >= 1 && MAX_CONCURRENT_DECODES <= AVATAR_PLAN_LIMITS.maxLayersPerFrame,
-    "concurrent decodes must be a real cap no larger than one frame's layer bound",
-  );
+  assert.ok(COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio >= 2
+    && COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio <= 16);
+  assert.ok(Number.isSafeInteger(COMPOSITE_CANVAS_LIMITS.maxDevicePixels)
+    && COMPOSITE_CANVAS_LIMITS.maxDevicePixels > 0);
+  assert.ok(COMPOSITE_CANVAS_LIMITS.maxDeviceWidth * COMPOSITE_CANVAS_LIMITS.maxDeviceHeight
+    >= COMPOSITE_CANVAS_LIMITS.maxDevicePixels);
+  assert.ok(MAX_CONCURRENT_DECODES >= 1
+    && MAX_CONCURRENT_DECODES <= AVATAR_PLAN_LIMITS.maxLayersPerFrame);
+  assert.equal(AVATAR_PLAN_LIMITS.maxDecodedFrameBytes, undefined,
+    "atlas page decoding must not have an estimated sprite-byte cap");
 });

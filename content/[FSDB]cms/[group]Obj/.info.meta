@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"layer":{"type":"string"},"oS":{"type":"string"},"l0":{"type":"string"},"l1":{"type":"string"},"l2":{"type":"string"},"x":{"type":"integer"},"y":{"type":"integer"},"z":{"type":"integer"},"f":{"type":"integer"},"zM":{"type":"integer"}},"additionalProperties":true}

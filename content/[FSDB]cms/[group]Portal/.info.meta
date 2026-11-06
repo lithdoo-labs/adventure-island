@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"pn":{"type":"string"},"pt":{"type":"integer"},"x":{"type":"integer"},"y":{"type":"integer"},"tm":{"type":"integer"},"tn":{"type":"string"},"script":{"type":"string"}},"additionalProperties":true}

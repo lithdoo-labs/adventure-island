@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","properties":{"id":{"type":"integer"},"x":{"type":"integer"},"y1":{"type":"integer"},"y2":{"type":"integer"},"l":{"type":"integer"},"uf":{"type":"integer"},"page":{"type":"integer"}},"additionalProperties":true}

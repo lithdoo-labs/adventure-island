@@ -1,0 +1,4 @@
+{"action":"nosebleed","frame":0,"delay":180,"delaySign":1,"layers":[{"name":"face","z":"face","resource":"avatar.part.face.CommonFaceCN.nosebleed.0.face","origin":[12,-13],"anchors":{"brow":[0,13]}}]}
+{"action":"nosebleed","frame":1,"delay":180,"delaySign":1,"layers":[{"name":"face","z":"face","resource":"avatar.part.face.CommonFaceCN.nosebleed.1.face","origin":[12,-14],"anchors":{"brow":[0,13]}}]}
+{"action":"nosebleed","frame":2,"delay":180,"delaySign":1,"layers":[{"name":"face","z":"face","resource":"avatar.part.face.CommonFaceCN.nosebleed.2.face","origin":[12,-13],"anchors":{"brow":[0,13]}}]}
+{"action":"nosebleed","frame":3,"delay":180,"delaySign":1,"layers":[{"name":"face","z":"face","resource":"avatar.part.face.CommonFaceCN.nosebleed.3.face","origin":[12,-14],"anchors":{"brow":[0,13]}}]}

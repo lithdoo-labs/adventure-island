@@ -178,15 +178,15 @@ tests/wz_fsdb/test_uol_resolution.py
 - resource 非法路径段：不得 trim 或静默改名；使用明确、确定、可逆或可追溯的编码策略，并在 resourceAliases ledger 中保留 originalParts 与 storedKey。
 - Windows 大小写不敏感目录和 leaf 冲突：不得覆盖已有文件。
 - UOL：区分成功、dangling、cycle、depth_limit；不能把深度超限伪装成循环，也不能把未解析引用写成正常资源。
-- PNG 与音频必须遵守 content/DESIGN.md：Canvas 使用 [resource]图，Sound 使用 [resource]音；扩展名匹配实际载荷，未知音频格式只能作为 opaque binary 记录，不能伪称 MP3。
+- PNG 与音频必须遵守 content/cms_design.md：Canvas 使用 [resource]图，Sound 使用 [resource]音；扩展名匹配实际载荷，未知音频格式只能作为 opaque binary 记录，不能伪称 MP3。
 - 同一 ResourceKey 不允许不同扩展名静默共存。
 - String 设备保留名和重复 key 必须保留来源，不截断成可能碰撞的末段编号。
 - Quest 六个 IMG 分类记录必须按既有设计拆分。
-- group 元数据必须符合 content/DESIGN.md：每行是 object schema；空 bS 不强行建立无条件外键。
+- group 元数据必须符合 content/cms_design.md：每行是 object schema；空 bS 不强行建立无条件外键。
 - 纯 link 地图没有 layers 时不得编造空 layers。
 - 所有异常都进入结构化报告；禁止 catch 后仅打印错误并继续把该包报告为成功。
 
-特别注意：PR #1 的旧修复说明中有些规则尚未真实数据复测。移植时逐项对照 content/DESIGN.md 和当前 LoomRealm FSDB/Content 契约。不得为了让旧测试通过而放宽 FSDB 规范。
+特别注意：PR #1 的旧修复说明中有些规则尚未真实数据复测。移植时逐项对照 content/cms_design.md 和当前 LoomRealm FSDB/Content 契约。不得为了让旧测试通过而放宽 FSDB 规范。
 
 ### 不得移植
 
@@ -274,7 +274,7 @@ List.wz 用于输入身份核验，不作为上述 16 个数据包之一写入 F
 - 仅允许规范的 struct/group/resource 表。
 - 必需 .info.meta、.desc.meta、.extend.meta 完整且 Schema 正确。
 - JSON / JSONL 可解析，JSONL 每行是 object。
-- NameSegment、扩展名、大小写和 symlink 约束满足 content/DESIGN.md。
+- NameSegment、扩展名、大小写和 symlink 约束满足 content/cms_design.md。
 - openFsdb、listFsdbEntries、openFsdbObject 等实际 API 可正常读取。
 - resource.图 与 resource.音 的逻辑 key 和 MIME 正确。
 - 同一逻辑 ResourceKey 的 contentVersion 等于对应资源字节 SHA-256。

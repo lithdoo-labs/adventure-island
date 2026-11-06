@@ -209,7 +209,7 @@ $ npm test --prefix systems/loomrealm-smoke
    安装根 shim；两入口继续保持同一 Game Entry。
 3. **引入状态**：需要会话事实时给 Game Entry 增加 `state.records`（Shared State 初始记录），并让
    子系统通过 `scope.state` 访问——权威模型按 DESIGN.md 归 Shared State。
-4. **引入内容**：需要地图/怪物/物品定义时按 `content/DESIGN.md` 的 FSDB 方案接入 Content，子系统
+4. **引入内容**：需要地图/怪物/物品定义时按 `content/cms_design.md` 的 FSDB 方案接入 Content，子系统
    经 `scope.content` 读取；合成夹具进仓库，真实 079 客户端内容只在使用者本地打包时进入。
 5. **冒烟套件保持有效**：`test/smoke.test.mjs` 的结构校验器已兼容多子系统与 `state` 段；扩展后
    只需更新 `EXPECTED_*` 常量或为其增加独立用例。`systems/loomrealm-smoke` 本身可长期保留，

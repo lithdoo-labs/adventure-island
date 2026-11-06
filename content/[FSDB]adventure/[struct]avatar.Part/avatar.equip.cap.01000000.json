@@ -1,0 +1,12 @@
+{
+  "kind": "cap",
+  "itemId": "01000000",
+  "occupies": [
+    "Cp"
+  ],
+  "covers": [
+    "Cp",
+    "H1",
+    "H5"
+  ]
+}

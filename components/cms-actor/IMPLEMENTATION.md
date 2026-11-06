@@ -176,7 +176,7 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 | 性能测量（非测试套件） | `node components/cms-actor/test/perf.chromium.mjs` | **可复现**（真实 Chromium） | 首帧就绪（DPR 1/2/3、5/9/32 层）、稳态动画的帧绘制数与单次绘制 p50/p95、画布 width 赋值/有效重分配次数、32 资源解码并发/排队峰值、30 次连续计划替换的收敛时间与请求/轮次计数、近似堆占用 |
 | 真实素材（真实 FSDB，3 例） | `node --test components/cms-actor/test/real-assets.local.test.mjs` | **仅本地**（无真实 FSDB 的 checkout 显式 skip 并给出原因） | 用本地合法取得的 079 WZ 转出的真实 FSDB（纸娃娃子集）重复同一闭环，并把转换结果与 Task 050/DESIGN 的逆向几何逐项对照。激活方式：`CMS_ACTOR_REAL_FSDB` 指向含 `[struct]Look/{00002000,00012000,00020000,00030000,01302000}.json`、`[struct]ZMap/order.json` 与 `[resource]图/` 的 FSDB 根 |
 
-浏览器集成测试使用**运行时生成的合成 PNG 和合成 FSDB**（`.work/cms-actor/[FSDB]cms/`，遵循 `content/DESIGN.md` 布局；`.work/` 已被根 `.gitignore` 忽略；身体几何取自逆向的 079 walk1 画布 27×32 / origin (19,32) / navel (-6,-20) / neck (-4,-32)），不包含任何原版游戏素材。测试把 `test/look-adapter.mjs` 当作游戏侧适配器参考实现：解析 UOL、按武器 `info` 决定移动后缀、部件缺动作不画、帧号钳制到身体时间轴。
+浏览器集成测试使用**运行时生成的合成 PNG 和合成 FSDB**（`.work/cms-actor/[FSDB]cms/`，遵循 `content/cms_design.md` 布局；`.work/` 已被根 `.gitignore` 忽略；身体几何取自逆向的 079 walk1 画布 27×32 / origin (19,32) / navel (-6,-20) / neck (-4,-32)），不包含任何原版游戏素材。测试把 `test/look-adapter.mjs` 当作游戏侧适配器参考实现：解析 UOL、按武器 `info` 决定移动后缀、部件缺动作不画、帧号钳制到身体时间轴。
 
 前置条件：
 

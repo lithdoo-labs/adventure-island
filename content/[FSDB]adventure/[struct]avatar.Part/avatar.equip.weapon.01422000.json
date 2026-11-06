@@ -1,0 +1,17 @@
+{
+  "kind": "weapon",
+  "itemId": "01422000",
+  "occupies": [
+    "Wp",
+    "Si"
+  ],
+  "covers": [
+    "Wp",
+    "Si"
+  ],
+  "stance": {
+    "stand": 2,
+    "walk": 2,
+    "attack": 5
+  }
+}

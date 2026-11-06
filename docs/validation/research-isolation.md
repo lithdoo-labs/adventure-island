@@ -46,7 +46,7 @@ GitHub 状态检查通过匿名只读 REST API（`api.github.com`）完成，未
 
 | # | 检查 | 结果 | 说明 |
 |---|---|---|---|
-| B1 | 根 `README.md`、`DESIGN.md`、`components/README.md`、`content/DESIGN.md` 新路径引用 | **PASS** | 全部 `result/ reference/ task/` 引用均带 `research/` 前缀（过滤扫描零残留）；逐一验证链接目标存在：`research/task/023-…`、`research/result/23-…`、`research/task/050-…`、`research/result/50-…`、`research/result/20/23/57/60-…`、`research/result/task061-game-formulas.md`、`research/README.md`、`docs/issue-agent.md` |
+| B1 | 根 `README.md`、`DESIGN.md`、`components/README.md`、`content/cms_design.md` 新路径引用 | **PASS** | 全部 `result/ reference/ task/` 引用均带 `research/` 前缀（过滤扫描零残留）；逐一验证链接目标存在：`research/task/023-…`、`research/result/23-…`、`research/task/050-…`、`research/result/50-…`、`research/result/20/23/57/60-…`、`research/result/task061-game-formulas.md`、`research/README.md`、`docs/issue-agent.md` |
 | B2 | `glm-work/start-opencode.bat` 研究写入范围指向 `research/glm-work/` | **PASS** | 从仓库根启动；`--prompt` 明示 "Create or modify files only inside research/glm-work/"；`OPENCODE_CONFIG` 指向 `glm-work/opencode.json` |
 | B3 | `glm-work/opencode.json` / `glm-work/prompt.md` 写入范围 | **PASS** | `opencode.json`：edit 默认 `deny`，仅放行 `research/glm-work/*`（含 `*research/glm-work/*`、反斜杠变体）；`prompt.md` 为兼容入口，转交 `research/glm-work/prompt.md` 并禁止写入正式工程、CI、Submodule |
 | B4 | `research/glm-work/prompt.md` 读写边界 | **PASS** | 「唯一写入范围」= `research/glm-work/`；正式工程（`apps/ components/ libs/ systems/ content/`）、研究基线、CI（`task/dev/ scripts/agent/ scripts/issue_agent/ .github/`）、`loom-realm/`、根文档配置全部声明只读；引用规则要求使用当前 `research/` 归档路径 |

@@ -1,0 +1,11 @@
+{
+  "kind": "glove",
+  "itemId": "01082002",
+  "occupies": [
+    "Gv"
+  ],
+  "covers": [
+    "Gl",
+    "Gw"
+  ]
+}

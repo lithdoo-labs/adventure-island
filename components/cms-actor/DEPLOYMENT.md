@@ -13,7 +13,7 @@
 
 ## 2. 放进 FSDB
 
-按 `content/DESIGN.md` 的物理协议，产物作为 Presentation 资源入库：
+按 `content/cms_design.md` 的物理协议，产物作为 Presentation 资源入库：
 
 ```text
 [FSDB]cms/

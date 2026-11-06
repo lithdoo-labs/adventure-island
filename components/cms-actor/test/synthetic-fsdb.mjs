@@ -2,7 +2,7 @@
  * Synthetic CMS 079-style FSDB for cms-actor browser integration tests.
  *
  * Everything here is generated: no original WZ, PNG or audio ever enters the
- * repository. The physical layout follows content/DESIGN.md ([struct]T with
+ * repository. The physical layout follows content/cms_design.md ([struct]T with
  * .info.meta JSON Schemas, [resource]T with .desc.meta, UTF-8 without BOM,
  * resource logical key = physical path minus the last extension).
  *

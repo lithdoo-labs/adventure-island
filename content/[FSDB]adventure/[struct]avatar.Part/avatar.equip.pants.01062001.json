@@ -1,0 +1,10 @@
+{
+  "kind": "pants",
+  "itemId": "01062001",
+  "occupies": [
+    "Pn"
+  ],
+  "covers": [
+    "Pn"
+  ]
+}

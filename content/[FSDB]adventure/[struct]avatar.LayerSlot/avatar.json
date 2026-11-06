@@ -1,0 +1,457 @@
+{
+  "mobEquipFront": [],
+  "tamingMobFront": [],
+  "mobEquipMid": [],
+  "saddleFront": [],
+  "mobEquipUnderSaddle": [],
+  "tamingMobMid": [],
+  "characterStart": [],
+  "emotionOverBody": [],
+  "weaponWristOverGlove": [
+    "Wp"
+  ],
+  "capeOverHead": [
+    "Sr"
+  ],
+  "weaponOverGlove": [
+    "Wp"
+  ],
+  "gloveWristOverHair": [
+    "Gw"
+  ],
+  "gloveOverHair": [
+    "Gl"
+  ],
+  "handOverHair": [
+    "Bd"
+  ],
+  "weaponOverHand": [
+    "Wp"
+  ],
+  "shieldOverHair": [
+    "Si"
+  ],
+  "gloveWristBelowWeapon": [
+    "Gw"
+  ],
+  "gloveBelowWeapon": [
+    "Gl"
+  ],
+  "handBelowWeapon": [
+    "Bd"
+  ],
+  "weaponOverArm": [
+    "Wp"
+  ],
+  "gloveWristBelowMailArm": [
+    "Gw"
+  ],
+  "mailArmOverHair": [
+    "Ma",
+    "Gw"
+  ],
+  "gloveBelowMailArm": [
+    "Gl"
+  ],
+  "armOverHair": [
+    "Bd"
+  ],
+  "mailArmOverHairBelowWeapon": [
+    "Ma",
+    "Gw"
+  ],
+  "armOverHairBelowWeapon": [
+    "Bd"
+  ],
+  "weaponBelowArm": [
+    "Wp"
+  ],
+  "capOverHair": [
+    "Cp",
+    "Hd",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "Hs",
+    "Hf",
+    "Hb",
+    "Af",
+    "Ay",
+    "As",
+    "Ae"
+  ],
+  "hairOverHead": [
+    "H1"
+  ],
+  "accessoryEyeOverCap": [
+    "Af"
+  ],
+  "capAccessory": [
+    "Cc"
+  ],
+  "cap": [
+    "Cp",
+    "Hd",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "Hs",
+    "Hf",
+    "Hb",
+    "Af",
+    "Ay",
+    "As",
+    "Ae"
+  ],
+  "accessoryOverHair": [],
+  "hair": [
+    "H2"
+  ],
+  "accessoryEye": [
+    "Ay"
+  ],
+  "accessoryEyeShadow": [
+    "As"
+  ],
+  "accessoryFace": [
+    "Af"
+  ],
+  "capAccessoryBelowAccFace": [
+    "Cc"
+  ],
+  "accessoryEar": [
+    "Ae"
+  ],
+  "capBelowAccessory": [
+    "Cp",
+    "Hd",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "Hs",
+    "Hf",
+    "Hb",
+    "Af",
+    "Ay",
+    "As",
+    "Ae"
+  ],
+  "accessoryFaceOverFaceBelowCap": [
+    "Af"
+  ],
+  "face": [
+    "Fc"
+  ],
+  "accessoryFaceBelowFace": [
+    "Af"
+  ],
+  "hairShade": [
+    "Hs"
+  ],
+  "head": [
+    "Hd"
+  ],
+  "hairBelowHead": [],
+  "cape": [
+    "Sr"
+  ],
+  "gloveWrist": [
+    "Gw"
+  ],
+  "mailArm": [
+    "Ma",
+    "Gw"
+  ],
+  "glove": [
+    "Gl"
+  ],
+  "hand": [
+    "Bd"
+  ],
+  "arm": [
+    "Bd"
+  ],
+  "weapon": [
+    "Wp"
+  ],
+  "shield": [
+    "Si"
+  ],
+  "weaponOverArmBelowHead": [
+    "Wp"
+  ],
+  "gloveWristBelowHead": [
+    "Gw"
+  ],
+  "mailArmBelowHeadOverMailChest": [
+    "Ma",
+    "Gw"
+  ],
+  "gloveBelowHead": [
+    "Gl"
+  ],
+  "armBelowHeadOverMailChest": [
+    "Bd"
+  ],
+  "mailArmBelowHead": [
+    "Ma",
+    "Gw"
+  ],
+  "armBelowHead": [
+    "Bd"
+  ],
+  "weaponOverBody": [
+    "Wp"
+  ],
+  "mailChestTop": [
+    "Ma",
+    "Gw"
+  ],
+  "gloveWristOverBody": [
+    "Gw"
+  ],
+  "mailChestOverHighest": [
+    "Ma",
+    "Gw"
+  ],
+  "pantsOverMailChest": [
+    "Pn",
+    "So"
+  ],
+  "mailChest": [
+    "Ma",
+    "Gw"
+  ],
+  "shoesTop": [
+    "So"
+  ],
+  "pantsOverShoesBelowMailChest": [],
+  "shoesOverPants": [
+    "So"
+  ],
+  "mailChestOverPants": [
+    "Ma",
+    "Gw"
+  ],
+  "pants": [
+    "Pn",
+    "So"
+  ],
+  "shoes": [
+    "So"
+  ],
+  "pantsBelowShoes": [
+    "Pn",
+    "So"
+  ],
+  "mailChestBelowPants": [
+    "Ma",
+    "Gw"
+  ],
+  "gloveOverBody": [
+    "Gl"
+  ],
+  "body": [
+    "Bd"
+  ],
+  "gloveWristBelowBody": [
+    "Gw"
+  ],
+  "gloveBelowBody": [
+    "Gl"
+  ],
+  "capAccessoryBelowBody": [
+    "Cc"
+  ],
+  "shieldBelowBody": [
+    "Si"
+  ],
+  "capeBelowBody": [
+    "Sr"
+  ],
+  "hairBelowBody": [
+    "Hb"
+  ],
+  "weaponBelowBody": [
+    "Wp"
+  ],
+  "backHairOverCape": [
+    "Hc"
+  ],
+  "backWing": [
+    "Wg"
+  ],
+  "backWeaponOverShield": [
+    "Wp"
+  ],
+  "backShield": [
+    "Si"
+  ],
+  "backCapOverHair": [
+    "Cp",
+    "Hd",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "Hs",
+    "Hf",
+    "Hb",
+    "Af",
+    "Ay",
+    "As",
+    "Ae"
+  ],
+  "backHair": [
+    "H1"
+  ],
+  "backCap": [
+    "Cp",
+    "Hd",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
+    "Hs",
+    "Hf",
+    "Hb",
+    "Af",
+    "Ay",
+    "As",
+    "Ae"
+  ],
+  "backWeaponOverHead": [
+    "Wp"
+  ],
+  "backHairBelowCapWide": [
+    "H4"
+  ],
+  "backHairBelowCapNarrow": [
+    "H5"
+  ],
+  "backHairBelowCap": [
+    "H6"
+  ],
+  "backCape": [
+    "Sr"
+  ],
+  "backAccessoryFaceOverHead": [
+    "Af"
+  ],
+  "backAccessoryOverHead": [],
+  "backHead": [
+    "Bd"
+  ],
+  "backMailChestOverPants": [
+    "Ma",
+    "Gw"
+  ],
+  "backPantsOverMailChest": [
+    "Pn",
+    "So"
+  ],
+  "backMailChest": [
+    "Ma",
+    "Gw"
+  ],
+  "backPantsOverShoesBelowMailChest": [],
+  "backShoes": [
+    "So"
+  ],
+  "backPants": [
+    "Pn",
+    "So"
+  ],
+  "backShoesBelowPants": [
+    "So"
+  ],
+  "backPantsBelowShoes": [
+    "Pn",
+    "So"
+  ],
+  "backMailChestBelowPants": [
+    "Ma",
+    "Gw"
+  ],
+  "backWeaponOverGlove": [
+    "Wp"
+  ],
+  "backGloveWrist": [
+    "Gw"
+  ],
+  "backGlove": [
+    "Gl"
+  ],
+  "backBody": [
+    "Bd"
+  ],
+  "backAccessoryEar": [
+    "Ae"
+  ],
+  "backAccessoryFace": [
+    "Af"
+  ],
+  "backCapAccessory": [
+    "Cc",
+    "H5"
+  ],
+  "backMailChestAccessory": [
+    "Ma"
+  ],
+  "backShieldBelowBody": [
+    "Si"
+  ],
+  "backHairBelowHead": [
+    "Hf"
+  ],
+  "backWeapon": [
+    "Wp"
+  ],
+  "characterEnd": [],
+  "0": [],
+  "saddleRear": [],
+  "tamingMobRear": [],
+  "mobEquipRear": [],
+  "backMobEquipFront": [],
+  "backTamingMobFront": [],
+  "backMobEquipMid": [],
+  "backSaddle": [],
+  "backMobEquipUnderSaddle": [],
+  "backTamingMobMid": [],
+  "Sd": [],
+  "Tm": [],
+  "Sr": [],
+  "Wg": [],
+  "Ma": [],
+  "Ws": [],
+  "Pn": [],
+  "So": [],
+  "Si": [],
+  "Wp": [],
+  "Gv": [],
+  "Ri": [],
+  "Cp": [],
+  "Ay": [],
+  "As": [],
+  "Ae": [],
+  "Am": [],
+  "Af": [],
+  "At": [],
+  "Fc": [],
+  "Hr": [],
+  "Hd": [],
+  "Bd": []
+}

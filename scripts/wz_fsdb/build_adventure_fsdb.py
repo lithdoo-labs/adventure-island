@@ -1,6 +1,7 @@
 """Build content/[FSDB]adventure from the converted CMS Look library.
 
-Parts are every body, head, face and hair, plus CommonFaceCN.
+Bodies are every source record. Heads, faces and hairs are only the
+character-creation set from MakeCharInfo.img.
 Equipment is the two Henesys sets from the playable-content plan.
 Images are packed per item. Draw order follows content/adventure_design.md.
 """
@@ -28,14 +29,31 @@ EQUIPMENT = (
     "01302000",
     "01422000",
 )
+# Etc.wz/MakeCharInfo.img. CharMale/0 and CharFemale/0 are faces, /1 are
+# hairs. Premium and Orient repeat the same lists. CharLoginHandler.CreateChar
+# accepts these ids, writes skin color 0 (head 00012000), and adds 0 to the hair id.
+CREATION_HEADS = ("00012000",)
+CREATION_FACES = (
+    "00020100",
+    "00020401",
+    "00020402",
+    "00021700",
+    "00021201",
+    "00021002",
+)
+CREATION_HAIRS = (
+    "00030030",
+    "00030027",
+    "00030000",
+    "00031002",
+    "00031047",
+    "00031057",
+)
 SET_PARTS = (
     "00002000",
-    "00012000",
-    "00020000",
-    "00020002",
-    "00030000",
-    "00030001",
-    "CommonFaceCN",
+    *CREATION_HEADS,
+    *CREATION_FACES,
+    *CREATION_HAIRS,
 )
 KIND = {
     "Bd": ("part", "body"),
@@ -479,7 +497,7 @@ def selected_records(scope: str) -> list[tuple[str, str, str]]:
     chosen = []
     if scope == "all":
         stems = []
-        for pattern in ("0000*.json", "0001*.json", "0002*.json", "0003*.json", "0004*.json", "CommonFaceCN.json"):
+        for pattern in ("0000*.json",):
             stems.extend(path.stem for path in look.glob(pattern))
         for stem in stems:
             if stem in EQUIPMENT:
@@ -487,10 +505,16 @@ def selected_records(scope: str) -> list[tuple[str, str, str]]:
             data = load_json(look / f"{stem}.json")
             info = data.get("info") if isinstance(data.get("info"), dict) else {}
             islot = info.get("islot")
-            if stem == "CommonFaceCN":
-                chosen.append((stem, "part", "face"))
-            elif islot in {"Bd", "Hd", "Fc", "Hr"}:
+            if islot == "Bd":
                 chosen.append((stem, *KIND[islot]))
+        for stem in (*CREATION_HEADS, *CREATION_FACES, *CREATION_HAIRS):
+            data = load_json(look / f"{stem}.json")
+            info = data.get("info") if isinstance(data.get("info"), dict) else {}
+            islot = info.get("islot")
+            expected = "Hd" if stem in CREATION_HEADS else "Fc" if stem in CREATION_FACES else "Hr"
+            if islot != expected:
+                raise SystemExit(f"creation part {stem} islot {islot}")
+            chosen.append((stem, *KIND[islot]))
     else:
         for stem in SET_PARTS:
             data = load_json(look / f"{stem}.json")

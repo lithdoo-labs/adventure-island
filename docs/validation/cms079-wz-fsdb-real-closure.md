@@ -4,6 +4,42 @@
 
 本报告只记录源码、合成测试和本次仓库外真实运行的结论。客户端二进制、`.wz`、解码后的 PNG/音频和生成的 FSDB 都不在 Git 里。
 
+## 2026-11-06 收尾复核与有效验收边界（本节优先）
+
+本地一次性转换的源码、生成数据及现场复核保持不变，不因本次文档修订而重新生成素材。`main` 已包含 2026-11-06 复核提交 `89bfeea64fad5277c9aa1eeb16648aa727ceec20`；该提交已存在于远程 GitHub。Issue #50 经用户调整为**仅一次完整转换，以完整 FSDB + Content Index 长期复用**，取消单独 Avatar 导出、分批续接/WAL、额外 Finalize 和原 Issue Agent PR 的验收要求。旧任务书与下文早期过程描述只供溯源，不能再当作当前 DoD。PR #53 已关闭且未合并。
+
+**已实测成功：** 16 包本地前台 `--scope all` 退出码 0；独立文件计数与输出摘要匹配；当前 pin 的 ContentClient 能读取真实 record、group、PNG 与音频；真实 Chromium 播放 stand1、walk1、jump、brandish1 和左右朝向（本地 2026-11-06 复核退出码 0）；GitHub Actions [PWA CI #42150011248](https://github.com/lithdoo-labs/adventure-island/actions/runs/42150011248) PASS。**远程 CI 不持有本地 FSDB，也未重新执行这次真实 WZ 转换或真实素材 Chromium 验收。**
+
+### 异常溯源及影响界限
+
+| 现象 | 可直接验证的事实 | 归因 / 范围 / 处理 |
+| --- | --- | --- |
+| UOL dangling 1,948、cycle 1 | 本次转换统计与历史报告 63 一致；`uol_depth_limit=0`；未解析关系仍留在结构记录中 | **SOURCE_REFERENCE_ANOMALY（有历史对照）**。属于不能正常解引用的源引用现象，尚无证据证明全量 Integrity-valid；只对引用这些目标的功能有影响。本次被测 Avatar 所用帧已成功读取/渲染，不代表其他装备、地图引用也正常。 |
+| `Look/01702267` 的 `icon`、`iconRaw` | Canvas 在调用 pinned `wz-python` 解码时抛出 `ValueError`；记录中有 `decodeError`，所需图像未成功导出 | **UNRESOLVED_DECODE**（尚不能判定 SOURCE_ANOMALY 或 CONVERTER_DEFECT）。报告未包含独立原始字节/其他解析器复测，不能证明 WZ 数据损坏。两处图像不可用；没有发现它们属于已验证的五份 Avatar Look。 |
+| `Look/01702359` 的 `43/jump/0/weapon` | 读取时抛出 `IndexError`，同一原始路径记录两次 `decodeError` | **UNRESOLVED_DECODE**。这是一个出现两次的失败路径，不能按两张独立源图推断；相关武器帧不可用，原因尚待独立对照。 |
+| `Character.wz/01102670 .img`（末尾空格） | `stem_of` 保留尾随空格；`valid_segment` 拒绝该键；`Store.write_struct` 调用 `note_error("key", …, "invalid-name")` 后**直接返回 False**。四张相关 PNG 在编码资源路径 `Look/wz~MDExMDI2NzAg/`，但 struct JSON **没有落盘** | **CONFIRMED_CONVERTER_OMISSION**：原始名称确有不规范空格，但当前转换器没有对 struct key 做别名/可逆编码。不是“原始数据中本来没有记录”；下游无法正常通过 `struct.Look` 读取该装备。由于全量库已固定且当前需求不依赖此装备，作为**已知例外保留**，不得把它算作无损输出；若日后需要该装备，应在隔离的新输出上制定修复及迁移方案，而不是覆盖现有 FSDB。 |
+| `Look/01092090` 图标资源键冲突 | 两侧资源都保存，`resourceAliases` 中有 `resource-key-conflict` 的存储键映射 | **COLLISION_HANDLED**。按最终存储键访问别名；不能假设两个来源共用同一物理资源键。 |
+| `stats.images=34,472` vs 34,760 源 IMG | 差额 288，代码 `convert_item` 在 288 条 `ItemImg` 分支没有增加 `images` 统计；对应 `ItemImg` 文件已计数 | **COUNTER_LIMITATION**，目前没有证据显示这 288 个 IMG 漏文件；不应把 `stats.images` 原值误当作已经解析的唯一源 IMG 数。 |
+
+**验收结论必须精确定义：**
+
+- **Well-formed / 可读性：PASS（按已提交的本地复核证据）。** 当前 FSDB 能由正式 Content Service 建索引和按键读取；不表示每一条源数据有效。
+- **输出账目一致性：PASS（限定范围）。** PNG/音频/struct/group 文件数量与转换器已成功写出项的汇总一致，已报告的资源冲突保留了别名。**此判断不涵盖被拒绝的 `01102670 .img` struct 和解码失败的画布。**
+- **源到目标逐项无损：NOT ESTABLISHED / PARTIAL。** 至少存在一条已确认的 struct 输出遗漏；`decodeError` 尚未独立归因。因此不能以“输出文件数相等”证明 34,760 个 IMG 都完成了语义级无损转换，也不能宣称 `CONVERTER_DEFECT=0`。
+- **全客户端 Integrity-valid：PARTIAL（不是 PASS）。** 已验证的 Avatar / Content / Chromium 纵向闭环通过，其余角色装备与地图等未做逐资源运行验证。
+
+以上是**现有源码与已提交报告的静态复核**；没有重新读取 `E:` 盘上的 140 万文件，也没有替用户执行新的独立 WZ 解码。今后若需要补证据，应在本地对明确的异常路径进行**点状核验**，无需重跑整个转换。
+
+### 一次性数据保存 / 备份状态
+
+唯一正式 FSDB：`E:\cms079-pr1-work\fsdb-all\[FSDB]cms`。本地报告目录：`E:\cms079-pr1-work\reports`，其中包含源身份、`all/convert-all.json`、`all/accounting.json`、`content-avatar-2026-11-06-session.json` 等证据。不可把数据字节提交到 Git。
+
+仓库提供 `scripts/wz_fsdb/backup_artifacts.py`，用于把 `fsdb-all/` 与 `reports/` 完整复制到**另一块物理磁盘**，并生成逐文件 SHA-256 清单和独立验证结果。具体运行命令、恢复中断及拒绝覆盖策略见 [README](../../scripts/wz_fsdb/README.md)。这一步属于**机器本地实际操作**：本会话无法访问 Windows 的 `E:` 盘，所以**备份未在本会话中执行，副本存在性与校验状态尚未确认**。只有 `backup` 和 `verify` 在存放数据的机器上实际返回 `VERIFIED`，才允许勾选 Issue #50 的备份项；工具单测通过不能替代真实备份。
+
+---
+
+## 历史转换及测试记录（发生时的陈述，以上述收尾口径为准）
+
 ## 代码来源
 
 | 提交 | 作用 |
@@ -82,11 +118,11 @@ Quest 六类：QuestInfo 2,134，Check 2,131，Act 2,118，Say 2,110，PQuest 10
 
 **Well-formed：PASS。** 全量树经当前 pin 的 `openFsdb` 打开。`prepareDesktopContentView` 对每个条目做了内容哈希，随后 ContentClient 读到了真实记录、分组和资源。
 
-**Lossless accounting：PASS。** PNG、struct、group、声音文件数分别等于转换摘要。11 处重名都留在 `struct.WzRecordAlias`，两侧来源都在。非法资源路径记在 `resourceAliases`。
+**输出账目一致性：PASS（仅指转换器写出的文件数）；源到目标无损性：PARTIAL / NOT ESTABLISHED。** PNG、struct、group、声音文件数分别等于转换摘要。11 处重名都留在 `struct.WzRecordAlias`，两侧来源都在。非法资源路径记在 `resourceAliases`。但 `01102670 .img` 的 struct 未写入，且另有解码失败画布；不能称为源数据全部无损。
 
-**Integrity-valid：不是全量 PASS。** 客户端里本来就缺的引用保持为 SOURCE_ANOMALY。没有发现需要改转换器的 CONVERTER_DEFECT。
+**Integrity-valid：不是全量 PASS。** 未解析 UOL 有历史对照；其他 Canvas 解码问题尚未证实源损坏。另有一条确定未写出的 struct 记录属于已确认的转换器表示缺口，见上方收尾复核，不应断言 CONVERTER_DEFECT 为零。
 
-SOURCE_ANOMALY：
+历史异常列表（按上方分类重新解释）：
 
 - UOL dangling 1,948，cycle 1。
 - `Look/01702267` 的 icon、iconRaw：`wz-python` `ValueError`，记录里带 `decodeError`。
@@ -128,13 +164,13 @@ node --max-old-space-size=8192 components/cms-actor/test/real-cms079-closure.mjs
 
 ## Issue #50
 
-本次本地任务要求的转换、账本、Content API 和真实 Chromium 都有退出码和报告。Issue 文档里的 Definition of Done 还不能因此关闭：
+本段记录原任务书尚未修改时的历史状态；Issue #50 现已取消独立 Avatar 导出及断点续跑要求，详见上方收尾复核。转换、账本、Content API 与 Chromium 当时均有退出码和报告。
 
-- 没有新增 `--scope avatar`。五份 Look 和所需 Canvas 来自同一次 `--scope all`，不是单独的导出开关。
-- 没有分批续跑。一次前台全量转换退出码为 0。
-- 按本次授权，没有推送 `main`，没有开 PR，也没有关闭 Issue #50 或 PR #1。
+- 原任务书要求 `--scope avatar`；**现已明确取消该要求**，五份 Look 与 Canvas 直接由完整 FSDB 读取。
+- 原任务书要求分批续跑；**现已明确取消该要求**，一次前台全量转换退出码为 0。
+- 当时尚未推送 `main`；**此历史状态已过期**。2026-11-06 的提交 `89bfeea...` 现已在远程 main；Issue #50 仍 Open，PR #1 未合并。
 
-因此 Issue #50 保持打开。本地 `main` 只包含已验证的源码、合成测试和本报告。
+本段为当时的状态快照。当前 Issue #50 的完成定义及备份状态见本报告顶部收尾复核。
 
 ## 2026-11-06 复核
 

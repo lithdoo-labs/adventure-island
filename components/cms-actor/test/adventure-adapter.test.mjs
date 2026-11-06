@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAdventureAvatarPlan } from "../src/adventure-adapter.mjs";
-import { measureAvatarPlanDataBytes } from "../src/avatar-model.mjs";
+import { layoutFrame, measureAvatarPlanDataBytes } from "../src/avatar-model.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const libraryRoot = path.join(repoRoot, "content", "[FSDB]adventure");
@@ -84,6 +84,28 @@ function isSubsequence(order, full) {
   }
   return true;
 }
+
+test("reordering parts cannot affect avatar layers or head-dependent brow anchors", async () => {
+  const baseline = await buildAdventureAvatarPlan(openLibrary(), { parts: SET_A, expression: "blink" });
+  const reversed = await buildAdventureAvatarPlan(openLibrary(), { parts: [...SET_A].reverse(), expression: "blink" });
+  const rotated = await buildAdventureAvatarPlan(openLibrary(), {
+    parts: [...SET_A.slice(3), ...SET_A.slice(0, 3)], expression: "blink",
+  });
+  assert.deepEqual(reversed, baseline);
+  assert.deepEqual(rotated, baseline);
+  const frame = baseline.actions.stand1.frames[0];
+  const headIndex = frame.layers.findIndex((layer) => layer.id === "head");
+  assert.ok(headIndex > 0, "head must follow body");
+  assert.ok(frame.layers.findIndex((layer) => layer.id.startsWith("hair")) > headIndex);
+  assert.ok(frame.layers.findIndex((layer) => layer.id.startsWith("cap")) > headIndex);
+  const layout = layoutFrame(frame, baseline.zOrder);
+  assert.ok(layout.positioned.some((item) => item.layer.id.startsWith("hair")));
+  assert.ok(layout.positioned.some((item) => item.layer.id.startsWith("cap")));
+
+  const hammer = await buildAdventureAvatarPlan(openLibrary(), { parts: SET_B });
+  const reversedHammer = await buildAdventureAvatarPlan(openLibrary(), { parts: [...SET_B].reverse() });
+  assert.deepEqual(reversedHammer, hammer);
+});
 
 test("projects the one-hand set onto stand1/walk1 and crops the body atlas", async () => {
   const content = openLibrary();

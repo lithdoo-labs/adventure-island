@@ -20,11 +20,8 @@
  *    action; version conflicts and missing resources produce locatable
  *    error diagnostics with no partial frame; disconnect cancels in-flight
  *    reads and releases the bitmap cache; reconnect renders again;
- *  - the decoded-bitmap cache keeps its strict capacity guarantee: oversized
- *    canvases and over-budget frames are rejected at plan validation, the
- *    cacheable tier never exceeds 64 entries / 12 MiB (polled during a
- *    32-resource concurrent burst), and cross-plan dimension conflicts for
- *    a cached identity are rejected locatably without unhandled rejections.
+ *  - the decoded-page cache uses an entry-count LRU without a byte budget;
+ *    data identity/dimensions are still validated and stale reads cancelled.
  *
  * All imagery is generated at test time (synthetic FSDB + synthetic PNG);
  * nothing here validates real CMS 079 WZ assets.
@@ -412,7 +409,7 @@ test("decoded-bitmap cache keeps its documented capacity bound across many frame
   const diagnostics = await page.evaluate(() => window.__actor().diagnostics());
   assert.ok(diagnostics.cache.entries <= diagnostics.cache.maxEntries,
     `cache must respect the entry cap (${diagnostics.cache.entries} > ${diagnostics.cache.maxEntries})`);
-  assert.ok(diagnostics.cache.bytes <= diagnostics.cache.maxBytes, "cache must respect the byte cap");
+  assert.ok(Number.isFinite(diagnostics.cache.bytes) && diagnostics.cache.bytes >= 0);
 });
 
 test("avatarPlan built from the synthetic FSDB respects the frozen RenderNode.data byte cap", () => {
@@ -486,45 +483,35 @@ const burstIdentities = (plan, actionName) => {
   return identities;
 };
 
-test("oversized single canvases and over-budget frames are rejected at plan validation", { timeout: 60_000 }, async (t) => {
+test("large sprite pixel estimates are allowed but decoded image dimensions must still match", { timeout: 60_000 }, async (t) => {
   const page = await openBootstrappedPage(t);
   await page.evaluate((view) => window.__applyView(view), actorView());
   await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "baseline ready");
-  const before = await page.evaluate(() => window.__resourceCalls.length);
 
-  // One canvas decoding to > maxDecodedFrameBytes on its own.
   const oversized = clonePlan();
   mutateLayers(oversized, (layer) => layer.id === "hair", (layer) => {
     layer.width = 1_800;
-    layer.height = 1_800; // 12,960,000 bytes > 12,582,912
+    layer.height = 1_800;
   });
+  assert.equal(validateAvatarPlan(oversized), oversized, "no 12 MiB image-byte cap");
   await page.evaluate((view) => window.__applyView(view), actorView({ plan: oversized }));
-  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "invalid", "oversized canvas rejected");
-  const single = await page.evaluate(() => ({
-    message: window.__actor().getAttribute("data-render-error"),
-    canvasWidth: window.__actor().shadowRoot.querySelector("canvas").width,
-  }));
-  assert.match(single.message, /decodes to 12960000 bytes, exceeding the 12582912-byte canvas budget/);
-  assert.ok(single.message.includes("layers[") || single.message.includes("hair"), `diagnostic must locate the layer (${single.message})`);
-  assert.equal(single.canvasWidth, 1, "invalid plans must leave the canvas cleared");
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "error",
+    "resource's actual decoded dimensions reject mismatched declaration");
+  const error = await page.evaluate(() => window.__actor().getAttribute("data-render-error"));
+  assert.match(error, /CONTENT_INVALID/);
 
-  // A frame whose combined layers exceed the budget while each canvas fits.
-  const frameHeavy = clonePlan();
-  mutateLayers(frameHeavy, (layer) => layer.id !== "body", (layer) => {
+  const many = clonePlan();
+  mutateLayers(many, (layer) => layer.id !== "body", (layer) => {
     layer.width = 900;
-    layer.height = 900; // 3,240,000 bytes each; four such layers + body blow the frame budget
+    layer.height = 900;
   });
-  await page.evaluate((view) => window.__applyView(view), actorView({ plan: frameHeavy }));
-  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "invalid", "over-budget frame rejected");
-  const frameMessage = await page.evaluate(() => window.__actor().getAttribute("data-render-error"));
-  assert.match(frameMessage, /bytes across its layers, exceeding the 12582912-byte frame budget/);
-
-  // Validation gates before any browser-side fetch of the mutated identity.
-  const callsAfter = await page.evaluate(() => window.__resourceCalls.length);
-  assert.equal(callsAfter, before, "invalid plans must not trigger resource reads");
+  assert.equal(validateAvatarPlan(many), many);
+  await page.evaluate((view) => window.__applyView(view), actorView({ plan: many }));
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "error",
+    "multiple sprites are validated against real decoded dimensions");
 
   await page.evaluate((view) => window.__applyView(view), actorView());
-  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "recovers after oversized plans");
+  await waitFor(page, () => window.__actor()?.getAttribute("data-render-state") === "ready", "recovers after mismatch");
   assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
 });
 
@@ -561,7 +548,7 @@ test("cross-plan dimension conflicts on a cached identity are rejected locatably
   assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "still no unhandled page errors");
 });
 
-test("a 32-resource concurrent burst never violates the strict cacheable-tier bound", { timeout: 90_000 }, async (t) => {
+test("a 32-resource concurrent burst respects the LRU entry-count policy", { timeout: 90_000 }, async (t) => {
   const page = await openBootstrappedPage(t);
   const plan = withBurstActions(clonePlan());
   const burstB = burstIdentities(plan, "burstB");
@@ -584,7 +571,7 @@ test("a 32-resource concurrent burst never violates the strict cacheable-tier bo
   try {
     await page.evaluate((event) => window.__emitEvent(event), { ...RENDER_EVENT, name: "action", data: { action: "burstB" } });
     // Poll the diagnostics throughout the concurrent burst: the cacheable
-    // tier must stay within BOTH bounds at every observation.
+    // only the LRU entry count is capped; decoded-page bytes are observed.
     const samples = [];
     const deadline = Date.now() + 1_400;
     while (Date.now() < deadline) {
@@ -592,8 +579,7 @@ test("a 32-resource concurrent burst never violates the strict cacheable-tier bo
       samples.push(diagnostics);
       assert.ok(diagnostics.cache.entries <= diagnostics.cache.maxEntries,
         `cacheable entries must never exceed the cap (saw ${diagnostics.cache.entries})`);
-      assert.ok(diagnostics.cache.bytes <= diagnostics.cache.maxBytes,
-        `cacheable bytes must never exceed the cap (saw ${diagnostics.cache.bytes})`);
+      assert.ok(Number.isFinite(diagnostics.cache.bytes) && diagnostics.cache.bytes >= 0);
       assert.ok(diagnostics.cache.entries + diagnostics.cache.loading <= diagnostics.cache.maxEntries + 32,
         `map must stay within cap + one working frame (saw ${diagnostics.cache.entries}+${diagnostics.cache.loading})`);
       await new Promise((resolve) => setTimeout(resolve, 60));
@@ -607,7 +593,7 @@ test("a 32-resource concurrent burst never violates the strict cacheable-tier bo
     }, "burst settled", 15_000);
     const settled = await page.evaluate(() => window.__actor().diagnostics());
     assert.ok(settled.cache.entries <= settled.cache.maxEntries, `settled entries within cap (${settled.cache.entries})`);
-    assert.ok(settled.cache.bytes <= settled.cache.maxBytes, `settled bytes within cap (${settled.cache.bytes})`);
+    assert.ok(Number.isFinite(settled.cache.bytes) && settled.cache.bytes >= 0);
     assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), [], "no unhandled page errors");
   } finally {
     serverState().delays.clear();

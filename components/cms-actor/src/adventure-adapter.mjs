@@ -11,6 +11,18 @@ import { validateAvatarPlan } from "./avatar-model.mjs";
 const IMAGE_NAMESPACE = "resource.Avatar";
 const EXPRESSION_KINDS = new Set(["face", "faceAcc"]);
 
+// Input parts are a set of equipped items, not a layout dependency order.
+// Body establishes neck; head establishes brow; hair needs brow. Resolve
+// anchor dependencies first, then use a stable key order for all other parts.
+// Final front/back drawing is independently controlled by avatar.DrawOrder.
+const ANCHOR_DEPENDENCY_ORDER = Object.freeze({ body: 0, head: 1, hair: 2 });
+function comparePlacementOrder(left, right) {
+  const a = ANCHOR_DEPENDENCY_ORDER[left.part.kind] ?? 3;
+  const b = ANCHOR_DEPENDENCY_ORDER[right.part.kind] ?? 3;
+  if (a !== b) return a - b;
+  return left.key < right.key ? -1 : left.key > right.key ? 1 : 0;
+}
+
 function asList(value) {
   return Array.isArray(value) ? value : [];
 }
@@ -207,7 +219,7 @@ export async function buildAdventureAvatarPlan(content, input) {
   }
 
   const hidden = new Set(loaded.filter((part) => hidesWhole(part, loaded)));
-  const visible = loaded.filter((part) => !hidden.has(part));
+  const visible = loaded.filter((part) => !hidden.has(part)).sort(comparePlacementOrder);
   const versions = new Map();
   const versionFor = async (image) => {
     if (!versions.has(image)) {

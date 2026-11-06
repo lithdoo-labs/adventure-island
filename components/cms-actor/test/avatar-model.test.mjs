@@ -118,23 +118,15 @@ test("rejects a plan whose serialized RenderNode.data passes the frozen 262,144-
   assert.throws(() => validateAvatarPlan(wide), /exceeds the frozen Render Update v1 cap of 262144/);
 });
 
-test("rejects a single canvas whose decoded bytes exceed the budget", () => {
-  const candidate = plan();
-  const hair = candidate.actions.stand1.frames[0].layers.find((layer) => layer.id === "hair");
-  hair.width = 1_800;
-  hair.height = 1_800; // 12,960,000 > 12,582,912
-  assert.throws(() => validateAvatarPlan(candidate), /decodes to 12960000 bytes, exceeding the 12582912-byte canvas budget/);
-});
-
-test("rejects a frame whose combined decoded bytes exceed the budget", () => {
+test("accepts a sprite and frame whose estimated pixels exceed the obsolete 12 MiB limit", () => {
   const candidate = plan();
   const frame = candidate.actions.stand1.frames[0];
   for (const layer of frame.layers) {
     if (layer.id === "body") continue;
-    layer.width = 1_050;
-    layer.height = 1_050; // 4,410,000 each; three of them + body exceed the budget
+    layer.width = 1_800;
+    layer.height = 1_800;
   }
-  assert.throws(() => validateAvatarPlan(candidate), /bytes across its layers, exceeding the 12582912-byte frame budget/);
+  assert.equal(validateAvatarPlan(candidate), candidate);
 });
 
 test("compact measurement counts UTF-8 bytes, not UTF-16 code units", () => {

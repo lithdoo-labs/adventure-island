@@ -54,47 +54,23 @@ const HTMLElementBase = globalThis.HTMLElement ?? class {};
 const OBSERVED_ATTRIBUTES = ["x", "y", "locomotion", "facing", "skin", "face", "hair", "expression", "equips"];
 
 /**
- * Hard capacity bound for the CACHEABLE decoded-bitmap set (LRU).
- *
- * Budget model (two tiers, both bounded):
- *  - cacheable tier: completed decode, currently unused by a paint. Strictly
- *    LRU-bounded by BOTH entry count and decoded bytes below. A completed
- *    insert enforces the bound before returning; the bound can therefore
- *    only be exceeded transiently by the working-set tier below.
- *  - working-set tier: entries that are decoding or pinned by an in-flight
- *    paint. Never evicted mid-use. Bounded by plan validation instead:
- *    <= 32 layers per frame and <= maxDecodedFrameBytes decoded bytes per
- *    frame (see AVATAR_PLAN_LIMITS), so the working set can never blow the
- *    budget by an unbounded amount and never bypasses it permanently.
- * A bitmap larger than maxBytes on its own is rejected at plan validation;
- * defensively it would be treated as uncacheable working set, never cached.
+ * Reuse up to 64 decoded atlas pages via LRU, without an image-byte budget.
+ * Cropped sprite dimensions do not describe the memory used by whole pages.
+ * Loading/decoding cancellation, pins and concurrent slots remain separate.
  */
 export const BITMAP_CACHE_LIMITS = Object.freeze({
   maxEntries: 64,
-  maxBytes: AVATAR_PLAN_LIMITS.maxDecodedFrameBytes,
 });
 
 /**
- * Hard bounds for the FINAL composite backing store.
- *
- * `AVATAR_PLAN_LIMITS` bounds the SOURCE bitmaps (per layer and per frame),
- * but anchor/origin values up to ±100,000 can place valid layers very far
- * apart, and `devicePixelRatio` is an environmental value that can be
- * arbitrarily large. Without this guard the first `canvas.width/height`
- * assignment could request a multi-gigabyte backing store. Every rejection
- * happens BEFORE either canvas dimension is assigned.
+ * Independent final compositing-canvas allocation guard for extreme anchors
+ * and devicePixelRatio. Not an atlas-image decode memory budget.
  */
 export const COMPOSITE_CANVAS_LIMITS = Object.freeze({
-  /** Host devicePixelRatio is clamped into [1, maxDevicePixelRatio]. */
   maxDevicePixelRatio: 8,
   maxDeviceWidth: 8_192,
   maxDeviceHeight: 8_192,
-  /**
-   * Max device pixels (width×height) of the composite; at 4 bytes per pixel
-   * this ties the backing store to the same byte budget as one frame's
-   * decoded sources (`AVATAR_PLAN_LIMITS.maxDecodedFrameBytes`).
-   */
-  maxDevicePixels: Math.floor(AVATAR_PLAN_LIMITS.maxDecodedFrameBytes / 4),
+  maxDevicePixels: 3_145_728,
 });
 
 /**
@@ -291,8 +267,7 @@ export class CmsActor extends HTMLElementBase {
         pendingClose: this._pendingCloseCount,
         pendingCloseBytes: this._pendingCloseBytes,
         maxEntries: BITMAP_CACHE_LIMITS.maxEntries,
-        maxBytes: BITMAP_CACHE_LIMITS.maxBytes,
-      }),
+        }),
     });
   }
 
@@ -524,6 +499,18 @@ export class CmsActor extends HTMLElementBase {
       const layers = [...frame.layers, ...expressionLayers];
       for (const layer of layers) entries.push(this._getBitmapEntry(layer));
       const bitmaps = await Promise.all(entries.map((entry) => entry.promise));
+      // One cold atlas page can satisfy several layers before the decode
+      // finishes. Validate every requested crop, not only the first layer
+      // that started the shared resource read.
+      for (let index = 0; index < layers.length; index += 1) {
+        const layer = layers[index];
+        const bitmap = bitmaps[index];
+        if (!this._bitmapCoversLayer(layer, bitmap.width, bitmap.height)) {
+          throw new Error("CONTENT_INVALID " + layer.resource.namespace + "/" + layer.resource.key
+            + " crop " + JSON.stringify(layer.source ?? null) + " outside decoded page "
+            + bitmap.width + "x" + bitmap.height);
+        }
+      }
       // A newer paint round, a data update or a disconnect invalidates this
       // round: stale results must never overwrite the newer action.
       if (!this._connected || epoch !== this._paintEpoch) return;
@@ -689,10 +676,10 @@ export class CmsActor extends HTMLElementBase {
     }
   }
 
-  /** Enforce the hard cacheable-tier bound after a completed insert. */
+  /** Enforce only the LRU entry-count policy after a completed insert. */
   _enforceCacheBound(latestKey) {
     let guard = 0;
-    while (this._resourceCache.size - this._loadingCount > BITMAP_CACHE_LIMITS.maxEntries || this._cacheBytes > BITMAP_CACHE_LIMITS.maxBytes) {
+    while (this._resourceCache.size - this._loadingCount > BITMAP_CACHE_LIMITS.maxEntries) {
       if (guard++ > 10_000) break;
       let victimKey = null;
       let pinnedVictimKey = null;
@@ -776,19 +763,9 @@ export class CmsActor extends HTMLElementBase {
       entry.height = bitmap.height;
       entry.byteSize = bitmap.width * bitmap.height * 4;
       this._loadingCount -= 1;
-      if (entry.byteSize > BITMAP_CACHE_LIMITS.maxBytes) {
-        // Plan validation rejects oversized canvases; if one still reaches
-        // here it stays working set only — never cached, closed after paint.
-        this._resourceCache.delete(cacheKey);
-        entry.evicted = true;
-        entry.inPendingBytes = true;
-        this._pendingCloseCount += 1;
-        this._pendingCloseBytes += entry.byteSize;
-      } else {
-        entry.inCacheBytes = true;
-        this._cacheBytes += entry.byteSize;
-        this._enforceCacheBound(cacheKey);
-      }
+      entry.inCacheBytes = true;
+      this._cacheBytes += entry.byteSize;
+      this._enforceCacheBound(cacheKey);
       return bitmap;
     }).catch((error) => {
       // Single-shot loading decrement: the success path decrements exactly

@@ -142,4 +142,28 @@ test("both adventure outfits paint from resource.Avatar atlases", { timeout: 90_
   });
   assert.ok(hammerPixels > 40, `hammer outfit must paint pixels, saw ${hammerPixels}`);
   assert.deepEqual(await page.evaluate(() => window.__pageErrors ?? []), []);
+
+  // New page: both body and arm request the same *cold* atlas page. The
+  // second crop is invalid, and must not escape validation while loading.
+  const coldPage = await openBootstrappedPage(t, {
+    chromium, origin: server.origin, prepared,
+    installationId: INSTALLATION_ID, bearer: BEARER,
+  });
+  const invalid = structuredClone(sword);
+  const layers = invalid.actions.walk1.frames[0].layers;
+  const sharedKey = layers[0].resource.key;
+  const second = layers.find((layer, index) =>
+    index > 0 && layer.source && layer.resource.key === sharedKey);
+  assert.ok(second, "fixture needs two sprites referencing one atlas page");
+  second.source.x = 999_999;
+  await coldPage.evaluate((next) => window.__applyView(next), view(invalid, "walk"));
+  await waitFor(coldPage, () => window.__actor()?.getAttribute("data-render-state") === "error",
+    "second invalid crop on shared cold page rejected");
+  const invalidCrop = await coldPage.evaluate(() => ({
+    message: window.__actor().getAttribute("data-render-error"),
+    width: window.__canvas().width,
+  }));
+  assert.match(invalidCrop.message, /CONTENT_INVALID/);
+  assert.ok(invalidCrop.message.includes(sharedKey), invalidCrop.message);
+  assert.equal(invalidCrop.width, 1, "reject the entire frame rather than partly drawing it");
 });

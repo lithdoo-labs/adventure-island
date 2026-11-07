@@ -207,7 +207,7 @@ const consumer = createControlsConsumer(
 
 - 开始时从 `scope.content.record("struct.AdventureAvatarPlan", "bootstrap", { signal: frame.signal })` 读取**Plan 本体**；Content 缺失/不可用（包含 `ContentReadError`）返回 `failed({code:"ADVENTURE_AVATAR_CONTENT_UNAVAILABLE"})`，已中止或 `CONTENT_CANCELLED` 返回 `cancelled()`；其他初始化异常映射为稳定 `ADVENTURE_MAP_INIT_FAILED`，并统一进入 `finally`。不要吞掉错误后展示空 Actor。
 - 初始化一次 `scope.createRenderDomain({ zIndex: 0, roots: [ { key: "adventure-player", tag: "cms-actor", attrs: {...}, data: { avatarPlan }, children: [] } ] })`，Actor 的稳定 key 不复用为新节点。初始 `locomotion=stand`、`facing=right`；外观 attrs 继续遵循 [cms-actor 既有契约](../../components/cms-actor/IMPLEMENTATION.md)。
-- `cms-actor` 的 `x/y` 是身体原点（接近脚底），不是 sprite 中心或世界坐标。演示期通过 `scope.viewport.current`、`subscribe` 计算 `x=Math.round(width/2)`、`y=Math.round(height/2+16)`；**初始与后续 `attrs.x/y` 均必须转换为字符串**（LoomRealm RenderNode attrs 为 string map）；`+16` 是仅对当前合成图有效的待验证视觉偏移，不属于领域常量。Viewport 为 `null`、无效或零尺寸时不更新。首次有效尺寸及 resize 都需要验证。
+- `cms-actor` 的 `x/y` 是身体原点（接近脚底），不是 sprite 中心或世界坐标。演示期通过 `scope.viewport.current`、`subscribe` 计算 `x=Math.round(width/2)`、`y=Math.round(height/2+16)`；**初始与后续 `attrs.x/y` 均必须转换为字符串**（LoomRealm RenderNode attrs 为 string map）；`+16` 是暂定视觉偏移，须以**现有 FSDB 实际角色**在 Chromium 中的可见中心检查调整，不属于领域常量。Viewport 为 `null`、无效或零尺寸时不更新。首次有效尺寸及 resize 都需要验证。
 - `domain.update({ nodes: [{ key, attrs: { set: changedAttrs } }] })` 只包含变化项；`avatarPlan` 在创建节点时传入一次，`cms-actor` 内部管理 Canvas、帧序列和 PNG Resource cache。
 - `cms-actor` 还观察 `skin`、`face`、`hair`、`expression`、`equips`，但这些只是游戏侧适配器的外观选择状态；组件不会据此自行查 Content 或重建 Plan。本切片不实现动态换装：不设置这些选择器，固定使用 bootstrap Plan。未来若增加换装，必须由游戏侧调用正式 Avatar Adapter 生成新 Plan，再显式更新 `data.avatarPlan`，不能只改选择器 attrs。
 

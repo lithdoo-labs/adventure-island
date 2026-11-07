@@ -169,14 +169,14 @@ jobs:
             assert.deepEqual(bundle.executables.map(entry=>entry.logicalModule).sort(),launch.subsystems.map(entry=>entry.module).sort());
             assert.deepEqual(bundle.presentation,presentation);
             assert(bundle.content.length>0);
-            const ids=bundle.content.map(entry=>[entry.kind,entry.namespace,entry.key].join("\\0"));
+            const ids=bundle.content.map(entry=>JSON.stringify([entry.kind,entry.namespace,entry.key]));
             const identitySet=new Set(ids);
             assert.equal(identitySet.size,ids.length,"duplicate Content identity");
             for(const script of presentation.scripts){
-              assert(identitySet.has(["resource","resource."+script.namespace,script.key].join("\\0")),"missing Presentation script: "+script.key);
+              assert(identitySet.has(JSON.stringify(["resource","resource."+script.namespace,script.key])),"missing Presentation script: "+script.key);
             }
             if(game.initial.subsystem==="base"){
-              assert(identitySet.has(["record","struct.AdventureAvatarPlan","bootstrap"].join("\\0")),"missing bootstrap AvatarPlan");
+              assert(identitySet.has(JSON.stringify(["record","struct.AdventureAvatarPlan","bootstrap"])),"missing bootstrap AvatarPlan");
             }
             for (const file of ["index.html","window.js","session-worker.js","worker-runner.js","service-worker.js"]) {
               assert((await stat(root+file)).isFile(),file);

@@ -114,13 +114,18 @@ class AuthTests(unittest.TestCase):
         agent.validate_paths(["src/main.py", "docs/features.md"])
         for name in (".github/workflows/malicious.yml", ".env", "AGENTS.md",
                      "scripts/issue_agent/agent.py", "scripts/agent/github_api.py",
-                     ".gitmodules", ".gitignore", ".raw/client.bin",
+                     ".gitmodules", ".raw/client.bin",
                      "glm-work/opencode.json", "research/result/legacy.json",
                      "research/glm-work/bootstrap/opencode.json",
                      "research/task/dev/README.md", "tools/.env.secret",
                      "../escape", "a/AGENTS.md"):
             with self.subTest(name=name), self.assertRaises(RuntimeError):
                 agent.validate_paths([name])
+
+    def test_gitignore_is_an_allowed_patch_path(self):
+        # Issue Agent may add project-specific ignore rules (for example
+        # node_modules/) without weakening protection for CI or agent code.
+        agent.validate_paths([".gitignore"])
 
     def test_many_safe_patch_paths_are_allowed(self):
         # File count is not a safety boundary: the byte budget and per-path

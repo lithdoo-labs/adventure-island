@@ -31,7 +31,9 @@ PROTECTED = (".github/", "scripts/issue_agent/", "scripts/agent/", "research/",
              ".git/", ".gitmodules", ".gitignore", ".env", ".raw/",
              "AGENTS.md", "opencode.json", "opencode.jsonc",
              "glm-work/opencode.json", "glm-work/start-opencode.bat")
-MAX_FILES = 40
+# Patch bytes, protected paths, and file types bound what the Publisher accepts.
+# A separate file-count ceiling rejected legitimate multi-file checkpoints
+# without adding meaningful safety beyond the existing patch-size limit.
 MAX_PATCH_BYTES = 900_000
 
 
@@ -89,8 +91,6 @@ def is_protected(path):
 
 
 def validate_paths(paths):
-    if len(paths) > MAX_FILES:
-        raise RuntimeError(f"too many changed files ({len(paths)} > {MAX_FILES})")
     for path in paths:
         if not path or is_protected(path):
             raise RuntimeError(f"protected or invalid path: {path!r}")

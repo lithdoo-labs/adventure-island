@@ -389,27 +389,32 @@ checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
 Root Game Entry 启动 Base → Map；两个自包含 executable 和两份 classic scripts 经真实 Bundle 发布；FSDB 闭包加派生 Plan Record 的资源版本一致；唯一 Actor 正常绘制、方向变化只更新字符串 attrs、无世界位移、Resize 居中；Frame 取消和失败能清理资源；现有 Node、Actor、Bundle/Staging 安全回归和 canonical PWA E2E 都通过。**T1–T4 分别通过不等于完整垂直闭环，必须有 T5。**
 
 
-## 6. 实施边界与交付顺序
+## 6. 实施与 Issue Agent 交接
 
-| 步骤 | 唯一交付 | 退出条件 |
+| 阶段 | 交付 | 验证 |
 |---|---|---|
-| A | 根 Game Entry、两个唯一 Subsystem、根绑定；Base 参数透传/投影故障/取消单测迁移 | Base → Map Frame 与输入域生命周期、错误终止可测 |
-| B | Controls 浏览器脚本注册、受控发布、输入 Tracker → Actor attrs、Viewport | 可信键盘输入、方向状态、唯一 Actor 与居中单测可测 |
-| C | 将 PWA synthetic Content 迁移到正式 `avatar.Part` schema；补齐 FSDB → Content identity / Reader 契约；构建期调用正式 `buildAdventureAvatarPlan()` 一次并发布 `struct.AdventureAvatarPlan/bootstrap` | 严格 preflight 规则、Reader 版本形状、Plan/PNG 引用与 SHA-256、262,144 字节限制通过；生产构建不导入 `components/cms-actor/test/**`；明确不包含真实 WZ 导入 |
-| D | 根 / 固定 submodule 双 lockfile 安装、Controls 先构建、两个自包含 executable、两份 Presentation scripts、更新 Staging/Actor fixture 与 CI、canonical PWA E2E | 完成第 5 节 PWA 全部 PASS |
-| E（独立） | Hostra synthetic Content 准备与实体运行验证 | 有证据则 PASS，否则清楚标 BLOCKED |
+| A | Root Game Entry、Base/Map 两个唯一 Subsystem、Controls → Actor attrs、取消与清理 | T1–T3，更新已有入口/Presentation 断言 |
+| B | 只读已有 `content/[FSDB]adventure` 最小角色闭包，正式 Adapter 构建 bootstrap Plan Record | T4；不改 FSDB、不生成 synthetic 素材 |
+| C | 根 lockfile + pinned LoomRealm 构建、两个自包含 ESM、两个 classic scripts、Bundle/Staging 迁移 | 受影响的 Bundle/Staging 测试及现有安全回归 |
+| D | 改写 canonical PWA E2E；全套最终 CI 验收 | T5 + 最终 CI 无失败、无意外跳过 |
+| E（独立） | Hostra 实体验证 | 有证据则 PASS，否则 BLOCKED；不阻断 PWA |
 
-**不要把步骤 A–D 拆成分别“宣布功能完成”的里程碑；只有 D 通过才形成真正的 PWA 垂直闭环。** 后续可玩场地要另行实现独立的横版物理 Game Library；当前 `adventure-map` 的动作状态仅是未来领域移动意图到 RenderNode 的最简替身。
+### 6.1 Issue 启动前必须完成的两项准备
 
-### 设计决策已固定
+1. **先合入设计准备 PR 到 `main`，再触发功能 Issue Agent。** `scripts/issue_agent/agent.py` 的新 Issue preflight 当前从 `refs/heads/main` 为 `agent/issue-N` 选取基础 SHA，不会自动读取设计分支。若不先合入，Agent 初始 checkout 中没有这份最新文档，容易按照旧 Smoke/旧 synthetic 方案返工。Issue 正文应明确链接已合入 `main` 的本文件。
+2. **Workflow 修改由维护方提前提交，而不是交给 Agent。** Issue Agent Publisher 明确将 `.github/**` 设为受保护目录。此设计分支的 `pwa-ci.yml` 已预置新 `systems/**`、根锁文件触发、条件 Controls 构建及随 manifest 更新的 staging 预检，同时保留旧 Smoke 可用；合入 `main` 后，Agent 的功能 PR 可以仅修改允许发布的 `systems/**`、`subsystems/**`、`scripts/pwa/**`、`test/**`、`package.json`、`package-lock.json` 和 manifests。若确需额外 Workflow 调整，应报告维护方另行提交，不绕过保护规则。
 
-- 用 LoomRealm **统一 Controls**，不再自建键盘/手柄监听器。
-- `base` 管理唯一 Producer，`adventure-map` 作为 Top Active Frame 管理 Consumer；`cms-actor` 负责渲染，不接收输入。
-- 两个业务 Subsystem 各一份源码；根入口为 shim；`apps/*` Smoke 保持 legacy，不复制四份新源码；Base 原样透传 `frame.params`，输入域沿用 `zIndex: 0`。
-- AvatarPlan 只使用 `components/cms-actor/src/adventure-adapter.mjs` 的正式 `buildAdventureAvatarPlan()` 与 `avatar-model.mjs` 校验；不新增 `content/build-avatar-plan.mjs`，不从旧 `test/look-adapter.mjs` 派生第二套算法。
-- PWA 合成数据采用正式 `avatar.Part/PartFrame/Resource/DrawOrder/LayerSlot` schema，构建期生成 PNG 与 Plan Record；生产构建路径不导入 `components/cms-actor/test/**`，不进行 WZ/真实 FSDB 重导入。
-- 产品根 package-lock 与固定 LoomRealm 原有 lockfile 分别执行 `npm ci`；Root Workspaces + 本地 pinned 包解析；Controls IIFE 必须先于产品 `pwa:bundle` 构建；双安装和构建顺序须由干净 CI 证明。
-- PWA 为本次硬验收；Hostra 作为独立平台资格，不以静态 manifest 假冒完成。
-- 仅在 Adventure Island 仓库实现，不升级 `loom-realm`，不开发 PokeMan 专属 Map/Battle。
+### 6.2 给 Agent 的完整但有边界的实施指令
 
-**状态：Draft / 待编码与资格验证。** 本次文档修订已将设计基线更新到 `main@6e551a9`，并按现有 Actor 正式实现收敛 AvatarPlan 管线；文档不代表实现已完成。任何 `PASS` 都必须附实际 CI/浏览器执行证据，不能从草案推断。
+> 按本文件步骤 A–D 完成 **Base → Adventure Map → cms-actor** 的 PWA 垂直切片。Avatar 数据直接只读现有 `content/[FSDB]adventure`，以正式 `buildAdventureAvatarPlan()` 派生一个 bootstrap Plan；不创建 synthetic 数据生成器。新增测试严格以第 5 节的 T1–T5 为边界，复用现有 Actor/Bundle/Staging 测试，不重复底层测试框架。开发中分层运行针对性测试，交付前执行完整 CI。不要修改 `.github/**`、LoomRealm gitlink、研究数据、真实 WZ 或部署配置。报告执行过的命令、最终 PASS/FAIL/BLOCKED 证据及未完成事项；失败时保留最小可复现证据和现有 Draft PR。
+
+### 6.3 不允许重新设计的边界
+
+- LoomRealm Controls 是唯一输入 Producer；Base 持有它，Map 作为 Top Active Frame 消费，Actor 仅渲染。
+- 两个 Subsystem 各一份业务源码，根 Hostra shim 只透传；旧 `apps/*` Smoke 不复制四份实现。
+- FSDB 是唯一 Avatar 素材源；正式 Adapter 是唯一 Plan 算法；只选单角色闭包。Actor 不解释输入、Map 不承担 PNG/遮挡逻辑。
+- `attrs.x/y/locomotion/facing` 为字符串；动作与朝向不触发世界坐标/物理位移，Viewport resize 仍居中。
+- 不升级 LoomRealm、不修改 Issue Agent 权限规则、不开发新的装备/动画/手柄输入系统。
+- PWA 是唯一硬验收；Hostra 与实机 D-pad 独立记录资格，不冒充通过。
+
+**状态：Draft / 设计与 CI 准备就绪；需先将准备 PR 合入 main，再启动 Issue Agent。** 运行代码与浏览器测试尚未实施，任何 PASS 均须以实际 CI 结果为据。

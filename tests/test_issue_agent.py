@@ -122,6 +122,12 @@ class AuthTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(RuntimeError):
                 agent.validate_paths([name])
 
+    def test_many_safe_patch_paths_are_allowed(self):
+        # File count is not a safety boundary: the byte budget and per-path
+        # protections still apply to every published checkpoint.
+        paths = [f"src/generated/module-{index:03d}.py" for index in range(128)]
+        agent.validate_paths(paths)
+
     def test_checkpoint_feedback_and_session_event(self):
         checkpoint = {"id": 900, "created_at": "2026-11-01T00:00:00Z", "turn": 1}
         comments = [

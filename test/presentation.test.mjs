@@ -1,5 +1,7 @@
 // Headless validation for the canonical root presentation manifest
-// (PWA migration 3A; PR-B registers the cms-actor classic script).
+// (PWA migration 3A; issue #62 registers TWO classic scripts: the pinned
+// common-controls IIFE first — it defines the `game-controls-input` element
+// Base projects — and the cms-actor IIFE second).
 //
 // Deterministic base layer: presentation.json is a valid Web Presentation
 // Config V1 as allowed by the pinned loom-realm submodule
@@ -8,9 +10,9 @@
 // validateWebPresentationConfigV1): an exact
 // { formatVersion, scripts, styles } object whose entries are exact
 // { namespace, key } Content resource references. The application declares
-// exactly one script — the cms-actor classic IIFE — which the pinned PWA
-// renderer host resolves to the published Content resource
-// resource.Presentation/cms-actor/cms-actor.browser.js
+// exactly two scripts, in order:
+//   resource.Presentation/controls/device-input.browser.js
+//   resource.Presentation/cms-actor/cms-actor.browser.js
 // (apps/pwa/src/renderer-host.ts prefixes `resource.` onto the declared
 // namespace when fetching bootstrap scripts from the installation Content).
 //
@@ -28,6 +30,7 @@ const EXPECTED_PRESENTATION = Object.freeze({
   formatVersion: 1,
   styles: Object.freeze([]),
   scripts: Object.freeze([
+    Object.freeze({ namespace: "Presentation", key: "controls/device-input.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
   ]),
 });
@@ -98,7 +101,7 @@ function validatePresentationStructural(text, label) {
 // Deterministic base validation
 // ---------------------------------------------------------------------------
 
-test("the root presentation manifest registers exactly the cms-actor classic script", async () => {
+test("the root presentation manifest registers the Controls and cms-actor classic scripts in order", async () => {
   const presentation = validatePresentationStructural(
     await readText(new URL("presentation.json", repoRoot)),
     "presentation.json (root)",
@@ -107,13 +110,28 @@ test("the root presentation manifest registers exactly the cms-actor classic scr
   assert.equal(presentation.styles.length, 0, "the application declares no styles");
   assert.deepEqual(
     presentation.scripts,
-    [{ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }],
-    "the application declares exactly the cms-actor classic script",
+    [
+      { namespace: "Presentation", key: "controls/device-input.browser.js" },
+      { namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" },
+    ],
+    "Controls must be declared BEFORE cms-actor (it defines the projected game-controls-input element)",
   );
 
-  // The declared script must resolve, through the pinned PWA hosting
-  // convention (`resource.<namespace>`, renderer-host.ts), to the PR-A
-  // generated classic artifact — a real file that is NOT an ES module.
+  // Both declared scripts must resolve, through the pinned PWA hosting
+  // convention (`resource.<namespace>`, renderer-host.ts), to real classic
+  // artifacts — regular files that are NOT ES modules.
+  const controlsArtifact = await readFile(
+    new URL("loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js", repoRoot),
+    "utf8",
+  ).catch(() => null);
+  if (controlsArtifact !== null) {
+    assert.ok(controlsArtifact.length > 0, "the pinned common-controls browser artifact must be non-empty");
+    assert.doesNotMatch(controlsArtifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the Controls artifact must be a classic script, not an ES module");
+  }
+  // When the framework build has not run yet, the artifact is allowed to be
+  // absent locally — CI builds it before pwa:bundle and the bundle builder
+  // fails closed when it is missing.
+
   const artifact = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
   assert.ok(artifact.length > 0, "components/cms-actor/browser/cms-actor.browser.js must exist");
   assert.doesNotMatch(artifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the published entry must be a classic script, not an ES module");

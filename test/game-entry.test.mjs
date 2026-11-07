@@ -1,31 +1,37 @@
-// Headless validation for the canonical root Game Entry (PWA migration 3A).
+// Headless validation for the canonical root Game Entry (PWA migration 3A;
+// Base → Adventure Map slice, issue #62).
 //
 // Deterministic base layer (no build, no network, no browser):
-//   - the root game.json is structurally equivalent to the apps/pwa and
-//     apps/hostra Game Entries (the same empty smoke application);
+//   - the ROOT game.json is the canonical base → adventure-map entry; the
+//     apps/pwa and apps/hostra Game Entries remain LEGACY SMOKE entries
+//     (kept as isolated test fixtures — they are no longer required to equal
+//     the canonical root entry);
 //   - the root launch.pwa.json / launch.hostra.json bind exactly the Game
-//     Entry subsystem key set to the same logical module;
-//   - the physical module for the root bindings stays inside the repository
-//     installation root and re-exports the shared smoke implementation
-//     instead of duplicating it;
-//   - the root binding forwards the shared factory and completes Frames;
-//   - the root shim is never publishable directly as the PWA executable for
-//     its logical module (pinned graph-walker rule mirrored locally).
+//     Entry subsystem key set to the same logical modules, and the physical
+//     modules stay inside the repository installation root as thin re-export
+//     shims of the single systems/* implementations;
+//   - the root bindings forward the shared factories; the Base binding runs
+//     its Controls-Producer/call/finally contract;
+//   - neither the root shims nor the raw systems/* sources are publishable
+//     PWA executables (the publication is the esbuild bundle built by
+//     scripts/pwa/build-installation-bundle.mjs, pinned in
+//     test/pwa-bundle.test.mjs).
 //
 // Optional deep layer (auto-enabled when the checked-out loom-realm submodule
 // has been built): the same documents are validated through the real pinned
-// LoomRealm APIs, the repository root is used as a real Hostra installation
-// root until a completed Frame, and the PWA executable-graph contract
-// (shared dependency-free source in, root shim source out) is enforced by
-// the real buildPwaExecutableIndexV1.
+// LoomRealm APIs, and the repository root is used as a real Hostra
+// installation root (prepareHostraGame) resolving both runtimes to the root
+// shims. A runMain boot-to-completed-Frame is no longer possible for this
+// entry: the adventure-map Frame intentionally stays active until cancelled
+// (its lifecycle is pinned by test/adventure-runtime.test.mjs and the real
+// PWA E2E instead).
 //
 // The structural rules mirrored below track the pinned submodule revision
-// (c5217e47be5a43f974e9e6ce82230077fb639c39), exactly like
+// (93648192323bf5f57996b7b54cbae641d8a53fdb), exactly like
 // systems/loomrealm-smoke/test/smoke.test.mjs, so drift surfaces as a failing
 // assertion instead of a silent mismatch.
 
 import assert from "node:assert/strict";
-import { createHash, randomBytes } from "node:crypto";
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
@@ -34,21 +40,29 @@ import { fileURLToPath } from "node:url";
 const repoRoot = new URL("../", import.meta.url);
 const appsPwaRoot = new URL("apps/pwa/", repoRoot);
 const appsHostraRoot = new URL("apps/hostra/", repoRoot);
-const smokeSystemRoot = new URL("systems/loomrealm-smoke/", repoRoot);
-const sharedSubsystemUrl = new URL("subsystem.mjs", smokeSystemRoot);
 const loomRealmRoot = new URL("loom-realm/", repoRoot);
 
 const MODULE_SEGMENT = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const ENCODER = new TextEncoder();
 
+/** The canonical root entry: Base boots and calls Adventure Map. */
 const EXPECTED_GAME_ENTRY = Object.freeze({
   formatVersion: 1,
-  initial: Object.freeze({ subsystem: "smoke", input: null }),
-  subsystems: Object.freeze([{ key: "smoke" }]),
+  initial: Object.freeze({ subsystem: "base", input: null }),
+  subsystems: Object.freeze([{ key: "base" }, { key: "adventure-map" }]),
 });
 const EXPECTED_LAUNCH_MANIFEST = Object.freeze({
   formatVersion: 1,
-  subsystems: Object.freeze([{ key: "smoke", module: "subsystems/smoke.mjs" }]),
+  subsystems: Object.freeze([
+    Object.freeze({ key: "base", module: "subsystems/base.mjs" }),
+    Object.freeze({ key: "adventure-map", module: "subsystems/adventure-map.mjs" }),
+  ]),
+});
+/** The apps/* entries stay minimal LEGACY SMOKE fixtures (isolated tests). */
+const EXPECTED_LEGACY_SMOKE_GAME_ENTRY = Object.freeze({
+  formatVersion: 1,
+  initial: Object.freeze({ subsystem: "smoke", input: null }),
+  subsystems: Object.freeze([{ key: "smoke" }]),
 });
 
 const readText = (url) => readFile(url, "utf8");
@@ -299,7 +313,7 @@ async function readRootLaunchManifests() {
 // Deterministic base validation
 // ---------------------------------------------------------------------------
 
-test("the root Game Entry is equivalent to both platform Game Entries", async () => {
+test("the canonical root Game Entry is the base → adventure-map entry; apps/* stay legacy smoke fixtures", async () => {
   const rootGameText = await readText(new URL("game.json", repoRoot));
   const pwaGameText = await readText(new URL("game.json", appsPwaRoot));
   const hostraGameText = await readText(new URL("game.json", appsHostraRoot));
@@ -307,13 +321,12 @@ test("the root Game Entry is equivalent to both platform Game Entries", async ()
   const pwaGame = validateGameEntryStructural(pwaGameText, "apps/pwa/game.json");
   const hostraGame = validateGameEntryStructural(hostraGameText, "apps/hostra/game.json");
 
-  assert.deepEqual(rootGame, EXPECTED_GAME_ENTRY, "game.json (root) is not the minimal smoke Game Entry");
-  assert.deepEqual(pwaGame, EXPECTED_GAME_ENTRY, "apps/pwa/game.json is not the minimal smoke Game Entry");
-  assert.deepEqual(hostraGame, EXPECTED_GAME_ENTRY, "apps/hostra/game.json is not the minimal smoke Game Entry");
-  assert.deepEqual(rootGame, pwaGame, "the root Game Entry must equal the PWA platform entry");
-  assert.deepEqual(rootGame, hostraGame, "the root Game Entry must equal the Hostra platform entry");
-  assert.equal("state" in rootGame, false, "the empty application carries no initial Shared State");
-  assert.equal(rootGame.initial.input, null, "the empty application starts from a null Frame input");
+  assert.deepEqual(rootGame, EXPECTED_GAME_ENTRY, "game.json (root) is not the canonical base → adventure-map Game Entry");
+  assert.deepEqual(pwaGame, EXPECTED_LEGACY_SMOKE_GAME_ENTRY, "apps/pwa/game.json must stay the legacy smoke fixture");
+  assert.deepEqual(hostraGame, EXPECTED_LEGACY_SMOKE_GAME_ENTRY, "apps/hostra/game.json must stay the legacy smoke fixture");
+  assert.equal("state" in rootGame, false, "the canonical application carries no initial Shared State");
+  assert.equal(rootGame.initial.input, null, "the canonical application starts from a null Frame input");
+  assert.equal(rootGame.initial.subsystem, "base", "Base is the canonical initial Subsystem");
 });
 
 test("both root launch manifests bind exactly the Game Entry subsystem keys", async () => {
@@ -359,73 +372,106 @@ test("the root bindings resolve to physical modules inside the repository instal
   }
 });
 
-test("the root binding re-exports the shared smoke implementation instead of duplicating it", async () => {
-  const targets = await readShimReexportTargets(new URL("subsystems/smoke.mjs", repoRoot), "subsystems/smoke.mjs (root)");
-  const shared = await realpath(fileURLToPath(sharedSubsystemUrl));
-  assert.deepEqual(
-    await Promise.all(targets.map((target) => realpath(target))),
-    targets.map(() => shared),
-    "subsystems/smoke.mjs (root) must re-export systems/loomrealm-smoke/subsystem.mjs",
-  );
+test("the root bindings re-export the shared implementations instead of duplicating them", async () => {
+  const expectations = [
+    ["subsystems/base.mjs", new URL("../systems/base/subsystem.mjs", import.meta.url)],
+    ["subsystems/adventure-map.mjs", new URL("../systems/adventure-map/subsystem.mjs", import.meta.url)],
+  ];
+  for (const [shim, shared] of expectations) {
+    const targets = await readShimReexportTargets(new URL(shim, repoRoot), `${shim} (root)`);
+    const sharedPath = fileURLToPath(shared);
+    const sharedReal = await realpath(sharedPath);
+    assert.deepEqual(
+      await Promise.all(targets.map((target) => realpath(target))),
+      targets.map(() => sharedReal),
+      `${shim} (root) must re-export ${relativeLabel(sharedPath)}`,
+    );
+  }
 });
 
-test("the root binding forwards the shared factory and completes Frames deterministically", async () => {
+function relativeLabel(sharedPath) {
+  const segments = sharedPath.split(path.sep);
+  return `${segments.at(-2)}/subsystem.mjs`;
+}
+
+test("the root Base binding forwards the factory and runs its producer/call/finally contract", async () => {
   const used = [];
   const deny = (capability) => () => {
     used.push(capability);
-    throw new Error(`the smoke subsystem must not use ${capability}`);
+    throw new Error(`the Base subsystem must not use ${capability}`);
   };
+  const domains = [];
   const scope = Object.freeze({
     signal: new AbortController().signal,
-    state: Object.freeze({
-      read: deny("state.read"), readInitial: deny("state.readInitial"), list: deny("state.list"),
-      scan: deny("state.scan"), commit: deny("state.commit"), subscribe: deny("state.subscribe"),
-    }),
-    events: Object.freeze({ publish: deny("events.publish"), subscribe: deny("events.subscribe") }),
+    state: Object.freeze({ read: deny("state"), subscribe: deny("state") }),
+    events: Object.freeze({ publish: deny("events"), subscribe: deny("events") }),
     content: Object.freeze({ record: deny("content.record"), group: deny("content.group"), resource: deny("content.resource") }),
     viewport: Object.freeze({ current: null, subscribe: deny("viewport.subscribe") }),
     presentationEvents: Object.freeze({ createListener: deny("presentationEvents.createListener") }),
-    createRenderDomain: deny("createRenderDomain"),
+    createRenderDomain: (state) => {
+      const domain = { state, closed: false, update() {}, replace() {}, emit() {}, close() { domain.closed = true; } };
+      domains.push(domain);
+      return domain;
+    },
   });
+  const forwarded = [];
   const frame = Object.freeze({
-    id: "root-smoke-frame-1",
-    params: null,
+    id: "root-base-frame-1",
+    params: { turn: 1 },
     signal: new AbortController().signal,
-    call: deny("frame.call"),
+    call: async (subsystem, params) => {
+      forwarded.push({ subsystem, params });
+      return Object.freeze({ type: "completed", value: { status: "ok", subsystem } });
+    },
   });
 
-  const sharedModule = await import(sharedSubsystemUrl.href);
-  const rootShim = await import(new URL("subsystems/smoke.mjs", repoRoot).href);
+  const sharedModule = await import(new URL("../systems/base/subsystem.mjs", import.meta.url).href);
+  const rootShim = await import(new URL("subsystems/base.mjs", repoRoot).href);
 
-  assert.equal(typeof sharedModule.default, "function", "subsystem default export must be a factory function");
-  assert.equal(rootShim.default, sharedModule.default, "the root binding must forward the shared factory");
-  assert.equal(rootShim.SMOKE_SUBSYSTEM_KEY, "smoke");
-  assert.equal(rootShim.SMOKE_FRAME_VALUE, sharedModule.SMOKE_FRAME_VALUE);
+  assert.equal(typeof sharedModule.default, "function", "the Base default export must be a factory function");
+  assert.equal(rootShim.default, sharedModule.default, "the root binding must forward the shared Base factory");
+  assert.equal(rootShim.BASE_SUBSYSTEM_KEY, "base");
+  assert.equal(sharedModule.BASE_CHILD_SUBSYSTEM_KEY, "adventure-map");
 
   const definition = rootShim.default(scope);
   assert.equal(typeof definition.frame, "function", "the definition must expose frame()");
 
-  const first = definition.frame(frame);
-  assert.deepEqual(first, { type: "completed", value: { status: "ok", subsystem: "smoke" } });
-  assert.equal(Object.isFrozen(first), true, "FrameOutcome must be frozen like @loomrealm/subsystem completed()");
-  assert.deepEqual(definition.frame(frame), first, "the no-op subsystem must complete every Frame identically");
-  assert.deepEqual(used, [], "the no-op subsystem must not touch any scope capability or call other subsystems");
+  const outcome = await definition.frame(frame);
+  assert.deepEqual(outcome, { type: "completed", value: { status: "ok", subsystem: "adventure-map" } });
+  assert.deepEqual(forwarded, [{ subsystem: "adventure-map", params: frame.params }]);
+  assert.equal(forwarded[0].params, frame.params, "Frame params must be forwarded by identity");
+  assert.equal(domains.length, 1, "exactly one Controls Producer RenderDomain");
+  assert.deepEqual(domains[0].state, {
+    zIndex: 0,
+    roots: [{ key: "game-controls-input", tag: "game-controls-input", attrs: {}, data: {}, children: [] }],
+  });
+  assert.equal(domains[0].closed, true, "the producer closes with the child Frame");
+  assert.deepEqual(used, [], "Base touches no scope capability besides createRenderDomain/frame.call");
 });
 
-test("the root shim must never be published directly as the PWA executable", async () => {
+test("the root Adventure Map binding forwards the shared factory", async () => {
+  const sharedModule = await import(new URL("../systems/adventure-map/subsystem.mjs", import.meta.url).href);
+  const rootShim = await import(new URL("subsystems/adventure-map.mjs", repoRoot).href);
+  assert.equal(typeof sharedModule.default, "function", "the Map default export must be a factory function");
+  assert.equal(rootShim.default, sharedModule.default, "the root binding must forward the shared Map factory");
+  assert.equal(rootShim.AVATAR_PLAN_NAMESPACE, "struct.AdventureAvatarPlan");
+  assert.equal(rootShim.AVATAR_PLAN_KEY, "bootstrap");
+});
+
+test("the root shims and the raw sources must never be published as PWA executables", async () => {
   // Calibrate the local mirror against the pinned graph-walker rules
   // (packages/game-launcher-pwa/src/index.ts, resolveRelativeModule).
   assert.deepEqual(
-    resolveLogicalImport("subsystems/smoke.mjs", "../systems/loomrealm-smoke/subsystem.mjs"),
-    { ok: true, logicalModule: "systems/loomrealm-smoke/subsystem.mjs" },
+    resolveLogicalImport("subsystems/base.mjs", "../systems/base/subsystem.mjs"),
+    { ok: true, logicalModule: "systems/base/subsystem.mjs" },
   );
   assert.deepEqual(
-    resolveLogicalImport("subsystems/smoke.mjs", "../../../systems/loomrealm-smoke/subsystem.mjs"),
+    resolveLogicalImport("subsystems/base.mjs", "../../../systems/base/subsystem.mjs"),
     { ok: false, code: "SUBSYSTEM_MODULE_OUTSIDE_INSTALLATION" },
     "the apps/* shims' deeper escapes must stay out of bounds",
   );
   assert.deepEqual(
-    resolveLogicalImport("subsystems/smoke.mjs", "@loomrealm/subsystem"),
+    resolveLogicalImport("subsystems/base.mjs", "@loomrealm/subsystem"),
     { ok: false, code: "SUBSYSTEM_MODULE_GRAPH_INVALID" },
     "bare package specifiers are not publishable executable edges",
   );
@@ -435,33 +481,51 @@ test("the root shim must never be published directly as the PWA executable", asy
     [...pwaManifest.subsystems, ...hostraManifest.subsystems].map(({ module }) => module),
   );
 
-  // The root shim is not self-contained: every module-graph edge leaves the
-  // set of logical modules declared by the launch manifests. A publication
-  // built from those declared modules alone therefore cannot satisfy the
-  // shim's import graph — publishing the shim source directly is rejected by
-  // the pinned walker (deep test below pins the exact code).
-  const shimSource = await readText(new URL("subsystems/smoke.mjs", repoRoot));
-  const edges = readModuleEdges(shimSource, "subsystems/smoke.mjs (root)");
-  assert.ok(edges.length > 0, "the root shim is expected to re-export the shared implementation");
-  for (const specifier of edges) {
-    const resolved = resolveLogicalImport("subsystems/smoke.mjs", specifier);
-    assert.equal(resolved.ok, true, `root shim edge "${specifier}" must stay inside the installation root`);
-    assert.equal(
-      declaredLogicalModules.has(resolved.logicalModule),
-      false,
-      `root shim edge "${specifier}" resolves to "${resolved.logicalModule}", which the launch manifests do not declare`,
-    );
+  // The root shims are not self-contained: every module-graph edge leaves the
+  // set of logical modules declared by the launch manifests, so a publication
+  // built from those declared modules alone cannot satisfy a shim's import
+  // graph (the deep test below pins the exact pinned-walker rejection).
+  for (const [shimPath, from] of [
+    ["subsystems/base.mjs", "subsystems/base.mjs"],
+    ["subsystems/adventure-map.mjs", "subsystems/adventure-map.mjs"],
+  ]) {
+    const shimSource = await readText(new URL(shimPath, repoRoot));
+    const edges = readModuleEdges(shimSource, `${shimPath} (root)`);
+    assert.ok(edges.length > 0, `${shimPath} is expected to re-export the shared implementation`);
+    for (const specifier of edges) {
+      const resolved = resolveLogicalImport(from, specifier);
+      assert.equal(resolved.ok, true, `${shimPath} edge "${specifier}" must stay inside the installation root`);
+      assert.equal(
+        declaredLogicalModules.has(resolved.logicalModule),
+        false,
+        `${shimPath} edge "${specifier}" resolves to "${resolved.logicalModule}", which the launch manifests do not declare`,
+      );
+    }
   }
 
-  // The sanctioned publication source: the dependency-free shared
-  // implementation has an empty module graph, so it can be published alone
-  // for the logical module `subsystems/smoke.mjs`.
-  const sharedSource = await readText(sharedSubsystemUrl);
-  assert.deepEqual(
-    readModuleEdges(sharedSource, "systems/loomrealm-smoke/subsystem.mjs"),
-    [],
-    "the shared smoke implementation must stay dependency-free (empty import graph)",
-  );
+  // The raw systems/* sources import the pinned framework packages as bare
+  // specifiers — valid inside the repository workspace, but NOT publishable
+  // as executables. The published executable for each logical module is the
+  // self-contained esbuild bundle built by scripts/pwa/build-installation-bundle.mjs
+  // (its dependency-free graph is pinned by test/pwa-bundle.test.mjs).
+  for (const [sourcePath, allowedEdges] of [
+    ["systems/base/subsystem.mjs", ["@loomrealm/subsystem"]],
+    [
+      "systems/adventure-map/subsystem.mjs",
+      ["@loomrealm/subsystem", "@loomrealm-game/common-controls/subsystem"],
+    ],
+  ]) {
+    const source = await readText(new URL(sourcePath, repoRoot));
+    const edges = readModuleEdges(source, sourcePath);
+    assert.deepEqual([...edges].sort(), [...allowedEdges].sort(), `${sourcePath} must import exactly the pinned framework packages`);
+    for (const specifier of edges) {
+      assert.deepEqual(
+        resolveLogicalImport("subsystems/base.mjs", specifier),
+        { ok: false, code: "SUBSYSTEM_MODULE_GRAPH_INVALID" },
+        `the raw source edge "${specifier}" must be unpublishable — only the bundle ships`,
+      );
+    }
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -484,13 +548,8 @@ const hostraLauncher = await tryImportLoomRealmPackage("packages/game-launcher-h
 // parseHostraLaunchManifest is an internal module of @loomrealm/game-launcher-hostra
 // (not re-exported by the package index), so it is imported from its dist file.
 const hostraManifestModule = await tryImportLoomRealmPackage("packages/game-launcher-hostra/dist/manifest.js");
-const mainRuntime = await tryImportLoomRealmPackage("packages/main/dist/index.js");
-const sharedState = await tryImportLoomRealmPackage("packages/shared-state/dist/index.js");
-const sessionEvents = await tryImportLoomRealmPackage("packages/session-events/dist/index.js");
 
 const deepValidationAvailable = Boolean(gamePackage && pwaLauncher && hostraLauncher && hostraManifestModule);
-const deepLaunchAvailable = deepValidationAvailable
-  && mainRuntime !== null && sharedState !== null && sessionEvents !== null;
 
 const UNBUILT_NOTE = "loom-realm packages are not built; run `npm install && npm run build:packages` inside loom-realm/ to enable deep validation";
 
@@ -504,7 +563,10 @@ test("built LoomRealm APIs validate the root Game Entry and both launch composit
   assert.deepEqual(hostraManifest, EXPECTED_LAUNCH_MANIFEST);
 
   // The repository root itself is a real Hostra installation root: prepare
-  // resolves the logical module to the physical root binding.
+  // resolves BOTH logical modules to the physical root shims. Executing the
+  // full Base → Map boot here is no longer a completed-Frame story (the Map
+  // Frame stays active until cancelled); that lifecycle is pinned by
+  // test/adventure-runtime.test.mjs and the real PWA E2E.
   const prepared = await hostraLauncher.prepareHostraGame({
     source: { installationRoot: fileURLToPath(repoRoot) },
     runnerPolicy: {
@@ -514,39 +576,50 @@ test("built LoomRealm APIs validate the root Game Entry and both launch composit
       terminationGraceMs: 100,
     },
   });
-  assert.deepEqual(prepared.logicalBootstrap.subsystemKeys, ["smoke"]);
-  assert.deepEqual(prepared.logicalBootstrap.initial, { subsystemKey: "smoke", input: null });
+  assert.deepEqual(prepared.logicalBootstrap.subsystemKeys, ["base", "adventure-map"]);
+  assert.deepEqual(prepared.logicalBootstrap.initial, { subsystemKey: "base", input: null });
   assert.ok(Array.isArray(prepared.state.records) && prepared.state.records.length === 0);
-  assert.equal(prepared.launchPlan.runtimes.length, 1);
-  assert.equal(prepared.launchPlan.runtimes[0].subsystemKey, "smoke");
-  assert.equal(prepared.launchPlan.runtimes[0].logicalModule, "subsystems/smoke.mjs");
-  assert.equal(
-    path.relative(await realpath(fileURLToPath(repoRoot)), prepared.launchPlan.runtimes[0].physicalModule),
-    path.join("subsystems", "smoke.mjs"),
-    "the physical module must be the repository-root binding, not an apps/* shim",
+  assert.equal(prepared.launchPlan.runtimes.length, 2);
+  assert.deepEqual(
+    prepared.launchPlan.runtimes.map((runtime) => [runtime.subsystemKey, runtime.logicalModule]),
+    [
+      ["base", "subsystems/base.mjs"],
+      ["adventure-map", "subsystems/adventure-map.mjs"],
+    ],
   );
+  const repoReal = await realpath(fileURLToPath(repoRoot));
+  for (const runtime of prepared.launchPlan.runtimes) {
+    assert.equal(
+      path.relative(repoReal, runtime.physicalModule),
+      path.join("subsystems", `${runtime.subsystemKey}.mjs`),
+      "the physical module must be the repository-root binding, not an apps/* shim",
+    );
+  }
 
-  // PWA publication contract: the executable published for the logical module
-  // `subsystems/smoke.mjs` is the dependency-free shared implementation (its
-  // import graph is empty), exactly like PokeMan publishes bundled
-  // dependency-free artifacts instead of its source subsystem files.
-  const source = await readText(sharedSubsystemUrl);
-  const contentVersion = `sha256:${createHash("sha256").update(source).digest("hex")}`;
-  const executableIndex = await pwaLauncher.buildPwaExecutableIndexV1([
-    { logicalModule: "subsystems/smoke.mjs", source, contentVersion },
-  ]);
-  assert.deepEqual(executableIndex, [{ logicalModule: "subsystems/smoke.mjs", contentVersion, imports: [] }]);
-
-  // The installation-root shim's own source must NOT be published as-is: its
-  // re-export target systems/loomrealm-smoke/subsystem.mjs is outside the
-  // executable set declared by the launch manifests, and the pinned graph
-  // walker rejects the incomplete graph. This guard keeps the publication
-  // substitution above explicit instead of accidental.
-  const shimSource = await readText(new URL("subsystems/smoke.mjs", repoRoot));
-  const shimContentVersion = `sha256:${createHash("sha256").update(shimSource).digest("hex")}`;
+  // PWA publication contract: the raw sources' bare framework imports are
+  // rejected by the real pinned graph builder (bare specifiers are invalid
+  // executable edges) — only the self-contained esbuild bundle published by
+  // scripts/pwa/build-installation-bundle.mjs is a valid executable (its
+  // empty import graph is pinned by test/pwa-bundle.test.mjs).
+  const baseSource = await readText(new URL("../systems/base/subsystem.mjs", import.meta.url));
   await assert.rejects(
     pwaLauncher.buildPwaExecutableIndexV1([
-      { logicalModule: "subsystems/smoke.mjs", source: shimSource, contentVersion: shimContentVersion },
+      { logicalModule: "subsystems/base.mjs", source: baseSource, contentVersion: "sha256:" + "0".repeat(64) },
+    ]),
+    (error) => {
+      assert.equal(error?.code, "SUBSYSTEM_MODULE_GRAPH_INVALID");
+      return true;
+    },
+    "publishing the raw Base source directly must fail the PWA executable graph",
+  );
+
+  // The installation-root shims' own sources must NOT be published as-is
+  // either: their re-export targets are outside the executable set declared
+  // by the launch manifests.
+  const shimSource = await readText(new URL("subsystems/base.mjs", repoRoot));
+  await assert.rejects(
+    pwaLauncher.buildPwaExecutableIndexV1([
+      { logicalModule: "subsystems/base.mjs", source: shimSource, contentVersion: "sha256:" + "1".repeat(64) },
     ]),
     (error) => {
       assert.equal(error?.code, "SUBSYSTEM_MODULE_NOT_FOUND");
@@ -555,61 +628,3 @@ test("built LoomRealm APIs validate the root Game Entry and both launch composit
     "publishing the root shim source directly must fail the PWA executable graph",
   );
 });
-
-test("the root entry boots to a completed Frame through real Main and Hostra", { skip: !deepLaunchAvailable && UNBUILT_NOTE }, async () => {
-  const prepared = await hostraLauncher.prepareHostraGame({
-    source: { installationRoot: fileURLToPath(repoRoot) },
-    runnerPolicy: {
-      helloDeadlineMs: 5_000,
-      frameDeadlineMs: 5_000,
-      terminalCleanupDeadlineMs: 1_000,
-      terminationGraceMs: 100,
-    },
-  });
-  const authority = sharedState.createSharedStateAuthority(prepared.state);
-  const sessionEventHub = sessionEvents.createSessionEventHub({ onFatal() {} });
-  const scheduler = Object.freeze({
-    schedule(delayMs, callback) {
-      const timer = setTimeout(callback, delayMs);
-      return () => clearTimeout(timer);
-    },
-  });
-  const platform = Object.freeze({
-    scheduler,
-    opaqueMaterial: Object.freeze({ generate: () => randomBytes(32).toString("base64url") }),
-    runtimeHosting: hostraLauncher.createHostraRuntimeHosting({
-      launchPlan: prepared.launchPlan,
-      sharedStateAuthority: authority,
-      sessionEventHub,
-    }),
-    sessionEventsFatal: Object.freeze({ subscribe: () => () => {} }),
-  });
-
-  const result = await withDeadline(
-    mainRuntime.runMain({
-      bootstrap: prepared.logicalBootstrap,
-      platform,
-      policy: {
-        runtimeBootstrapDeadlineMs: 10_000,
-        frameDeadlineMs: 10_000,
-        shutdownDeadlineMs: 5_000,
-        terminationDeadlineMs: 2_000,
-      },
-    }),
-    30_000,
-    "Main launch of the root entry",
-  );
-  assert.deepEqual(result, {
-    kind: "root-outcome",
-    outcome: { type: "completed", value: { status: "ok", subsystem: "smoke" } },
-  });
-});
-
-function withDeadline(promise, deadlineMs, label) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} did not finish within ${deadlineMs}ms`)), deadlineMs);
-    timer.unref();
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}

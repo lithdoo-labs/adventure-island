@@ -2,6 +2,7 @@
   "formatVersion": 1,
   "styles": [],
   "scripts": [
+    { "namespace": "Presentation", "key": "controls/device-input.browser.js" },
     { "namespace": "Presentation", "key": "cms-actor/cms-actor.browser.js" }
   ]
 }

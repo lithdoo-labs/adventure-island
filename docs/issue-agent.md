@@ -35,7 +35,7 @@ An owner-only alternative is Actions → Issue Agent (OpenCode 2) → Run workfl
 | Execute | self-hosted, linux, x64, opencode, labs | Read-only checkout, no write token forwarded |
 | Publish | ubuntu-latest | Contents / Issues / Pull requests write; pushes complete or partial checkpoints |
 
-The publisher rejects changes to .github/, scripts/issue_agent/, research/, the retired scripts/agent/ path, .gitmodules, .gitignore, .raw/, AGENTS.md, .env*, and OpenCode config, as well as symlinks, submodules, oversize patches, and stale PR HEAD SHAs. An owner-authored Issue is the only permitted entry for OpenCode execution.
+The publisher rejects changes to .github/, scripts/issue_agent/, research/, the retired scripts/agent/ path, .gitmodules, .raw/, AGENTS.md, .env*, and OpenCode config, as well as symlinks, submodules, oversize patches, and stale PR HEAD SHAs. The repository root .gitignore is publishable (scripts/issue_agent/agent.py PROTECTED does not include it); dependency ignores such as node_modules/ may be added there without touching the protected trees. An owner-authored Issue is the only permitted entry for OpenCode execution.
 
 ## Persistent mapping
 

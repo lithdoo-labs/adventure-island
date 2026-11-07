@@ -24,12 +24,13 @@ Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定�
 
 | 路径 | 职责 |
 |---|---|
-| `apps/pwa/` | PWA 安装根与平台入口 |
-| `apps/hostra/` | Hostra 安装根与平台入口 |
+| `game.json`、`launch.*.json`、`presentation.json` | 仓库根目录的 canonical Game Entry（`base` → `adventure-map`） |
+| `subsystems/` | 平台安装根的 Subsystem 薄绑定（shim） |
 | `components/` | 游戏画面与交互 Web Components |
 | `libs/` | 本游戏复用的领域库和运行时逻辑 |
-| `systems/` | LoomRealm Subsystem 实现 |
-| `content/` | 游戏内容模型、导入规范与构建边界 |
+| `systems/` | LoomRealm Subsystem 实现（`base`、`adventure-map`，及 legacy smoke 夹具） |
+| `content/` | 游戏内容模型、导入规范与构建边界（`[FSDB]adventure` 为唯一 Avatar 素材源） |
+| `apps/pwa/`、`apps/hostra/` | legacy Smoke 隔离测试夹具，不再是正式应用入口 |
 | `tests/` | 仓库级自动化测试 |
 | `docs/` | 工程流程、CI 与 Agent 使用说明 |
 | `DESIGN.md` | 正式游戏设计、系统取舍和阶段目标 |
@@ -63,10 +64,17 @@ Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定�
 
 ## 本地 PWA Staging 与独立 CI
 
-根目录 `npm run pwa:bundle` 使用 Adventure Island 的 canonical Game Entry 创建无外部资源的 Smoke installation-bundle；`npm run pwa:staging` 在检查精确 Gitlink、真实通用 Builder 和编译依赖后，生成 `dist/staging/adventure-island/`。该目录只是本地构建产物，**不是线上服务**。升级后首次验证可执行：
+canonical Game Entry 为 `base` → `adventure-map`：`npm run pwa:bundle` 从两个
+`systems/*` 实现编译自包含 executable、只读发布 `content/[FSDB]adventure` 的单角色
+闭包与派生 bootstrap AvatarPlan Record、发布 Controls 与 cms-actor 两份 classic
+script；`npm run pwa:staging` 在检查精确 Gitlink、真实通用 Builder 和编译依赖后，
+生成 `dist/staging/adventure-island/`。该目录只是本地构建产物，**不是线上服务**。
+升级后首次验证可执行：
 
 ```bash
-npm ci --prefix loom-realm
+npm ci --no-audit --no-fund                       # 根工作区（esbuild + 框架 workspace 链接）
+npm ci --prefix loom-realm --no-audit --no-fund
+npm run build:game-common-controls-input --prefix loom-realm
 npm run pwa:bundle
 npm run build:bundle --prefix loom-realm --workspace @loomrealm/pwa -- \
   --bundle "$PWD/dist/adventure-island-installation-bundle.json" \
@@ -77,4 +85,4 @@ npm test
 npm run pwa:staging
 ```
 
-`.github/workflows/pwa-ci.yml` 在 GitHub-hosted Runner 中独立编译 LoomRealm，强制执行无跳过的根测试、真实 staging 及 Chromium/Service Worker Smoke E2E。构建与部署必须分离；本阶段不启动 Docker、生产端口或 Pokeman 服务。详见 [Game Entry 与 PWA Bundle](./docs/game-entry.md)。
+`.github/workflows/pwa-ci.yml` 在 GitHub-hosted Runner 中独立编译 LoomRealm，强制执行无跳过的根测试、真实 staging 及 Chromium/Service Worker E2E（Base → Map → Actor、可信键盘输入、Resize）。构建与部署必须分离；本阶段不启动 Docker、生产端口或 Pokeman 服务。详见 [Game Entry 与 PWA Bundle](./docs/game-entry.md)。

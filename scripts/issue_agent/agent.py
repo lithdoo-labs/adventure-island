@@ -28,7 +28,7 @@ RUN_TIMEOUT_SECONDS = 14400
 STATUS_TIMEOUT_SECONDS = 600
 SESSION_RE = re.compile(r"^ses_[A-Za-z0-9_-]+$")
 PROTECTED = (".github/", "scripts/issue_agent/", "scripts/agent/", "research/",
-             ".git/", ".gitmodules", ".gitignore", ".env", ".raw/",
+             ".git/", ".gitmodules", ".env", ".raw/",
              "AGENTS.md", "opencode.json", "opencode.jsonc",
              "glm-work/opencode.json", "glm-work/start-opencode.bat")
 # Patch bytes, protected paths, and file types bound what the Publisher accepts.

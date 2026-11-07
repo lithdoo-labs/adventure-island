@@ -11,10 +11,11 @@ on:
       - "content/**"
       - "docs/game-entry.md"
       - "subsystems/**"
-      - "systems/loomrealm-smoke/**"
+      - "systems/**"
       - "scripts/pwa/**"
       - "test/**"
       - "package.json"
+      - "package-lock.json"
       - "loom-realm"
       - "README.md"
       - ".github/workflows/pwa-ci.yml"
@@ -28,10 +29,11 @@ on:
       - "content/**"
       - "docs/game-entry.md"
       - "subsystems/**"
-      - "systems/loomrealm-smoke/**"
+      - "systems/**"
       - "scripts/pwa/**"
       - "test/**"
       - "package.json"
+      - "package-lock.json"
       - "loom-realm"
       - "README.md"
       - ".github/workflows/pwa-ci.yml"
@@ -80,8 +82,21 @@ jobs:
             fi
           fi
 
+      - name: Install product dependencies when root lockfile exists
+        if: ${{ hashFiles('package-lock.json') != '' }}
+        run: npm ci --no-audit --no-fund
+
       - name: Install pinned framework toolchain
         run: npm ci --prefix loom-realm --no-audit --no-fund
+
+      - name: Build browser Controls when declared by the product manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          if node --input-type=module -e 'import {readFileSync} from "node:fs"; const p=JSON.parse(readFileSync("presentation.json","utf8")); process.exit(p.scripts?.some(s=>s.namespace==="Presentation"&&s.key==="controls/device-input.browser.js")?0:1)'; then
+            npm run build:game-common-controls-input --prefix loom-realm
+            test -s loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js
+          fi
 
       - name: Build actual framework packages and generic PWA bundle
         shell: bash
@@ -133,7 +148,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run pwa:bundle
           sha256sum dist/adventure-island-installation-bundle.json > "$RUNNER_TEMP/pwa-bundle.sha256"
           npm run pwa:bundle
           sha256sum -c "$RUNNER_TEMP/pwa-bundle.sha256"
@@ -144,21 +158,33 @@ jobs:
             const root="dist/staging/adventure-island/";
             const generation=JSON.parse(await readFile(root+"generation.json","utf8"));
             const bundle=JSON.parse(await readFile(root+"installation-bundle.json","utf8"));
+            const game=JSON.parse(await readFile("game.json","utf8"));
+            const launch=JSON.parse(await readFile("launch.pwa.json","utf8"));
+            const presentation=JSON.parse(await readFile("presentation.json","utf8"));
             assert.equal(generation.appId,"adventure-island");
             assert.equal(generation.basePath,"/pwa/adventure-island/");
             assert.match(bundle.bundleId,/^loomrealm-pwa-sha256-[0-9a-f]{64}$/);
-            assert.equal(bundle.executables.length,1);
-            assert.equal(bundle.content.length,24);
-            assert.equal(bundle.executables[0].logicalModule,"subsystems/smoke.mjs");
-            assert.deepEqual(bundle.presentation,{formatVersion:1,styles:[],scripts:[{namespace:"Presentation",key:"cms-actor/cms-actor.browser.js"}]});
-            assert(bundle.content.some((entry)=>entry.kind==="resource"&&entry.namespace==="resource.Presentation"&&entry.key==="cms-actor/cms-actor.browser.js"));
+            assert(game.subsystems.some(entry=>entry.key===game.initial.subsystem));
+            assert.deepEqual(launch.subsystems.map(entry=>entry.key).sort(),game.subsystems.map(entry=>entry.key).sort());
+            assert.deepEqual(bundle.executables.map(entry=>entry.logicalModule).sort(),launch.subsystems.map(entry=>entry.module).sort());
+            assert.deepEqual(bundle.presentation,presentation);
+            assert(bundle.content.length>0);
+            const ids=bundle.content.map(entry=>JSON.stringify([entry.kind,entry.namespace,entry.key]));
+            const identitySet=new Set(ids);
+            assert.equal(identitySet.size,ids.length,"duplicate Content identity");
+            for(const script of presentation.scripts){
+              assert(identitySet.has(JSON.stringify(["resource","resource."+script.namespace,script.key])),"missing Presentation script: "+script.key);
+            }
+            if(game.initial.subsystem==="base"){
+              assert(identitySet.has(JSON.stringify(["record","struct.AdventureAvatarPlan","bootstrap"])),"missing bootstrap AvatarPlan");
+            }
             for (const file of ["index.html","window.js","session-worker.js","worker-runner.js","service-worker.js"]) {
               assert((await stat(root+file)).isFile(),file);
             }
             console.log("Real LoomRealm generic staging verified");
           '
 
-      - name: Browser Smoke — /pwa/adventure-island/ and Service Worker
+      - name: Canonical PWA — /pwa/adventure-island/ and Service Worker
         shell: bash
         run: |
           set -euo pipefail

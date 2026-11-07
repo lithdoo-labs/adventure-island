@@ -259,60 +259,200 @@ try {
 
 ## 4. Content、构建依赖与 CI
 
-### 4.1 复用正式 Adventure Avatar Adapter，不再抽取第二套算法
+### 4.1 复用正式 Adventure Avatar Adapter，并冻结 Content 数据契约
 
-**架构决策已更新：不新增 `content/build-avatar-plan.mjs`。** 最新 `main@6e551a9` 已有正式生产模块 [`components/cms-actor/src/adventure-adapter.mjs`](../../components/cms-actor/src/adventure-adapter.mjs)，导出 `buildAdventureAvatarPlan(content, input)`；[`avatar-model.mjs`](../../components/cms-actor/src/avatar-model.mjs) 提供 `validateAvatarPlan()` 与 `measureAvatarPlanDataBytes()`。新的 PWA 合成 Content 构建必须复用这套实现，不再从 `components/cms-actor/test/look-adapter.mjs` 抽取或复制另一份算法。
+**架构决策：不新增 `content/build-avatar-plan.mjs`。** 正式 Plan 生成器是 [`components/cms-actor/src/adventure-adapter.mjs`](../../components/cms-actor/src/adventure-adapter.mjs) 导出的 `buildAdventureAvatarPlan(content, input)`；[`avatar-model.mjs`](../../components/cms-actor/src/avatar-model.mjs) 负责 `validateAvatarPlan()` 与 `measureAvatarPlanDataBytes()`。PWA 构建期只能调用这一套实现，不得从 `components/cms-actor/test/look-adapter.mjs` 复制或派生第二套算法。
 
-正式适配器的调用契约：
+本节必须区分三个不同层次，不能混称为“真实数据已接入”：
+
+1. **仓库 FSDB 数据集**：`content/[FSDB]adventure/` 保存可供 Adapter 单测读取的 Avatar 数据。它证明正式数据形状和组合逻辑能处理这批 FSDB 文件。
+2. **PWA canonical Bundle**：本切片继续使用 `scripts/pwa/` 生成的确定性合成记录与 PNG。它必须遵循同一套正式 Content Schema，并由正式 Adapter 生成 Plan。
+3. **真实 CMS079/WZ 导入**：WZ 解码、批量 FSDB 转换、真实素材授权与全量素材发布不属于本切片。不得因为仓库已有 FSDB 样本或 PWA 使用正式 Adapter，就宣称 WZ 导入、全量 Content 发布或生产素材授权已经完成。
+
+#### 4.1.1 FSDB 物理布局到 Content logical identity
+
+FSDB 物理路径只由 FSDB reader / Content Service 解释；Subsystem、Adapter 和 Renderer 只使用 logical namespace/key，不拼接文件系统路径。
+
+| FSDB 物理对象（数据库根为 `[FSDB]adventure`） | Content kind | namespace | key |
+|---|---|---|---|
+| `[struct]avatar.Part/{partKey}.json` | `record` | `struct.avatar.Part` | `{partKey}` |
+| `[group]avatar.PartFrame/{partKey}.jsonl` | `group` | `group.avatar.PartFrame` | `{partKey}` |
+| `[group]avatar.Resource/{partKey}.jsonl` | `group` | `group.avatar.Resource` | `{partKey}` |
+| `[struct]avatar.DrawOrder/avatar.json` | `record` | `struct.avatar.DrawOrder` | `avatar` |
+| `[struct]avatar.LayerSlot/avatar.json` | `record` | `struct.avatar.LayerSlot` | `avatar` |
+| `[resource]Avatar/{imageKey}.png` | `resource` | `resource.Avatar` | `{imageKey}`（不含最后的 `.png`） |
+
+示例：
+
+```text
+[struct]avatar.Part/avatar.part.body.00002000.json
+  → record("struct.avatar.Part", "avatar.part.body.00002000")
+
+[group]avatar.PartFrame/avatar.part.body.00002000.jsonl
+  → group("group.avatar.PartFrame", "avatar.part.body.00002000")
+
+[resource]Avatar/part/body/00002000/0.png
+  → resource("resource.Avatar", "part/body/00002000/0")
+```
+
+Content API 的 Record 默认以 UTF-8 JSON 返回，Group 以 UTF-8 JSON Lines（`application/x-ndjson`）返回，Resource 返回原始二进制与实际 MIME。ResourceKey 是层级 logical key；扩展名不进入 key。不得将 `internalPath`、FSDB root、物理文件名或本机绝对路径放进 Plan、RenderNode 或 Presentation。
+
+#### 4.1.2 正式 ContentReader 契约
+
+`buildAdventureAvatarPlan()` 接收一个只读 ContentReader，不接收 FSDB 路径，也不自行打开文件：
+
+```ts
+interface AvatarContentReader {
+  record(namespace: string, key: string): Promise<{
+    value: object;
+    contentVersion: string;
+  }>;
+
+  group(namespace: string, key: string): Promise<{
+    rows: object[];
+    contentVersion: string;
+  }>;
+
+  resource(namespace: string, key: string): Promise<{
+    bytes: Uint8Array;
+    mime: string;
+    contentVersion: string;
+  }>;
+}
+```
+
+调用示例（具体 part keys 必须来自同一份 fixture / 装备选择，不能把示例 key 当成默认角色配置）：
 
 ```js
 import { buildAdventureAvatarPlan } from "../../components/cms-actor/src/adventure-adapter.mjs";
-import { measureAvatarPlanDataBytes, validateAvatarPlan } from "../../components/cms-actor/src/avatar-model.mjs";
+import {
+  measureAvatarPlanDataBytes,
+  validateAvatarPlan,
+} from "../../components/cms-actor/src/avatar-model.mjs";
 
 const avatarPlan = await buildAdventureAvatarPlan(contentReader, {
   parts: [
     "avatar.part.body.00002000",
     "avatar.part.head.00012000",
     "avatar.part.face.00020100",
-    "avatar.part.hair.00030000"
+    "avatar.part.hair.00030000",
   ],
-  expression: "default"
+  expression: "default",
 });
+
 validateAvatarPlan(avatarPlan);
 const planBytes = measureAvatarPlanDataBytes(avatarPlan);
-if (planBytes > 262_144) throw new Error("AvatarPlan exceeds RenderNode.data limit");
+if (planBytes > 262_144) {
+  throw new Error("AvatarPlan exceeds RenderNode.data limit");
+}
 ```
 
-上面是 API 形状示例，实际 `parts` 必须与合成 fixture 中真实生成的记录键完全一致。`buildAdventureAvatarPlan()` 接收 Content reader，而不是 FSDB 文件路径；它使用 `record(namespace, key)`、`group(namespace, key)` 和 `resource(namespace, key)` 读取数据，并在生成 Plan 时从 `resource.Avatar` 返回值取得每个图集的 `contentVersion`。适配器不负责打开 FSDB、不读取磁盘、不包含 PNG 字节，也不依赖 `components/cms-actor/test/**`。
+Reader 必须满足以下约定：
 
-适配器使用的正式 Content 结构如下：
+- `record(namespace, key)` 返回解析后的 JSON object 和该 Record representation 的 `contentVersion`。
+- `group(namespace, key)` 返回按文件顺序解析的 JSONL object rows 和该 Group representation 的 `contentVersion`；空行不产生 row。
+- `resource(namespace, key)` 返回 caller-owned 二进制字节、实际 MIME 和该 Resource representation 的 `contentVersion`；不得把 PNG Base64 再包成 JSON。
+- 三类返回值的 `contentVersion` 均使用 `sha256:<64 lowercase hex>`，以实际成功响应的完整 body bytes 计算。不得用时间戳、mtime、inode、进程内序号或随机 ID 代替。
+- Reader 不得把 missing、schema invalid、version conflict 或 I/O failure 转换成空 object、空 rows、透明占位图或伪造版本。任何必需输入失败都必须使本次 Plan 构建失败。
+- Adapter 当前只将 Resource 返回的 `contentVersion` 写入 Plan layer；Record/Group 版本仍须由 Reader 正确提供，但不能误称 Adapter 已把它们嵌入 Plan。
+- Adapter 读取 atlas 时调用 `resource("resource.Avatar", imageKey)`，不传 expected version；它从这次读取结果取得当前版本，并在同一 Plan 构建中按 image key 缓存，避免同一 atlas 被重复读取。
 
-| Content API | Namespace / Key 形状 | 用途 |
+**构建期 ContentReader 与运行时 PresentationResourceClient 不是同一个 API。** 构建期 Reader 读取当前 Content 并把实际 Resource version 写入 Plan；运行时 Actor 只能通过 Web Presentation 提供的窄资源能力读取：
+
+```ts
+resources.resource(namespace, key, expectedContentVersion, { signal? })
+  → Promise<{ bytes, mime, contentVersion }>
+```
+
+运行时必须把 Plan 中的 `resource.namespace/key/contentVersion` 原样作为读取身份与 expected version。版本不匹配时按 Web Presentation contract 拒绝为 `CONTENT_CONFLICT`；取消为 `CONTENT_CANCELLED`。Actor 不得获得 installationId、bearer/token、origin、FSDB、物理路径或通用 Content resolver。
+
+#### 4.1.3 Avatar FSDB 记录语义与 Adapter 消费规则
+
+| 数据 | 必需字段 / 形状 | Adapter 如何消费 |
 |---|---|---|
-| `record` | `struct.avatar.Part / avatar.part.*` | 部件类型、itemId、occupies/covers、可选 stance |
-| `group` | `group.avatar.PartFrame / avatar.part.*` | 动作帧、重定向、图层、锚点、帧时长 |
-| `group` | `group.avatar.Resource / avatar.part.*` | 图层资源名到图集 image 与裁剪矩形的映射 |
-| `record` | `struct.avatar.DrawOrder / avatar` | `frontToBack` 绘制顺序 |
-| `record` | `struct.avatar.LayerSlot / avatar` | z 层对应的槽位集合 |
-| `resource` | `resource.Avatar / <image-key>` | PNG 字节、MIME 与精确 Content Version |
+| `avatar.Part` Record | `kind`、字符串 `itemId`、`occupies[]`、`covers[]`；可选 `stance: { stand, walk }` | 按 part key 读取；确定部件类别、槽位占用/遮挡和动作姿势后缀 |
+| `avatar.PartFrame` Group | 每行包含 `action`；可选 `frame`、`delay`、`redirect`、`layers[]`、`showFace`、`move`、`flip`、`rotate` | 按 action 分组并按 frame 排序；解析重定向，生成身体动作帧及其他部件对应帧 |
+| `avatar.Resource` Group | 每行包含 `name`、`image`、整数 `x/y/w/h`；数据中可保留 `page` | 以 layer 的 `resource` 字符串匹配 `name`，再用 `image` 找到 atlas PNG，以 `x/y/w/h` 裁剪 |
+| `avatar.DrawOrder` Record | `frontToBack: string[]` | 提供完整 z 顺序；Plan 只保留本次实际使用的 z 名称及其原始相对顺序 |
+| `avatar.LayerSlot` Record | 每个 z 名称映射到槽位字符串数组 | 与 Part 的 `covers` 求交集，生成 layer tag；Part 的 `occupies` 决定 slot priority |
+| `resource.Avatar` Resource | PNG 原始 bytes、`image/png` MIME、SHA-256 Content Version | 作为图集页；Plan 只引用 key/version 和裁剪矩形，不携带图片字节 |
 
-**PWA 构建期使用确定性合成 fixture，但 fixture 必须遵守上述正式结构。** `scripts/pwa/synthetic-avatar-content.mjs` 应从当前旧版 `struct.Look` / `struct.ZMap` 生成器迁移为正式 Avatar Content fixture：构建最小 `avatar.Part`、`avatar.PartFrame`、`avatar.Resource`、`avatar.DrawOrder`、`avatar.LayerSlot` 记录，并生成 stand、walk、jump 所需的确定性合成 PNG。至少包含一个 body 和一个 head，二者 skin suffix 一致；body 必须提供适配器要求的 stand、walk、jump 帧。face、hair 和装备按本切片要验证的视觉场景选择性加入，不为凑数据引入不需要的部件。
+Adapter 当前实现所要求的关键语义：
 
-合成 Content reader 必须与正式 Content API 的返回形状一致：`record()` 返回 `{ value, contentVersion }`，`group()` 返回 `{ rows, contentVersion }`，`resource()` 返回 `{ bytes, mime, contentVersion }`。资源键统一使用 `resource.Avatar`；PNG 由构建脚本确定性生成并计算 SHA-256。适配器据此生成 `AvatarPlanV1`，每个 layer 的 `resource.namespace/key/contentVersion` 必须精确指向已发布 PNG。测试和 Bundle Builder 应重新读取发布记录、验证引用和哈希，而不是只比较内存中的 Plan。
+- `parts` 必须是非空、无重复的 part key 列表；恰好一个 `body` 和一个 `head` 必须存在，`face` 与 `hair` 各至多一个。其他装备与 `faceAcc` 按实际组合加入。
+- `itemId` 保留为字符串以避免丢失前导零。Adapter 将 body 的 skin suffix 算作 `Number(itemId) - 2000`，head 算作 `Number(itemId) - 12000`；两者必须是相同的非负整数。例如 `00002000` 与 `00012000` 对应 suffix `0`。
+- 最多一个 part 可以声明 `stance`；声明时必须同时给出整数 `stand` 与 `walk`，否则拒绝。未声明时默认 `stand1/walk1`。Body 必须有对应 stand、walk 和 `jump` 帧。
+- 可选 `expression` 优先读取指定表情；没有该表情时回退到 `default`。可选 `action` 只有在 body 中存在相应 action rows 时才加入 Plan；不存在时该额外动作被省略，不影响必需的 locomotion。
+- `frame` 缺省按 0 处理。Body action 按 frame 排序；非 body part 在找不到完全相同的 action/frame 时使用该 action 的最后一帧。该回退是当前 Adapter 的既定行为，不等于允许缺失整个 action。
+- `redirect` 必须精确指向同一 part 的存在帧；Adapter 递归解析 redirect，并拒绝悬空目标和循环。Redirect 目标 layers 先合并，再追加当前 row 自身 layers。
+- Layer 至少需要 `name`、`z`、资源名和有限的二元 `origin`；`anchors` 是有限数值二元组。数字 skin variant 选择当前 body skin；非数字 variant key 会作为附加 layer 名称展开。
+- `delay` 是毫秒数；Adapter 写入 Plan 前取绝对值。当前实现不消费 `delaySign`，不得把该字段描述为已经支持反向播放。存在时 `move` 必须是有限数值二元组；`flip` 仅在为 `true` 时写入；`rotate` 原样传递；`showFace` 只有显式 `false` 才关闭。
+- Anchor 放置依赖顺序固定为 body → head → hair，保证 neck/brow 等锚点先被建立；它不依赖调用方 `parts` 数组顺序。最终前后层叠由 DrawOrder 单独决定。
+- 每个 layer 的 `z` 必须存在于 DrawOrder；`occupies` 中的每个槽位也必须存在于 DrawOrder。若 `covers` 非空但 `occupies` 为空，Adapter 拒绝该 Part。最终 Plan 的 zOrder 是 DrawOrder 的有序子序列，最多 64 项。
 
-在现有 `assembleSyntheticContent` 流程中，完成 fixture 生成后调用正式适配器一次，并把 Plan 本体作为新增只读 Content Record 发布：
+#### 4.1.4 必须补齐的 FSDB 完整性校验与已知限制
 
-| 属性 | 固定值 |
-|---|---|
-| `kind` | `record` |
-| `namespace` | `struct.AdventureAvatarPlan` |
-| `key` | `bootstrap` |
-| MIME | `application/json; charset=utf-8` |
-| Value | 经 `validateAvatarPlan()` 校验的 Plan 本体；不是外包一层 `{ avatarPlan }` |
+当前仓库的 `[FSDB]adventure` 是 Adapter 单测输入，不等于已通过完整生产 Content Service 验证的数据集。尤其需要明确以下事实：
 
-Record 序列化加入 Content 时，沿用现有 identity、确定性排序、base64、字节与 SHA-256 校验。RenderNode 仍按 `data: { avatarPlan: record.value }` 投影；Plan 不包含 PNG base64、文件路径、FSDB 原始字节或真实 WZ。必须同时满足 `measureAvatarPlanDataBytes(plan) <= 262_144` 和每个 PNG 的精确 `contentVersion`、MIME、身份引用约束。
+- 当前 Avatar 五张表的 `.info.meta` 使用宽松的通用 object schema；它允许属性值为多种 JSON 类型，不能单独证明 `kind/itemId/occupies/covers`、帧字段、资源矩形等业务约束正确。
+- `components/cms-actor/test/adventure-adapter.test.mjs` 的本地 `openLibrary()` 直接读取 FSDB 文件；Record/Group 返回的 `contentVersion` 是测试占位字符串（`"record"` / `"group"`），只有 PNG Resource 在测试 reader 中按字节计算 SHA-256。因此这些测试证明 Adapter 的数据语义与资源读取行为，不证明 Record/Group 的 Content API version、HTTP/Service Worker、安装索引或授权链路已集成。
+- Adapter 将 Resource Group rows 放入按 `name` 索引的 Map；重复 `name` 会被后行覆盖。重复 `PartFrame(action, frame)` 也没有统一的显式冲突诊断。生产 FSDB/Bundle validator 必须在调用 Adapter 前拒绝这些歧义，不得依赖文件行顺序解决冲突。
+- Adapter 检查 atlas 的 `x/y/w/h` 为整数且 `w/h > 0`，但不检查裁剪矩形是否超出 PNG 实际宽高；也不负责证明返回 MIME 是 `image/png` 或字节可解码。Bundle validator / PNG 解码测试必须额外验证 MIME、PNG 签名/解码成功以及 `x + w`、`y + h` 不越界。
+- `page` 字段目前不参与 Adapter 的 image 选择；每条 Resource row 的 `image` 必须已经指向正确的完整 atlas ResourceKey，不能期待 Adapter 根据 `page` 自动拼接路径。
+- `avatar.PartFrame` 的 `name`、`avatar.Resource.name` 和资源引用必须一一闭合；所有 layer resource 名必须恰好解析到一个 Resource Group row，所有 row.image 必须解析到一个 `resource.Avatar` 资源。
+- DrawOrder、LayerSlot、Part 的槽位名称必须互相一致；redirect 目标必须存在且无循环；所有 body/head skin suffix 必须一致；必须存在必需 locomotion 帧。上述约束不能只靠宽松 JSON Schema 代替。
+- 每张 FSDB 表都必须先满足 LoomRealm FSDB Well-formed 规则；若要声明 Integrity-valid，还必须执行明确的业务 schema、引用存在性、重复身份和资源裁剪边界校验。失败时应指出 namespace、key、row/action/frame 和字段，不允许静默跳过或生成部分 Plan。
 
-**旧 Look Adapter 的迁移边界：** `components/cms-actor/test/look-adapter.mjs`、`synthetic-fsdb.mjs` 及其 `struct.Look` / `struct.ZMap` fixture 可以继续服务现有历史测试，但不能再作为 canonical PWA 的 Plan 生成链路，也不能被正式 Subsystem 或新的合成 Content 构建器导入。`scripts/pwa/synthetic-avatar-content.mjs` 当前依赖这些 test helper 的部分应迁出：确定性 PNG 绘制和 fixture 数据应由 `scripts/pwa/` 下的构建期模块提供；生产构建路径不得 import `components/cms-actor/test/**`。
+建议把校验分为两层，避免把职责塞进 Actor：
+
+1. **FSDB / Content preflight validator**：验证物理对象与 metadata、JSON/JSONL 语法、严格业务 schema、唯一性、引用闭合、redirect、atlas 存在性、MIME/PNG 解码及裁剪边界。
+2. **正式 Adapter + AvatarPlan validator**：验证所选 parts 的组合规则并生成 Plan，再由 `validateAvatarPlan()` 检查协议结构。
+
+AvatarPlanV1 的关键冻结上限包括：紧凑 UTF-8 `RenderNode.data` 不超过 262,144 bytes；zOrder 最多 64 项；最多 32 个 action、每个 action 最多 128 帧、每帧最多 32 layers、每 layer 最多 8 anchors；单个资源 key 最多 256 UTF-8 bytes / 32 segments；图层宽高为 1..4096。完整数值以 `avatar-model.mjs` 的 `AVATAR_PLAN_LIMITS` 为准，不在 PWA builder 中复制第二份常量。
+
+#### 4.1.5 Plan 发布、版本绑定与运行时闭环
+
+PWA Bundle 继续使用确定性合成 fixture，但必须从正式 ContentReader 生成 Plan；不得直接从 FSDB 文件拼出 Plan，也不得让测试 helper 参与生产构建。
+
+1. `scripts/pwa/synthetic-avatar-content.mjs` 生成正式 schema 的 `avatar.Part`、`avatar.PartFrame`、`avatar.Resource`、DrawOrder、LayerSlot 记录，以及 stand/walk/jump 所需的确定性 PNG。
+2. 用与正式契约相同的 Reader 返回形状读取这些 entries，并调用 `buildAdventureAvatarPlan()` 一次。Plan 必须经 `validateAvatarPlan()` 校验，且 `measureAvatarPlanDataBytes(plan) <= 262_144`。
+3. 把 Plan 本体作为只读 Content Record 加入 Bundle，不再包一层 `{ avatarPlan }`：
+
+   | 属性 | 固定值 |
+   |---|---|
+   | `kind` | `record` |
+   | `namespace` | `struct.AdventureAvatarPlan` |
+   | `key` | `bootstrap` |
+   | MIME | `application/json; charset=utf-8` |
+   | Value | `validateAvatarPlan()` 返回的 Plan 本体 |
+
+4. Bundle Builder 对最终发布 entries 重新执行身份唯一、MIME、canonical Base64、字节、SHA-256 和引用闭合检查。每个 Plan layer 的 `resource.namespace/key/contentVersion` 必须与同一 Bundle 中的 PNG Resource 精确相等；不能只验证内存中 Plan 与生成器输出相等。
+5. Runtime Subsystem 读取 `struct.AdventureAvatarPlan/bootstrap`，并以 `data: { avatarPlan: record.value }` 投影给 `cms-actor`。Plan 不包含 PNG Base64、FSDB 原始字节、physical path 或 WZ 节点。
+6. Actor 通过 Web Presentation Resource capability，以 Plan 中的 expected `contentVersion` 读取 PNG；版本冲突、缺失、无效资源或取消均走明确错误路径，不允许回退到不同版本的图片。
+
+**Content Version 语义必须保持一致：**
+
+| 对象 | Content Version 的输入 bytes | 版本用途 |
+|---|---|---|
+| Record | Content API 实际返回的完整 JSON body bytes | 标识该 Record representation |
+| Group | Content API 实际返回的完整 JSONL body bytes | 标识该 Group representation |
+| PNG Resource | Content API 实际返回的完整 PNG body bytes | 绑定 Plan layer 的 atlas 资源版本 |
+| AvatarPlan Record | 加入 Bundle 的 Plan JSON body bytes | 标识本次 bootstrap Plan 版本 |
+
+Content API v1 的版本是 `sha256:<64 lowercase hex>`，不是 FSDB 修改时间或安装快照 ID。Runtime Resource read 必须传入 expected version；版本不符应拒绝读取（`CONTENT_CONFLICT`），不能返回“最新图”继续渲染。
+
+#### 4.1.6 测试证据分层
+
+以下测试各自证明不同边界，不得相互替代：
+
+| 测试层 | 输入与执行方式 | 能证明 | 不能证明 |
+|---|---|---|---|
+| Adapter 单测 | 当前 `content/[FSDB]adventure` + 本地 `openLibrary()` | 正式 Adapter 对现有 FSDB 样本的组合、帧、锚点、装备、atlas crop 语义 | 真实 Content API、Record/Group 版本、PWA 安装或授权 |
+| Synthetic Content 单测 | `scripts/pwa/` fixture + 正式 Adapter | 合成数据遵循 Reader 形状，Plan 与 PNG 版本绑定 | 真实 WZ 解码、全量素材覆盖 |
+| Bundle round-trip | 发布 entries 重新解码、解析、重算版本和引用 | 最终 Bundle 身份集合、字节与 Plan 引用闭合 | 浏览器真实渲染和用户输入 |
+| Canonical PWA Chromium E2E | pinned PWA builder、Service Worker、Content API、Renderer、Actor | 实际安装后的 Plan/PNG 读取、expected version、输入和生命周期 | CMS079/WZ 全量导入与实机手柄认证 |
+
+**旧 Look Adapter 的迁移边界：** `components/cms-actor/test/look-adapter.mjs`、`synthetic-fsdb.mjs` 及其 `struct.Look` / `struct.ZMap` fixture 可继续服务历史测试，但不能作为 canonical PWA 的 Plan 生成链路，也不能被正式 Subsystem 或新的合成 Content 构建器导入。生产构建路径不得 import `components/cms-actor/test/**`。
 
 **复用已有验证，不重复实现 Actor 算法：**
 
@@ -320,10 +460,9 @@ Record 序列化加入 Content 时，沿用现有 identity、确定性排序、b
 - `components/cms-actor/test/adventure-clock.test.mjs`：动作时钟、循环与 one-shot 行为。
 - `components/cms-actor/test/adventure-chromium.test.mjs`：正式 Avatar Adapter 与真实 Renderer 的 Chromium 绘制。
 - `components/cms-actor/test/integration.chromium.test.mjs`：Actor 的 Web Presentation 生命周期。
+- 新增的 PWA 测试必须覆盖合成 Reader、Plan Record round-trip、Content version mismatch、缺失资源、取消与恢复；不能把旧 Look Adapter 测试通过视为新 Content 管线已通过。
 
-这些测试仍需独立通过；但它们不能代替 canonical PWA 的 Base → Map → Actor E2E。新的 PWA 测试应使用正式 Adapter 生成的合成 Plan，不应再把旧 Look Adapter 测试通过视为新 Content 管线已通过。
-
-**不**新增运行时 Avatar Repository、第二套 Adapter、泛用 Content 索引或真实素材流水线。Adventure Map 只读取 bootstrap Plan，不调用 `buildAdventureAvatarPlan()`；动态外观、换装、CMS079 WZ 导入与真实素材授权均不属于本切片。
+**本切片不新增运行时 Avatar Repository、第二套 Adapter、泛用 Content 索引或真实素材流水线。** Adventure Map 只读取 bootstrap Plan，不调用 `buildAdventureAvatarPlan()`；动态外观、换装、CMS079 WZ 导入与真实素材授权均不属于本切片。
 
 ### 4.2 双工作区安装、构建顺序和发布策略（P0）
 
@@ -382,7 +521,9 @@ checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
 | Game Entry | `base` 是初始 Frame；它打开 `adventure-map` 并在子 Frame 活跃时保持唯一输入 Producer | Frame / RenderDomain 单元契约，父子 Frame 参数与 Outcome 测试 |
 | Controls 脚本 | Controls IIFE 在 Actor script 前注册；只有一个 `game-controls-input` 活动实例，非重复注册 | Presentation manifest、staging Bundle 引用、真实浏览器 `customElements` 与 duplicate 状态断言 |
 | Input | `ArrowLeft/Right/Up/Down` 真实 down/up；组合按键、释放、blur/stale reset；D-pad 映射；Consumer 首次同步空 State | 固定 Controls 单测 + Chromium `page.keyboard.down/up`；实机手柄未测不得宣称通过 |
-| Avatar Content | 合成 fixture 使用 `avatar.Part/PartFrame/Resource/DrawOrder/LayerSlot` 正式 schema；正式 Adapter 生成 Plan；Record value 为 Plan 本体 | Adapter 测试、Content Record 重新读取、schema / SHA-256 / identity / 字节上限断言 |
+| FSDB / Content identity | FSDB 表路径映射到固定 `record/group/resource` namespace/key；不向业务暴露物理路径；宽松 `.info.meta` 不得冒充 Integrity-valid | namespace/key 对照、严格 schema、重复 row/key、引用闭合与 atlas crop bounds 负例 |
+| Avatar Content | 合成 fixture 遵循正式 `avatar.Part/PartFrame/Resource/DrawOrder/LayerSlot` 契约；正式 Adapter 生成 Plan；Plan Record value 为本体 | Adapter 单测、Reader 形状、Plan Record round-trip、Bundle identity / SHA-256 / 字节上限断言 |
+| Resource version | Plan 每个 layer 的 resource key/version 与 Bundle PNG 精确一致；运行时按 expectedContentVersion 读取 | PNG bytes hash、MIME/解码/裁剪边界、Content version mismatch 必须拒绝 |
 | Actor | `stand1 / walk1 / jump` 与 facing 正确，松开恢复；无世界位移；Viewport resize 仍居中 | Chromium 实际 `data-action` / `data-render-state` 与像素/位置验证 |
 | Render / Resource | Plan 每个 layer 的 resource identity 和 `contentVersion` 精确匹配已发布 PNG；方向变化不重发 Plan | 根 Content 合法性、PNG 真加载、DOM 观察、RenderDomain update 断言 |
 | 生命周期 / 故障 | Frame 中止后 Consumer、Viewport 订阅、Map Domain 及 Base Domain 关闭；Callback 中 RenderDomain 失败不会被 Consumer 静默吞掉；取消优先 `cancelled`；Renderer 资源失败不冒充 Worker `failed` | 同步空 State、Viewport 异常、主动取消/致命投影失败单测与 canonical PWA E2E |
@@ -402,7 +543,7 @@ checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
 |---|---|---|
 | A | 根 Game Entry、两个唯一 Subsystem、根绑定；Base 参数透传/投影故障/取消单测迁移 | Base → Map Frame 与输入域生命周期、错误终止可测 |
 | B | Controls 浏览器脚本注册、受控发布、输入 Tracker → Actor attrs、Viewport | 可信键盘输入、方向状态、唯一 Actor 与居中单测可测 |
-| C | 将 PWA synthetic Content 迁移到正式 `avatar.Part` schema；构建期调用现有 `buildAdventureAvatarPlan()` 一次并发布 `struct.AdventureAvatarPlan/bootstrap` | Adapter 对合成 fixture 生成合法 Plan；资源版本、Content identity 与 262,144 字节限制通过；生产构建不导入 `components/cms-actor/test/**` |
+| C | 将 PWA synthetic Content 迁移到正式 `avatar.Part` schema；补齐 FSDB → Content identity / Reader 契约；构建期调用正式 `buildAdventureAvatarPlan()` 一次并发布 `struct.AdventureAvatarPlan/bootstrap` | 严格 preflight 规则、Reader 版本形状、Plan/PNG 引用与 SHA-256、262,144 字节限制通过；生产构建不导入 `components/cms-actor/test/**`；明确不包含真实 WZ 导入 |
 | D | 根 / 固定 submodule 双 lockfile 安装、Controls 先构建、两个自包含 executable、两份 Presentation scripts、更新 Staging/Actor fixture 与 CI、canonical PWA E2E | 完成第 5 节 PWA 全部 PASS |
 | E（独立） | Hostra synthetic Content 准备与实体运行验证 | 有证据则 PASS，否则清楚标 BLOCKED |
 

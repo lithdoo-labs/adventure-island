@@ -8,6 +8,7 @@ on:
       - "launch.*.json"
       - "presentation.json"
       - "components/cms-actor/**"
+      - "content/**"
       - "docs/game-entry.md"
       - "subsystems/**"
       - "systems/loomrealm-smoke/**"
@@ -24,6 +25,7 @@ on:
       - "launch.*.json"
       - "presentation.json"
       - "components/cms-actor/**"
+      - "content/**"
       - "docs/game-entry.md"
       - "subsystems/**"
       - "systems/loomrealm-smoke/**"
@@ -104,7 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           node components/cms-actor/scripts/build.mjs --check
-          node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs | tee "$RUNNER_TEMP/cms-actor-node.tap"
+          node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs components/cms-actor/test/adventure-adapter.test.mjs components/cms-actor/test/adventure-clock.test.mjs | tee "$RUNNER_TEMP/cms-actor-node.tap"
           grep -Fxq '# fail 0' "$RUNNER_TEMP/cms-actor-node.tap"
           grep -Fxq '# skipped 0' "$RUNNER_TEMP/cms-actor-node.tap"
           grep -Eq '^# pass [1-9][0-9]*$' "$RUNNER_TEMP/cms-actor-node.tap"
@@ -113,7 +115,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test components/cms-actor/test/integration.chromium.test.mjs | tee "$RUNNER_TEMP/cms-actor-chromium.tap"
+          node --test components/cms-actor/test/integration.chromium.test.mjs components/cms-actor/test/adventure-chromium.test.mjs | tee "$RUNNER_TEMP/cms-actor-chromium.tap"
           grep -Fxq '# fail 0' "$RUNNER_TEMP/cms-actor-chromium.tap"
           grep -Fxq '# skipped 0' "$RUNNER_TEMP/cms-actor-chromium.tap"
           grep -Eq '^# pass [1-9][0-9]*$' "$RUNNER_TEMP/cms-actor-chromium.tap"

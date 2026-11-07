@@ -20,19 +20,13 @@ const CONTENT_VERSION_PATTERN = /^sha256:[0-9a-f]{64}$/;
  * Render Update v1 caps serialized `RenderNode.data` at 262,144 compact
  * UTF-8 bytes. The plan is one actor's *currently needed* actions only —
  * never a catalogue of every character, equipment, action and frame. These
- * structural bounds plus the byte budget keep any accepted plan inside the
- * frozen Render protocol envelope.
+ * structural bounds and serialized-data cap keep plans inside the frozen
+ * Render protocol envelope. No decoded image-byte estimate is imposed: an
+ * atlas sprite crop does not measure the memory used by its decoded page.
  */
 const AVATAR_PLAN_LIMITS = Object.freeze({
   /** Frozen Render Update v1 `RenderNode.data` compact byte cap. */
   maxDataBytes: 262_144,
-  /**
-   * Decoded-byte budget for one frame's canvases (and for any single
-   * canvas). This is the component's working-set policy: the decoded-bitmap
-   * cache hard-caps at the same value, so a frame can always be painted
-   * without the working set bypassing the cache budget.
-   */
-  maxDecodedFrameBytes: 12 * 1024 * 1024,
   maxZOrderEntries: 64,
   maxActions: 32,
   maxActionNameBytes: 64,
@@ -80,6 +74,88 @@ function validResourceKey(key, label) {
   }
 }
 
+/**
+ * A missing delay holds the frame. `delay: 0` is a real duration: the frame
+ * is drawn and left immediately. Callers must not treat those two as the same
+ * "stop the clock" signal.
+ */
+function frameHolds(frame) {
+  return frame?.delay === undefined;
+}
+
+/** Clockwise quarter-turns around a point. Canvas +Y is down, so +90° is clockwise. */
+function rotatePoint(x, y, originX, originY, degrees) {
+  const dx = x - originX;
+  const dy = y - originY;
+  const turns = ((Math.round(degrees) % 360) + 360) % 360;
+  if (turns === 90) return [originX - dy, originY + dx];
+  if (turns === 180) return [originX - dx, originY - dy];
+  if (turns === 270) return [originX + dy, originY - dx];
+  return [x, y];
+}
+
+function validatePlanLayer(layer, label, plan, declaredDimensions) {
+  assert(layer && typeof layer === "object" && !Array.isArray(layer), `${label} must be an object`);
+  assert(typeof layer.id === "string" && layer.id.length > 0, `${label}.id must be non-empty`);
+  assert(utf8Bytes(layer.id) <= AVATAR_PLAN_LIMITS.maxLayerIdBytes, `${label}.id exceeds ${AVATAR_PLAN_LIMITS.maxLayerIdBytes} UTF-8 bytes`);
+  assert(typeof layer.z === "string" && plan.zOrder.includes(layer.z), `${label}.z must appear in zOrder`);
+  assert(boundedInteger(layer.width, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.width must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
+  assert(boundedInteger(layer.height, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.height must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
+  assert(isFinitePair(layer.origin), `${label}.origin must be a finite pair`);
+  assert(layer.origin.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.origin exceeds the coordinate bound`);
+  assert(layer.resource && typeof layer.resource === "object", `${label}.resource is required`);
+  assert(typeof layer.resource.namespace === "string" && layer.resource.namespace.length > 0, `${label}.resource.namespace is required`);
+  assert(utf8Bytes(layer.resource.namespace) <= AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes, `${label}.resource.namespace exceeds ${AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes} UTF-8 bytes`);
+  assert(!layer.resource.namespace.includes("/"), `${label}.resource.namespace must be a single Content namespace`);
+  validResourceKey(layer.resource.key, `${label}.resource.key`);
+  assert(typeof layer.resource.contentVersion === "string" && CONTENT_VERSION_PATTERN.test(layer.resource.contentVersion), `${label}.resource.contentVersion must be sha256:<64 lowercase hex>`);
+  if (layer.anchors !== undefined) {
+    assert(layer.anchors && typeof layer.anchors === "object" && !Array.isArray(layer.anchors), `${label}.anchors must be an object`);
+    const anchorNames = Object.keys(layer.anchors);
+    assert(anchorNames.length <= AVATAR_PLAN_LIMITS.maxAnchorsPerLayer, `${label}.anchors must have at most ${AVATAR_PLAN_LIMITS.maxAnchorsPerLayer} entries`);
+    for (const [anchorName, point] of Object.entries(layer.anchors)) {
+      assert(anchorName.length > 0, `${label}.anchors keys must be non-empty`);
+      assert(utf8Bytes(anchorName) <= AVATAR_PLAN_LIMITS.maxAnchorNameBytes, `${label}.anchors.${anchorName} exceeds ${AVATAR_PLAN_LIMITS.maxAnchorNameBytes} UTF-8 bytes`);
+      assert(isFinitePair(point), `${label}.anchors.${anchorName} must be a finite pair`);
+      assert(point.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.anchors.${anchorName} exceeds the coordinate bound`);
+    }
+  }
+  const hasPriority = layer.priority !== undefined;
+  const hasTag = layer.tag !== undefined;
+  if (hasPriority || hasTag) {
+    assert(Number.isInteger(layer.priority), `${label}.priority must be an integer`);
+    assert(Array.isArray(layer.tag), `${label}.tag must be an array of slot tokens`);
+    assert(layer.tag.length <= 32, `${label}.tag must have at most 32 slots`);
+    for (const token of layer.tag) {
+      assert(typeof token === "string" && token.length > 0 && token.length <= 8, `${label}.tag entries must be short strings`);
+    }
+  }
+  if (layer.source !== undefined) {
+    const source = layer.source;
+    assert(source && typeof source === "object" && !Array.isArray(source), `${label}.source must be an object`);
+    for (const key of ["x", "y", "w", "h"]) {
+      assert(Number.isInteger(source[key]) && source[key] >= 0, `${label}.source.${key} must be a non-negative integer`);
+    }
+    assert(source.w === layer.width && source.h === layer.height, `${label}.source.w/h must equal width/height`);
+  }
+
+  const identity = `${layer.resource.namespace}\u0000${layer.resource.key}\u0000${layer.resource.contentVersion}`;
+  const dimensions = `${layer.width}x${layer.height}`;
+  const previous = declaredDimensions.get(identity);
+  if (layer.source) {
+    if (previous !== undefined && previous !== "page") {
+      throw new TypeError(`Invalid AvatarPlanV1: ${label} declares a source rect for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared ${previous}`);
+    }
+    declaredDimensions.set(identity, "page");
+  } else if (previous === "page") {
+    throw new TypeError(`Invalid AvatarPlanV1: ${label} declares ${dimensions} for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared a source rect for that page`);
+  } else if (previous !== undefined && previous !== dimensions) {
+    throw new TypeError(`Invalid AvatarPlanV1: ${label} declares ${dimensions} for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared ${previous}`);
+  } else {
+    declaredDimensions.set(identity, dimensions);
+  }
+}
+
 /** Validate the renderer-ready, WZ-independent paper-doll plan. */
 function validateAvatarPlan(plan) {
   assert(plan && typeof plan === "object" && !Array.isArray(plan), "plan must be an object");
@@ -99,10 +175,14 @@ function validateAvatarPlan(plan) {
       assert(typeof actionName === "string" && plan.actions[actionName], `locomotionActions.${state} must name an existing action`);
     }
   }
+  if (plan.bodyKey !== undefined) {
+    assert(typeof plan.bodyKey === "string" && plan.bodyKey.length > 0, "bodyKey must be a non-empty string");
+    assert(utf8Bytes(plan.bodyKey) <= 200, "bodyKey exceeds 200 UTF-8 bytes");
+  }
 
-  // The same physical resource must always be declared with the same pixel
-  // dimensions; otherwise one validation result could not be consistent for
-  // every frame that references it.
+  // A resource without `source` is the whole bitmap, so every such layer must
+  // agree on width/height. A resource with `source` is an atlas page: many
+  // sprite sizes may share that page, and the page is decoded once.
   const declaredDimensions = new Map();
 
   for (const [actionName, action] of Object.entries(plan.actions)) {
@@ -124,51 +204,39 @@ function validateAvatarPlan(plan) {
         assert(frame.move.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${frameLabel}.move exceeds the coordinate bound`);
       }
       if (frame.flip !== undefined) assert(typeof frame.flip === "boolean", `${frameLabel}.flip must be boolean`);
+      if (frame.showFace !== undefined) assert(typeof frame.showFace === "boolean", `${frameLabel}.showFace must be boolean`);
+      if (frame.rotate !== undefined) assert(frame.rotate === 90 || frame.rotate === 180 || frame.rotate === 270, `${frameLabel}.rotate must be 90, 180 or 270`);
       assert(Array.isArray(frame.layers) && frame.layers.length > 0, `${frameLabel}.layers must be non-empty`);
       assert(frame.layers.length <= AVATAR_PLAN_LIMITS.maxLayersPerFrame, `${frameLabel}.layers must have at most ${AVATAR_PLAN_LIMITS.maxLayersPerFrame} entries`);
       assert(frame.layers[0]?.id === "body", `${frameLabel}.layers[0] must be the body layer`);
       assert(new Set(frame.layers.map((layer) => layer?.id)).size === frame.layers.length, `${frameLabel}.layer ids must be unique`);
-      let frameDecodedBytes = 0;
 
       for (const [layerIndex, layer] of frame.layers.entries()) {
-        const label = `${frameLabel}.layers[${layerIndex}]`;
-        assert(layer && typeof layer === "object" && !Array.isArray(layer), `${label} must be an object`);
-        assert(typeof layer.id === "string" && layer.id.length > 0, `${label}.id must be non-empty`);
-        assert(utf8Bytes(layer.id) <= AVATAR_PLAN_LIMITS.maxLayerIdBytes, `${label}.id exceeds ${AVATAR_PLAN_LIMITS.maxLayerIdBytes} UTF-8 bytes`);
-        assert(typeof layer.z === "string" && plan.zOrder.includes(layer.z), `${label}.z must appear in zOrder`);
-        assert(boundedInteger(layer.width, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.width must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
-        assert(boundedInteger(layer.height, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.height must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
-        assert(layer.width * layer.height * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes, `${label} decodes to ${layer.width * layer.height * 4} bytes, exceeding the ${AVATAR_PLAN_LIMITS.maxDecodedFrameBytes}-byte canvas budget`);
-        assert(isFinitePair(layer.origin), `${label}.origin must be a finite pair`);
-        assert(layer.origin.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.origin exceeds the coordinate bound`);
-        assert(layer.resource && typeof layer.resource === "object", `${label}.resource is required`);
-        assert(typeof layer.resource.namespace === "string" && layer.resource.namespace.length > 0, `${label}.resource.namespace is required`);
-        assert(utf8Bytes(layer.resource.namespace) <= AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes, `${label}.resource.namespace exceeds ${AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes} UTF-8 bytes`);
-        assert(!layer.resource.namespace.includes("/"), `${label}.resource.namespace must be a single Content namespace`);
-        validResourceKey(layer.resource.key, `${label}.resource.key`);
-        assert(typeof layer.resource.contentVersion === "string" && CONTENT_VERSION_PATTERN.test(layer.resource.contentVersion), `${label}.resource.contentVersion must be sha256:<64 lowercase hex>`);
-        if (layer.anchors !== undefined) {
-          assert(layer.anchors && typeof layer.anchors === "object" && !Array.isArray(layer.anchors), `${label}.anchors must be an object`);
-          const anchorNames = Object.keys(layer.anchors);
-          assert(anchorNames.length <= AVATAR_PLAN_LIMITS.maxAnchorsPerLayer, `${label}.anchors must have at most ${AVATAR_PLAN_LIMITS.maxAnchorsPerLayer} entries`);
-          for (const [anchorName, point] of Object.entries(layer.anchors)) {
-            assert(anchorName.length > 0, `${label}.anchors keys must be non-empty`);
-            assert(utf8Bytes(anchorName) <= AVATAR_PLAN_LIMITS.maxAnchorNameBytes, `${label}.anchors.${anchorName} exceeds ${AVATAR_PLAN_LIMITS.maxAnchorNameBytes} UTF-8 bytes`);
-            assert(isFinitePair(point), `${label}.anchors.${anchorName} must be a finite pair`);
-            assert(point.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.anchors.${anchorName} exceeds the coordinate bound`);
-          }
-        }
-
-        const identity = `${layer.resource.namespace}\u0000${layer.resource.key}\u0000${layer.resource.contentVersion}`;
-        const dimensions = `${layer.width}x${layer.height}`;
-        const previous = declaredDimensions.get(identity);
-        if (previous !== undefined && previous !== dimensions) {
-          throw new TypeError(`Invalid AvatarPlanV1: ${label} declares ${dimensions} for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared ${previous}`);
-        }
-        declaredDimensions.set(identity, dimensions);
-        frameDecodedBytes += layer.width * layer.height * 4;
+        validatePlanLayer(layer, `${frameLabel}.layers[${layerIndex}]`, plan, declaredDimensions);
       }
-      assert(frameDecodedBytes <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes, `${frameLabel} decodes to ${frameDecodedBytes} bytes across its layers, exceeding the ${AVATAR_PLAN_LIMITS.maxDecodedFrameBytes}-byte frame budget`);
+    }
+  }
+
+  if (plan.expression !== undefined) {
+    const expression = plan.expression;
+    assert(expression && typeof expression === "object" && !Array.isArray(expression), "expression must be an object");
+    assert(typeof expression.name === "string" && expression.name.length > 0, "expression.name must be a non-empty string");
+    assert(utf8Bytes(expression.name) <= AVATAR_PLAN_LIMITS.maxActionNameBytes, `expression.name must be at most ${AVATAR_PLAN_LIMITS.maxActionNameBytes} UTF-8 bytes`);
+    assert(Array.isArray(expression.frames) && expression.frames.length > 0, "expression.frames must be non-empty");
+    assert(expression.frames.length <= AVATAR_PLAN_LIMITS.maxFramesPerAction, `expression.frames must have at most ${AVATAR_PLAN_LIMITS.maxFramesPerAction} entries`);
+    for (const [frameIndex, frame] of expression.frames.entries()) {
+      const frameLabel = `expression.frames[${frameIndex}]`;
+      assert(frame && typeof frame === "object" && !Array.isArray(frame), `${frameLabel} must be an object`);
+      if (frame.delay !== undefined) {
+        assert(typeof frame.delay === "number" && Number.isFinite(frame.delay), `${frameLabel}.delay must be finite`);
+        assert(Math.abs(frame.delay) <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay magnitude must not exceed ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
+      }
+      assert(Array.isArray(frame.layers) && frame.layers.length > 0, `${frameLabel}.layers must be non-empty`);
+      assert(frame.layers.length <= AVATAR_PLAN_LIMITS.maxLayersPerFrame, `${frameLabel}.layers must have at most ${AVATAR_PLAN_LIMITS.maxLayersPerFrame} entries`);
+      assert(new Set(frame.layers.map((layer) => layer?.id)).size === frame.layers.length, `${frameLabel}.layer ids must be unique`);
+      for (const [layerIndex, layer] of frame.layers.entries()) {
+        validatePlanLayer(layer, `${frameLabel}.layers[${layerIndex}]`, plan, declaredDimensions);
+      }
     }
   }
 
@@ -253,6 +321,50 @@ function resolveActionName(plan, locomotion = "stand") {
   return Object.keys(plan?.actions ?? {})[0] ?? null;
 }
 
+/** Front-to-back `zOrder`: higher index paints earlier. Equal z keeps the lower layer index behind. */
+function compareDrawOrder(a, b, orderIndex) {
+  const zDelta = (orderIndex.get(b.layer.z) ?? 0) - (orderIndex.get(a.layer.z) ?? 0);
+  return zDelta || a.index - b.index;
+}
+
+/**
+ * Slot occlusion for one painted frame, matching the client walk at `0x401C74`.
+ *
+ * `positioned` entries need `layer` and `index`. A layer participates only when
+ * it carries integer `priority` and array `tag`. `z === "face"` never enters
+ * the walk. A losing token hides the whole canvas, but slots it already claimed
+ * stay claimed. Equal priority leaves both canvases. The returned set contains
+ * the layer objects to skip while drawing.
+ */
+function occludedLayers(positioned, zOrder) {
+  const orderIndex = new Map((zOrder ?? []).map((z, index) => [z, index]));
+  const ordered = [...positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
+  const owners = new Map();
+  const hidden = new Set();
+  for (const item of ordered) {
+    const layer = item?.layer;
+    if (!layer || layer.z === "face") continue;
+    if (!Number.isInteger(layer.priority) || !Array.isArray(layer.tag)) continue;
+    let visible = true;
+    for (const token of layer.tag) {
+      const prev = owners.get(token);
+      if (!prev) {
+        owners.set(token, { layer, priority: layer.priority });
+        continue;
+      }
+      if (prev.priority === layer.priority) continue;
+      if (prev.priority > layer.priority) {
+        visible = false;
+        break;
+      }
+      hidden.add(prev.layer);
+      owners.set(token, { layer, priority: layer.priority });
+    }
+    if (!visible) hidden.add(layer);
+  }
+  return hidden;
+}
+
 function frameDuration(frame) {
   const delay = frame?.delay;
   return typeof delay === "number" && Number.isFinite(delay) ? Math.abs(delay) : 0;
@@ -316,12 +428,52 @@ function layoutFrame(frame, zOrder, x = 0, y = 0) {
 
   const orderIndex = new Map(zOrder.map((z, index) => [z, index]));
   // zOrder is front-to-back, so paint in reverse: back first, front last.
-  const drawOrder = [...positioned].sort((a, b) => {
-    const zDelta = orderIndex.get(b.layer.z) - orderIndex.get(a.layer.z);
-    return zDelta || a.index - b.index;
-  });
+  const drawOrder = [...positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
 
   return { positioned, drawOrder, skipped, anchors: knownAnchors };
+}
+
+/**
+ * Place expression layers onto anchors already established by `layoutFrame`.
+ * These layers do not publish new anchors and are not laid out as their own body.
+ */
+function placeAnchoredLayers(layers, knownAnchors, base = { x: 0, y: 0 }) {
+  const positioned = [];
+  const skipped = [];
+  layers.forEach((layer, index) => {
+    let originX = base.x;
+    let originY = base.y;
+    let matchedAnchor = null;
+    if (layer.anchors) {
+      const wanted = Object.keys(layer.anchors);
+      for (const name of ANCHOR_PRIORITY) {
+        const local = layer.anchors[name];
+        const global = knownAnchors.get(name);
+        if (local && global) {
+          originX = global[0] - local[0];
+          originY = global[1] - local[1];
+          matchedAnchor = name;
+          break;
+        }
+      }
+      if (wanted.length > 0 && matchedAnchor === null) {
+        skipped.push({ id: layer.id, anchors: wanted });
+        return;
+      }
+    }
+    positioned.push({
+      layer,
+      index,
+      originX,
+      originY,
+      left: originX - layer.origin[0],
+      top: originY - layer.origin[1],
+      width: layer.width,
+      height: layer.height,
+      matchedAnchor,
+    });
+  });
+  return { positioned, skipped };
 }
 
 /** Format skipped-layer diagnostics as `layerId[needs=anchorA+anchorB]`. */
@@ -339,51 +491,71 @@ function mirrorBounds(item, pivotX = 0) {
   };
 }
 
+function actionSignature(action) {
+  if (!action) return "";
+  return JSON.stringify(action.frames.map((frame) => ({
+    delay: frame.delay ?? null,
+    move: frame.move ?? null,
+    flip: Boolean(frame.flip),
+    rotate: frame.rotate ?? 0,
+    showFace: frame.showFace !== false,
+    layers: frame.layers.map((layer) => [
+      layer.id,
+      layer.z,
+      layer.resource.namespace,
+      layer.resource.key,
+      layer.resource.contentVersion,
+      layer.width,
+      layer.height,
+      layer.source ?? null,
+      layer.origin,
+      layer.priority ?? null,
+      layer.tag ?? null,
+    ]),
+  })));
+}
+
+function expressionSignature(expression) {
+  if (!expression) return "";
+  return JSON.stringify({
+    name: expression.name,
+    frames: (expression.frames ?? []).map((frame) => ({
+      delay: frame.delay ?? null,
+      layers: (frame.layers ?? []).map((layer) => [
+        layer.id,
+        layer.resource.key,
+        layer.resource.contentVersion,
+        layer.width,
+        layer.height,
+        layer.source ?? null,
+        layer.priority ?? null,
+        layer.tag ?? null,
+      ]),
+    })),
+  });
+}
+
 const HTMLElementBase = globalThis.HTMLElement ?? class {};
 const OBSERVED_ATTRIBUTES = ["x", "y", "locomotion", "facing", "skin", "face", "hair", "expression", "equips"];
 
 /**
- * Hard capacity bound for the CACHEABLE decoded-bitmap set (LRU).
- *
- * Budget model (two tiers, both bounded):
- *  - cacheable tier: completed decode, currently unused by a paint. Strictly
- *    LRU-bounded by BOTH entry count and decoded bytes below. A completed
- *    insert enforces the bound before returning; the bound can therefore
- *    only be exceeded transiently by the working-set tier below.
- *  - working-set tier: entries that are decoding or pinned by an in-flight
- *    paint. Never evicted mid-use. Bounded by plan validation instead:
- *    <= 32 layers per frame and <= maxDecodedFrameBytes decoded bytes per
- *    frame (see AVATAR_PLAN_LIMITS), so the working set can never blow the
- *    budget by an unbounded amount and never bypasses it permanently.
- * A bitmap larger than maxBytes on its own is rejected at plan validation;
- * defensively it would be treated as uncacheable working set, never cached.
+ * Reuse up to 64 decoded atlas pages via LRU, without an image-byte budget.
+ * Cropped sprite dimensions do not describe the memory used by whole pages.
+ * Loading/decoding cancellation, pins and concurrent slots remain separate.
  */
 const BITMAP_CACHE_LIMITS = Object.freeze({
   maxEntries: 64,
-  maxBytes: AVATAR_PLAN_LIMITS.maxDecodedFrameBytes,
 });
 
 /**
- * Hard bounds for the FINAL composite backing store.
- *
- * `AVATAR_PLAN_LIMITS` bounds the SOURCE bitmaps (per layer and per frame),
- * but anchor/origin values up to ±100,000 can place valid layers very far
- * apart, and `devicePixelRatio` is an environmental value that can be
- * arbitrarily large. Without this guard the first `canvas.width/height`
- * assignment could request a multi-gigabyte backing store. Every rejection
- * happens BEFORE either canvas dimension is assigned.
+ * Independent final compositing-canvas allocation guard for extreme anchors
+ * and devicePixelRatio. Not an atlas-image decode memory budget.
  */
 const COMPOSITE_CANVAS_LIMITS = Object.freeze({
-  /** Host devicePixelRatio is clamped into [1, maxDevicePixelRatio]. */
   maxDevicePixelRatio: 8,
   maxDeviceWidth: 8_192,
   maxDeviceHeight: 8_192,
-  /**
-   * Max device pixels (width×height) of the composite; at 4 bytes per pixel
-   * this ties the backing store to the same byte budget as one frame's
-   * decoded sources (`AVATAR_PLAN_LIMITS.maxDecodedFrameBytes`).
-   */
-  maxDevicePixels: Math.floor(AVATAR_PLAN_LIMITS.maxDecodedFrameBytes / 4),
+  maxDevicePixels: 3_145_728,
 });
 
 /**
@@ -434,6 +606,13 @@ class CmsActor extends HTMLElementBase {
     this._frameIndex = 0;
     this._activeActionName = null;
     this._oneShotAction = null;
+    this._pendingAction = null;
+    this._fallbackAction = null;
+    this._rememberedAction = null;
+    this._rememberedBodyKey = null;
+    this._expressionFrameIndex = 0;
+    this._expressionElapsed = 0;
+    this._expressionSignature = "";
     this._connected = false;
 
     if (typeof this.attachShadow === "function") {
@@ -477,6 +656,7 @@ class CmsActor extends HTMLElementBase {
       this._syncPosition();
       return;
     }
+    if (name === "locomotion") this._fallbackAction = null;
     if ((name === "locomotion" || name === "facing") && this._connected) this._requestPaint();
     // skin/face/hair/equips are selectors for the game-side adapter. Their
     // resolved appearance arrives in the next retained avatarPlan update.
@@ -499,13 +679,13 @@ class CmsActor extends HTMLElementBase {
       if (candidate === undefined || candidate === null) {
         throw new TypeError("avatarPlan is required in RenderNode.data");
       }
-      this._plan = validateAvatarPlan(candidate);
-      this._pruneResourceCache(this._plan);
+      const plan = validateAvatarPlan(candidate);
+      const previous = this._plan;
+      this._plan = plan;
+      this._pruneResourceCache(plan);
       this.removeAttribute("data-render-error");
-      this._activeActionName = null;
-      this._frameIndex = 0;
-      this._elapsed = 0;
-      this._oneShotAction = null;
+      this._adoptPlan(previous);
+      this._settleZeroDelay();
       this._requestPaint();
     } catch (error) {
       this._paintEpoch += 1;
@@ -520,14 +700,21 @@ class CmsActor extends HTMLElementBase {
 
   /** Receives one-shot, transient Render Events; they are never retained in data. */
   receiveRenderEvent(event) {
-    if (event?.name !== "action" || typeof event.data?.action !== "string") return;
+    if (event?.name !== "action" || typeof event.data?.action !== "string" || event.data.action.length === 0) return;
     const actionName = event.data.action;
-    if (!this._plan?.actions?.[actionName]) return;
+    if (!this._plan?.actions?.[actionName]) {
+      this._pendingAction = actionName;
+      return;
+    }
+    this._pendingAction = null;
+    this._fallbackAction = null;
     this._oneShotAction = actionName;
     this._activeActionName = actionName;
     this._frameIndex = 0;
     this._elapsed = 0;
     this._lastTick = null;
+    this._rememberPlayed(actionName);
+    this._settleZeroDelay();
     this._requestPaint();
   }
 
@@ -547,6 +734,11 @@ class CmsActor extends HTMLElementBase {
       paintRequests: this._paintRequests,
       paintRounds: this._paintRounds,
       oneShotAction: this._oneShotAction,
+      pendingAction: this._pendingAction,
+      fallbackAction: this._fallbackAction,
+      rememberedAction: this._rememberedAction,
+      rememberedBodyKey: this._rememberedBodyKey,
+      expressionFrame: this._expressionFrameIndex,
       contextInjected: this._context !== null,
       decode: Object.freeze({
         active: this._decodeActive,
@@ -560,8 +752,7 @@ class CmsActor extends HTMLElementBase {
         pendingClose: this._pendingCloseCount,
         pendingCloseBytes: this._pendingCloseBytes,
         maxEntries: BITMAP_CACHE_LIMITS.maxEntries,
-        maxBytes: BITMAP_CACHE_LIMITS.maxBytes,
-      }),
+        }),
     });
   }
 
@@ -582,6 +773,7 @@ class CmsActor extends HTMLElementBase {
 
   _resolveActiveAction() {
     if (this._oneShotAction && this._plan?.actions?.[this._oneShotAction]) return this._oneShotAction;
+    if (this._fallbackAction && this._plan?.actions?.[this._fallbackAction]) return this._fallbackAction;
     return resolveActionName(this._plan, this.getAttribute?.("locomotion") ?? "stand");
   }
 
@@ -593,7 +785,140 @@ class CmsActor extends HTMLElementBase {
       this._elapsed = 0;
       this._lastTick = null;
     }
+    this._rememberPlayed(next);
     return next;
+  }
+
+  _rememberPlayed(actionName) {
+    if (!actionName || !this._plan?.bodyKey || !this._plan.actions?.[actionName]) return;
+    this._rememberedBodyKey = this._plan.bodyKey;
+    this._rememberedAction = actionName;
+  }
+
+  _standActionName(plan = this._plan) {
+    const named = plan?.locomotionActions?.stand;
+    if (named && plan.actions?.[named]) return named;
+    return resolveActionName(plan, "stand");
+  }
+
+  /**
+   * Apply the plan/event handshake from the adventure adapter contract.
+   * A pending action name is consumed by this plan only. An in-progress
+   * one-shot survives a plan replacement when its frame list is unchanged.
+   * A bodyKey change forgets the previous body's pose.
+   */
+  _adoptPlan(previous) {
+    const plan = this._plan;
+    const pending = this._pendingAction;
+    this._pendingAction = null;
+    const bodyChanged = Boolean(previous?.bodyKey) && plan.bodyKey !== previous.bodyKey;
+    if (bodyChanged) {
+      this._rememberedAction = null;
+      this._rememberedBodyKey = null;
+      this._oneShotAction = null;
+      this._fallbackAction = null;
+    }
+    const previousOneShot = bodyChanged ? null : this._oneShotAction;
+    const previousFrame = this._frameIndex;
+    const previousElapsed = this._elapsed;
+    const previousActive = this._activeActionName;
+
+    const assign = (actionName, keepClock) => {
+      this._activeActionName = actionName;
+      if (keepClock && actionName && plan.actions[actionName]) {
+        this._frameIndex = Math.min(previousFrame, plan.actions[actionName].frames.length - 1);
+        this._elapsed = previousElapsed;
+      } else {
+        this._frameIndex = 0;
+        this._elapsed = 0;
+      }
+      this._lastTick = null;
+    };
+    const sameFrames = (name) => Boolean(previous?.actions?.[name])
+      && actionSignature(previous.actions[name]) === actionSignature(plan.actions[name]);
+
+    if (pending && plan.actions[pending]) {
+      this._fallbackAction = null;
+      this._oneShotAction = pending;
+      assign(pending, false);
+    } else if (pending) {
+      const remembered = !bodyChanged && plan.bodyKey && this._rememberedBodyKey === plan.bodyKey
+        ? this._rememberedAction
+        : null;
+      const stand = this._standActionName(plan);
+      const walk = plan.locomotionActions?.walk;
+      const jump = plan.locomotionActions?.jump;
+      if (remembered && plan.actions[remembered]) {
+        const locomotion = remembered === stand || remembered === walk || remembered === jump;
+        this._fallbackAction = null;
+        if (locomotion) {
+          this._oneShotAction = null;
+          assign(remembered, previousActive === remembered && sameFrames(remembered));
+        } else {
+          this._oneShotAction = remembered;
+          assign(remembered, sameFrames(remembered));
+        }
+      } else if (plan.bodyKey) {
+        this._oneShotAction = null;
+        this._fallbackAction = stand;
+        assign(stand, false);
+      } else {
+        this._oneShotAction = null;
+        this._fallbackAction = null;
+        assign(this._resolveActiveAction(), false);
+      }
+    } else if (!bodyChanged && previousOneShot && plan.actions[previousOneShot]) {
+      this._fallbackAction = null;
+      this._oneShotAction = previousOneShot;
+      assign(previousOneShot, sameFrames(previousOneShot));
+    } else {
+      this._oneShotAction = null;
+      this._fallbackAction = null;
+      const next = this._resolveActiveAction();
+      assign(next, !bodyChanged && previousActive === next && sameFrames(next));
+    }
+
+    const signature = expressionSignature(plan.expression);
+    if (signature !== this._expressionSignature) {
+      this._expressionFrameIndex = 0;
+      this._expressionElapsed = 0;
+      this._expressionSignature = signature;
+    } else if (plan.expression?.frames?.length) {
+      this._expressionFrameIndex = Math.min(this._expressionFrameIndex, plan.expression.frames.length - 1);
+    }
+    this._rememberPlayed(this._activeActionName);
+  }
+
+  _expressionLayersFor(frame) {
+    if (frame?.showFace === false) return [];
+    const expression = this._plan?.expression;
+    if (!expression?.frames?.length) return [];
+    const index = Math.min(this._expressionFrameIndex, expression.frames.length - 1);
+    this._expressionFrameIndex = index;
+    return expression.frames[index].layers ?? [];
+  }
+
+  /** Skip zero-duration frames before they are held. A one-shot's last zero frame ends it. */
+  _settleZeroDelay() {
+    let safety = 0;
+    while (this._plan && safety < 32) {
+      safety += 1;
+      const current = this._currentFrame();
+      if (!current || frameHolds(current.frame) || frameDuration(current.frame) > 0) return;
+      const last = current.action.frames.length - 1;
+      const isLast = this._frameIndex >= last;
+      if (isLast && this._oneShotAction) {
+        this._oneShotAction = null;
+        this._activeActionName = null;
+        this._frameIndex = 0;
+        this._elapsed = 0;
+        this._lastTick = null;
+        continue;
+      }
+      if (isLast && !current.action.loop) return;
+      this._frameIndex = isLast ? 0 : this._frameIndex + 1;
+      this._elapsed = 0;
+    }
   }
 
   _currentFrame() {
@@ -619,6 +944,7 @@ class CmsActor extends HTMLElementBase {
     queueMicrotask(() => {
       this._paintScheduled = false;
       if (!this._connected || !this._canvas) return;
+      this._settleZeroDelay();
       const current = this._currentFrame();
       if (!this._context || !current) {
         this._paintEpoch += 1;
@@ -654,16 +980,32 @@ class CmsActor extends HTMLElementBase {
       // frame, and every pin acquired before the throw must still be
       // released — the finally below is the single release path for every
       // outcome (sync throw, stale discard, draw failure, success).
-      for (const layer of frame.layers) entries.push(this._getBitmapEntry(layer));
+      const expressionLayers = this._expressionLayersFor(frame);
+      const layers = [...frame.layers, ...expressionLayers];
+      for (const layer of layers) entries.push(this._getBitmapEntry(layer));
       const bitmaps = await Promise.all(entries.map((entry) => entry.promise));
+      // One cold atlas page can satisfy several layers before the decode
+      // finishes. Validate every requested crop, not only the first layer
+      // that started the shared resource read.
+      for (let index = 0; index < layers.length; index += 1) {
+        const layer = layers[index];
+        const bitmap = bitmaps[index];
+        if (!this._bitmapCoversLayer(layer, bitmap.width, bitmap.height)) {
+          throw new Error("CONTENT_INVALID " + layer.resource.namespace + "/" + layer.resource.key
+            + " crop " + JSON.stringify(layer.source ?? null) + " outside decoded page "
+            + bitmap.width + "x" + bitmap.height);
+        }
+      }
       // A newer paint round, a data update or a disconnect invalidates this
       // round: stale results must never overwrite the newer action.
       if (!this._connected || epoch !== this._paintEpoch) return;
-      this._drawFrame(frame, frame.layers.map((layer, index) => ({ layer, bitmap: bitmaps[index] })));
+      this._drawFrame(frame, layers.map((layer, index) => ({ layer, bitmap: bitmaps[index] })), expressionLayers);
       this.setAttribute("data-render-state", "ready");
       this.removeAttribute("data-render-error");
       this.setAttribute("data-action", actionName);
       this.setAttribute("data-frame", String(this._frameIndex));
+      if (this._plan.expression) this.setAttribute("data-expression-frame", String(this._expressionFrameIndex));
+      else this.removeAttribute("data-expression-frame");
       this._paintPending = false;
       // The clock remains paused while painting; the first RAF after this
       // completion establishes a fresh timestamp before accumulating delay.
@@ -687,11 +1029,13 @@ class CmsActor extends HTMLElementBase {
   /** Release entries the current plan no longer references. */
   _pruneResourceCache(plan) {
     const used = new Set();
-    for (const action of Object.values(plan.actions)) {
-      for (const frame of action.frames) {
-        for (const layer of frame.layers) used.add(this._resourceKey(layer.resource));
+    const collect = (frames) => {
+      for (const frame of frames ?? []) {
+        for (const layer of frame.layers ?? []) used.add(this._resourceKey(layer.resource));
       }
-    }
+    };
+    for (const action of Object.values(plan.actions)) collect(action.frames);
+    collect(plan.expression?.frames);
     for (const [key, entry] of [...this._resourceCache]) {
       if (used.has(key)) continue;
       this._evictEntry(key, entry);
@@ -817,10 +1161,10 @@ class CmsActor extends HTMLElementBase {
     }
   }
 
-  /** Enforce the hard cacheable-tier bound after a completed insert. */
+  /** Enforce only the LRU entry-count policy after a completed insert. */
   _enforceCacheBound(latestKey) {
     let guard = 0;
-    while (this._resourceCache.size - this._loadingCount > BITMAP_CACHE_LIMITS.maxEntries || this._cacheBytes > BITMAP_CACHE_LIMITS.maxBytes) {
+    while (this._resourceCache.size - this._loadingCount > BITMAP_CACHE_LIMITS.maxEntries) {
       if (guard++ > 10_000) break;
       let victimKey = null;
       let pinnedVictimKey = null;
@@ -852,7 +1196,7 @@ class CmsActor extends HTMLElementBase {
       // decode to the same pixels it did before. A new plan declaring
       // different dimensions for a cached identity is rejected with a
       // locatable error instead of silently painting a stretched bitmap.
-      if (cached.bitmap !== null && (cached.width !== layer.width || cached.height !== layer.height)) {
+      if (cached.bitmap !== null && !this._bitmapCoversLayer(layer, cached.width, cached.height)) {
         throw new Error(`CONTENT_INVALID ${resource.namespace}/${resource.key} declares ${layer.width}x${layer.height} but the cached decode of the same identity and version is ${cached.width}x${cached.height}`);
       }
       // Refresh LRU recency.
@@ -891,7 +1235,7 @@ class CmsActor extends HTMLElementBase {
       // never hand a superseded entry to the unabortable decode API.
       this._assertDecodeStillWanted(cacheKey, entry, controller);
       const bitmap = await this._decodeBitmap(cacheKey, entry, controller, new Blob([resolved.bytes], { type: resolved.mime }));
-      if (bitmap.width !== layer.width || bitmap.height !== layer.height) {
+      if (!this._bitmapCoversLayer(layer, bitmap.width, bitmap.height)) {
         bitmap.close?.();
         throw new Error(`CONTENT_INVALID ${resource.namespace}/${resource.key} decoded to ${bitmap.width}x${bitmap.height} but the plan declares ${layer.width}x${layer.height}`);
       }
@@ -904,19 +1248,9 @@ class CmsActor extends HTMLElementBase {
       entry.height = bitmap.height;
       entry.byteSize = bitmap.width * bitmap.height * 4;
       this._loadingCount -= 1;
-      if (entry.byteSize > BITMAP_CACHE_LIMITS.maxBytes) {
-        // Plan validation rejects oversized canvases; if one still reaches
-        // here it stays working set only — never cached, closed after paint.
-        this._resourceCache.delete(cacheKey);
-        entry.evicted = true;
-        entry.inPendingBytes = true;
-        this._pendingCloseCount += 1;
-        this._pendingCloseBytes += entry.byteSize;
-      } else {
-        entry.inCacheBytes = true;
-        this._cacheBytes += entry.byteSize;
-        this._enforceCacheBound(cacheKey);
-      }
+      entry.inCacheBytes = true;
+      this._cacheBytes += entry.byteSize;
+      this._enforceCacheBound(cacheKey);
       return bitmap;
     }).catch((error) => {
       // Single-shot loading decrement: the success path decrements exactly
@@ -941,7 +1275,17 @@ class CmsActor extends HTMLElementBase {
     return entry;
   }
 
-  _drawFrame(frame, layersWithBitmaps) {
+  _bitmapCoversLayer(layer, bitmapWidth, bitmapHeight) {
+    if (layer.source) {
+      const source = layer.source;
+      return source.x >= 0 && source.y >= 0
+        && source.x + source.w <= bitmapWidth
+        && source.y + source.h <= bitmapHeight;
+    }
+    return bitmapWidth === layer.width && bitmapHeight === layer.height;
+  }
+
+  _drawFrame(frame, layersWithBitmaps, expressionLayers = []) {
     const canvas = this._canvas;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Canvas 2D context is unavailable for cms-actor");
@@ -949,21 +1293,54 @@ class CmsActor extends HTMLElementBase {
     const mirror = Boolean(facingLeft) !== Boolean(frame.flip);
     const mirrorPivotX = frame.move?.[0] ?? 0;
     const layout = layoutFrame(frame, this._plan.zOrder, 0, 0);
-    const drawItems = layout.drawOrder
+    const base = { x: frame.move?.[0] ?? 0, y: frame.move?.[1] ?? 0 };
+    const placedExpression = expressionLayers.length
+      ? placeAnchoredLayers(expressionLayers, layout.anchors, base)
+      : { positioned: [], skipped: [] };
+    for (const item of placedExpression.positioned) item.index += frame.layers.length;
+    const orderIndex = new Map(this._plan.zOrder.map((z, index) => [z, index]));
+    const positioned = [...layout.positioned, ...placedExpression.positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
+    const hidden = occludedLayers(positioned, this._plan.zOrder);
+    const drawItems = positioned
+      .filter((item) => !hidden.has(item.layer))
       .map((item) => {
         const entry = layersWithBitmaps.find((candidate) => candidate.layer === item.layer);
         return entry ? { ...item, bitmap: entry.bitmap } : null;
       })
       .filter(Boolean);
+    const skipped = [...layout.skipped, ...placedExpression.skipped];
 
     if (drawItems.length === 0) {
       this._clearCanvas();
+      if (skipped.length > 0) this.setAttribute("data-skipped-layers", formatSkippedLayers(skipped));
+      else this.removeAttribute("data-skipped-layers");
       return;
     }
 
-    const rects = drawItems.map((item) => mirror
-      ? mirrorBounds(item, mirrorPivotX)
-      : { left: item.left, right: item.left + item.width, top: item.top, bottom: item.top + item.height });
+    const bodyItem = layout.positioned.find((item) => item.layer.id === "body") ?? layout.positioned[0];
+    const originX = bodyItem?.originX ?? mirrorPivotX;
+    const originY = bodyItem?.originY ?? (frame.move?.[1] ?? 0);
+    const rotate = frame.rotate;
+    const rects = drawItems.map((item) => {
+      const corners = [
+        [item.left, item.top],
+        [item.left + item.width, item.top],
+        [item.left + item.width, item.top + item.height],
+        [item.left, item.top + item.height],
+      ].map(([x, y]) => rotate ? rotatePoint(x, y, originX, originY, rotate) : [x, y]);
+      let left = Infinity;
+      let right = -Infinity;
+      let top = Infinity;
+      let bottom = -Infinity;
+      for (const [x, y] of corners) {
+        const mirroredX = mirror ? (2 * mirrorPivotX - x) : x;
+        if (mirroredX < left) left = mirroredX;
+        if (mirroredX > right) right = mirroredX;
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+      }
+      return { left, right, top, bottom };
+    });
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -1031,22 +1408,43 @@ class CmsActor extends HTMLElementBase {
       // Compensate so flipped texels land exactly on 2*pivot - x.
       context.translate(-1, 0);
     }
+    if (rotate) {
+      context.translate(originX, originY);
+      context.rotate(rotate * Math.PI / 180);
+      context.translate(-originX, -originY);
+    }
 
     for (const item of drawItems) {
-      context.drawImage(item.bitmap, item.left, item.top, item.width, item.height);
+      const source = item.layer.source;
+      if (source) {
+        context.drawImage(item.bitmap, source.x, source.y, source.w, source.h, item.left, item.top, item.width, item.height);
+      } else {
+        context.drawImage(item.bitmap, item.left, item.top, item.width, item.height);
+      }
     }
-    if (layout.skipped.length > 0) this.setAttribute("data-skipped-layers", formatSkippedLayers(layout.skipped));
+    if (skipped.length > 0) this.setAttribute("data-skipped-layers", formatSkippedLayers(skipped));
     else this.removeAttribute("data-skipped-layers");
   }
 
+  _expressionCanAdvance() {
+    const frames = this._plan?.expression?.frames;
+    if (!frames || frames.length < 2) return false;
+    const frame = frames[Math.min(this._expressionFrameIndex, frames.length - 1)];
+    return frame?.delay !== undefined;
+  }
+
   _ensureAnimationLoop(action, frame) {
-    const canAdvance = frameDuration(frame) > 0
-      && (this._oneShotAction !== null || (action.loop && action.frames.length > 1));
-    if (!canAdvance) {
+    const duration = frameDuration(frame);
+    const holds = frameHolds(frame);
+    const zeroSkips = !holds && duration === 0 && (
+      this._frameIndex < action.frames.length - 1 || action.loop || this._oneShotAction
+    );
+    const timed = duration > 0 && (this._oneShotAction !== null || (action.loop && action.frames.length > 1));
+    if (!zeroSkips && !timed && !this._expressionCanAdvance()) {
       this._stopAnimation();
       return;
     }
-    if (!this._animationHandle) {
+    if (!this._animationHandle && typeof requestAnimationFrame === "function") {
       this._animationHandle = requestAnimationFrame((time) => this._tick(time));
     }
   }
@@ -1064,14 +1462,19 @@ class CmsActor extends HTMLElementBase {
     const delta = Math.min(250, Math.max(0, time - this._lastTick));
     this._lastTick = time;
     this._elapsed += delta;
+    this._expressionElapsed += delta;
 
     let frame = current.frame;
-    let duration = frameDuration(frame);
     let changed = false;
     let safety = 0;
-    while (duration > 0 && this._elapsed >= duration && safety < 32) {
-      this._elapsed -= duration;
+    while (safety < 32) {
+      if (frameHolds(frame)) break;
+      const duration = frameDuration(frame);
       const isLast = this._frameIndex >= current.action.frames.length - 1;
+      const terminalHold = isLast && !this._oneShotAction && !current.action.loop;
+      if (terminalHold && duration === 0) break;
+      if (duration > 0 && this._elapsed < duration) break;
+      if (duration > 0) this._elapsed -= duration;
       if (isLast && this._oneShotAction) {
         this._oneShotAction = null;
         this._activeActionName = null;
@@ -1080,19 +1483,20 @@ class CmsActor extends HTMLElementBase {
         changed = true;
         break;
       }
-      if (isLast && !current.action.loop) {
+      if (terminalHold) {
         this._frameIndex = current.action.frames.length - 1;
         this._elapsed = 0;
         this._stopAnimation();
-        return;
+        break;
       }
       this._frameIndex = isLast ? 0 : this._frameIndex + 1;
-      frame = current.action.frames[this._frameIndex];
-      duration = frameDuration(frame);
+      const next = this._currentFrame();
+      if (!next) break;
+      frame = next.frame;
       changed = true;
       safety += 1;
-      if (duration === 0) break;
     }
+    if (this._advanceExpression()) changed = true;
 
     if (changed) {
       this._lastTick = null;
@@ -1101,8 +1505,32 @@ class CmsActor extends HTMLElementBase {
       this._ensureAnimationLoop(current.action, current.frame);
     }
   }
+
+  _advanceExpression() {
+    const frames = this._plan?.expression?.frames;
+    if (!frames || frames.length < 2) return false;
+    let changed = false;
+    let safety = 0;
+    while (safety < 32) {
+      const index = Math.min(this._expressionFrameIndex, frames.length - 1);
+      this._expressionFrameIndex = index;
+      const frame = frames[index];
+      if (frame.delay === undefined) break;
+      const duration = Math.abs(frame.delay);
+      if (duration > 0 && this._expressionElapsed < duration) break;
+      if (duration > 0) this._expressionElapsed -= duration;
+      this._expressionFrameIndex = (index + 1) % frames.length;
+      changed = true;
+      safety += 1;
+      const next = frames[this._expressionFrameIndex];
+      if (next.delay === undefined) break;
+      if (Math.abs(next.delay) > 0 && this._expressionElapsed < Math.abs(next.delay)) break;
+    }
+    return changed;
+  }
+
   _stopAnimation() {
-    if (this._animationHandle) cancelAnimationFrame(this._animationHandle);
+    if (this._animationHandle && typeof cancelAnimationFrame === "function") cancelAnimationFrame(this._animationHandle);
     this._animationHandle = 0;
     this._lastTick = null;
   }

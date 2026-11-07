@@ -14,19 +14,13 @@ const CONTENT_VERSION_PATTERN = /^sha256:[0-9a-f]{64}$/;
  * Render Update v1 caps serialized `RenderNode.data` at 262,144 compact
  * UTF-8 bytes. The plan is one actor's *currently needed* actions only —
  * never a catalogue of every character, equipment, action and frame. These
- * structural bounds plus the byte budget keep any accepted plan inside the
- * frozen Render protocol envelope.
+ * structural bounds and serialized-data cap keep plans inside the frozen
+ * Render protocol envelope. No decoded image-byte estimate is imposed: an
+ * atlas sprite crop does not measure the memory used by its decoded page.
  */
 export const AVATAR_PLAN_LIMITS = Object.freeze({
   /** Frozen Render Update v1 `RenderNode.data` compact byte cap. */
   maxDataBytes: 262_144,
-  /**
-   * Decoded-byte budget for one frame's canvases (and for any single
-   * canvas). This is the component's working-set policy: the decoded-bitmap
-   * cache hard-caps at the same value, so a frame can always be painted
-   * without the working set bypassing the cache budget.
-   */
-  maxDecodedFrameBytes: 12 * 1024 * 1024,
   maxZOrderEntries: 64,
   maxActions: 32,
   maxActionNameBytes: 64,
@@ -74,6 +68,88 @@ function validResourceKey(key, label) {
   }
 }
 
+/**
+ * A missing delay holds the frame. `delay: 0` is a real duration: the frame
+ * is drawn and left immediately. Callers must not treat those two as the same
+ * "stop the clock" signal.
+ */
+export function frameHolds(frame) {
+  return frame?.delay === undefined;
+}
+
+/** Clockwise quarter-turns around a point. Canvas +Y is down, so +90° is clockwise. */
+export function rotatePoint(x, y, originX, originY, degrees) {
+  const dx = x - originX;
+  const dy = y - originY;
+  const turns = ((Math.round(degrees) % 360) + 360) % 360;
+  if (turns === 90) return [originX - dy, originY + dx];
+  if (turns === 180) return [originX - dx, originY - dy];
+  if (turns === 270) return [originX + dy, originY - dx];
+  return [x, y];
+}
+
+function validatePlanLayer(layer, label, plan, declaredDimensions) {
+  assert(layer && typeof layer === "object" && !Array.isArray(layer), `${label} must be an object`);
+  assert(typeof layer.id === "string" && layer.id.length > 0, `${label}.id must be non-empty`);
+  assert(utf8Bytes(layer.id) <= AVATAR_PLAN_LIMITS.maxLayerIdBytes, `${label}.id exceeds ${AVATAR_PLAN_LIMITS.maxLayerIdBytes} UTF-8 bytes`);
+  assert(typeof layer.z === "string" && plan.zOrder.includes(layer.z), `${label}.z must appear in zOrder`);
+  assert(boundedInteger(layer.width, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.width must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
+  assert(boundedInteger(layer.height, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.height must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
+  assert(isFinitePair(layer.origin), `${label}.origin must be a finite pair`);
+  assert(layer.origin.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.origin exceeds the coordinate bound`);
+  assert(layer.resource && typeof layer.resource === "object", `${label}.resource is required`);
+  assert(typeof layer.resource.namespace === "string" && layer.resource.namespace.length > 0, `${label}.resource.namespace is required`);
+  assert(utf8Bytes(layer.resource.namespace) <= AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes, `${label}.resource.namespace exceeds ${AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes} UTF-8 bytes`);
+  assert(!layer.resource.namespace.includes("/"), `${label}.resource.namespace must be a single Content namespace`);
+  validResourceKey(layer.resource.key, `${label}.resource.key`);
+  assert(typeof layer.resource.contentVersion === "string" && CONTENT_VERSION_PATTERN.test(layer.resource.contentVersion), `${label}.resource.contentVersion must be sha256:<64 lowercase hex>`);
+  if (layer.anchors !== undefined) {
+    assert(layer.anchors && typeof layer.anchors === "object" && !Array.isArray(layer.anchors), `${label}.anchors must be an object`);
+    const anchorNames = Object.keys(layer.anchors);
+    assert(anchorNames.length <= AVATAR_PLAN_LIMITS.maxAnchorsPerLayer, `${label}.anchors must have at most ${AVATAR_PLAN_LIMITS.maxAnchorsPerLayer} entries`);
+    for (const [anchorName, point] of Object.entries(layer.anchors)) {
+      assert(anchorName.length > 0, `${label}.anchors keys must be non-empty`);
+      assert(utf8Bytes(anchorName) <= AVATAR_PLAN_LIMITS.maxAnchorNameBytes, `${label}.anchors.${anchorName} exceeds ${AVATAR_PLAN_LIMITS.maxAnchorNameBytes} UTF-8 bytes`);
+      assert(isFinitePair(point), `${label}.anchors.${anchorName} must be a finite pair`);
+      assert(point.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.anchors.${anchorName} exceeds the coordinate bound`);
+    }
+  }
+  const hasPriority = layer.priority !== undefined;
+  const hasTag = layer.tag !== undefined;
+  if (hasPriority || hasTag) {
+    assert(Number.isInteger(layer.priority), `${label}.priority must be an integer`);
+    assert(Array.isArray(layer.tag), `${label}.tag must be an array of slot tokens`);
+    assert(layer.tag.length <= 32, `${label}.tag must have at most 32 slots`);
+    for (const token of layer.tag) {
+      assert(typeof token === "string" && token.length > 0 && token.length <= 8, `${label}.tag entries must be short strings`);
+    }
+  }
+  if (layer.source !== undefined) {
+    const source = layer.source;
+    assert(source && typeof source === "object" && !Array.isArray(source), `${label}.source must be an object`);
+    for (const key of ["x", "y", "w", "h"]) {
+      assert(Number.isInteger(source[key]) && source[key] >= 0, `${label}.source.${key} must be a non-negative integer`);
+    }
+    assert(source.w === layer.width && source.h === layer.height, `${label}.source.w/h must equal width/height`);
+  }
+
+  const identity = `${layer.resource.namespace}\u0000${layer.resource.key}\u0000${layer.resource.contentVersion}`;
+  const dimensions = `${layer.width}x${layer.height}`;
+  const previous = declaredDimensions.get(identity);
+  if (layer.source) {
+    if (previous !== undefined && previous !== "page") {
+      throw new TypeError(`Invalid AvatarPlanV1: ${label} declares a source rect for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared ${previous}`);
+    }
+    declaredDimensions.set(identity, "page");
+  } else if (previous === "page") {
+    throw new TypeError(`Invalid AvatarPlanV1: ${label} declares ${dimensions} for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared a source rect for that page`);
+  } else if (previous !== undefined && previous !== dimensions) {
+    throw new TypeError(`Invalid AvatarPlanV1: ${label} declares ${dimensions} for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared ${previous}`);
+  } else {
+    declaredDimensions.set(identity, dimensions);
+  }
+}
+
 /** Validate the renderer-ready, WZ-independent paper-doll plan. */
 export function validateAvatarPlan(plan) {
   assert(plan && typeof plan === "object" && !Array.isArray(plan), "plan must be an object");
@@ -93,10 +169,14 @@ export function validateAvatarPlan(plan) {
       assert(typeof actionName === "string" && plan.actions[actionName], `locomotionActions.${state} must name an existing action`);
     }
   }
+  if (plan.bodyKey !== undefined) {
+    assert(typeof plan.bodyKey === "string" && plan.bodyKey.length > 0, "bodyKey must be a non-empty string");
+    assert(utf8Bytes(plan.bodyKey) <= 200, "bodyKey exceeds 200 UTF-8 bytes");
+  }
 
-  // The same physical resource must always be declared with the same pixel
-  // dimensions; otherwise one validation result could not be consistent for
-  // every frame that references it.
+  // A resource without `source` is the whole bitmap, so every such layer must
+  // agree on width/height. A resource with `source` is an atlas page: many
+  // sprite sizes may share that page, and the page is decoded once.
   const declaredDimensions = new Map();
 
   for (const [actionName, action] of Object.entries(plan.actions)) {
@@ -118,51 +198,39 @@ export function validateAvatarPlan(plan) {
         assert(frame.move.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${frameLabel}.move exceeds the coordinate bound`);
       }
       if (frame.flip !== undefined) assert(typeof frame.flip === "boolean", `${frameLabel}.flip must be boolean`);
+      if (frame.showFace !== undefined) assert(typeof frame.showFace === "boolean", `${frameLabel}.showFace must be boolean`);
+      if (frame.rotate !== undefined) assert(frame.rotate === 90 || frame.rotate === 180 || frame.rotate === 270, `${frameLabel}.rotate must be 90, 180 or 270`);
       assert(Array.isArray(frame.layers) && frame.layers.length > 0, `${frameLabel}.layers must be non-empty`);
       assert(frame.layers.length <= AVATAR_PLAN_LIMITS.maxLayersPerFrame, `${frameLabel}.layers must have at most ${AVATAR_PLAN_LIMITS.maxLayersPerFrame} entries`);
       assert(frame.layers[0]?.id === "body", `${frameLabel}.layers[0] must be the body layer`);
       assert(new Set(frame.layers.map((layer) => layer?.id)).size === frame.layers.length, `${frameLabel}.layer ids must be unique`);
-      let frameDecodedBytes = 0;
 
       for (const [layerIndex, layer] of frame.layers.entries()) {
-        const label = `${frameLabel}.layers[${layerIndex}]`;
-        assert(layer && typeof layer === "object" && !Array.isArray(layer), `${label} must be an object`);
-        assert(typeof layer.id === "string" && layer.id.length > 0, `${label}.id must be non-empty`);
-        assert(utf8Bytes(layer.id) <= AVATAR_PLAN_LIMITS.maxLayerIdBytes, `${label}.id exceeds ${AVATAR_PLAN_LIMITS.maxLayerIdBytes} UTF-8 bytes`);
-        assert(typeof layer.z === "string" && plan.zOrder.includes(layer.z), `${label}.z must appear in zOrder`);
-        assert(boundedInteger(layer.width, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.width must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
-        assert(boundedInteger(layer.height, AVATAR_PLAN_LIMITS.maxDimensionPixels), `${label}.height must be a positive integer up to ${AVATAR_PLAN_LIMITS.maxDimensionPixels}`);
-        assert(layer.width * layer.height * 4 <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes, `${label} decodes to ${layer.width * layer.height * 4} bytes, exceeding the ${AVATAR_PLAN_LIMITS.maxDecodedFrameBytes}-byte canvas budget`);
-        assert(isFinitePair(layer.origin), `${label}.origin must be a finite pair`);
-        assert(layer.origin.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.origin exceeds the coordinate bound`);
-        assert(layer.resource && typeof layer.resource === "object", `${label}.resource is required`);
-        assert(typeof layer.resource.namespace === "string" && layer.resource.namespace.length > 0, `${label}.resource.namespace is required`);
-        assert(utf8Bytes(layer.resource.namespace) <= AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes, `${label}.resource.namespace exceeds ${AVATAR_PLAN_LIMITS.maxResourceNamespaceBytes} UTF-8 bytes`);
-        assert(!layer.resource.namespace.includes("/"), `${label}.resource.namespace must be a single Content namespace`);
-        validResourceKey(layer.resource.key, `${label}.resource.key`);
-        assert(typeof layer.resource.contentVersion === "string" && CONTENT_VERSION_PATTERN.test(layer.resource.contentVersion), `${label}.resource.contentVersion must be sha256:<64 lowercase hex>`);
-        if (layer.anchors !== undefined) {
-          assert(layer.anchors && typeof layer.anchors === "object" && !Array.isArray(layer.anchors), `${label}.anchors must be an object`);
-          const anchorNames = Object.keys(layer.anchors);
-          assert(anchorNames.length <= AVATAR_PLAN_LIMITS.maxAnchorsPerLayer, `${label}.anchors must have at most ${AVATAR_PLAN_LIMITS.maxAnchorsPerLayer} entries`);
-          for (const [anchorName, point] of Object.entries(layer.anchors)) {
-            assert(anchorName.length > 0, `${label}.anchors keys must be non-empty`);
-            assert(utf8Bytes(anchorName) <= AVATAR_PLAN_LIMITS.maxAnchorNameBytes, `${label}.anchors.${anchorName} exceeds ${AVATAR_PLAN_LIMITS.maxAnchorNameBytes} UTF-8 bytes`);
-            assert(isFinitePair(point), `${label}.anchors.${anchorName} must be a finite pair`);
-            assert(point.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.anchors.${anchorName} exceeds the coordinate bound`);
-          }
-        }
-
-        const identity = `${layer.resource.namespace}\u0000${layer.resource.key}\u0000${layer.resource.contentVersion}`;
-        const dimensions = `${layer.width}x${layer.height}`;
-        const previous = declaredDimensions.get(identity);
-        if (previous !== undefined && previous !== dimensions) {
-          throw new TypeError(`Invalid AvatarPlanV1: ${label} declares ${dimensions} for ${layer.resource.namespace}/${layer.resource.key} but an earlier layer declared ${previous}`);
-        }
-        declaredDimensions.set(identity, dimensions);
-        frameDecodedBytes += layer.width * layer.height * 4;
+        validatePlanLayer(layer, `${frameLabel}.layers[${layerIndex}]`, plan, declaredDimensions);
       }
-      assert(frameDecodedBytes <= AVATAR_PLAN_LIMITS.maxDecodedFrameBytes, `${frameLabel} decodes to ${frameDecodedBytes} bytes across its layers, exceeding the ${AVATAR_PLAN_LIMITS.maxDecodedFrameBytes}-byte frame budget`);
+    }
+  }
+
+  if (plan.expression !== undefined) {
+    const expression = plan.expression;
+    assert(expression && typeof expression === "object" && !Array.isArray(expression), "expression must be an object");
+    assert(typeof expression.name === "string" && expression.name.length > 0, "expression.name must be a non-empty string");
+    assert(utf8Bytes(expression.name) <= AVATAR_PLAN_LIMITS.maxActionNameBytes, `expression.name must be at most ${AVATAR_PLAN_LIMITS.maxActionNameBytes} UTF-8 bytes`);
+    assert(Array.isArray(expression.frames) && expression.frames.length > 0, "expression.frames must be non-empty");
+    assert(expression.frames.length <= AVATAR_PLAN_LIMITS.maxFramesPerAction, `expression.frames must have at most ${AVATAR_PLAN_LIMITS.maxFramesPerAction} entries`);
+    for (const [frameIndex, frame] of expression.frames.entries()) {
+      const frameLabel = `expression.frames[${frameIndex}]`;
+      assert(frame && typeof frame === "object" && !Array.isArray(frame), `${frameLabel} must be an object`);
+      if (frame.delay !== undefined) {
+        assert(typeof frame.delay === "number" && Number.isFinite(frame.delay), `${frameLabel}.delay must be finite`);
+        assert(Math.abs(frame.delay) <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay magnitude must not exceed ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
+      }
+      assert(Array.isArray(frame.layers) && frame.layers.length > 0, `${frameLabel}.layers must be non-empty`);
+      assert(frame.layers.length <= AVATAR_PLAN_LIMITS.maxLayersPerFrame, `${frameLabel}.layers must have at most ${AVATAR_PLAN_LIMITS.maxLayersPerFrame} entries`);
+      assert(new Set(frame.layers.map((layer) => layer?.id)).size === frame.layers.length, `${frameLabel}.layer ids must be unique`);
+      for (const [layerIndex, layer] of frame.layers.entries()) {
+        validatePlanLayer(layer, `${frameLabel}.layers[${layerIndex}]`, plan, declaredDimensions);
+      }
     }
   }
 
@@ -247,6 +315,50 @@ export function resolveActionName(plan, locomotion = "stand") {
   return Object.keys(plan?.actions ?? {})[0] ?? null;
 }
 
+/** Front-to-back `zOrder`: higher index paints earlier. Equal z keeps the lower layer index behind. */
+export function compareDrawOrder(a, b, orderIndex) {
+  const zDelta = (orderIndex.get(b.layer.z) ?? 0) - (orderIndex.get(a.layer.z) ?? 0);
+  return zDelta || a.index - b.index;
+}
+
+/**
+ * Slot occlusion for one painted frame, matching the client walk at `0x401C74`.
+ *
+ * `positioned` entries need `layer` and `index`. A layer participates only when
+ * it carries integer `priority` and array `tag`. `z === "face"` never enters
+ * the walk. A losing token hides the whole canvas, but slots it already claimed
+ * stay claimed. Equal priority leaves both canvases. The returned set contains
+ * the layer objects to skip while drawing.
+ */
+export function occludedLayers(positioned, zOrder) {
+  const orderIndex = new Map((zOrder ?? []).map((z, index) => [z, index]));
+  const ordered = [...positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
+  const owners = new Map();
+  const hidden = new Set();
+  for (const item of ordered) {
+    const layer = item?.layer;
+    if (!layer || layer.z === "face") continue;
+    if (!Number.isInteger(layer.priority) || !Array.isArray(layer.tag)) continue;
+    let visible = true;
+    for (const token of layer.tag) {
+      const prev = owners.get(token);
+      if (!prev) {
+        owners.set(token, { layer, priority: layer.priority });
+        continue;
+      }
+      if (prev.priority === layer.priority) continue;
+      if (prev.priority > layer.priority) {
+        visible = false;
+        break;
+      }
+      hidden.add(prev.layer);
+      owners.set(token, { layer, priority: layer.priority });
+    }
+    if (!visible) hidden.add(layer);
+  }
+  return hidden;
+}
+
 export function frameDuration(frame) {
   const delay = frame?.delay;
   return typeof delay === "number" && Number.isFinite(delay) ? Math.abs(delay) : 0;
@@ -310,12 +422,52 @@ export function layoutFrame(frame, zOrder, x = 0, y = 0) {
 
   const orderIndex = new Map(zOrder.map((z, index) => [z, index]));
   // zOrder is front-to-back, so paint in reverse: back first, front last.
-  const drawOrder = [...positioned].sort((a, b) => {
-    const zDelta = orderIndex.get(b.layer.z) - orderIndex.get(a.layer.z);
-    return zDelta || a.index - b.index;
-  });
+  const drawOrder = [...positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
 
   return { positioned, drawOrder, skipped, anchors: knownAnchors };
+}
+
+/**
+ * Place expression layers onto anchors already established by `layoutFrame`.
+ * These layers do not publish new anchors and are not laid out as their own body.
+ */
+export function placeAnchoredLayers(layers, knownAnchors, base = { x: 0, y: 0 }) {
+  const positioned = [];
+  const skipped = [];
+  layers.forEach((layer, index) => {
+    let originX = base.x;
+    let originY = base.y;
+    let matchedAnchor = null;
+    if (layer.anchors) {
+      const wanted = Object.keys(layer.anchors);
+      for (const name of ANCHOR_PRIORITY) {
+        const local = layer.anchors[name];
+        const global = knownAnchors.get(name);
+        if (local && global) {
+          originX = global[0] - local[0];
+          originY = global[1] - local[1];
+          matchedAnchor = name;
+          break;
+        }
+      }
+      if (wanted.length > 0 && matchedAnchor === null) {
+        skipped.push({ id: layer.id, anchors: wanted });
+        return;
+      }
+    }
+    positioned.push({
+      layer,
+      index,
+      originX,
+      originY,
+      left: originX - layer.origin[0],
+      top: originY - layer.origin[1],
+      width: layer.width,
+      height: layer.height,
+      matchedAnchor,
+    });
+  });
+  return { positioned, skipped };
 }
 
 /** Format skipped-layer diagnostics as `layerId[needs=anchorA+anchorB]`. */

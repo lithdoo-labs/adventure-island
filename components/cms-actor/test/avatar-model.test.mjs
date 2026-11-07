@@ -4,11 +4,15 @@ import {
   AVATAR_PLAN_LIMITS,
   formatSkippedLayers,
   frameDuration,
+  frameHolds,
   layoutFrame,
   measureAvatarPlanDataBytes,
+  occludedLayers,
   measureCompactJsonBytes,
   mirrorBounds,
+  placeAnchoredLayers,
   resolveActionName,
+  rotatePoint,
   validateAvatarPlan,
 } from "../src/avatar-model.mjs";
 
@@ -115,23 +119,15 @@ test("rejects a plan whose serialized RenderNode.data passes the frozen 262,144-
   assert.throws(() => validateAvatarPlan(wide), /exceeds the frozen Render Update v1 cap of 262144/);
 });
 
-test("rejects a single canvas whose decoded bytes exceed the budget", () => {
-  const candidate = plan();
-  const hair = candidate.actions.stand1.frames[0].layers.find((layer) => layer.id === "hair");
-  hair.width = 1_800;
-  hair.height = 1_800; // 12,960,000 > 12,582,912
-  assert.throws(() => validateAvatarPlan(candidate), /decodes to 12960000 bytes, exceeding the 12582912-byte canvas budget/);
-});
-
-test("rejects a frame whose combined decoded bytes exceed the budget", () => {
+test("accepts a sprite and frame whose estimated pixels exceed the obsolete 12 MiB limit", () => {
   const candidate = plan();
   const frame = candidate.actions.stand1.frames[0];
   for (const layer of frame.layers) {
     if (layer.id === "body") continue;
-    layer.width = 1_050;
-    layer.height = 1_050; // 4,410,000 each; three of them + body exceed the budget
+    layer.width = 1_800;
+    layer.height = 1_800;
   }
-  assert.throws(() => validateAvatarPlan(candidate), /bytes across its layers, exceeding the 12582912-byte frame budget/);
+  assert.equal(validateAvatarPlan(candidate), candidate);
 });
 
 test("compact measurement counts UTF-8 bytes, not UTF-16 code units", () => {
@@ -176,6 +172,9 @@ test("uses WZ delay magnitude and resolves adapter-selected locomotion actions",
   const candidate = plan();
   assert.equal(frameDuration({ delay: -200 }), 200);
   assert.equal(frameDuration({}), 0);
+  assert.equal(frameDuration({ delay: 0 }), 0);
+  assert.equal(frameHolds({}), true);
+  assert.equal(frameHolds({ delay: 0 }), false);
   assert.equal(resolveActionName(candidate, "stand"), "stand1");
   assert.equal(resolveActionName(candidate, "walk"), "stand1");
   assert.equal(resolveActionName(candidate, "jump"), "jump");
@@ -193,7 +192,80 @@ test("skips a layer whose required anchor cannot be resolved, with a locatable d
   assert.equal(formatSkippedLayers(result.skipped), "detached[needs=missing+gone]");
 });
 
+test("allows many sprite sizes on one atlas page and rejects a source that disagrees with width", () => {
+  const candidate = plan();
+  const body = candidate.actions.stand1.frames[0].layers[0];
+  body.resource = { namespace: "resource.Avatar", key: "part/body/00002000/0", contentVersion: version };
+  body.source = { x: 295, y: 198, w: 24, h: 32 };
+  const arm = layer("arm", "body", [8, 8]);
+  arm.resource = { ...body.resource };
+  arm.width = 8;
+  arm.height = 14;
+  arm.source = { x: 1, y: 2, w: 8, h: 14 };
+  candidate.actions.stand1.frames[0].layers.push(arm);
+  assert.equal(validateAvatarPlan(candidate).formatVersion, 1);
+
+  arm.source.w = 9;
+  assert.throws(() => validateAvatarPlan(candidate), /source\.w\/h must equal width\/height/);
+});
+
+test("places an expression layer on the body frame's anchors", () => {
+  const candidate = plan();
+  const layout = layoutFrame(candidate.actions.stand1.frames[0], candidate.zOrder);
+  const face = layer("face", "face", [6, 5], { brow: [0, -5] });
+  const placed = placeAnchoredLayers([face], layout.anchors, { x: 0, y: 0 });
+  assert.equal(placed.skipped.length, 0);
+  assert.deepEqual([placed.positioned[0].originX, placed.positioned[0].originY], [0, -24]);
+});
+
+test("rotates a point clockwise around the body origin", () => {
+  assert.deepEqual(rotatePoint(10, 0, 0, 0, 90), [0, 10]);
+  assert.deepEqual(rotatePoint(10, 0, 0, 0, 180), [-10, 0]);
+  assert.deepEqual(rotatePoint(10, 0, 0, 0, 270), [0, -10]);
+});
+
 test("mirrors a layer around the frame body origin, including frame move", () => {
   const rect = { left: 8, top: -20, width: 10, height: 12 };
   assert.deepEqual(mirrorBounds(rect, 3), { left: -12, right: -2, top: -20, bottom: -8 });
+});
+
+function slotted(id, z, priority, tag, index) {
+  return { index, layer: { id, z, priority, tag } };
+}
+
+function hiddenIds(items, zOrder) {
+  return [...occludedLayers(items, zOrder)].map((layer) => layer.id).sort();
+}
+
+test("slot occlusion keeps equal priorities and hides a whole canvas on one lost token", () => {
+  const zOrder = ["hairOverHead", "cap", "hair", "body"];
+  const hair = slotted("hair", "hair", -10, ["H2"], 0);
+  const cap = slotted("cap", "cap", -3, ["Cp", "H1", "H5"], 1);
+  const over = slotted("over", "hairOverHead", -10, ["H1"], 2);
+  assert.deepEqual(hiddenIds([hair, cap, over], zOrder), ["over"]);
+
+  const coat = slotted("coat", "mail", -5, ["Ma"], 0);
+  const robe = slotted("robe", "mail", -5, ["Ma"], 1);
+  const pants = slotted("pants", "pants", -8, ["Pn"], 2);
+  assert.deepEqual(hiddenIds([coat, robe, pants], ["mail", "pants"]), []);
+
+  const weapon = slotted("weapon", "weapon", -7, ["Wp"], 0);
+  const shield = slotted("shield", "shield", -6, ["Si"], 1);
+  assert.deepEqual(hiddenIds([weapon, shield], ["weapon", "shield"]), []);
+});
+
+test("a hidden canvas keeps slots it claimed before the token it lost", () => {
+  const zOrder = ["front", "mid", "back"];
+  const holder = slotted("holder", "back", 1, ["H1", "H2"], 0);
+  const winner = slotted("winner", "mid", 5, ["H2"], 1);
+  const late = slotted("late", "front", 0, ["H1"], 2);
+  assert.deepEqual(hiddenIds([holder, winner, late], zOrder), ["holder", "late"]);
+
+  const face = slotted("face", "face", 0, ["Fc"], 0);
+  const other = slotted("other", "body", -5, ["Fc"], 1);
+  assert.deepEqual(hiddenIds([face, other], ["face", "body"]), []);
+
+  const plain = { index: 0, layer: { id: "plain", z: "body" } };
+  const tagged = slotted("tagged", "mail", 1, ["Ma"], 1);
+  assert.deepEqual(hiddenIds([plain, tagged], ["mail", "body"]), []);
 });

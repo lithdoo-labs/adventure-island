@@ -18,7 +18,7 @@
 - 可作为 **classic script** 被 LoomRealm `bootstrapWebPresentation()` 正式加载（无 `type="module"` 要求）；
 - 真实 Chromium 集成测试与 Node 纯函数测试。
 
-不声称完成：WZ 解码、`islot/vslot` 装备冲突算法、真实 `zmap/smap` 数据接入、真实 CMS 079 素材验收。这些属于游戏侧适配层与后续验收。测试里的 `test/look-adapter.mjs` 是**参考适配器，不是正式游戏运行时**。
+自研库的装备遮挡由 `adventure-adapter` 写入每张画布的 `priority` 和 `tag`，组件在绘制前按 `0x401C74` 跳过输掉的画布。没有这两个字段的计划全部照画。`test/look-adapter.mjs` 和 `real-look-adapter.mjs` 不写这两个字段。WZ 解码和真实 CMS 079 素材验收仍不在本组件内。
 
 ## 2. 平台入口（P0）
 
@@ -93,6 +93,16 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 }
 ```
 
+`source` 可缺省。缺省时源矩形就是整张位图，上面这种一画布一图的计划照旧整张绘制。写了 `source` 时，`resource` 指向整页图集，`source` 是页内像素矩形，并且 `source.w === width`、`source.h === height`。同一页可以有多块不同尺寸的小图，缓存键仍是 `namespace + key + contentVersion`。
+
+表情不写进身体帧，与 `actions` 并列：
+
+```js
+expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟着表情走的脸饰 */] }] }
+```
+
+身体帧可以带 `showFace`。缺省或为真时，用当前身体帧已经摆好的锚点画表情层；为假时跳过表情轨。`bodyKey` 是身体部件键，组件用它记住这具身体上一个有画布的姿势。
+
 ### 3.1 有界性（Render Update v1 硬上限）
 
 计划只承载**当前角色当前需要的动作**，不是全量人物/装备/动作目录。`validateAvatarPlan` 按以下边界 fail-closed（`AVATAR_PLAN_LIMITS`）：
@@ -100,8 +110,7 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 | 项 | 上界 |
 |---|---|
 | 序列化 `RenderNode.data`（compact JSON UTF-8） | **262,144 字节**（冻结协议上限） |
-| 单画布解码字节（`width×height×4`） | **12,582,912 字节**（`maxDecodedFrameBytes`，与缓存字节预算同源） |
-| 单帧全部画布解码字节合计 | **12,582,912 字节**（工作集策略，见 §6） |
+| 图集解码字节 | **无固定上限**；`width/height` 是小图尺寸，不能代表整页 `ImageBitmap` 的内存 |
 | `zOrder` 条目 | 64 |
 | `actions` 条数 | 32 |
 | 每动作帧数 | 128 |
@@ -112,7 +121,7 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 | 动作名 / id / 锚点名 / namespace / key | 64 / 64 / 32 / 64 / 256 UTF-8 字节 |
 
 - 字节数用**有界测量器**（`measureCompactJsonBytes`）在超过预算时立刻中止，不会先拼出无界大字符串；
-- 同一 `(namespace, key, contentVersion)` 在计划内必须声明一致 的 `width/height`，否则拒绝——保证同一 ResourceKey 的尺寸校验结果处处一致；
+- 没有 `source` 的同一 `(namespace, key, contentVersion)` 必须声明一致的 `width/height`。带 `source` 的同一页允许不同小图尺寸，尺寸校验改成源矩形落在解码后的页面内；
 - `locomotionActions` 只接受 `stand` / `walk` / `jump`，且必须指向存在的动作。
 
 ## 4. 锚点布局
@@ -121,36 +130,40 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 2. 后续画布按 `navel → neck → hand → brow → handMove` 优先级取第一个与已建立锚点表同名的锚点重合。
 3. 只登记尚不存在的新锚点（头通过 `neck` 对身体，并提供 `brow` 给脸/头发）。
 4. 带锚点但没有任何可匹配锚点的画布**跳过不画**，并在 `data-skipped-layers` 上给出 `layerId[needs=anchorA+anchorB]` 形式的可定位诊断。
-5. 全部定位后按 `zOrder` 反向（先背景后前景）绘制；`facing=left` 与帧 `flip` 异或后绕身体原点镜像整套合成结果（位置与像素内容同时翻转）。
+5. 全部定位后按 `zOrder` 反向（先背景后前景）绘制。表情层用同一次布局记下的锚点摆放，再并进这张绘制顺序，不单独做一次 `layoutFrame`。
+6. 帧上有 `rotate`（90/180/270）时，绕身体原点顺时针转，再做朝向翻转。画布坐标里正角就是顺时针。
+7. `facing=left` 与帧 `flip` 异或后绕身体原点镜像整套合成结果（位置与像素内容同时翻转）。有 `source` 时用九参数 `drawImage` 裁切图集，没有则整张绘制。
 
 ## 5. 动画与事件
 
-- 身体帧是时间轴；一帧中的所有 layer 一起切换。`delay` 取绝对值，缺失/为零表示停留。
+- 身体帧是时间轴；一帧中的身体 layer 一起切换。`delay` 取绝对值。帧上没有 `delay` 表示停住。`delay` 为 0 表示不停留，立刻进入下一帧；一次性姿势的最后一帧即使时长为 0，也结束并回到当前移动姿势。
+- 表情用自己的帧钟。`expression.name` 变了，或表情帧列表变了，帧号归零。只换身体帧、帧列表相同，不动它。多帧表情播完回到第 0 帧；没有 `delay` 的表情帧停住。
 - `loop: true` 的多帧动作循环；`jump` 等非循环动作停在末帧直到 `locomotion` 改变。
-- `action` Render Event 只触发一次私有播放，不写 `attrs`、不进 retained data；播完自动回落到**当下**的 `locomotion`（播放期间的状态更新不会被旧状态覆盖）。播放中再次收到 `action` 事件则丢弃旧播放、从第 0 帧重启。
-- 事件不重放到新建/重连元素（由 Web Presentation API v1 的 transient 语义保证）。
+- `action` Render Event 只触发一次私有播放，不写 `attrs`、不进 retained data。计划里还没有这个名字时，只记下这一个名字；下一份计划消费它，有该姿势就从第 0 帧播，没有就丢掉，再往后的计划不补播。新计划仍包含正在播的一次性姿势且帧列表没变时，保留帧号。`stand*` / `walk*` 帧列表没变时，不把走路帧号归零。
+- `bodyKey` 变了就忘掉上一具身体的姿势，改播新计划的 `stand*`。请求的姿势不在计划里时，记住的姿势还在就继续播它，否则播这份计划的 `stand*`。
+- 播完自动回落到**当下**的 `locomotion`。播放中再次收到已在计划里的 `action` 事件则从第 0 帧重播。
+- 事件不重放到新建/重连元素（由 Web Presentation API v1 的 transient 语义保证）。自研库的投影在 `src/adventure-adapter.mjs`：读 `struct.avatar.Part`、`group.avatar.PartFrame`、`group.avatar.Resource`、`struct.avatar.DrawOrder`、`struct.avatar.LayerSlot` 和 `resource.Avatar`。`content.resource` 不接收版本参数，版本取返回值。
 
 ## 6. 资源生命周期与失败策略
 
-读取按 `(namespace, key, expectedContentVersion)` 进行，结果必须满足：返回 `contentVersion` 与请求完全一致；MIME essence 属于 `image/*`；解码尺寸与计划声明一致。
+读取按 `(namespace, key, expectedContentVersion)` 进行，结果必须满足：返回 `contentVersion` 与请求完全一致；MIME essence 属于 `image/*`。没有 `source` 时，解码尺寸必须等于层上的 `width` × `height`。有 `source` 时，解码的是整页，源矩形必须落在页面内，页面尺寸可以大于小图。
 
-**组合画布预算（COMPOSITE_CANVAS_LIMITS）**：`AvatarPlanV1` 限制的是**源位图**（每层、每帧）；锚点/原点仍可在 ±100,000 范围内把合法画布拉得极远，`devicePixelRatio` 又是环境值。因此最终合成画布在第一次给 `canvas.width/height` 赋值**之前**校验：DPR 钳制到 ≤ 8；设备像素宽/高各 ≤ 8,192；设备像素面积 ≤ 3,145,728（即 12,582,912 字节 RGBA，与单帧解码字节预算同源）。越界抛出带 `COMPOSITE_TOO_LARGE` 前缀、合成/设备尺寸与最远 layer id 的可定位错误，画布保持清空（1×1），不触发浏览器的大额分配。
+**最终合成 Canvas 安全界限（COMPOSITE_CANVAS_LIMITS）**：与图集解码**无关**的输出画布保护。DPR 最多 8，设备像素宽/高各最多 8,192，输出画布设备像素最多 3,145,728。它拦截极端锚点造成的巨大 Canvas，**不限制图集页面的解码字节、缓存字节或整帧图集工作集**。
 
-**过期计划的读取取消**：每个缓存条目携带自己的 `AbortController`。新计划替换（`receiveRenderData` → prune）或断开触发逐出时，仍在解码的条目**立即取消**其 in-flight 读取——延迟响应不能在可缓存层预算之外堆积 loading/pinned/pending-close 资源。最新计划仍引用的资源不会被逐出（prune 保留；LRU 上界只选已完成的条目作牺牲），因此取消永远不会波及在用读取；已完成的位图没有可取消的读取，保持「pin 归零即关闭」语义。`loading` 计数以「位图尚未赋值」为一次性判据，晚到的过期解码拒绝也能正确归还计数。
+**过期计划的读取取消**：每个缓存条目携带自己的 `AbortController`。新计划替换（`receiveRenderData` → prune）或断开触发逐出时，仍在解码的条目**立即取消**其 in-flight 读取——延迟响应不会为已经淘汰的计划继续堆积 loading/pinned/pending-close 资源。最新计划仍引用的资源不会被逐出（prune 保留；LRU 上界只选已完成的条目作牺牲），因此取消永远不会波及在用读取；已完成的位图没有可取消的读取，保持「pin 归零即关闭」语义。`loading` 计数以「位图尚未赋值」为一次性判据，晚到的过期解码拒绝也能正确归还计数。
 
-**解码并发（MAX_CONCURRENT_DECODES = 8）**：`createImageBitmap` 一旦启动便无法取消，仅靠取消无法约束解码工作。因此每次解码前先过**解码前门禁**（检查 abort/条目身份/连接状态，fetch 已返回但计划已被替换的条目不再进入解码；排队等待获得槽位后再检查一次）；并发解码硬上限 8，超出部分进入**感知取消的等待队列**——逐出条目的排队解码被立即移出队列且永不启动。队列长度由计划校验限界的资源集合约束，**不**冒充字节预算：字节边界由 `AvatarPlanV1`（compact 数据上限 + 单帧解码字节上限）承担，上游 ContentClient 的字节缓存策略另行跟踪（不属本组件）。
+**解码并发（MAX_CONCURRENT_DECODES = 8）**：`createImageBitmap` 一旦启动便无法取消，仅靠取消无法约束解码工作。因此每次解码前先过**解码前门禁**（检查 abort/条目身份/连接状态，fetch 已返回但计划已被替换的条目不再进入解码；排队等待获得槽位后再检查一次）；并发解码硬上限 8，超出部分进入**感知取消的等待队列**——逐出条目的排队解码被立即移出队列且永不启动。队列长度由计划校验限界的资源集合约束，**不**冒充字节预算：`AvatarPlanV1` 只保证冻结的 compact 数据协议上限；不设图集页字节预算，上游 ContentClient 的字节缓存策略另行跟踪（不属本组件）。
 
 **Paint 调度**：`_requestPaint` 把同一同步任务内的连续属性/数据/事件更新合并为**一个** paint 轮次（微任务合并；调度时即失效在途旧轮次，与旧同步语义一致）。轮次内逐层获取位图条目，`finally` 是**唯一**的释放路径——同步查找失败、过期丢弃、绘制失败与成功共用同一处 unpin，杜绝漏释放与二次释放。`diagnostics().paintRequests/paintRounds` 分别计数合并前请求与实际轮次。
 
 **合成画布复用**：设备像素尺寸与 DPR 未变化时不重新赋值 `canvas.width/height`（同值赋值也会清空位图），改为显式 `clearRect` 后按原变换重绘；尺寸或 DPR 变化时才重新分配。每帧标记色像素回归证明复用不产生残影。
 
-**位图缓存（两层预算模型）**：
+**位图缓存（图集页 LRU，无解码字节预算）**：
 
-- **可缓存层（LRU）**：已完成解码、当前没有绘制占用的位图。硬上限 = 64 条 **或** 12,582,912 解码字节（`BITMAP_CACHE_LIMITS`），任一先到即逐出最久未用者。每次完成插入都在返回前强制执行边界，因此该层**任何时候**（含并发加载期间）都不超限；条目在逐出时即从计数中移出，即使位图因绘制 pin 而延迟 close。
-- **工作集层**：正在解码或被一次绘制 pin 的位图，绝不中途逐出。由计划校验限界：每帧 ≤ 32 层、每帧解码字节 ≤ `maxDecodedFrameBytes`，因此工作集不会无界绕过预算，也不会永久超限。
-- 单张超过字节预算的画布在计划校验即拒绝（可定位错误）；防御路径下它只作为工作集使用、永不进入缓存。
-- `receiveRenderData` 接受新计划时，先释放旧计划不再引用的条目（计划驱动生命周期）；断开（`disconnectedCallback`）立即中止 in-flight 读取、停表、关闭并清空全部 `ImageBitmap`，重连按需重建。
-- `diagnostics()`（非 ABI）分层报告 `entries/bytes`（可缓存层）、`loading`、`pendingClose/pendingCloseBytes`，供容量与泄漏断言。
+- **整页缓存**：按 `namespace + key + contentVersion` 缓存整张 `ImageBitmap`，同一页的多张小图共用一次读取和解码。最多保留 64 个缓存条目只是 **LRU 复用策略**，不是帧能否绘制的门槛；**不设 12 MiB 或其他固定字节预算**。
+- **逐层裁剪校验**：`Promise.all` 返回整页位图后，逐层核对 `source` 是否落在实际页面大小内。冷缓存同一页有两张裁剪时，也不能仅检查第一个。
+- **生命周期**：在途读取保持取消和过期判定；绘制中位图被 pin，最后 unpin 时可以关闭；新计划可清理不再使用的页面，断连全部释放。
+- **监控**：`diagnostics().cache.bytes` 为解码缓存的真实字节计数，不再有 `maxBytes` 字段。无固定解码字节上限是产品选择，过大的图集或同时驻留过多页面依然可能使浏览器内存不足；PNG 版本、MIME、尺寸与源矩形仍必须校验。
 
 **跨计划尺寸一致性**：缓存条目记录解码尺寸；同一 `(namespace, key, contentVersion)` 在后续计划中声明不同尺寸时，命中缓存即同步拒绝（`CONTENT_INVALID … declares WxH but the cached decode … is W'×H'`），错误进入该次绘制的错误处理，不会产生未处理 Promise，也不会把位图拉伸绘制。
 
@@ -171,7 +184,8 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 
 | 套件 | 位置 | 可复现性 | 内容 |
 |---|---|---|---|
-| 算法（Node，22 例） | `node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs` | **可复现** | 计划校验、字节预算（compact 数据 / 单画布 / 帧合计）、锚点布局、镜像、打包一致性、presentation.json 正式校验（真实 `validateWebPresentationConfigV1` / `prepareWebPresentationV1`）、组合画布与解码并发限额不变量（DPR 钳制、设备像素面积 ≤ 帧字节预算、并发解码 ≤ 帧层界） |
+| 算法（Node） | `node --test components/cms-actor/test/avatar-model.test.mjs components/cms-actor/test/browser-artifact.test.mjs components/cms-actor/test/adventure-adapter.test.mjs components/cms-actor/test/adventure-clock.test.mjs` | **可复现** | 计划校验、可缺省 `source`、表情锚点、`delay: 0` 与缺 `delay`、字节预算、锚点布局、镜像、打包一致性、presentation.json 正式校验、自研库两套装备的投影与遮挡、计划和事件的到达顺序 |
+| 自研库绘制（真实 Chromium，`content/[FSDB]adventure`） | `node --test components/cms-actor/test/adventure-chromium.test.mjs` | **可复现**（需 Chromium 与已构建的 pinned renderer dist） | 两套装备经 `adventure-adapter` 投影后，由正式 bootstrap 绘制；身体图集只请求一次，合成尺寸小于整页 |
 | 浏览器集成（真实 Chromium，合成 FSDB，20 例） | `node --test components/cms-actor/test/integration.chromium.test.mjs` | **可复现**（需 Chromium 与已构建的 pinned renderer dist） | 正式 `bootstrapWebPresentation()` 加载 classic 入口；`customElements.get("cms-actor")`；Projector 注入 Context/attrs/avatarPlan；`resource()` 收到正确 namespace/key/版本；Canvas 像素（锚点对齐、z 序、透明合成、镜像，DPR 1 与 2、含 `move` 轴）；`stand1`/`walk1`/`jump` 帧推进；一次性 `action` 播完恢复当前移动；快速切换动作；慢速资源不覆盖新动作；版本冲突与资源缺失的可定位诊断与恢复；断开取消 in-flight 并释放缓存、重连恢复；缓存容量上界；超大单图与同帧多图在计划校验拒绝；32 资源并发突发期间可缓存层逐次采样不超限；跨计划尺寸冲突可定位拒绝且无未处理 Promise；极远锚点在给画布赋值前以 `COMPOSITE_TOO_LARGE` 拒绝（DPR 1 与 64），异常 DPR 钳制到 8；延迟响应下连续替换计划时旧计划专属读取被取消且有界；门控解码下排队过期任务被丢弃、并发 ≤ 8；**帧中同步查找失败释放全部已获取 pin（pendingClose 归零）；绘制失败叠加重叠轮次后干净收敛并恢复；同一任务内多次更新合并为单一 paint 轮次；合成画布跨帧复用（无重赋值/重分配）且标记色逐帧更替、DPR 变化恰好一次重分配** |
 | 性能测量（非测试套件） | `node components/cms-actor/test/perf.chromium.mjs` | **可复现**（真实 Chromium） | 首帧就绪（DPR 1/2/3、5/9/32 层）、稳态动画的帧绘制数与单次绘制 p50/p95、画布 width 赋值/有效重分配次数、32 资源解码并发/排队峰值、30 次连续计划替换的收敛时间与请求/轮次计数、近似堆占用 |
 | 真实素材（真实 FSDB，3 例） | `node --test components/cms-actor/test/real-assets.local.test.mjs` | **仅本地**（无真实 FSDB 的 checkout 显式 skip 并给出原因） | 用本地合法取得的 079 WZ 转出的真实 FSDB（纸娃娃子集）重复同一闭环，并把转换结果与 Task 050/DESIGN 的逆向几何逐项对照。激活方式：`CMS_ACTOR_REAL_FSDB` 指向含 `[struct]Look/{00002000,00012000,00020000,00030000,01302000}.json`、`[struct]ZMap/order.json` 与 `[resource]图/` 的 FSDB 根 |
@@ -197,7 +211,7 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 ## 9. 后续集成顺序
 
 0. **PR-B（本 Issue 之后的新 Issue/新 PR）**：根 `presentation.json` 注册、严格白名单合成 Content 发布、真实 PWA/Service Worker/Renderer 投影与根 CI 更新（`.github/**` 仅由维护者处理）。
-1. 装备 `islot/vslot` 遮挡（接入 `struct.SMap/smap`，真实表驱动；不在组件里按文件名猜槽位）。
+1. 经典 `struct.SMap` 路径的装备遮挡。自研库已经按 `LayerSlot` 和 `DrawOrder` 对齐 `0x401C74`。
 2. 表情独立计时（`blink` 等与身体分开的帧钟）与更多肤色后缀、ladder/rope 的 backHead 路径。
 3. 扩大真实白名单动作（更多 `swing*`/`stab*`/技能引用动作）与多件装备组合验证。
 4. 全量 16 包转换与 FSDB Integrity-valid（属 WZ→FSDB 转换器的未竟事项）。

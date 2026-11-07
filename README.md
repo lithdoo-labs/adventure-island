@@ -24,8 +24,10 @@ Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定�
 
 | 路径 | 职责 |
 |---|---|
-| `apps/pwa/` | PWA 安装根与平台入口 |
-| `apps/hostra/` | Hostra 安装根与平台入口 |
+| `apps/pwa/` | 隔离的 legacy Smoke PWA 入口，不是 canonical 启动 |
+| `apps/hostra/` | 隔离的 legacy Smoke Hostra 入口；canonical Hostra 清单在仓库根，实机验收 BLOCKED |
+| `systems/base/`、`systems/adventure-map/` | canonical Base 与 Adventure Map 的唯一实现 |
+| `subsystems/` | 根安装根的薄 re-export；PWA 发布的是打包后的 executable |
 | `components/` | 游戏画面与交互 Web Components |
 | `libs/` | 本游戏复用的领域库和运行时逻辑 |
 | `systems/` | LoomRealm Subsystem 实现 |
@@ -63,18 +65,19 @@ Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定�
 
 ## 本地 PWA Staging 与独立 CI
 
-根目录 `npm run pwa:bundle` 使用 Adventure Island 的 canonical Game Entry 创建无外部资源的 Smoke installation-bundle；`npm run pwa:staging` 在检查精确 Gitlink、真实通用 Builder 和编译依赖后，生成 `dist/staging/adventure-island/`。该目录只是本地构建产物，**不是线上服务**。升级后首次验证可执行：
+根目录 `npm run pwa:bundle` 从 canonical `base` → `adventure-map` 入口发布两份自包含 executable、选定 `[FSDB]adventure` Avatar 闭包、派生 `struct.AdventureAvatarPlan/bootstrap`，以及 Controls 与 cms-actor 两份 classic script。`npm run pwa:staging` 在检查精确 Gitlink、真实通用 Builder 和编译依赖后，生成 `dist/staging/adventure-island/`。该目录只是本地构建产物，**不是线上服务**。
+
+安装顺序：
 
 ```bash
-npm ci --prefix loom-realm
+npm ci --no-audit --no-fund
+npm ci --prefix loom-realm --no-audit --no-fund
+npm run build:game-common-controls-input --prefix loom-realm
 npm run pwa:bundle
-npm run build:bundle --prefix loom-realm --workspace @loomrealm/pwa -- \
-  --bundle "$PWD/dist/adventure-island-installation-bundle.json" \
-  --app-id adventure-island --base-path /pwa/adventure-island/ \
-  --output-dir "$PWD/dist/staging/adventure-island"
-npm run build --prefix loom-realm --workspace @loomrealm/game-launcher-hostra
 npm test
 npm run pwa:staging
 ```
 
-`.github/workflows/pwa-ci.yml` 在 GitHub-hosted Runner 中独立编译 LoomRealm，强制执行无跳过的根测试、真实 staging 及 Chromium/Service Worker Smoke E2E。构建与部署必须分离；本阶段不启动 Docker、生产端口或 Pokeman 服务。详见 [Game Entry 与 PWA Bundle](./docs/game-entry.md)。
+PWA 键盘闭环由 `test/pwa-browser.e2e.test.mjs` 的 canonical 场景在真实 Service Worker 下验证。Hostra 清单与根绑定一致，但没有桌面实机验收，状态为 **BLOCKED**。没有真实 D-pad 设备验证，状态为 **DEVICE UNVERIFIED**。未运行的测试不能记为通过。
+
+`.github/workflows/pwa-ci.yml` 在 GitHub-hosted Runner 中独立编译 LoomRealm，强制执行无跳过的根测试、真实 staging 及 canonical Chromium/Service Worker E2E。构建与部署必须分离；本阶段不启动 Docker、生产端口或 Pokeman 服务。详见 [Game Entry 与 PWA Bundle](./docs/game-entry.md)。

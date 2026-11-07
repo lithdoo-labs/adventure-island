@@ -1,8 +1,8 @@
 // Headless validation for the Adventure Island PWA installation-bundle
-// generator (PWA migration Stage 4A + PR-B synthetic Content,
+// generator (canonical Base / Adventure Map slice,
 // scripts/pwa/build-installation-bundle.mjs).
 //
-// Deterministic base layer (no build, no network):
+// Deterministic base layer:
 //   - the CLI produces a byte-deterministic installation-bundle v1 payload
 //     whose every field derives exactly from the canonical root sources;
 //   - the payload satisfies the upstream generic bundle validator
@@ -10,16 +10,12 @@
 //     93648192323bf5f57996b7b54cbae641d8a53fdb,
 //     apps/pwa/scripts/build-bundle.mjs; the local mirror remains calibrated
 //     against the same validator used by the pinned generic PWA builder);
-//   - manifest/subsystem keys round-trip; the executable set is unique,
+//   - manifest/subsystem keys round-trip; the two executables are bundled,
 //     dependency-free, and content-hashed correctly;
-//   - the Content whitelist is exact: the cms-actor classic IIFE plus the
-//     deterministic synthetic paper-doll records/PNGs, nothing else — every
-//     identity, MIME and canonical base64 body is pinned, the Look records'
-//     embedded canvas versions equal the published PNG sha256s, and the
-//     synthetic PNGs are byte-identical to the cms-actor component fixture
-//     for every shared identity;
-//   - the root and apps/* shims, the component's ESM sources, and tampered
-//     synthetic Content are all rejected by the builder's rules;
+//   - Content is the selected [FSDB]adventure closure, the derived bootstrap
+//     AvatarPlan, and the two classic scripts;
+//   - the root and apps/* shims, the component's ESM sources, and a Plan
+//     whose PNG version does not match the published bytes are rejected;
 //   - illegal CLI usage and failing inputs are rejected without writing;
 //   - the artifact carries no research material or sensitive markers.
 //
@@ -37,22 +33,21 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  ACTOR_SCRIPT_KEY,
   CONTENT_SCRIPT_SOURCE_BINDINGS,
+  CONTROLS_SCRIPT_KEY,
   EXECUTABLE_SOURCE_BINDINGS,
+  PRESENTATION_SCRIPT_NAMESPACE,
   assertExecutableGraph,
+  assertPublishedAdventureAvatar,
   buildAdventureIslandInstallationBundle,
 } from "../scripts/pwa/build-installation-bundle.mjs";
 import {
-  IMAGE_NAMESPACE,
-  LOOK_RECORD_KEYS,
-  PRESENTATION_SCRIPT_KEY,
-  PRESENTATION_SCRIPT_NAMESPACE,
-  ZMAP_NAMESPACE,
-  LOOK_NAMESPACE,
-  buildCanonicalSyntheticAvatarContent,
-  contentEntriesToParts,
-  deriveCanonicalAvatarPlan,
-} from "../scripts/pwa/synthetic-avatar-content.mjs";
+  AVATAR_PLAN_BYTE_LIMIT,
+  AVATAR_PLAN_KEY,
+  AVATAR_PLAN_NAMESPACE,
+  readAdventureAvatarClosure,
+} from "../scripts/pwa/read-adventure-fsdb.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
@@ -61,29 +56,52 @@ const loomRealmRoot = new URL("loom-realm/", repoRoot);
 
 const EXPECTED_GAME_ENTRY = Object.freeze({
   formatVersion: 1,
-  initial: Object.freeze({ subsystem: "smoke", input: null }),
-  subsystems: Object.freeze([{ key: "smoke" }]),
+  initial: Object.freeze({ subsystem: "base", input: null }),
+  subsystems: Object.freeze([{ key: "base" }, { key: "adventure-map" }]),
 });
 const EXPECTED_LAUNCH_MANIFEST = Object.freeze({
   formatVersion: 1,
-  subsystems: Object.freeze([{ key: "smoke", module: "subsystems/smoke.mjs" }]),
+  subsystems: Object.freeze([
+    { key: "base", module: "subsystems/base.mjs" },
+    { key: "adventure-map", module: "subsystems/adventure-map.mjs" },
+  ]),
 });
 const EXPECTED_PRESENTATION = Object.freeze({
   formatVersion: 1,
   styles: Object.freeze([]),
   scripts: Object.freeze([
-    Object.freeze({ namespace: "Presentation", key: PRESENTATION_SCRIPT_KEY }),
+    Object.freeze({ namespace: "Presentation", key: CONTROLS_SCRIPT_KEY }),
+    Object.freeze({ namespace: "Presentation", key: ACTOR_SCRIPT_KEY }),
   ]),
 });
+const EXPECTED_EXECUTABLES = Object.freeze(["subsystems/base.mjs", "subsystems/adventure-map.mjs"]);
 
-/** The exact canonical Content identity set (PR-B whitelist), sorted. */
-const expectedContentIdentities = () => {
-  const synthetic = buildCanonicalSyntheticAvatarContent();
+/** The exact canonical Content identity set, sorted like the builder. */
+const expectedContentIdentities = async () => {
+  const closure = await readAdventureAvatarClosure(repoRootPath);
   return [
-    ...synthetic.entries.map(({ kind, namespace, key }) => `${kind}\0${namespace}\0${key}`),
-    `resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${PRESENTATION_SCRIPT_KEY}`,
+    ...closure.entries.map(({ kind, namespace, key }) => `${kind}\0${namespace}\0${key}`),
+    `record\0${AVATAR_PLAN_NAMESPACE}\0${AVATAR_PLAN_KEY}`,
+    ...Object.keys(CONTENT_SCRIPT_SOURCE_BINDINGS),
   ].sort();
 };
+
+async function copyRepoFile(relativePath, targetRoot) {
+  const target = path.join(targetRoot, ...relativePath.split("/"));
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, await readFile(path.join(repoRootPath, ...relativePath.split("/"))));
+}
+
+/** Copy the canonical documents, subsystem sources, scripts, and FSDB closure. */
+async function stageProductInputs(targetRoot) {
+  for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) {
+    await copyRepoFile(name, targetRoot);
+  }
+  for (const physicalPath of Object.values(EXECUTABLE_SOURCE_BINDINGS)) await copyRepoFile(physicalPath, targetRoot);
+  for (const physicalPath of Object.values(CONTENT_SCRIPT_SOURCE_BINDINGS)) await copyRepoFile(physicalPath, targetRoot);
+  const closure = await readAdventureAvatarClosure(repoRootPath);
+  for (const relativePath of closure.relativeFiles) await copyRepoFile(relativePath, targetRoot);
+}
 
 const readText = (urlOrPath) => readFile(urlOrPath, "utf8");
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -97,27 +115,18 @@ async function makeTempDir(prefix = "adventure-pwa-bundle-") {
 }
 
 // A fully isolated "project root" that mimics a fresh checkout of this
-// repository: the three canonical documents, the shared smoke implementation,
-// the cms-actor classic browser artifact, and a protected research/ tree
-// with a sentinel. Nothing here ever touches the real repository's research/.
+// repository: the canonical documents, both Subsystem sources, both classic
+// scripts, the selected FSDB closure, and a protected research/ tree with a
+// sentinel. Nothing here ever touches the real repository's research/.
 async function makeIsolatedGameRoot() {
   const isolatedRoot = await mkdtemp(path.join(tmpdir(), "adventure-isolated-root-"));
   await mkdir(path.join(isolatedRoot, "research"), { recursive: true });
   await writeFile(path.join(isolatedRoot, "research", "keep.txt"), "sentinel-content\n", "utf8");
-  for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) {
-    await writeFile(path.join(isolatedRoot, name), await readText(new URL(name, repoRoot)), "utf8");
-  }
-  await mkdir(path.join(isolatedRoot, "components", "cms-actor", "browser"), { recursive: true });
-  await writeFile(
-    path.join(isolatedRoot, "components", "cms-actor", "browser", "cms-actor.browser.js"),
-    await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)),
-    "utf8",
-  );
+  await stageProductInputs(isolatedRoot);
   const build = (outputFile) => buildAdventureIslandInstallationBundle({
     gameRoot: isolatedRoot,
     outputFile,
     verifyGitlink: false,
-    executableSources: { "subsystems/smoke.mjs": fileURLToPath(new URL("systems/loomrealm-smoke/subsystem.mjs", repoRoot)) },
   });
   return { root: isolatedRoot, build };
 }
@@ -254,9 +263,9 @@ test("the CLI builds a byte-deterministic installation-bundle v1 payload", async
     assert.equal(first.status, 0, `CLI must succeed (stderr: ${first.stderr})`);
     assert.match(first.stdout, /Prepared Adventure Island installation-bundle v1 from canonical root sources/);
     const summary = JSON.parse(first.stdout.split("\n")[1]);
-    assert.equal(summary.executableCount, 1);
-    assert.equal(summary.contentCount, expectedContentIdentities().length);
-    assert.deepEqual(summary.executableModules, ["subsystems/smoke.mjs"]);
+    assert.equal(summary.executableCount, EXPECTED_EXECUTABLES.length);
+    assert.equal(summary.contentCount, (await expectedContentIdentities()).length);
+    assert.deepEqual(summary.executableModules, [...EXPECTED_EXECUTABLES]);
     const gitlink = execFileSync("git", ["-C", repoRootPath, "rev-parse", "HEAD:loom-realm"], { encoding: "utf8" }).trim();
     assert.match(gitlink, /^[0-9a-f]{40}$/u);
     assert.equal(summary.frameworkSha, gitlink);
@@ -301,22 +310,21 @@ test("the payload schema and provenance are exact", async () => {
     assert.deepEqual(payload.presentation, EXPECTED_PRESENTATION);
     assert.deepEqual(payload.presentation, JSON.parse(await readText(new URL("presentation.json", repoRoot))));
 
-    // Exactly one executable: the dependency-free shared implementation —
-    // never the root or apps/* installation shims.
-    assert.equal(payload.executables.length, 1);
-    const executable = payload.executables[0];
-    assert.deepEqual(Object.keys(executable), ["logicalModule", "mime", "source", "contentVersion"]);
-    assert.equal(executable.logicalModule, "subsystems/smoke.mjs");
-    assert.equal(executable.mime, "text/javascript");
-    assert.equal(executable.source, await readText(new URL("systems/loomrealm-smoke/subsystem.mjs", repoRoot)));
-    assert.notEqual(executable.source, await readText(new URL("subsystems/smoke.mjs", repoRoot)));
-    assert.notEqual(executable.source, await readText(new URL("apps/pwa/subsystems/smoke.mjs", repoRoot)));
-    assert.equal(executable.contentVersion, `sha256:${sha256(executable.source)}`);
+    // Two bundled executables — never the root or apps/* installation shims.
+    assert.deepEqual(payload.executables.map((entry) => entry.logicalModule), [...EXPECTED_EXECUTABLES]);
+    for (const executable of payload.executables) {
+      assert.deepEqual(Object.keys(executable), ["logicalModule", "mime", "source", "contentVersion"]);
+      assert.equal(executable.mime, "text/javascript");
+      assert.equal(executable.contentVersion, `sha256:${sha256(executable.source)}`);
+      assert.doesNotMatch(executable.source, /\bfrom\s*["']|^\s*import\s+["']/mu);
+      const shim = await readText(new URL(executable.logicalModule, repoRoot));
+      assert.notEqual(executable.source, shim, "the published executable must be the bundle, not the shim");
+    }
 
-    // The Content set is the exact PR-B whitelist, canonically ordered.
+    // The Content set is the selected closure plus Plan and scripts, in order.
     assert.deepEqual(
       payload.content.map((entry) => [entry.kind, entry.namespace, entry.key].join("\0")),
-      expectedContentIdentities(),
+      await expectedContentIdentities(),
       "the Content whitelist must be exact (identity and order)",
     );
   } finally {
@@ -324,105 +332,76 @@ test("the payload schema and provenance are exact", async () => {
   }
 });
 
-test("the Content whitelist is exact: cms-actor IIFE plus deterministic synthetic paper-doll Content only", async () => {
+test("the Content whitelist is the selected FSDB closure, bootstrap Plan, and two classic scripts", async () => {
   const temp = await makeTempDir();
   try {
     const run = runCli(["--output", path.join(temp, "bundle.json")]);
     assert.equal(run.status, 0, `CLI must succeed (stderr: ${run.stderr})`);
     const payload = JSON.parse(await readText(path.join(temp, "bundle.json")));
-    const synthetic = buildCanonicalSyntheticAvatarContent();
-    const scriptBytes = await readFile(fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)));
+    const closure = await readAdventureAvatarClosure(repoRootPath);
+    const scripts = new Map([
+      [CONTROLS_SCRIPT_KEY, await readFile(path.join(repoRootPath, CONTENT_SCRIPT_SOURCE_BINDINGS[`resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${CONTROLS_SCRIPT_KEY}`]))],
+      [ACTOR_SCRIPT_KEY, await readFile(path.join(repoRootPath, CONTENT_SCRIPT_SOURCE_BINDINGS[`resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${ACTOR_SCRIPT_KEY}`]))],
+    ]);
+    const closureBytes = new Map(closure.entries.map((entry) => [`${entry.kind}\0${entry.namespace}\0${entry.key}`, entry]));
 
     for (const entry of payload.content) {
-      assert.deepEqual(Object.keys(entry), ["kind", "namespace", "key", "mime", "encoding", "body"], "content entries must have exactly the payload schema keys");
+      assert.deepEqual(Object.keys(entry), ["kind", "namespace", "key", "mime", "encoding", "body"]);
       assert.equal(entry.encoding, "base64");
       const bytes = Buffer.from(entry.body, "base64");
       assert.equal(bytes.toString("base64"), entry.body, "content bodies must be canonical base64");
       if (entry.kind === "resource" && entry.namespace === PRESENTATION_SCRIPT_NAMESPACE) {
-        assert.equal(entry.key, PRESENTATION_SCRIPT_KEY);
+        assert.ok(scripts.has(entry.key), `unexpected presentation script ${entry.key}`);
         assert.equal(entry.mime, "text/javascript; charset=utf-8");
-        assert.ok(bytes.equals(scriptBytes), "the published presentation script must be the PR-A classic artifact, byte for byte");
-        assert.doesNotMatch(bytes.toString("utf8"), /(^|\n)\s*(import|export)\s*[({"'\s]/u, "ES module sources must never be published as classic scripts");
-      } else if (entry.kind === "resource") {
-        assert.equal(entry.namespace, "resource.图");
-        assert.equal(entry.mime, "image/png");
-        assert.deepEqual(bytes.subarray(1, 4), Buffer.from([0x50, 0x4e, 0x47]), "image resources must be PNGs");
-      } else {
+        assert.ok(bytes.equals(scripts.get(entry.key)), `${entry.key} must be the sanctioned classic artifact`);
+        assert.doesNotMatch(bytes.toString("utf8"), /(^|\n)\s*(import|export)\s*[({"'\s]/u);
+      } else if (entry.namespace === AVATAR_PLAN_NAMESPACE) {
         assert.equal(entry.kind, "record");
-        assert.ok([ZMAP_NAMESPACE, LOOK_NAMESPACE].includes(entry.namespace), "records must be the synthetic ZMap/Look tables");
-        assert.ok(!entry.key.includes("/"), "record keys must be flat");
+        assert.equal(entry.key, AVATAR_PLAN_KEY);
         assert.equal(entry.mime, "application/json; charset=utf-8");
         JSON.parse(bytes.toString("utf8"));
+      } else {
+        const source = closureBytes.get(`${entry.kind}\0${entry.namespace}\0${entry.key}`);
+        assert.ok(source !== undefined, `${entry.namespace}/${entry.key} is outside the selected closure`);
+        assert.ok(bytes.equals(source.bytes), `${entry.namespace}/${entry.key} must keep the FSDB bytes`);
+        assert.equal(entry.mime, source.mime);
       }
     }
-
-    // Every synthetic entry is byte-identical to the canonical generator,
-    // and every generator entry is published (no extras, no omissions).
-    const published = new Map(payload.content.map((entry) => [[entry.kind, entry.namespace, entry.key].join("\0"), Buffer.from(entry.body, "base64")]));
-    for (const { kind, namespace, key, mime, bytes } of synthetic.entries) {
-      const observed = published.get(`${kind}\0${namespace}\0${key}`);
-      assert.ok(observed !== undefined, `generator entry ${namespace}/${key} must be published`);
-      assert.ok(observed.equals(bytes), `published bytes for ${namespace}/${key} must equal the canonical generator`);
-      assert.equal(payload.content.find((entry) => entry.namespace === namespace && entry.key === key).mime, mime);
-    }
+    assert.equal(scripts.size, 2);
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
 });
 
-test("published synthetic Content is internally consistent and matches the cms-actor component fixture", async () => {
+test("T4 published AvatarPlan matches PNG identity, SHA-256, and the byte limit", async () => {
   const temp = await makeTempDir();
   try {
     const run = runCli(["--output", path.join(temp, "bundle.json")]);
     assert.equal(run.status, 0, `CLI must succeed (stderr: ${run.stderr})`);
     const payload = JSON.parse(await readText(path.join(temp, "bundle.json")));
-
-    // Identity uniqueness across the whole published set.
-    const identities = payload.content.map((entry) => [entry.kind, entry.namespace, entry.key].join("\0"));
-    assert.equal(new Set(identities).size, identities.length, "Content identities must be unique");
-
-    // The published parts derive a valid AvatarPlanV1 (the builder proved the
-    // same during assembly; re-derive independently here).
-    const parts = contentEntriesToParts(payload.content);
-    const plan = deriveCanonicalAvatarPlan(parts);
-    assert.deepEqual(Object.keys(plan.actions).sort(), ["jump", "stand1", "walk1"]);
-    assert.deepEqual(plan.zOrder, parts.zmap.order);
-
-    // Every Look-record canvas references a published PNG whose sha256 equals
-    // the version stamped in the record (identity/version consistency).
-    for (const [kind, record] of Object.entries(parts.looks)) {
-      for (const action of Object.values(record.actions)) {
-        for (const frame of action.frames ?? []) {
-          for (const canvas of frame.canvases) {
-            const image = parts.images.get(`resource\0${IMAGE_NAMESPACE}\0${canvas.resource}`);
-            assert.ok(image !== undefined, `record canvas ${canvas.resource} must reference a published resource`);
-            assert.equal(image.contentVersion, canvas.contentVersion, `record version for ${canvas.resource} must equal the published resource sha256`);
-            const layer = Object.values(plan.actions).flatMap((a) => a.frames).flatMap((f) => f.layers).find((l) => l.resource.key === canvas.resource);
-            assert.ok(layer !== undefined, `record canvas ${canvas.resource} must be reachable from the derived plan`);
-            assert.equal(layer.resource.contentVersion, image.contentVersion, "plan versions must equal the published resource versions");
-            assert.equal(`${layer.width}x${layer.height}`, `${canvas.width}x${canvas.height}`, "plan dimensions must equal the record dimensions");
-          }
+    const checked = assertPublishedAdventureAvatar(payload.content);
+    assert.ok(checked.dataBytes <= AVATAR_PLAN_BYTE_LIMIT);
+    assert.deepEqual(checked.plan.locomotionActions, { stand: "stand1", walk: "walk1", jump: "jump" });
+    assert.deepEqual(Object.keys(checked.plan.actions).sort(), ["jump", "stand1", "walk1"]);
+    const images = new Map(payload.content.filter((entry) => entry.kind === "resource" && entry.namespace === "resource.Avatar").map((entry) => {
+      const bytes = Buffer.from(entry.body, "base64");
+      return [entry.key, `sha256:${sha256(bytes)}`];
+    }));
+    assert.ok(images.size > 0, "the closure must publish the referenced PNG pages");
+    const referenced = new Set();
+    for (const action of Object.values(checked.plan.actions)) {
+      for (const frame of action.frames) {
+        for (const layer of frame.layers) {
+          referenced.add(layer.resource.key);
+          assert.equal(layer.resource.namespace, "resource.Avatar");
+          assert.equal(images.get(layer.resource.key), layer.resource.contentVersion);
         }
       }
     }
-
-    // The canonical synthetic PNGs are byte-identical to the cms-actor
-    // component synthetic fixture for every shared identity: the canonical
-    // Content cannot drift from the fixture that validates the renderer.
-    const { generateSyntheticFsdb } = await import("../components/cms-actor/test/synthetic-fsdb.mjs");
-    const componentRoot = fileURLToPath(new URL("components/cms-actor", repoRoot));
-    const fsdb = generateSyntheticFsdb(path.join(temp, "component-fixture"), {
-      scriptBytes: await readFile(path.join(componentRoot, "browser", "cms-actor.browser.js")),
-    });
-    let shared = 0;
-    for (const { kind, namespace, key, bytes } of buildCanonicalSyntheticAvatarContent().entries) {
-      const componentEntry = fsdb.index.get(`${namespace}\0${key}`);
-      if (componentEntry === undefined) continue;
-      shared += 1;
-      assert.ok(componentEntry.bytes.equals(bytes), `canonical ${namespace}/${key} must equal the component fixture bytes`);
+    for (const frame of checked.plan.expression?.frames ?? []) {
+      for (const layer of frame.layers) referenced.add(layer.resource.key);
     }
-    assert.equal(shared, 17, "every canonical PNG must exist in the component fixture");
-    await rm(path.join(temp, "component-fixture"), { recursive: true, force: true });
+    assert.ok([...referenced].every((key) => images.has(key)));
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -515,7 +494,10 @@ test("non-sanctioned executable sources are rejected — never the shims", async
       buildAdventureIslandInstallationBundle({
         outputFile: path.join(temp, "out-1.json"),
         verifyGitlink: false,
-        executableSources: { "subsystems/smoke.mjs": "subsystems/smoke.mjs" },
+        executableSources: {
+          "subsystems/base.mjs": "subsystems/base.mjs",
+          "subsystems/adventure-map.mjs": "systems/adventure-map/subsystem.mjs",
+        },
       }),
       /dependency-free/,
       "publishing the root shim must be rejected",
@@ -524,10 +506,13 @@ test("non-sanctioned executable sources are rejected — never the shims", async
       buildAdventureIslandInstallationBundle({
         outputFile: path.join(temp, "out-2.json"),
         verifyGitlink: false,
-        executableSources: { "subsystems/smoke.mjs": "apps/pwa/subsystems/smoke.mjs" },
+        executableSources: {
+          "subsystems/base.mjs": "systems/base/subsystem.mjs",
+          "subsystems/adventure-map.mjs": "apps/pwa/subsystems/smoke.mjs",
+        },
       }),
       /dependency-free/,
-      "publishing the apps/pwa shim must be rejected",
+      "publishing an apps/* shim must be rejected",
     );
     await assert.rejects(
       buildAdventureIslandInstallationBundle({
@@ -583,7 +568,7 @@ test("non-sanctioned executable sources are rejected — never the shims", async
 test("non-sanctioned Content script sources are rejected — never the ESM sources", async () => {
   const temp = await makeTempDir();
   try {
-    const identity = `resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${PRESENTATION_SCRIPT_KEY}`;
+    const identity = `resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${ACTOR_SCRIPT_KEY}`;
     // The component's authored ESM sources must never be published as the
     // classic presentation script.
     for (const esmSource of ["src/cms-actor.mjs", "src/avatar-model.mjs"]) {
@@ -614,49 +599,32 @@ test("non-sanctioned Content script sources are rejected — never the ESM sourc
   }
 });
 
-test("tampered synthetic Content fails the builder's consistency checks", async () => {
+test("a published Plan whose PNG version does not match the bytes is rejected", async () => {
   const temp = await makeTempDir();
   try {
-    const canonical = buildCanonicalSyntheticAvatarContent();
     const output = path.join(temp, "bundle.json");
-    const buildWith = (syntheticContent) => buildAdventureIslandInstallationBundle({
-      outputFile: output,
-      verifyGitlink: false,
-      syntheticContent,
-    });
+    const summary = await buildAdventureIslandInstallationBundle({ outputFile: output, verifyGitlink: false });
+    assert.equal(summary.contentCount, (await expectedContentIdentities()).length);
+    const payload = JSON.parse(await readText(output));
+    assertPublishedAdventureAvatar(payload.content);
 
-    // A record whose canvas version no longer matches the published PNG.
-    const withHairRecordTampered = (tamper) => () => ({
-      entries: canonical.entries.map((entry) => {
-        if (entry.namespace !== LOOK_NAMESPACE || entry.key !== LOOK_RECORD_KEYS.hair) return entry;
-        const value = JSON.parse(entry.bytes.toString("utf8"));
-        tamper(value);
-        return { ...entry, bytes: Buffer.from(`${JSON.stringify(value, null, 2)}\n`, "utf8") };
-      }),
-    });
-    await assert.rejects(
-      buildWith(withHairRecordTampered((value) => {
-        value.actions.stand1.frames[0].canvases[0].contentVersion = `sha256:${"0".repeat(64)}`;
-      })),
-      /stamps sha256:0+ for Look\/00030000\/stand1\/0\/hair/u,
-      "a record/PNG version mismatch must be rejected",
+    const tampered = structuredClone(payload.content);
+    const plan = tampered.find((entry) => entry.namespace === AVATAR_PLAN_NAMESPACE && entry.key === AVATAR_PLAN_KEY);
+    const value = JSON.parse(Buffer.from(plan.body, "base64").toString("utf8"));
+    value.actions.stand1.frames[0].layers[0].resource.contentVersion = `sha256:${"0".repeat(64)}`;
+    plan.body = Buffer.from(JSON.stringify(value), "utf8").toString("base64");
+    assert.throws(
+      () => assertPublishedAdventureAvatar(tampered),
+      /stamps sha256:0+/,
+      "a Plan/PNG version mismatch must be rejected",
     );
 
-    // A dropped PNG referenced by the records.
-    await assert.rejects(buildWith(() => ({
-      entries: canonical.entries.filter((entry) => entry.key !== "Look/00020000/default/0/face"),
-    })), /references unpublished resource|missing/, "dropping a referenced PNG must be rejected");
-
-    // A record replaced by a different kind at the same identity.
-    await assert.rejects(buildWith(() => ({
-      entries: canonical.entries.map((entry) => (entry.namespace === ZMAP_NAMESPACE && entry.key === "order"
-        ? { ...entry, kind: "group" }
-        : entry)),
-    })), /groups are not part of the canonical synthetic Content set/, "unexpected kinds must be rejected");
-
-    // The untampered canonical generator still builds.
-    const summary = await buildWith(() => canonical);
-    assert.equal(summary.contentCount, expectedContentIdentities().length);
+    const dropped = payload.content.filter((entry) => entry.namespace !== "resource.Avatar");
+    assert.throws(
+      () => assertPublishedAdventureAvatar(dropped),
+      /references unpublished/,
+      "dropping a referenced PNG must be rejected",
+    );
   } finally {
     await rm(temp, { recursive: true, force: true });
   }
@@ -716,14 +684,12 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
       const game = await readText(new URL("game.json", repoRoot));
       const manifest = await readText(new URL("launch.pwa.json", repoRoot));
       const presentation = await readText(new URL("presentation.json", repoRoot));
-      const componentScript = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
-      const baseDocuments = { "game.json": game, "launch.pwa.json": manifest, "presentation.json": presentation, "components/cms-actor/browser/cms-actor.browser.js": componentScript };
+      const baseDocuments = { "game.json": game, "launch.pwa.json": manifest, "presentation.json": presentation };
       const output = path.join(temp, "fixture-bundle.json");
       const runBuild = () => buildAdventureIslandInstallationBundle({
         gameRoot: fixture,
         outputFile: output,
         verifyGitlink: false,
-        executableSources: { "subsystems/smoke.mjs": path.join(repoRootPath, "systems", "loomrealm-smoke", "subsystem.mjs") },
       });
       const rejectFixture = async (overrides, pattern, message) => {
         await writeFixture({ ...baseDocuments, ...overrides });
@@ -731,19 +697,20 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
       };
 
       await assert.rejects(runBuild(), /ENOENT/, "missing canonical inputs must be rejected");
+      await stageProductInputs(fixture);
 
       await rejectFixture(
-        { "game.json": JSON.stringify({ formatVersion: 1, initial: { subsystem: "smoke", input: null }, subsystems: [{ key: "smoke" }, { key: "ghost" }] }) },
+        { "game.json": JSON.stringify({ formatVersion: 1, initial: { subsystem: "base", input: null }, subsystems: [{ key: "base" }, { key: "adventure-map" }, { key: "ghost" }] }) },
         /has no PWA binding/,
         "a subsystem without a PWA binding must be rejected",
       );
       await rejectFixture(
-        { "launch.pwa.json": JSON.stringify({ formatVersion: 1, subsystems: [{ key: "ghost", module: "subsystems/smoke.mjs" }] }) },
+        { "launch.pwa.json": JSON.stringify({ formatVersion: 1, subsystems: [{ key: "ghost", module: "subsystems/base.mjs" }] }) },
         /has no PWA binding|not declared by the Game Entry/,
         "a manifest/Game Entry key-set mismatch must be rejected",
       );
       await rejectFixture(
-        { "launch.pwa.json": JSON.stringify({ formatVersion: 1, subsystems: [{ key: "smoke", module: "../escape.mjs" }] }) },
+        { "launch.pwa.json": JSON.stringify({ formatVersion: 1, subsystems: [{ key: "base", module: "../escape.mjs" }] }) },
         /invalid logical module/,
         "an out-of-root logical module must be rejected",
       );
@@ -783,13 +750,13 @@ test("output path safety: a project root without dist/ supports both dist and te
   try {
     const tempTarget = path.join(await makeTempDir(), "bundle.json");
     const tempSummary = await isolated.build(tempTarget);
-    assert.equal(JSON.parse(await readText(tempSummary.outputFile)).executables.length, 1);
+    assert.equal(JSON.parse(await readText(tempSummary.outputFile)).executables.length, EXPECTED_EXECUTABLES.length);
 
     const distTarget = path.join(isolated.root, "dist", "adventure-island-installation-bundle.json");
     const distSummary = await isolated.build(distTarget);
     const payload = JSON.parse(await readText(distSummary.outputFile));
-    assert.equal(payload.executables.length, 1);
-    assert.equal(payload.content.length, expectedContentIdentities().length);
+    assert.equal(payload.executables.length, EXPECTED_EXECUTABLES.length);
+    assert.equal(payload.content.length, (await expectedContentIdentities()).length);
     await assert.rejects(readText(path.join(isolated.root, "research", "bundle.json")), /ENOENT/);
 
     // Multi-level missing parents are created along the trusted chain — both
@@ -954,12 +921,11 @@ test("the artifact carries no research material or sensitive markers", async () 
       ...Object.values(CONTENT_SCRIPT_SOURCE_BINDINGS),
     ];
     for (const input of whitelisted) {
-      assert.match(input, /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/|components\/cms-actor\/browser\/)/u, `input whitelist entry must stay canonical: ${input}`);
+      assert.match(input, /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/|components\/cms-actor\/browser\/|loom-realm\/game-libs\/game-common-controls\/dist\/browser\/)/u, `input whitelist entry must stay canonical: ${input}`);
     }
-    // The synthetic Content itself is generated, never read from disk: no
-    // path outside the frozen whitelist can contribute Content bytes.
-    for (const entry of buildCanonicalSyntheticAvatarContent().entries) {
-      assert.ok(Buffer.isBuffer(entry.bytes), "synthetic entries must be generated bytes");
+    const closure = await readAdventureAvatarClosure(repoRootPath);
+    for (const relativePath of closure.relativeFiles) {
+      assert.match(relativePath, /^content\/\[FSDB\]adventure\//u, `avatar closure must stay inside the adventure FSDB: ${relativePath}`);
     }
   } finally {
     await rm(temp, { recursive: true, force: true });
@@ -1040,16 +1006,17 @@ test("the pinned buildPwaExecutableIndexV1 accepts the payload executable graph"
     const graph = await pwaLauncher.buildPwaExecutableIndexV1(
       payload.executables.map(({ logicalModule, source, contentVersion }) => ({ logicalModule, source, contentVersion })),
     );
-    assert.deepEqual(graph, [
-      { logicalModule: "subsystems/smoke.mjs", contentVersion: payload.executables[0].contentVersion, imports: [] },
-    ]);
+    assert.deepEqual(graph, payload.executables.map(({ logicalModule, contentVersion }) => ({
+      logicalModule,
+      contentVersion,
+      imports: [],
+    })));
 
-    // Bundle-level echo of the Turn 1 guard: feeding the root shim source in
-    // place of the published executable must fail the real graph builder.
-    const shimSource = await readText(new URL("subsystems/smoke.mjs", repoRoot));
+    // The installation shims are not publishable on their own.
+    const shimSource = await readText(new URL("subsystems/base.mjs", repoRoot));
     await assert.rejects(
       pwaLauncher.buildPwaExecutableIndexV1([
-        { logicalModule: "subsystems/smoke.mjs", source: shimSource, contentVersion: `sha256:${sha256(shimSource)}` },
+        { logicalModule: "subsystems/base.mjs", source: shimSource, contentVersion: `sha256:${sha256(shimSource)}` },
       ]),
       (error) => {
         assert.equal(error?.code, "SUBSYSTEM_MODULE_NOT_FOUND");

@@ -338,14 +338,14 @@ test("the no-op subsystem imports, constructs, and completes Frames deterministi
   assert.deepEqual(used, [], "the no-op subsystem must not touch any scope capability or call other subsystems");
 });
 
-test("the canonical game and smoke executable satisfy the real generic PWA payload contract", async () => {
-  const gameEntryText = await readText(new URL("game.json", repoRoot));
-  const launchManifestText = await readText(new URL("launch.pwa.json", repoRoot));
-  const game = validateGameEntryStructural(gameEntryText, "root game.json");
-  const manifest = validateLaunchManifestStructural(launchManifestText, "root launch.pwa.json");
+test("the isolated smoke installation and smoke executable satisfy the real generic PWA payload contract", async () => {
+  const gameEntryText = await readText(new URL("game.json", appsPwaRoot));
+  const launchManifestText = await readText(new URL("launch.pwa.json", appsPwaRoot));
+  const game = validateGameEntryStructural(gameEntryText, "apps/pwa/game.json");
+  const manifest = validateLaunchManifestStructural(launchManifestText, "apps/pwa/launch.pwa.json");
   assert.deepEqual(game, EXPECTED_GAME_ENTRY);
   assert.deepEqual(manifest, EXPECTED_LAUNCH_MANIFEST);
-  assertJoinedBindings(game, manifest, "root PWA");
+  assertJoinedBindings(game, manifest, "apps/pwa");
 
   // The new framework no longer ships examples/PokeMan/. Instead validate the
   // product against its ACTUAL generic PWA builder, not a stale example tree.
@@ -357,7 +357,7 @@ test("the canonical game and smoke executable satisfy the real generic PWA paylo
     formatVersion: 1,
     gameEntryText,
     launchManifestText,
-    presentation: JSON.parse(await readText(new URL("presentation.json", repoRoot))),
+    presentation: { formatVersion: 1, styles: [], scripts: [] },
     executables: [{
       logicalModule: "subsystems/smoke.mjs",
       mime: "text/javascript",

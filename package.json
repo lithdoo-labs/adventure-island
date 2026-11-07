@@ -3,11 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Adventure Island repository root: canonical Game Entry (smoke), platform launch manifests, and headless validation. See docs/game-entry.md.",
+  "description": "Adventure Island repository root: canonical Game Entry (base → adventure-map), platform launch manifests, and headless validation. See docs/game-entry.md.",
+  "workspaces": [
+    "loom-realm/packages/*",
+    "loom-realm/game-libs/*"
+  ],
   "scripts": {
-    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
+    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/adventure-runtime.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
     "pwa:bundle": "node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json",
     "pwa:staging": "node scripts/pwa/build-staging.mjs"
+  },
+  "dependencies": {
+    "@loomrealm/subsystem": "file:loom-realm/packages/subsystem",
+    "@loomrealm-game/common-controls": "0.1.0-alpha.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.9"
   },
   "engines": {
     "node": ">=20"

@@ -1,6 +1,9 @@
 # Raw MapleStory client files and local research inputs
 .raw/
 
+# Root npm workspace install
+node_modules/
+
 # Local scratch/workspace directories
 .work/
 .tmp/

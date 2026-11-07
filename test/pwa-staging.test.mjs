@@ -32,19 +32,26 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { STAGING_APP_ID, STAGING_BASE_PATH, buildAdventureIslandPwaStaging } from "../scripts/pwa/build-staging.mjs";
 import {
-  PRESENTATION_SCRIPT_KEY,
+  ACTOR_SCRIPT_KEY,
+  CONTENT_SCRIPT_SOURCE_BINDINGS,
+  CONTROLS_SCRIPT_KEY,
+  EXECUTABLE_SOURCE_BINDINGS,
   PRESENTATION_SCRIPT_NAMESPACE,
-  buildCanonicalSyntheticAvatarContent,
-} from "../scripts/pwa/synthetic-avatar-content.mjs";
+} from "../scripts/pwa/build-installation-bundle.mjs";
+import { STAGING_APP_ID, STAGING_BASE_PATH, buildAdventureIslandPwaStaging } from "../scripts/pwa/build-staging.mjs";
+import { AVATAR_PLAN_KEY, AVATAR_PLAN_NAMESPACE, readAdventureAvatarClosure } from "../scripts/pwa/read-adventure-fsdb.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
 const stagingScriptPath = fileURLToPath(new URL("../scripts/pwa/build-staging.mjs", import.meta.url));
-const CANONICAL_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
-
 const readText = (target) => readFile(target, "utf8");
+
+async function copyRepoFile(relativePath, targetRoot) {
+  const target = path.join(targetRoot, ...relativePath.split("/"));
+  await mkdir(path.dirname(target), { recursive: true });
+  await copyFile(path.join(repoRootPath, ...relativePath.split("/")), target);
+}
 
 function runGit(directory, ...args) {
   return execFileSync(
@@ -62,28 +69,19 @@ async function makeTempDir(prefix = "adventure-staging-") {
   return mkdtemp(path.join(tmpdir(), prefix));
 }
 
-// Isolated "project root" fixture: canonical documents, shared smoke
-// implementation, the cms-actor classic browser artifact, a protected
+// Isolated "project root" fixture: canonical documents, both Subsystem
+// sources, the actor classic script, the selected FSDB closure, a protected
 // research/ tree with a sentinel, and a REAL gitlink (git update-index
-// --cacheinfo 160000) pointing at the embedded framework repository —
-// exactly the pin contract of a real checkout.
+// --cacheinfo 160000) pointing at the embedded framework repository.
 async function makeStagingFixture() {
   const game = await makeTempDir("adventure-staging-fixture-");
   await mkdir(path.join(game, "research"), { recursive: true });
   await writeFile(path.join(game, "research", "keep.txt"), "sentinel-content\n", "utf8");
-  for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) {
-    await copyFile(fileURLToPath(new URL(name, repoRoot)), path.join(game, name));
-  }
-  await mkdir(path.join(game, "systems", "loomrealm-smoke"), { recursive: true });
-  await copyFile(
-    fileURLToPath(new URL("systems/loomrealm-smoke/subsystem.mjs", repoRoot)),
-    path.join(game, "systems", "loomrealm-smoke", "subsystem.mjs"),
-  );
-  await mkdir(path.join(game, "components", "cms-actor", "browser"), { recursive: true });
-  await copyFile(
-    fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)),
-    path.join(game, "components", "cms-actor", "browser", "cms-actor.browser.js"),
-  );
+  for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) await copyRepoFile(name, game);
+  for (const physicalPath of Object.values(EXECUTABLE_SOURCE_BINDINGS)) await copyRepoFile(physicalPath, game);
+  await copyRepoFile(CONTENT_SCRIPT_SOURCE_BINDINGS[`resource\0${PRESENTATION_SCRIPT_NAMESPACE}\0${ACTOR_SCRIPT_KEY}`], game);
+  const closure = await readAdventureAvatarClosure(repoRootPath);
+  for (const relativePath of closure.relativeFiles) await copyRepoFile(relativePath, game);
 
   const framework = path.join(game, "loom-realm");
   await mkdir(path.join(framework, "apps", "pwa"), { recursive: true });
@@ -95,7 +93,7 @@ async function makeStagingFixture() {
 
   runGit(game, "init", "-q");
   runGit(game, "update-index", "--add", "--cacheinfo", `160000,${frameworkSha},loom-realm`);
-  runGit(game, "add", "game.json", "launch.pwa.json", "presentation.json", "systems");
+  runGit(game, "add", "game.json", "launch.pwa.json", "presentation.json", "systems", "components", "content");
   runGit(game, "commit", "-q", "-m", "fixture game");
   return { game, framework, frameworkSha };
 }
@@ -233,24 +231,18 @@ test("staging orchestrates payload and generic builder with pinned arguments", a
     // The payload is the deterministic product input.
     const payload = JSON.parse(await readText(payloadPath));
     assert.equal(payload.formatVersion, 1);
-    assert.equal(payload.executables.length, 1);
-    assert.equal(payload.executables[0].logicalModule, "subsystems/smoke.mjs");
-    // The canonical PR-B Content whitelist travels through staging intact:
-    // the cms-actor classic IIFE plus the deterministic synthetic records and
-    // PNGs — nothing else may appear in the staged bundle.
-    assert.equal(payload.content.length, CANONICAL_CONTENT_COUNT);
-    assert.ok(
-      payload.content.some((entry) => entry.kind === "resource"
-        && entry.namespace === PRESENTATION_SCRIPT_NAMESPACE
-        && entry.key === PRESENTATION_SCRIPT_KEY),
-      "the staged bundle must carry the cms-actor classic IIFE",
-    );
-    assert.ok(
-      payload.content.every((entry) => entry.kind === "record"
-        ? entry.namespace === "struct.ZMap" || entry.namespace === "struct.Look"
-        : entry.namespace === PRESENTATION_SCRIPT_NAMESPACE || entry.namespace === "resource.图"),
-      "no unrelated Content may enter the staged bundle",
-    );
+    assert.deepEqual(payload.executables.map((entry) => entry.logicalModule), ["subsystems/base.mjs", "subsystems/adventure-map.mjs"]);
+    const closure = await readAdventureAvatarClosure(repoRootPath);
+    assert.equal(payload.content.length, closure.entries.length + 1 + Object.keys(CONTENT_SCRIPT_SOURCE_BINDINGS).length);
+    assert.ok(payload.content.some((entry) => entry.namespace === PRESENTATION_SCRIPT_NAMESPACE && entry.key === CONTROLS_SCRIPT_KEY));
+    assert.ok(payload.content.some((entry) => entry.namespace === PRESENTATION_SCRIPT_NAMESPACE && entry.key === ACTOR_SCRIPT_KEY));
+    assert.ok(payload.content.some((entry) => entry.namespace === AVATAR_PLAN_NAMESPACE && entry.key === AVATAR_PLAN_KEY));
+    const allowed = new Set([
+      ...closure.entries.map((entry) => entry.namespace),
+      AVATAR_PLAN_NAMESPACE,
+      PRESENTATION_SCRIPT_NAMESPACE,
+    ]);
+    assert.ok(payload.content.every((entry) => allowed.has(entry.namespace)), "no unrelated Content may enter the staged bundle");
 
     // The builder output verifies against the product inputs.
     const generation = JSON.parse(await readText(path.join(stagingDir, "generation.json")));

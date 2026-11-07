@@ -1,4 +1,4 @@
-# 根目录统一 Game Entry（PWA 迁移阶段 3A / 4B）
+# 根目录统一 Game Entry（canonical：base → adventure-map）
 
 > 适用范围：仓库根目录的 canonical Game Package 入口（`game.json`、`launch.pwa.json`、
 > `launch.hostra.json`、`presentation.json`、`subsystems/`）。基线 LoomRealm submodule 固定在
@@ -13,19 +13,22 @@
 
 | 文件 | 角色 |
 |---|---|
-| `game.json` | 平台无关的 canonical Game Entry V1（`initial.subsystem=smoke`、`input=null`，无初始 Shared State）。 |
-| `launch.pwa.json` | PWA 平台 Launch manifest：把 Game Entry 声明的每个 Subsystem key 绑定到安装根内的逻辑模块。 |
-| `launch.hostra.json` | Hostra 平台 Launch manifest：与 PWA 完全相同的 key→module 绑定。 |
-| `presentation.json` | Web Presentation Config V1（`styles: []`；`scripts` 精确注册 `Presentation/cms-actor/cms-actor.browser.js`）。只加载 PR-A 生成的 classic IIFE，不加载真实 CMS079 素材。 |
-| `subsystems/smoke.mjs` | 根安装根的 Smoke Subsystem 绑定（见 §3）。 |
-| `scripts/pwa/` | 阶段 4A：installation-bundle v1 输入生成器（见 §5）。 |
-| `test/` | Node 原生（`node:test`）无外部依赖的验证套件（见 §6）。 |
+| `game.json` | canonical Game Entry V1。`initial.subsystem=base`、`input=null`，声明 `base` 与 `adventure-map`，无初始 Shared State。 |
+| `launch.pwa.json` | PWA Launch manifest：`base` → `subsystems/base.mjs`，`adventure-map` → `subsystems/adventure-map.mjs`。 |
+| `launch.hostra.json` | Hostra Launch manifest：与 PWA 相同的 key→module 绑定。清单对齐不等于 Hostra 实机验收。 |
+| `presentation.json` | Web Presentation Config V1。`styles: []`。脚本顺序固定为 `controls/device-input.browser.js`，然后 `cms-actor/cms-actor.browser.js`。 |
+| `systems/base/subsystem.mjs` | 唯一 Base 实现。持有一个 `game-controls-input`，并调用 `adventure-map`。 |
+| `systems/adventure-map/subsystem.mjs` | 唯一 Adventure Map 实现。消费方向输入，投影唯一 `cms-actor`。 |
+| `subsystems/base.mjs`、`subsystems/adventure-map.mjs` | 根安装根的 Hostra 薄 re-export。PWA 不发布这两份源码。 |
+| `scripts/pwa/` | installation-bundle v1 生成器与选定 FSDB 闭包读取器（见 §5）。 |
 
-**过渡兼容**：`apps/pwa/**`、`apps/hostra/**` 与 `systems/loomrealm-smoke/**` 在本阶段
-**全部保留不动**，仍由既有流程（含 `systems/loomrealm-smoke/test/smoke.test.mjs`）使用。
-根目录入口与两份平台入口必须保持等价——这一约束由 `test/game-entry.test.mjs` 钉死
-（三份 Game Entry 结构等价、两个根 manifest 与 Game Entry 的 key 集合精确一致）。
-待根入口经后续 PWA Bundle 构建（阶段 4）验证后，将另开 Issue 删除 `apps/*` 旧入口。
+**验收边界**：
+
+- **PWA**：canonical Chromium + Service Worker E2E 覆盖 Base → Map 保持 `ready`、唯一 Actor、可信键盘方向键、松键和 Resize 居中。通过与否以该次运行的真实结果为准，未运行不能记为通过。
+- **Hostra**：launch manifest 与根绑定可被 `prepareHostraGame` 解析。没有 Hostra Content 安装和桌面实机运行，状态为 **BLOCKED**。
+- **手柄 D-pad**：兼容手柄由固定 Controls classic IIFE 接入，本切片没有真实 D-pad 设备矩阵，状态为 **DEVICE UNVERIFIED**。
+
+**隔离的旧入口**：`apps/pwa/**`、`apps/hostra/**` 与 `systems/loomrealm-smoke/**` 仍是独立的 legacy Smoke，不要求与 canonical 根入口等价。`subsystems/smoke.mjs` 只服务这条旧路径。
 
 ## 2. 文档规则（与 pinned LoomRealm 对齐）
 
@@ -44,23 +47,16 @@
   每个条目是精确的 `{ namespace, key }` Content 资源引用（namespace 不含层级、key 允许
   层级，均禁止遍历/协议/盘符），列表内不得重复。
 
-## 3. Smoke Subsystem：单一实现 + 根绑定
+## 3. Base 与 Adventure Map：各一份实现
 
-Smoke 业务实现**只有一份**：`systems/loomrealm-smoke/subsystem.mjs`
-（dependency-free、default 导出 `SubsystemDefinitionFactory`、每帧返回冻结的
-`{ type: "completed", value: { status: "ok", subsystem: "smoke" } }`）。
+业务实现只有两份：
 
-根目录 `subsystems/smoke.mjs` 是安装根绑定（shim）：re-export
-`../systems/loomrealm-smoke/subsystem.mjs`。因此：
+- `systems/base/subsystem.mjs` 创建并持有唯一的 `game-controls-input` RenderDomain，`await frame.call("adventure-map", frame.params)` 原样透传参数，并在 `finally` 关闭输入域。Frame 在 Map 返回、取消或失败前保持活跃。
+- `systems/adventure-map/subsystem.mjs` 复用固定 LoomRealm 的 `createControlsConsumer` 与 `createDirectionalControlsTracker`。left/right 为 walk 并更新朝向，up 为 jump，down 为 stand，无方向时 stand 并保留朝向。只更新变化的字符串 attrs，不产生世界坐标位移。Actor key 为 `adventure-player`。
 
-- **Hostra / Node 消费者**（含 pinned `prepareHostraGame`，其
-  `resolveInstallationModule` 只校验绑定文件本身位于安装根内）直接 import 该 shim，
-  相对说明符在仓库 checkout 内解析成功。深层测试用仓库根作为真实安装根跑通
-  `runMain` 至 completed Frame。
-- **PWA 消费者**见 §4：该 shim 的**源码不得直接发布**为 PWA executable。
+根目录 `subsystems/base.mjs` 与 `subsystems/adventure-map.mjs` 只 re-export 上述实现。Hostra / Node 直接 import shim。PWA 发布的是 esbuild 产出的自包含 executable，逻辑模块名仍是这两条 shim 路径，源码不是 shim。
 
-不复制、不重写 Smoke 业务实现；`apps/pwa/subsystems/smoke.mjs` 与
-`apps/hostra/subsystems/smoke.mjs` 继续作为各自安装根的过渡绑定存在。
+`systems/loomrealm-smoke/subsystem.mjs` 与 `apps/*/subsystems/smoke.mjs` 保留给隔离的旧 Smoke，不参与 canonical 启动。
 
 ## 4. PWA 打包责任划分（阶段 4 前置约束）
 
@@ -70,23 +66,17 @@ executable 的导入图有硬性约束：只接受相对导入，且整张导入
 - 边目标越出安装逻辑根 → `SUBSYSTEM_MODULE_OUTSIDE_INSTALLATION`
   （`apps/*` shim 的 `../../../…` 越界即属此类，既有 smoke 测试已钉死）；
 - 边目标不在发布的 executable 集合内 → `SUBSYSTEM_MODULE_NOT_FOUND`
-  （根 shim re-export 的 `systems/loomrealm-smoke/subsystem.mjs` 不属于 launch manifest
-  声明的逻辑模块集合，因此**根 shim 单独发布必然被拒绝**，`test/game-entry.test.mjs`
-  基础层镜像 + 深层真实 API 双重钉死）。
+  （根 shim re-export 的 `systems/base/subsystem.mjs` 与
+  `systems/adventure-map/subsystem.mjs` 不属于 launch manifest 声明的逻辑模块集合，
+  因此**根 shim 单独发布必然被拒绝**）。
 
-因此未来 Adventure Island 的 PWA Bundle（阶段 4，参照 Pokeman 的
-`loomrealm/apps/pwa/src/installer.ts` 发布流程）为逻辑模块 `subsystems/smoke.mjs`
-发布的 executable 必须是二者之一：
-
-1. **无依赖共享实现**：`systems/loomrealm-smoke/subsystem.mjs` 源码本身（导入图为空，
-   现阶段即满足，深层测试验证 `imports: []`）；或
-2. **构建后的 self-contained bundle**：未来引入真实玩法/依赖时，先产出自包含、无 bare
-   specifier、导入图完全落在安装逻辑根内的构建产物再发布（Pokeman 即以打包后的
-   dependency-free 产物替代其含 `@loomrealm/*` 依赖的源码 `subsystems/*.mjs`）。
+canonical PWA 用 esbuild 把 `@loomrealm/subsystem` 与
+`@loomrealm-game/common-controls/subsystem` 内联进自包含 ESM，再按逻辑模块名
+`subsystems/base.mjs` 与 `subsystems/adventure-map.mjs` 发布。发布后的导入图必须为空。
 
 发布内容不得包含研究证据、原始 WZ、未授权素材与凭据。
 
-## 5. Smoke Bundle（阶段 4A：通用 PWA Bundle 输入生成）
+## 5. Canonical Bundle
 
 `scripts/pwa/build-installation-bundle.mjs` 从 §1–§2 的 canonical 根目录输入生成
 **installation-bundle v1 payload**——即 LoomRealm 通用 PWA 构建器（较新版本
@@ -99,34 +89,39 @@ executable 的导入图有硬性约束：只接受相对导入，且整张导入
   "formatVersion": 1,
   "gameEntryText": "<根 game.json 原文>",
   "launchManifestText": "<根 launch.pwa.json 原文>",
-  "presentation": { "formatVersion": 1, "styles": [], "scripts": [{ "namespace": "Presentation", "key": "cms-actor/cms-actor.browser.js" }] },
+  "presentation": { "formatVersion": 1, "styles": [], "scripts": [
+    { "namespace": "Presentation", "key": "controls/device-input.browser.js" },
+    { "namespace": "Presentation", "key": "cms-actor/cms-actor.browser.js" }
+  ] },
   "executables": [
-    { "logicalModule": "subsystems/smoke.mjs", "mime": "text/javascript",
-      "source": "<systems/loomrealm-smoke/subsystem.mjs 原文>",
-      "contentVersion": "sha256:<source 的 SHA-256>" }
+    { "logicalModule": "subsystems/base.mjs", "mime": "text/javascript",
+      "source": "<esbuild bundle of systems/base/subsystem.mjs>",
+      "contentVersion": "sha256:<bundle bytes>" },
+    { "logicalModule": "subsystems/adventure-map.mjs", "mime": "text/javascript",
+      "source": "<esbuild bundle of systems/adventure-map/subsystem.mjs>",
+      "contentVersion": "sha256:<bundle bytes>" }
   ],
   "content": [
-    { "kind": "record", "namespace": "struct.ZMap", "key": "order",
-      "mime": "application/json; charset=utf-8", "encoding": "base64", "body": "<canonical Base64>" }
-    // ... 固定白名单共 24 项：1 个 classic IIFE、6 条 struct 记录、17 张合成 PNG
+    { "kind": "record", "namespace": "struct.AdventureAvatarPlan", "key": "bootstrap",
+      "mime": "application/json; charset=utf-8", "encoding": "base64", "body": "<AvatarPlanV1>" }
   ]
 }
 ```
 
-- **输入白名单（冻结）**：canonical 文档 `game.json`、`launch.pwa.json`、`presentation.json`；
-  executable 仅来自 `EXECUTABLE_SOURCE_BINDINGS` 指定的 `systems/loomrealm-smoke/subsystem.mjs`；
-  Content 仅来自 `CONTENT_SCRIPT_SOURCE_BINDINGS` 指定的 PR-A classic IIFE，以及
-  `synthetic-avatar-content.mjs` 生成的合成记录和 PNG。无目录递归扫描；`research/**`、
-  `.raw/**`、`.work/**`、`glm-work/**`、`task/**`、WZ/客户端、凭据均不在输入集合中。
-- **executable 发布策略**：按 §4 为逻辑模块 `subsystems/smoke.mjs` 发布无依赖共享
-  实现（导入图为空，Chrome 可直接加载）；生成器强制校验零 import/re-export 边、
-  无 bare specifier、无非字面量动态 import、无 `process.*`/`require()`/`node:`
-  引用，并重算 SHA-256 与 `contentVersion` 一致。根目录与 `apps/*` shim 作为
-  executable 输入时被直接拒绝。
-- **Content 发布策略（PR-B）**：固定发布 24 项，包含 `resource.Presentation/cms-actor/cms-actor.browser.js`、
-  `struct.ZMap/order`、5 条 `struct.Look` 记录和 17 张确定性生成的 PNG。逐项校验 kind、namespace、key、MIME、
-  canonical Base64 与身份唯一；Look canvas 的 `contentVersion` 必须等于对应 PNG 的 SHA-256，
-  派生出的 `AvatarPlanV1` 必须通过组件模型校验，且 Presentation 引用必须解析到已发布的 resource。
+- **输入白名单**：canonical 文档 `game.json`、`launch.pwa.json`、`presentation.json`；
+  executable 仅来自 `EXECUTABLE_SOURCE_BINDINGS` 的 `systems/base/subsystem.mjs` 与
+  `systems/adventure-map/subsystem.mjs`；Content 来自 `content/[FSDB]adventure` 的选定闭包、
+  派生记录 `struct.AdventureAvatarPlan/bootstrap`，以及 `CONTENT_SCRIPT_SOURCE_BINDINGS`
+  的两份 classic script。无目录递归扫描；`research/**`、`.raw/**`、`.work/**`、
+  `glm-work/**`、`task/**`、WZ/客户端、凭据均不在输入集合中。历史合成生成器
+  `scripts/pwa/synthetic-avatar-content.mjs` 只留给隔离的纸娃娃回归，不是 canonical 来源。
+- **executable 发布策略**：两份源码经 esbuild（`format: esm`、`platform: browser`、
+  `target: chrome140`、`bundle: true`）内联依赖后发布。发布字节的导入图必须为空，
+  且不得含动态 import、`process`、`require()` 或 `node:`。根 shim 与 `apps/*` shim
+  含相对 re-export，在打包前就被拒绝。
+- **Content 发布策略**：只发布选定 Part/Group/PNG 闭包和一份派生 AvatarPlan。
+  Plan 引用的每个 PNG identity、SHA-256 与 Content Version 必须和最终 Bundle entry 一致，
+  Plan 数据字节不超过 262144。不改 FSDB 源文件，也不把全量 FSDB 放进运行时 Content。
 - **确定性**：紧凑 JSON + 换行，无时间戳/路径字段；同输入重复运行字节一致。
 - **写出约束与路径安全**：`--output` 必填，目标必须位于 `<repo>/dist/` 或系统临时
   目录；目标自身不得是 symlink（含悬空）或目录；**父目录链逐段验证**——任何已存在
@@ -162,8 +157,8 @@ npm run pwa:bundle
 node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json
 ```
 
-当前产物：`executables` 1 项（`subsystems/smoke.mjs` ← `systems/loomrealm-smoke/subsystem.mjs`），
-`content` 24 项（1 个 classic IIFE、6 条 struct 记录、17 张合成 PNG）；Bundle 由相同输入重复构建时字节一致。
+当前 canonical 产物：`executables` 2 项（`subsystems/base.mjs`、`subsystems/adventure-map.mjs`），
+Content 为选定 `[FSDB]adventure` 闭包、`struct.AdventureAvatarPlan/bootstrap`，以及 Controls 与 cms-actor 两份 classic script。相同输入重复构建时字节一致。
 
 ### 阶段 4B：cms-actor 合成 Content 与 canonical PWA 闭环（PR-B）
 
@@ -172,28 +167,21 @@ node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-in
 的真实 staging 目录。构建前验证 Gitlink 与 checkout 一致、框架构建产物存在、输出路径
 不越界；产物验证 generation、bundleId、payload 回显和运行时文件。
 
-PR-B（[#49](https://github.com/lithdoo-labs/adventure-island/pull/49)）把 PR-A 的
-`cms-actor` classic IIFE 注册到根 `presentation.json`，并将固定白名单中的 24 项
-合成 Content 发布到安装 Bundle。正式 Game Entry 仍以 `smoke` 为初始 Subsystem；
-测试专用 `avatar-fixture` 仅用于 E2E，不进入 canonical payload，也不改变
-`game.json`、`launch.*.json` 或正式游戏启动路径。
+历史 PR-B 使用合成 Look/ZMap 和 Smoke 入口。那个合成闭环保留为隔离回归：
+`test/pwa-browser.e2e.test.mjs` 的纸娃娃场景自行组装 synthetic payload，不读取
+canonical FSDB Bundle。canonical 场景改为真实 Service Worker 下的 Base → Map。
 
-真实 Chromium E2E 使用 canonical Bundle 的同一 Presentation 和 Content，仅将
-Subsystem 替换为测试 fixture；再调用 pinned generic PWA builder、loopback staging
-server、真实 Service Worker 和 Renderer Projector。测试覆盖：
+隔离纸娃娃回归仍覆盖：
 
 - 通过真实 Content API 重新读取 `struct.ZMap` / `struct.Look` 记录；
 - 像素级验证角色锚点、层序、透明区域，以及 `stand1`、`walk1`、`jump`；
 - 错误 ContentVersion 与缺失资源均被拒绝、清空画布并报告可定位错误，随后可恢复；
 - 元素断开时释放 Bitmap cache，重新投影后再次绘制；
-- canonical Smoke PWA 仍能 settle，Service Worker scope 和 presentation bootstrap 正常。
+- 该场景不是 canonical 启动证明。canonical 证明是同一文件中的 Base → Map 场景：产品保持 `ready`，唯一 `cms-actor` 有不透明像素，`page.keyboard` 改变 locomotion/facing/`data-action`，松键恢复 stand 并保留朝向，Resize 后仍居中。
 
-`.github/workflows/pwa-ci.yml` 在本阶段加入组件构建产物检查、Node/Chromium 组件测试、
-24 项 Content staging 断言，以及 Smoke + actor PWA E2E。必需的 Chromium / PWA E2E
-不允许以 skip 作为成功；CI 检查 TAP 中 `# skipped 0`。
+`.github/workflows/pwa-ci.yml` 继续要求组件测试、根 Node 测试、staging 和 canonical PWA E2E 的 `# fail 0` 与 `# skipped 0`。必需测试未运行或被跳过时不能记为通过。
 
-**边界**：这证明的是 synthetic Content 经正式 PWA / Service Worker / Renderer Projector
-绘制角色，不代表真实 CMS079 资源导入、可玩地图、角色控制或生产部署已完成。
+**边界**：canonical 切片证明选定 FSDB Avatar 在 PWA 中响应键盘方向并保持居中。它不包含真实地图、世界坐标、物理、Hostra 实机或真实手柄。Hostra 为 **BLOCKED**，D-pad 为 **DEVICE UNVERIFIED**。
 
 ## 6. 测试
 
@@ -215,28 +203,17 @@ CI 对根测试、组件 Node 测试、组件 Chromium 测试和 PWA E2E 均检�
 `test/game-entry.test.mjs`（基础层确定性生效；深层用例在 loom-realm submodule 已
 `npm install && npm run build:packages` 时自动启用，未构建时以 skip 明确报告原因）：
 
-- (a) 根 `game.json` 与 `apps/pwa/game.json`、`apps/hostra/game.json` 三份 Game Entry
-  结构等价，且均为最小 smoke 拓扑；
-- (b) 根 PWA/Hostra manifest 与 Game Entry 的 subsystem key 集合精确一致，同一 key
-  绑定同一逻辑模块；
-- (c) 根 `subsystems/smoke.mjs` 的 default 与共享实现是**同一个** factory，且能执行
-  completed Smoke Frame（不触碰任何 scope 能力）；
-- (d) 根 manifest 的物理模块位于仓库安装根内（canonical 校验），且 re-export 目标
-  realpaths 等于共享实现文件（无双份业务实现）；
-- (e) “PWA 不允许直接发布越界 shim” 回归守卫：本地镜像 pinned
-  `resolveRelativeModule` 规则 + 静态导入边分析，证明根 shim 的依赖不在发布集合内、
-  共享实现导入图为空；深层用真实 `buildPwaExecutableIndexV1` 验证共享源可发布
-  （`imports: []`）而根 shim 源被拒绝（`SUBSYSTEM_MODULE_NOT_FOUND`）；
-- 深层：真实 pinned API 校验三份文档、`prepareHostraGame` 以仓库根为安装根解析出
-  根绑定物理模块、`runMain` 启动至 completed Frame。
+- (a) 根 `game.json` 初始 Subsystem 为 `base` 并声明 `adventure-map`；`apps/pwa` 与 `apps/hostra` 保持隔离的 legacy Smoke；
+- (b) 根 PWA/Hostra manifest 与 canonical Game Entry 的 subsystem key 集合精确一致；
+- (c) 根 `subsystems/base.mjs` 与 `subsystems/adventure-map.mjs` re-export 唯一实现；legacy `subsystems/smoke.mjs` 仍转发旧 Smoke 并完成 Frame；
+- (d) 根绑定位于安装根内，re-export 目标 realpath 等于 `systems/*` 实现；
+- (e) 直接发布根 shim 会被拒绝。深层 `prepareHostraGame` 只解析 `base` 与 `adventure-map`，不把该解析当成 Hostra 实机通过。
+- `test/adventure-runtime.test.mjs` 覆盖 Base 生命周期、Map 动作，以及 Content 不可用、取消和同步投影失败后的清理。
 
-`test/presentation.test.mjs`：(f) 根 `presentation.json` 通过镜像规则与（深层）真实
-`validateWebPresentationConfigV1` 校验，精确注册 cms-actor classic IIFE；镜像规则本身用一组
-正/反例 fixture 校准。
+`test/presentation.test.mjs`：根 `presentation.json` 先注册 Controls classic IIFE，再注册 cms-actor classic IIFE。
 
 `test/pwa-bundle.test.mjs`（阶段 4A / PR-B）：CLI 字节确定性（两次运行 + 自覆盖一致）；
-payload schema 与精确来源（文本逐字节等于根文档、executable source 逐字节等于
-共享实现且不是任何 shim、SHA-256 重算一致、24 项 Content 身份与顺序精确）；上游
+payload schema 与精确来源（文本逐字节等于根文档、两份 executable 为自包含 bundle 且不是 shim、SHA-256 重算一致、FSDB 闭包 + bootstrap Plan + 两份脚本的身份与顺序精确，含一次 Plan/PNG SHA-256 与字节上限往返）；上游
 `validatePwaBundlePayload`（自 `9364819` 逐字 vendored，正/反例校准）接受产物；
 manifest/Game Entry 键集合往返一致；shim、bare import、非字面量动态 import、
 Node-only 全局作为 executable 被拒绝；非法 CLI 参数、受保护/追踪路径、目录目标、
@@ -262,9 +239,7 @@ Git-tracked 输出拒绝，以及错误 builder 产物检测；当前 Gitlink �
 - 阶段 3B：合成地图 + 纸娃娃与移动/跳跃/立足线/传送。
 - 阶段 4A（已完成）：`scripts/pwa/build-installation-bundle.mjs` 生成
   installation-bundle v1 输入（见 §5）。
-- 阶段 4B（PR-B）：canonical PWA 的 cms-actor classic script、24 项 synthetic Content、
-  真实 generic staging、Service Worker / Renderer Projector Chromium E2E 与独立 CI 已纳入
-  本阶段交付；不包括真实 CMS079 素材接入。
+- 阶段 4B（历史 PR-B）：当时的 canonical 入口仍是 Smoke，Content 为 24 项合成记录和 PNG。该合成纸娃娃回归仍保留，但不再是 canonical 来源。
+- 当前切片：根入口为 `base` → `adventure-map`，Content 来自现有 `[FSDB]adventure` 的选定闭包和派生 AvatarPlan。PWA 键盘闭环由 canonical E2E 验收；Hostra 实机 **BLOCKED**；真实 D-pad **DEVICE UNVERIFIED**。
 - 阶段 5：独立 Compose（`loomrealm-adventure-pwa`）、端口 8788/8791 与回滚。
-- 旧入口清理：根入口被阶段 4 验证后，另开 Issue 删除 `apps/pwa/**`、`apps/hostra/**`
-  的重复 Game Entry 与平台 manifest（保留 `systems/loomrealm-smoke/**` 共享实现）。
+- 旧入口清理：另开 Issue 再删除 `apps/pwa/**`、`apps/hostra/**` 的 legacy Smoke 入口。本切片不删除它们。

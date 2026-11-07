@@ -8,9 +8,9 @@
 // validateWebPresentationConfigV1): an exact
 // { formatVersion, scripts, styles } object whose entries are exact
 // { namespace, key } Content resource references. The application declares
-// exactly one script — the cms-actor classic IIFE — which the pinned PWA
-// renderer host resolves to the published Content resource
-// resource.Presentation/cms-actor/cms-actor.browser.js
+// two scripts, in order: the pinned Controls classic IIFE, then the
+// cms-actor classic IIFE. The pinned PWA renderer host resolves each to
+// resource.Presentation/<key>
 // (apps/pwa/src/renderer-host.ts prefixes `resource.` onto the declared
 // namespace when fetching bootstrap scripts from the installation Content).
 //
@@ -28,6 +28,7 @@ const EXPECTED_PRESENTATION = Object.freeze({
   formatVersion: 1,
   styles: Object.freeze([]),
   scripts: Object.freeze([
+    Object.freeze({ namespace: "Presentation", key: "controls/device-input.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
   ]),
 });
@@ -98,26 +99,26 @@ function validatePresentationStructural(text, label) {
 // Deterministic base validation
 // ---------------------------------------------------------------------------
 
-test("the root presentation manifest registers exactly the cms-actor classic script", async () => {
+test("the root presentation registers Controls before the cms-actor classic script", async () => {
   const presentation = validatePresentationStructural(
     await readText(new URL("presentation.json", repoRoot)),
     "presentation.json (root)",
   );
   assert.deepEqual(presentation, EXPECTED_PRESENTATION);
   assert.equal(presentation.styles.length, 0, "the application declares no styles");
-  assert.deepEqual(
-    presentation.scripts,
-    [{ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }],
-    "the application declares exactly the cms-actor classic script",
-  );
+  assert.deepEqual(presentation.scripts, [
+    { namespace: "Presentation", key: "controls/device-input.browser.js" },
+    { namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" },
+  ]);
 
-  // The declared script must resolve, through the pinned PWA hosting
-  // convention (`resource.<namespace>`, renderer-host.ts), to the PR-A
-  // generated classic artifact — a real file that is NOT an ES module.
-  const artifact = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
-  assert.ok(artifact.length > 0, "components/cms-actor/browser/cms-actor.browser.js must exist");
-  assert.doesNotMatch(artifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the published entry must be a classic script, not an ES module");
-  assert.match(artifact, /customElements\.define\("cms-actor"/u, "the published entry must register the cms-actor element");
+  const controls = await readText(new URL("loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js", repoRoot));
+  const actor = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
+  for (const artifact of [controls, actor]) {
+    assert.ok(artifact.length > 0);
+    assert.doesNotMatch(artifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "published entries must be classic scripts");
+  }
+  assert.match(controls, /customElements\.define\("game-controls-input"/u);
+  assert.match(actor, /customElements\.define\("cms-actor"/u);
 });
 
 test("the mirrored Web Presentation Config rules reject malformed documents", () => {

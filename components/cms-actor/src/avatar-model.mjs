@@ -114,6 +114,16 @@ function validatePlanLayer(layer, label, plan, declaredDimensions) {
       assert(point.every((part) => Math.abs(part) <= AVATAR_PLAN_LIMITS.maxCoordinate), `${label}.anchors.${anchorName} exceeds the coordinate bound`);
     }
   }
+  const hasPriority = layer.priority !== undefined;
+  const hasTag = layer.tag !== undefined;
+  if (hasPriority || hasTag) {
+    assert(Number.isInteger(layer.priority), `${label}.priority must be an integer`);
+    assert(Array.isArray(layer.tag), `${label}.tag must be an array of slot tokens`);
+    assert(layer.tag.length <= 32, `${label}.tag must have at most 32 slots`);
+    for (const token of layer.tag) {
+      assert(typeof token === "string" && token.length > 0 && token.length <= 8, `${label}.tag entries must be short strings`);
+    }
+  }
   if (layer.source !== undefined) {
     const source = layer.source;
     assert(source && typeof source === "object" && !Array.isArray(source), `${label}.source must be an object`);
@@ -305,6 +315,50 @@ export function resolveActionName(plan, locomotion = "stand") {
   return Object.keys(plan?.actions ?? {})[0] ?? null;
 }
 
+/** Front-to-back `zOrder`: higher index paints earlier. Equal z keeps the lower layer index behind. */
+export function compareDrawOrder(a, b, orderIndex) {
+  const zDelta = (orderIndex.get(b.layer.z) ?? 0) - (orderIndex.get(a.layer.z) ?? 0);
+  return zDelta || a.index - b.index;
+}
+
+/**
+ * Slot occlusion for one painted frame, matching the client walk at `0x401C74`.
+ *
+ * `positioned` entries need `layer` and `index`. A layer participates only when
+ * it carries integer `priority` and array `tag`. `z === "face"` never enters
+ * the walk. A losing token hides the whole canvas, but slots it already claimed
+ * stay claimed. Equal priority leaves both canvases. The returned set contains
+ * the layer objects to skip while drawing.
+ */
+export function occludedLayers(positioned, zOrder) {
+  const orderIndex = new Map((zOrder ?? []).map((z, index) => [z, index]));
+  const ordered = [...positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
+  const owners = new Map();
+  const hidden = new Set();
+  for (const item of ordered) {
+    const layer = item?.layer;
+    if (!layer || layer.z === "face") continue;
+    if (!Number.isInteger(layer.priority) || !Array.isArray(layer.tag)) continue;
+    let visible = true;
+    for (const token of layer.tag) {
+      const prev = owners.get(token);
+      if (!prev) {
+        owners.set(token, { layer, priority: layer.priority });
+        continue;
+      }
+      if (prev.priority === layer.priority) continue;
+      if (prev.priority > layer.priority) {
+        visible = false;
+        break;
+      }
+      hidden.add(prev.layer);
+      owners.set(token, { layer, priority: layer.priority });
+    }
+    if (!visible) hidden.add(layer);
+  }
+  return hidden;
+}
+
 export function frameDuration(frame) {
   const delay = frame?.delay;
   return typeof delay === "number" && Number.isFinite(delay) ? Math.abs(delay) : 0;
@@ -368,10 +422,7 @@ export function layoutFrame(frame, zOrder, x = 0, y = 0) {
 
   const orderIndex = new Map(zOrder.map((z, index) => [z, index]));
   // zOrder is front-to-back, so paint in reverse: back first, front last.
-  const drawOrder = [...positioned].sort((a, b) => {
-    const zDelta = orderIndex.get(b.layer.z) - orderIndex.get(a.layer.z);
-    return zDelta || a.index - b.index;
-  });
+  const drawOrder = [...positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
 
   return { positioned, drawOrder, skipped, anchors: knownAnchors };
 }

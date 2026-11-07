@@ -114,16 +114,18 @@ LoomRealm Web Presentation Config v1 只以 ordered classic `<script src>` 加�
 
 勋章 `Me`、吊坠 `Pe`、肩膀 `Sh` 的样本只有 `info` 里的图标，没有动作画布，不叠进人物。戒指目录 755 个 `islot=Ri`，同样只有在动作节点下有画布时才画。
 
-`Base.wz/smap.img` 把画布的 `z` 映射到槽位。`cap` 这类层的值是一长串，`hair` 的值是单个 `H2`，`hairOverHead` 和 `backHair` 是 `H1`，`backHairBelowCapNarrow` 是 `H5`，`pants` 是 `PnSo`，`mailArm` 是 `MaGw`。值为空的层不参与遮挡。
+`Base.wz/smap.img` 把画布的 `z` 映射到槽位。`cap` 这类层的值是一长串，`hair` 的值是单个 `H2`，`hairOverHead` 和 `backHair` 是 `H1`，`backHairBelowCapNarrow` 是 `H5`，`pants` 是 `PnSo`，`mailArm` 是 `MaGw`。值为空的层不声明槽位。
 
-遮挡：
+遮挡按客户端 `0x401C74`，在一帧里逐张画布计算，不按整件装备删除：
 
-1. 另一件已穿物品的 `vslot` 含有这件 `islot` 里的任一槽，则整件不画。长袍 `MaPn` 因此盖住上衣和裤子。双手武器 `WpSi` 因此盖住盾。
-2. 仍要画的那件里，若 `smap` 给这个 `z` 的值只有一个两字符槽，且另一件的 `vslot` 含有它，则这张画布不画。帽子 `CpH1H5` 盖住 `H1` 和 `H5`：`hairOverHead`、`backHair`、`backHairBelowCapNarrow` 不画。主头发 `hair` 映射到 `H2`，这顶帽子盖不住。
-3. `smap` 的值长于两个字符时，不按“沾到其中一个字符就藏”处理。`cap` 那一串里含有 `H1`，若拿头发自己的 `vslot` 去比，头发会把帽子藏掉。袖子和裤管靠下面的 z 序叠在身体上。
-4. 一件物品不隐藏自己的画布。
+```text
+priority = islot 各槽在 zmap 里的最大整数
+tag      = vslot 与 smap[z] 的交，顺序跟 vslot
+```
 
-客户端里真正执行这张表的函数还没有还原。上面四条是按 `smap` 和样本 `vslot` 能对上的读法。
+z 序号等于 `zmap["face"]` 的画布不参加这次占槽。其余画布按绘制顺序从后往前走。槽位归 `priority` 更大的那张；输的整张不画，但它在输掉之前占住的槽继续有效。`priority` 相同则两张都留。同一件装备共用一个 `islot`，所以自己不挡住自己。z 序只决定谁先画，以及同优先级时谁叠在前面。
+
+帽子 `01000000` 的 `vslot` 是 `CpH1H5`。它的 `cap` 层因此声明 `H1`，`Cp` 的编号大于 `Hr`，头发的 `hairOverHead` 和 `backHair` 不画，主头发 `hair`（`H2`）留下。长袍 `MaPn` 和上衣 `Ma` 的 `priority` 都是 `Ma`，上衣留着，和袍身叠在同一 z。长袍的画布不声明 `Pn`，裤子留下，袍身靠 z 序盖在上面。双手武器 `WpSi` 的画布只声明 `Wp`，盾只声明 `Si`，盾留下。
 
 ## 动作名怎么定
 

@@ -5,7 +5,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAdventureAvatarPlan } from "../src/adventure-adapter.mjs";
-import { layoutFrame, measureAvatarPlanDataBytes } from "../src/avatar-model.mjs";
+import { layoutFrame, measureAvatarPlanDataBytes, occludedLayers } from "../src/avatar-model.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const libraryRoot = path.join(repoRoot, "content", "[FSDB]adventure");
@@ -75,6 +75,15 @@ function layerIds(plan, action, frame = 0) {
   return plan.actions[action].frames[frame].layers.map((layer) => layer.id);
 }
 
+function paintedIds(plan, action, frame = 0) {
+  const source = plan.actions[action].frames[frame];
+  const layout = layoutFrame(source, plan.zOrder);
+  const hidden = occludedLayers(layout.positioned, plan.zOrder);
+  return layout.positioned
+    .filter((item) => !hidden.has(item.layer))
+    .map((item) => item.layer.id);
+}
+
 function isSubsequence(order, full) {
   let cursor = 0;
   for (const name of order) {
@@ -133,11 +142,14 @@ test("projects the one-hand set onto stand1/walk1 and crops the body atlas", asy
   assert.equal(content.calls.every((call) => call.extra === 0), true);
 
   const ids = layerIds(plan, "stand1");
-  assert.equal(ids.includes("hair:hairOverHead"), false);
-  assert.equal(ids.includes("hair:hair"), true);
-  assert.equal(ids.some((id) => id.startsWith("coat")), true);
-  assert.equal(ids.some((id) => id.startsWith("pants")), true);
-  assert.equal(ids.some((id) => id.startsWith("shield")), true);
+  const painted = paintedIds(plan, "stand1");
+  assert.equal(ids.includes("hair:hairOverHead"), true);
+  assert.equal(painted.includes("hair:hairOverHead"), false);
+  assert.equal(painted.includes("hair:hair"), true);
+  assert.equal(painted.includes("hair:hairShade"), true);
+  assert.equal(painted.some((id) => id.startsWith("coat")), true);
+  assert.equal(painted.some((id) => id.startsWith("pants")), true);
+  assert.equal(painted.some((id) => id.startsWith("shield")), true);
   assert.equal(plan.actions.stand1.frames[0].layers.some((layer) => layer.id === "face" || layer.z === "face"), false);
   assert.equal(plan.expression.name, "blink");
   assert.ok(plan.expression.frames.length > 1);
@@ -194,7 +206,7 @@ test("omits a missing action, rejects two stances, a skin mismatch, and defaults
   );
 });
 
-test("a longcoat hides the coat and pants, and a hammer hides a shield worn with it", async () => {
+test("a longcoat keeps the coat and pants, and a hammer keeps a shield worn with it", async () => {
   const robed = await buildAdventureAvatarPlan(openLibrary(), {
     parts: [
       ...SET_B,
@@ -202,10 +214,10 @@ test("a longcoat hides the coat and pants, and a hammer hides a shield worn with
       "avatar.equip.pants.01062001",
     ],
   });
-  const robeIds = layerIds(robed, "stand2");
+  const robeIds = paintedIds(robed, "stand2");
   assert.equal(robeIds.some((id) => id.startsWith("longcoat")), true);
-  assert.equal(robeIds.some((id) => id.startsWith("coat")), false);
-  assert.equal(robeIds.some((id) => id.startsWith("pants")), false);
+  assert.equal(robeIds.some((id) => id.startsWith("coat")), true);
+  assert.equal(robeIds.some((id) => id.startsWith("pants")), true);
 
   const library = openLibrary();
   const hammer = await buildAdventureAvatarPlan({
@@ -228,14 +240,18 @@ test("a longcoat hides the coat and pants, and a hammer hides a shield worn with
       "avatar.equip.weapon.01422000",
     ],
   });
-  const hammerIds = layerIds(hammer, "stand2");
+  const hammerIds = paintedIds(hammer, "stand2");
   assert.equal(hammerIds.some((id) => id.startsWith("weapon")), true);
-  assert.equal(hammerIds.some((id) => id.startsWith("shield")), false);
+  assert.equal(hammerIds.some((id) => id.startsWith("shield")), true);
 });
 
 test("ladder frames keep showFace false and do not bake the face into the body", async () => {
   const plan = await buildAdventureAvatarPlan(openLibrary(), { parts: SET_A, action: "ladder", expression: "blink" });
   assert.equal(plan.actions.ladder.frames[0].showFace, false);
   assert.equal(plan.actions.ladder.frames[0].layers.some((layer) => layer.z === "face"), false);
+  const ladderPainted = paintedIds(plan, "ladder");
+  assert.equal(layerIds(plan, "ladder").includes("hair:backHair"), true);
+  assert.equal(ladderPainted.includes("hair:backHair"), false);
+  assert.equal(ladderPainted.includes("hair:backHairBelowCap"), true);
   assert.equal(plan.expression.name, "blink");
 });

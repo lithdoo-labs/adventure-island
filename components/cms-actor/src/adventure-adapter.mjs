@@ -108,24 +108,30 @@ function expandVariants(layers, skin) {
   return expanded;
 }
 
-function hidesWhole(part, others) {
-  const occupies = asList(part.part.occupies);
-  return others.some((other) => {
-    if (other === part) return false;
-    const covers = asList(other.part.covers);
-    const otherHides = occupies.some((slot) => covers.includes(slot));
-    if (!otherHides) return false;
-    const partCovers = asList(part.part.covers);
-    const partHidesOther = asList(other.part.occupies).some((slot) => partCovers.includes(slot));
-    if (partHidesOther && partCovers.length >= covers.length) return false;
-    return true;
-  });
+const UNOCCUPIED_PRIORITY = -2147483647;
+
+function slotPriority(part, frontToBack) {
+  const occupies = asList(part.occupies);
+  const covers = asList(part.covers);
+  if (occupies.length === 0) {
+    if (covers.length > 0) {
+      throw new TypeError(`part ${part.itemId ?? part.kind} has covers without occupies`);
+    }
+    return UNOCCUPIED_PRIORITY;
+  }
+  let best = UNOCCUPIED_PRIORITY;
+  for (const token of occupies) {
+    const index = frontToBack.indexOf(token);
+    if (index < 0) throw new TypeError(`slot ${token} is missing from DrawOrder`);
+    const score = -index;
+    if (score > best) best = score;
+  }
+  return best;
 }
 
-function layerHidden(owner, z, others, layerSlots) {
-  const slots = asList(layerSlots[z]);
-  if (slots.length !== 1) return false;
-  return others.some((other) => other !== owner && asList(other.part.covers).includes(slots[0]));
+function canvasTag(covers, slots) {
+  const covered = new Set(asList(slots));
+  return asList(covers).filter((token) => covered.has(token));
 }
 
 function assignIds(kind, layers) {
@@ -218,8 +224,7 @@ export async function buildAdventureAvatarPlan(content, input) {
     if (rowsFor(body, name).length === 0) throw new TypeError(`body ${body.key} has no ${name} frames`);
   }
 
-  const hidden = new Set(loaded.filter((part) => hidesWhole(part, loaded)));
-  const visible = loaded.filter((part) => !hidden.has(part)).sort(comparePlacementOrder);
+  const visible = [...loaded].sort(comparePlacementOrder);
   const versions = new Map();
   const versionFor = async (image) => {
     if (!versions.has(image)) {
@@ -233,7 +238,8 @@ export async function buildAdventureAvatarPlan(content, input) {
   };
 
   const emit = async (owner, rawLayers) => {
-    const expanded = expandVariants(rawLayers, bodySkin).filter((layer) => !layerHidden(owner, layer.z, visible, layerSlots));
+    const priority = slotPriority(owner.part, frontToBack);
+    const expanded = expandVariants(rawLayers, bodySkin);
     const identified = assignIds(owner.part.kind, expanded);
     const planLayers = [];
     for (const layer of identified) {
@@ -254,6 +260,8 @@ export async function buildAdventureAvatarPlan(content, input) {
         height: row.h,
         origin: copyPoint(layer.origin, layer.resource),
         anchors,
+        priority,
+        tag: canvasTag(owner.part.covers, layerSlots[layer.z]),
       });
     }
     return planLayers;
@@ -313,7 +321,7 @@ export async function buildAdventureAvatarPlan(content, input) {
     actions,
   };
 
-  const face = faces.find((part) => !hidden.has(part)) ?? null;
+  const face = faces[0] ?? null;
   if (face) {
     let faceRows = rowsFor(face, expressionName);
     let resolvedName = expressionName;

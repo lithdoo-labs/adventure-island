@@ -194,12 +194,7 @@
 
 `capOverHair` 和 `cap` 的槽位相同。`pantsOverShoesBelowMailChest`、`backPantsOverShoesBelowMailChest` 在 `zmap` 里有名字，`smap` 里没有，这两层的值是空数组。`Wp`、`Gv`、`Cp` 也是空数组。收成正式层的别名用那一层的槽位。插进去的名字和 `characterEnd` 后面那五个补位名字，槽位是空数组，不参与遮挡。
 
-遮挡在运行时计算，不把隐藏结果写进部件。客户端里执行这张表的函数还没还原，当前按这四条：
-
-1. 另一件的 `covers` 含有这件 `occupies` 里的任一槽，则整件不画。
-2. 仍要画的那件里，这个 `z` 只对应一个槽，且另一件的 `covers` 含有它，则这一层不画。
-3. `z` 对应多个槽时，不因为沾到其中一个槽就藏。
-4. 一件装备不隐藏自己的画布。
+遮挡在绘制这一帧时计算，不写回部件。`occupies` 是 `islot`，`covers` 是 `vslot`。每张画布的 `priority` 是 `occupies` 各槽在 `DrawOrder.frontToBack` 里最靠前的那个位置（越靠前整数越大）。`tag` 是 `covers` 里也出现在 `LayerSlot[z]` 中的槽，顺序跟 `covers`。`z` 为 `face` 的画布不参加占槽。其余按从后往前的绘制顺序占槽：编号大的留下，输的整张不画；编号相同两张都留。空的 `LayerSlot` 使 `tag` 为空，这张画布不声明槽位。还原见 `research/result/63-avatar-occlusion.md`。
 
 ### 2.6 group.avatar.Resource 与 [resource]Avatar
 

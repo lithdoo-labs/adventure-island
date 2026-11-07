@@ -18,7 +18,7 @@
 - 可作为 **classic script** 被 LoomRealm `bootstrapWebPresentation()` 正式加载（无 `type="module"` 要求）；
 - 真实 Chromium 集成测试与 Node 纯函数测试。
 
-不声称完成：WZ 解码、`islot/vslot` 装备冲突算法、真实 `zmap/smap` 数据接入、真实 CMS 079 素材验收。这些属于游戏侧适配层与后续验收。测试里的 `test/look-adapter.mjs` 是**参考适配器，不是正式游戏运行时**。
+自研库的装备遮挡由 `adventure-adapter` 写入每张画布的 `priority` 和 `tag`，组件在绘制前按 `0x401C74` 跳过输掉的画布。没有这两个字段的计划全部照画。`test/look-adapter.mjs` 和 `real-look-adapter.mjs` 不写这两个字段。WZ 解码和真实 CMS 079 素材验收仍不在本组件内。
 
 ## 2. 平台入口（P0）
 
@@ -211,7 +211,7 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 ## 9. 后续集成顺序
 
 0. **PR-B（本 Issue 之后的新 Issue/新 PR）**：根 `presentation.json` 注册、严格白名单合成 Content 发布、真实 PWA/Service Worker/Renderer 投影与根 CI 更新（`.github/**` 仅由维护者处理）。
-1. 装备 `islot/vslot` 遮挡（接入 `struct.SMap/smap`，真实表驱动；不在组件里按文件名猜槽位）。
+1. 经典 `struct.SMap` 路径的装备遮挡。自研库已经按 `LayerSlot` 和 `DrawOrder` 对齐 `0x401C74`。
 2. 表情独立计时（`blink` 等与身体分开的帧钟）与更多肤色后缀、ladder/rope 的 backHead 路径。
 3. 扩大真实白名单动作（更多 `swing*`/`stab*`/技能引用动作）与多件装备组合验证。
 4. 全量 16 包转换与 FSDB Integrity-valid（属 WZ→FSDB 转换器的未竟事项）。

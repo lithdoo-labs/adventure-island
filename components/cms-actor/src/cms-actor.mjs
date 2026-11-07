@@ -2,7 +2,9 @@ import {
   formatSkippedLayers,
   frameDuration,
   frameHolds,
+  compareDrawOrder,
   layoutFrame,
+  occludedLayers,
   placeAnchoredLayers,
   resolveActionName,
   rotatePoint,
@@ -27,6 +29,8 @@ function actionSignature(action) {
       layer.height,
       layer.source ?? null,
       layer.origin,
+      layer.priority ?? null,
+      layer.tag ?? null,
     ]),
   })));
 }
@@ -44,6 +48,8 @@ function expressionSignature(expression) {
         layer.width,
         layer.height,
         layer.source ?? null,
+        layer.priority ?? null,
+        layer.tag ?? null,
       ]),
     })),
   });
@@ -813,11 +819,10 @@ export class CmsActor extends HTMLElementBase {
       : { positioned: [], skipped: [] };
     for (const item of placedExpression.positioned) item.index += frame.layers.length;
     const orderIndex = new Map(this._plan.zOrder.map((z, index) => [z, index]));
-    const positioned = [...layout.positioned, ...placedExpression.positioned].sort((a, b) => {
-      const zDelta = (orderIndex.get(b.layer.z) ?? 0) - (orderIndex.get(a.layer.z) ?? 0);
-      return zDelta || a.index - b.index;
-    });
+    const positioned = [...layout.positioned, ...placedExpression.positioned].sort((a, b) => compareDrawOrder(a, b, orderIndex));
+    const hidden = occludedLayers(positioned, this._plan.zOrder);
     const drawItems = positioned
+      .filter((item) => !hidden.has(item.layer))
       .map((item) => {
         const entry = layersWithBitmaps.find((candidate) => candidate.layer === item.layer);
         return entry ? { ...item, bitmap: entry.bitmap } : null;

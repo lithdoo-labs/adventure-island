@@ -7,6 +7,7 @@ import {
   frameHolds,
   layoutFrame,
   measureAvatarPlanDataBytes,
+  occludedLayers,
   measureCompactJsonBytes,
   mirrorBounds,
   placeAnchoredLayers,
@@ -226,4 +227,45 @@ test("rotates a point clockwise around the body origin", () => {
 test("mirrors a layer around the frame body origin, including frame move", () => {
   const rect = { left: 8, top: -20, width: 10, height: 12 };
   assert.deepEqual(mirrorBounds(rect, 3), { left: -12, right: -2, top: -20, bottom: -8 });
+});
+
+function slotted(id, z, priority, tag, index) {
+  return { index, layer: { id, z, priority, tag } };
+}
+
+function hiddenIds(items, zOrder) {
+  return [...occludedLayers(items, zOrder)].map((layer) => layer.id).sort();
+}
+
+test("slot occlusion keeps equal priorities and hides a whole canvas on one lost token", () => {
+  const zOrder = ["hairOverHead", "cap", "hair", "body"];
+  const hair = slotted("hair", "hair", -10, ["H2"], 0);
+  const cap = slotted("cap", "cap", -3, ["Cp", "H1", "H5"], 1);
+  const over = slotted("over", "hairOverHead", -10, ["H1"], 2);
+  assert.deepEqual(hiddenIds([hair, cap, over], zOrder), ["over"]);
+
+  const coat = slotted("coat", "mail", -5, ["Ma"], 0);
+  const robe = slotted("robe", "mail", -5, ["Ma"], 1);
+  const pants = slotted("pants", "pants", -8, ["Pn"], 2);
+  assert.deepEqual(hiddenIds([coat, robe, pants], ["mail", "pants"]), []);
+
+  const weapon = slotted("weapon", "weapon", -7, ["Wp"], 0);
+  const shield = slotted("shield", "shield", -6, ["Si"], 1);
+  assert.deepEqual(hiddenIds([weapon, shield], ["weapon", "shield"]), []);
+});
+
+test("a hidden canvas keeps slots it claimed before the token it lost", () => {
+  const zOrder = ["front", "mid", "back"];
+  const holder = slotted("holder", "back", 1, ["H1", "H2"], 0);
+  const winner = slotted("winner", "mid", 5, ["H2"], 1);
+  const late = slotted("late", "front", 0, ["H1"], 2);
+  assert.deepEqual(hiddenIds([holder, winner, late], zOrder), ["holder", "late"]);
+
+  const face = slotted("face", "face", 0, ["Fc"], 0);
+  const other = slotted("other", "body", -5, ["Fc"], 1);
+  assert.deepEqual(hiddenIds([face, other], ["face", "body"]), []);
+
+  const plain = { index: 0, layer: { id: "plain", z: "body" } };
+  const tagged = slotted("tagged", "mail", 1, ["Ma"], 1);
+  assert.deepEqual(hiddenIds([plain, tagged], ["mail", "body"]), []);
 });

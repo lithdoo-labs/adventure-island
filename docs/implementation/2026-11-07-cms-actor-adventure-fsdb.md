@@ -160,14 +160,9 @@ expression: {
 - 计划带 `bodyKey`，值是身体部件键，例如 `avatar.part.body.00002000`。组件按它记住上一个有画布的姿势名。`bodyKey` 变了就忘掉，改播新计划里的 `stand*`。
 - 请求的姿势这具身体没有时，适配器不把这个名字放进计划，也不换一具身体来补。若记住的姿势仍在这份计划里，组件继续播它。记住的姿势已经不在计划里，或还没有记住任何姿势，就播这份计划的 `stand*`。
 
-遮挡在投影时算完，隐藏的层不进计划。客户端函数还没还原，按设计里的四条：
+适配器给每张画布写 `priority` 和 `tag`，层仍留在计划里。组件在身体帧和表情帧拼到一起之后，按 `research/result/63-avatar-occlusion.md` 的 `0x401C74` 决定哪张不画。`priority` 是 `occupies` 在 `DrawOrder.frontToBack` 里最靠前的槽。`tag` 是 `covers` 与 `LayerSlot[z]` 的交。`z` 为 `face` 的画布不参加。没有这两个字段的旧计划全部照画。
 
-1. 另一件的 `covers` 含有这件 `occupies` 里的任一槽，则整件不画。
-2. 仍要画的那件里，这个 `z` 只对应一个槽，且另一件的 `covers` 含有它，则这一层不画。
-3. `z` 对应多个槽时，不因为沾到其中一个槽就藏。
-4. 一件装备不隐藏自己的画布。
-
-`LayerSlot` 里空数组的层不参与遮挡。别名用正式层的槽位。帽子 `01000000` 的 `covers` 是 `Cp`、`H1`、`H5`：藏住槽为 `H1` 的 `hairOverHead`，留下槽为 `H2` 的 `hair`。整件头发不因为这顶帽子被藏掉。
+`LayerSlot` 里空数组的层不声明槽位。帽子 `01000000` 的 `covers` 是 `Cp`、`H1`、`H5`：不画 `hairOverHead` 和 `backHair`，留下 `hair`。长袍和上衣的 `priority` 相同，上衣留下。长袍不声明 `Pn`，裤子留下。木锤只声明 `Wp`，同时穿上的盾留下。
 
 ## 8. 计划和事件怎么接
 
@@ -181,7 +176,7 @@ expression: {
 
 ### 8.1 逆向证据边界与绘制修复
 
-- 已确认的原始数据约定是：`zmap` 控制前后绘制顺序，`smap` 描述装备槽位；**原客户端完整的 Avatar 组装/遮挡函数仍未还原**，无法把调用方 `parts` 数组顺序当成逆向出的协议。当前 `layoutFrame` 使用首个已知锚点，必须先摆身体（提供 `neck`）、再摆头（提供 `brow`），才可以放头发/帽子；Adapter 因此在内部按 `body → head → hair → 其他部件按 key` 建立稳定布局。遮挡绘制仍只由 `avatar.DrawOrder` 决定。
+- `zmap` 控制前后绘制顺序，`smap` 提供每个 z 名覆盖的槽。占槽函数是 `0x401C74`，见 `research/result/63-avatar-occlusion.md`。调用方 `parts` 数组顺序不参与谁挡住谁。`layoutFrame` 使用首个已知锚点，必须先摆身体（提供 `neck`）、再摆头（提供 `brow`），才可以放头发/帽子；Adapter 因此在内部按 `body → head → hair → 其他部件按 key` 建立稳定布局。绘制顺序仍是 `avatar.DrawOrder`。
 - `source.width/height` 是小图裁剪尺寸，实际解码的是整页图集。不再按小图面积估算并限制图集内存；取消原有的 12 MiB 单层、单帧和缓存字节预算，保留 64 项 LRU 复用策略、8 路并发解码、冻结的 256 KiB `RenderNode.data` 协议上限。最终 Canvas 的极端锚点/DPR 安全校验是**另外的保护**。
 - 同一冷图集页被多个层引用时，首次资源请求不能代替全部层的裁剪合法性检查。每次绘制在解码完成后逐层检查 `source` 是否位于实际页面内，任意越界则整帧失败并给出资源标识。
 - 部件乱序与冷图集双裁剪都纳入回归测试；PWA CI 现在必须执行新增 Adapter、时钟及 Adventure Chromium 用例。正式 Base → Adventure Map 接线仍不是本 PR 的功能范围。
@@ -216,6 +211,6 @@ expression: {
 - 没有 `source` 的旧计划仍整张绘制。两件都带 `stance` 时拒绝投影。没有带 `stance` 的部件时使用 `stand1` 和 `walk1`。
 - 换脸但表情名仍是 `blink`、帧列表变了时，表情从第 0 帧重播。`bodyKey` 从 `avatar.part.body.00002000` 换成另一具身体时，不沿用上一具的姿势。
 - 脸的 `blink` 按自己的 `delay` 前进，身体停在 `stand1` 时它仍会动。换身体帧不把表情帧号归零。`showFace` 为假的身体帧不画脸。
-- 长袍的 `covers` 含有上衣和裤子的槽时，上衣和裤子不进计划。木锤占盾槽时，同时穿上的木盾不进计划。帽子 `01000000` 藏住 `hairOverHead`，留下 `hair`。
+- 长袍和上衣同时穿上时，两件都留下。长袍和裤子同时穿上时，裤子留下。木锤和盾同时穿上时，盾留下。帽子 `01000000` 使 `hairOverHead` 和 `backHair` 不画，`hair` 和 `hairShade` 留下。这些层仍在计划里。
 - 请求一具身体没有的姿势时，不把该名字放进计划。记住的姿势仍在这份计划里就继续播它；否则播这份计划的 `stand*`。头和身体肤色后缀不一致时拒绝投影。
 - 序列化后的 `RenderNode.data` 不超过 262,144 字节。

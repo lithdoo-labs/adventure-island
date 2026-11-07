@@ -205,9 +205,9 @@ const consumer = createControlsConsumer(
 
 ### 3.3 Actor、Viewport 与资源读取
 
-- 开始时从 `scope.content.record("struct.AdventureAvatarPlan", "bootstrap", { signal: frame.signal })` 读取**Plan 本体**；失败返回明确的 `failed({ code: "ADVENTURE_AVATAR_CONTENT_UNAVAILABLE" })`，取消返回 `cancelled()`。不要吞掉错误后展示空 Actor。
+- 开始时从 `scope.content.record("struct.AdventureAvatarPlan", "bootstrap", { signal: frame.signal })` 读取**Plan 本体**；Content 缺失/不可用（包含 `ContentReadError`）返回 `failed({code:"ADVENTURE_AVATAR_CONTENT_UNAVAILABLE"})`，已中止或 `CONTENT_CANCELLED` 返回 `cancelled()`；其他初始化异常映射为稳定 `ADVENTURE_MAP_INIT_FAILED`，并统一进入 `finally`。不要吞掉错误后展示空 Actor。
 - 初始化一次 `scope.createRenderDomain({ zIndex: 0, roots: [ { key: "adventure-player", tag: "cms-actor", attrs: {...}, data: { avatarPlan }, children: [] } ] })`，Actor 的稳定 key 不复用为新节点。初始 `locomotion=stand`、`facing=right`；外观 attrs 继续遵循 [cms-actor 既有契约](../../components/cms-actor/IMPLEMENTATION.md)。
-- `cms-actor` 的 `x/y` 是身体原点（接近脚底），不是 sprite 中心或世界坐标。演示期通过 `scope.viewport.current`、`subscribe` 更新 `x=round(width/2)`、`y=round(height/2+16)`；`+16` 是仅对当前合成图有效的待验证视觉偏移，不属于领域常量。Viewport 为 `null`、无效或零尺寸时不更新。首次有效尺寸及 resize 都需要验证。
+- `cms-actor` 的 `x/y` 是身体原点（接近脚底），不是 sprite 中心或世界坐标。演示期通过 `scope.viewport.current`、`subscribe` 计算 `x=Math.round(width/2)`、`y=Math.round(height/2+16)`；**初始与后续 `attrs.x/y` 均必须转换为字符串**（LoomRealm RenderNode attrs 为 string map）；`+16` 是仅对当前合成图有效的待验证视觉偏移，不属于领域常量。Viewport 为 `null`、无效或零尺寸时不更新。首次有效尺寸及 resize 都需要验证。
 - `domain.update({ nodes: [{ key, attrs: { set: changedAttrs } }] })` 只包含变化项；`avatarPlan` 在创建节点时传入一次，`cms-actor` 内部管理 Canvas、帧序列和 PNG Resource cache。
 - `cms-actor` 还观察 `skin`、`face`、`hair`、`expression`、`equips`，但这些只是游戏侧适配器的外观选择状态；组件不会据此自行查 Content 或重建 Plan。本切片不实现动态换装：不设置这些选择器，固定使用 bootstrap Plan。未来若增加换装，必须由游戏侧调用正式 Avatar Adapter 生成新 Plan，再显式更新 `data.avatarPlan`，不能只改选择器 attrs。
 
@@ -328,7 +328,7 @@ checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
   → npm run build:game-common-controls-input --prefix loom-realm
   → 校验 loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js
   → 根 esbuild 编译 systems/base/subsystem.mjs 与 systems/adventure-map/subsystem.mjs
-  → pwa:bundle：生成 2 个自包含 executable、2 个 Presentation classic scripts、synthetic Content 与 AvatarPlan Record
+  → pwa:bundle：从现有 FSDB 只读发布角色闭包与派生 Plan Record，另发布 2 个 executable / 2 个 classic scripts
   → LoomRealm @loomrealm/pwa build:bundle → staging
   → Node 契约/安全测试 + cms-actor 测试 + canonical PWA Chromium / Service Worker E2E
 ```
@@ -339,45 +339,55 @@ checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
 
 保留 `assertExecutableGraph` 的零外部导入图、禁止动态/越根导入和 Node-only API 规则。`CONTENT_SCRIPT_SOURCE_BINDINGS` 只允许固定的两个 classic script：`loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js` 与 `components/cms-actor/browser/cms-actor.browser.js`；Controls IIFE 必须是固定 gitlink 构建出来的产物，不能发布 TypeScript 源码、扫描 dist 目录或临时复制到 Git 跟踪目录。保留 Content identity、MIME、哈希、白名单、引用完整性、输出路径防护、确定性和负例测试。
 
-根 `presentation.json` 必须声明两份脚本，顺序为 Controls 在前、Actor 在后：`controls/device-input.browser.js` 与 `cms-actor/cms-actor.browser.js`。安装 Content 同时发布这两份 `resource.Presentation`、合成 Avatar Content 所需 records/groups/PNG resources，以及 `struct.AdventureAvatarPlan/bootstrap`。不再写死旧 Look fixture 的 Content 数量 `24`；测试应验证完整身份集合、无重复项和引用闭合，而不是只替换一个计数常量。两个 executable、两个 Presentation scripts 与 Plan Record 都必须通过真实 builder 发布链路。
+根 `presentation.json` 必须声明两份脚本，顺序为 Controls 在前、Actor 在后：`controls/device-input.browser.js` 与 `cms-actor/cms-actor.browser.js`。安装 Content 同时发布这两份 `resource.Presentation`、现有 `[FSDB]adventure` 所选 Part/Group/PNG 闭包，以及派生的 `struct.AdventureAvatarPlan/bootstrap`。不再写死旧 Look fixture 的 Content 数量 `24`；已预先调整的 CI staging 校验改为依据实际 Launch/Presentation manifest 和唯一 Content identity，闭包中的 Plan/PNG 版本只需一个 Bundle round-trip 用例。两个 executable、两个 Presentation scripts 与 Plan Record 都必须通过真实 builder 发布链路。
 
-**CI 必改文件与约定：**
+**CI 与 Issue Agent 权限边界：** Issue Agent Publisher 的受保护路径包含整个 `.github/**`，**Agent 无法提交工作流修改**。本设计分支已由维护方预置兼容 Smoke 和新 Base/Map 的 Workflow 迁移准备；只有此分支的准备 PR 合入 `main` 后才生效。后续发现确需额外调整 Workflow 时交给维护方，不让 Agent 在受保护文件上反复尝试。
 
-- `.github/workflows/pwa-ci.yml`：增加产品根 `npm ci`，保留固定 submodule `npm ci`；在 `pwa:bundle` 前构建 Controls IIFE；保留 LoomRealm `build:bundle`、gitlink 精确校验、研究素材隔离和无 skip 测试门禁。
-- Workflow `paths`：由仅覆盖 `systems/loomrealm-smoke/**` 扩展为 `systems/**`，并覆盖 `content/**`、根 `package.json`、根 `package-lock.json`、`scripts/pwa/**`、`components/cms-actor/src/**` 与新增测试。代码 PR 不得因路径过滤绕过 canonical PWA E2E。
+**准备好的 CI 与本次功能实施责任：**
+
+- `.github/workflows/pwa-ci.yml`：已预置仅在产品根锁文件存在时执行根 `npm ci`，保留固定 submodule `npm ci`；仅当 Presentation 声明 Controls 时，在 `pwa:bundle` 前构建 Controls IIFE。Agent 新增根锁文件并更新 manifest 后该路径自动启用，不需要 Agent 修改 Workflow。
+- Workflow `paths`：已扩展为 `systems/**` 且覆盖根 `package-lock.json`；保留现有 `content/**`、`scripts/pwa/**`、`test/**`、`package.json`、Actor 及入口文件触发路径。Staging 校验也已去掉旧 Smoke 的硬编码数量；功能 PR 必须保留这些覆盖。
 - `test/game-entry.test.mjs`：将 canonical `base` 与 legacy `apps/*` Smoke 分离；新增 Base → Map 参数原样透传、输入域开闭、Frame Outcome 与异常清理契约，不再强制所有历史入口等于 Smoke。
-- 新增 Base / Map Subsystem 契约测试：覆盖父 Frame 持有 Producer、子 Frame 作为 Top Active Frame 接收 Controls、Tracker 状态变化、RenderDomain 更新、Content 读取失败、取消优先与同步投影错误终止。
-- `test/pwa-bundle.test.mjs`：更新两个 executable、两份脚本、正式 Avatar Content schema 与 Plan Record 的白名单/identity/哈希断言；隔离负例可通过明确 builder 注入接口提供测试用自包含 executable 和 Controls 哑脚本，但不得将其称为真实编译集成测试。
-- `test/pwa-staging.test.mjs`：更新 `makeStagingFixture()`，使其包含新的 Game Entry、两个 logical modules、两份 Presentation scripts、正式 synthetic Avatar Content 与 Plan Record；保留 Gitlink、符号链接/受保护路径、错误回滚和失败时无写入断言。真实集成测试必须使用生产构建路径。
-- `scripts/pwa/synthetic-avatar-content.mjs` 与 `test/pwa-avatar-fixture.mjs`：改用正式 `buildAdventureAvatarPlan()` 生成的 Plan 和正式 Content schema；fixture 可继续作为隔离 Renderer 测试夹具，但不得被误认为 canonical Subsystem。
-- `test/pwa-browser.e2e.test.mjs`：增加 canonical `base → adventure-map` PWA E2E；真实验证 Presentation 注册、Plan Record 读取、PNG 加载、可信键盘 down/up、松键状态、Viewport resize、Frame 取消和资源回收。旧 Smoke `settled` 断言仅留在隔离 Smoke 测试。
-- 根 `package.json`：当前 `test` 是显式文件清单，必须把 Base/Map 单测、Bundle/Staging 回归和 PWA Chromium E2E 纳入明确的 CI 命令；不能只新增测试文件而不执行。CI 显式检查 `# fail 0`、`# skipped 0` 和至少一个通过用例。
+- 仅新增 **一个** `test/adventure-runtime.test.mjs`，通过 3 个集中场景覆盖 Base Frame/Producer 生命周期、Map 方向变换、Content 缺失/取消/同步投影失败。直接复用固定 Controls Tracker，不重写框架输入状态机测试。
+- `test/pwa-bundle.test.mjs`：只迁移两个 executable、两份脚本和现有 FSDB 闭包的身份/哈希断言，增补一条 Plan/PNG Bundle round-trip；保留原有输出路径、符号链接、越权源和哈希安全负例，不复制安全测试框架。
+- `test/pwa-staging.test.mjs`：只更新 `makeStagingFixture()` 的入口、两个 executable / scripts 与 FSDB 闭包/Plan identities，使现有 Staging 测试继续运行；不要新增另一套 stub-builder 或安全负例。
+- `scripts/pwa/synthetic-avatar-content.mjs`、`test/pwa-avatar-fixture.mjs` 和旧 Look Adapter 可以继续作为独立的历史 fixture，**不必重写**；canonical PWA Builder 改从现有 `[FSDB]adventure` 取数。
+- `test/pwa-browser.e2e.test.mjs`：改写旧 canonical Smoke 场景为**唯一** Base → Map → Actor PWA E2E：真实 ready/active、唯一 Actor 可见、可信 `page.keyboard.down/up`、动作与面向、松键、Resize。不要复制历史 Actor fixture 的逐像素/资源冲突/恢复测试；旧 Smoke `settled` 仅在隔离测试保留。
+- 根 `package.json`：把新的 `test/adventure-runtime.test.mjs` 纳入现有 `npm test` Node 测试清单；**不要将 Chromium E2E 也放入根 `npm test`**，它由现有 PWA CI Browser 步骤单独执行。无失败、无意外跳过和至少一条成功用例的原有 CI 门禁不得放松。
 - `docs/game-entry.md` 与 `README.md`：说明新的 canonical 入口，准确标注 legacy Smoke，不再把 Smoke 描述为正式应用入口。
 
 不更新 gitlink，不提交第三方控制器文件、CMS079 客户端、WZ、真实 FSDB 或密钥，不改生产部署。
 
-## 5. 验收矩阵与故障闭环
+## 5. 精简测试范围和执行节奏
 
-| 范围 | 必须验证 | 合格证据 |
+### 5.1 新功能只新增或改写五个核心场景
+
+| 场景 | 测试归属 | 最小证明 |
 |---|---|---|
-| Game Entry | `base` 是初始 Frame；它打开 `adventure-map` 并在子 Frame 活跃时保持唯一输入 Producer | Frame / RenderDomain 单元契约，父子 Frame 参数与 Outcome 测试 |
-| Controls 脚本 | Controls IIFE 在 Actor script 前注册；只有一个 `game-controls-input` 活动实例，非重复注册 | Presentation manifest、staging Bundle 引用、真实浏览器 `customElements` 与 duplicate 状态断言 |
-| Input | `ArrowLeft/Right/Up/Down` 真实 down/up；组合按键、释放、blur/stale reset；D-pad 映射；Consumer 首次同步空 State | 固定 Controls 单测 + Chromium `page.keyboard.down/up`；实机手柄未测不得宣称通过 |
-| FSDB / Content identity | FSDB 表路径映射到固定 `record/group/resource` namespace/key；不向业务暴露物理路径；宽松 `.info.meta` 不得冒充 Integrity-valid | namespace/key 对照、严格 schema、重复 row/key、引用闭合与 atlas crop bounds 负例 |
-| Avatar Content | 合成 fixture 遵循正式 `avatar.Part/PartFrame/Resource/DrawOrder/LayerSlot` 契约；正式 Adapter 生成 Plan；Plan Record value 为本体 | Adapter 单测、Reader 形状、Plan Record round-trip、Bundle identity / SHA-256 / 字节上限断言 |
-| Resource version | Plan 每个 layer 的 resource key/version 与 Bundle PNG 精确一致；运行时按 expectedContentVersion 读取 | PNG bytes hash、MIME/解码/裁剪边界、Content version mismatch 必须拒绝 |
-| Actor | `stand1 / walk1 / jump` 与 facing 正确，松开恢复；无世界位移；Viewport resize 仍居中 | Chromium 实际 `data-action` / `data-render-state` 与像素/位置验证 |
-| Render / Resource | Plan 每个 layer 的 resource identity 和 `contentVersion` 精确匹配已发布 PNG；方向变化不重发 Plan | 根 Content 合法性、PNG 真加载、DOM 观察、RenderDomain update 断言 |
-| 生命周期 / 故障 | Frame 中止后 Consumer、Viewport 订阅、Map Domain 及 Base Domain 关闭；Callback 中 RenderDomain 失败不会被 Consumer 静默吞掉；取消优先 `cancelled`；Renderer 资源失败不冒充 Worker `failed` | 同步空 State、Viewport 异常、主动取消/致命投影失败单测与 canonical PWA E2E |
-| 构建 / CI | 双 lockfile 安装、Controls 先构建、两个自包含 executable、两个 classic scripts、正式 synthetic Content、确定性/安全路径与 Staging fixture 通过 | 干净 CI checkout；根与 submodule 两次 `npm ci`；完整测试命令无 skip；canonical Chromium / Service Worker E2E |
+| T1 Base 生命周期 | **新** `test/adventure-runtime.test.mjs` | Frame 参数透传、唯一 Producer 在子 Frame 活跃期间存在、返回/取消释放 |
+| T2 Map 动作 | 同一个 runtime 文件 | 左右 walk/facing、up jump、down stand、松键恢复；复用 Controls Tracker，不做按键组合矩阵 |
+| T3 Map 失败/取消 | 同一个 runtime 文件 | Content 不可用失败、Abort 取消、同步投影错误进入 failed 且清理 Consumer/Viewport/Domain |
+| T4 FSDB → Bundle | **扩展现有** `test/pwa-bundle.test.mjs` 一个 focused case | 从现有 FSDB 闭包生成 Plan；从最终 Bundle 重新解码 Plan/PNG，校验唯一 identity、SHA-256、Plan 字节限制 |
+| T5 正式浏览器 | **改写现有** `test/pwa-browser.e2e.test.mjs` canonical 场景 | Service Worker 内 Base → Map ready/active、唯一 Actor 画出非透明像素、可信键盘 down/up、动作/面向、松键及 Resize 居中 |
 
-**特别约定：** 新 `game-controls-input` 检查 `isTrusted`，自动化集成必须使用 Playwright 的真实键盘操作，而不是 `page.evaluate(() => dispatchEvent(new KeyboardEvent(...)))` 伪造事件。测试先验证页面已可交互再发输入；非激活 Frame 的早到事件不能要求重放。
+**其他测试是“迁移断言和保留回归”，不是本 Issue 的新测试开发：** `game-entry.test.mjs` 和 `presentation.test.mjs` 修改旧 Smoke/单脚本断言；`pwa-staging.test.mjs` 修改 fixture；`pwa-bundle.test.mjs` 保留已有安全负例。Actor 的部件、帧时钟、PNG、缓存、冲突和复原已由 `components/cms-actor/test/**` 覆盖；统一 Controls 状态机由固定 LoomRealm 负责。**不要求**在新 E2E 再测全装备组合、截图像素矩阵、断线恢复和手柄硬件矩阵。
 
-**验收报告必须区分：**
+**硬边界：** 默认只允许新增 **一个 Node 测试文件**、一个 Bundle round-trip 用例、一个改写的 canonical Chromium 场景。缺陷确实触及当前切片的独立行为时才新增直接覆盖该缺陷的最小回归；不得为“以后也许需要”开大规模参数化测试、全库 FSDB Integrity Validator 或第二套浏览器 harness。
 
-- **PWA：** `PASS` 仅当 canonical PWA 的真实端到端输入、正式 Avatar Adapter 生成的 synthetic Plan、Content、Actor、取消清理全部通过；旧 `test/pwa-avatar-fixture.mjs` 或 cms-actor 单测单独通过不足以认定达标。
-- **手柄：** 可通过 deterministic Controls / D-pad 注入证明映射；实机控制器测试未做时写 `DEVICE UNVERIFIED`，不得写“实机已通过”。模拟摇杆属于明确的非目标。
-- **Hostra：** `launch.hostra.json` 配置同构不等于正式运行成功。若没有相同逻辑身份的 synthetic Content 及其可重放安装/启动过程，验收写 `BLOCKED`；可另开任务建立 Desktop Content 安装，不阻断本次 PWA 切片。
+### 5.2 开发时按层运行，最终 CI 不减验收标准
+
+| 阶段 | 测试操作 | 频率 |
+|---|---|---|
+| 快速反馈 | `node --test test/adventure-runtime.test.mjs`，涉及入口再跑 `test/game-entry.test.mjs`、`test/presentation.test.mjs` | 修改 Base/Map 时；无需浏览器 |
+| 构建集成 | 运行受影响的 Bundle/Staging 测试及 T4；保留原有安全负例 | FSDB Reader 与 Bundle 接口稳定后；不每次小改都重新构建整个 PWA |
+| 完整交付 | 根 `npm test`、现有 Actor 测试、正式 PWA Chromium / Service Worker E2E、Bundle 确定性与 Staging | 垂直切片实现齐备后完整执行；修复失败先跑针对性测试，再复跑最终门禁 |
+
+真实输入只使用 Playwright `page.keyboard.down/up`，不通过 `dispatchEvent(new KeyboardEvent(...))` 伪造；完整 PWA 必须进入 active `ready` 状态，不能沿用旧 Smoke `settled`。CI `# fail 0`、`# skipped 0` 和至少一项 PASS 门禁不放松；未执行的检查不得宣称 PASS。Hostra 无安装验证时写 `BLOCKED`；实机手柄未测写 `DEVICE UNVERIFIED`，均不阻断 PWA。
+
+### 5.3 唯一的 PWA 完成定义
+
+Root Game Entry 启动 Base → Map；两个自包含 executable 和两份 classic scripts 经真实 Bundle 发布；FSDB 闭包加派生 Plan Record 的资源版本一致；唯一 Actor 正常绘制、方向变化只更新字符串 attrs、无世界位移、Resize 居中；Frame 取消和失败能清理资源；现有 Node、Actor、Bundle/Staging 安全回归和 canonical PWA E2E 都通过。**T1–T4 分别通过不等于完整垂直闭环，必须有 T5。**
+
 
 ## 6. 实施边界与交付顺序
 

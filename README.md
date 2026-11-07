@@ -67,6 +67,8 @@ Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定�
 
 根目录 `npm run pwa:bundle` 从 canonical `base` → `adventure-map` 入口发布两份自包含 executable、选定 `[FSDB]adventure` Avatar 闭包、派生 `struct.AdventureAvatarPlan/bootstrap`，以及 Controls 与 cms-actor 两份 classic script。`npm run pwa:staging` 在检查精确 Gitlink、真实通用 Builder 和编译依赖后，生成 `dist/staging/adventure-island/`。该目录只是本地构建产物，**不是线上服务**。
 
+根目录 `npm ci` 的 `postinstall` 会先编译固定 LoomRealm 里 `build:game-common-controls-input` 未包含、但该脚本随后会类型检查的 `@loomrealm/game-package` 与 `@loomrealm/game-launcher-hostra`。这样干净检出上的 Controls 构建不会因为缺少声明文件而失败。子模块源码和 lockfile 不改。
+
 安装顺序：
 
 ```bash

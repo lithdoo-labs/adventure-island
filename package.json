@@ -10,6 +10,8 @@
   ],
   "scripts": {
     "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/adventure-runtime.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
+    "prepare:loomrealm-controls": "npm run build -w @loomrealm/foundation -w @loomrealm/wire -w @loomrealm/shared-state -w @loomrealm/session-events -w @loomrealm/game-package -w @loomrealm/platform-ports -w @loomrealm/runtime-control -w @loomrealm/renderer-control -w @loomrealm/data -w @loomrealm/subsystem -w @loomrealm/main -w @loomrealm/game-launcher-hostra --prefix loom-realm",
+    "postinstall": "npm run prepare:loomrealm-controls",
     "pwa:bundle": "node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json",
     "pwa:staging": "node scripts/pwa/build-staging.mjs"
   },

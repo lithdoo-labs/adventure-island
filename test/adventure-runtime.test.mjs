@@ -407,6 +407,12 @@ test("T2: the Map projects one centered actor and maps directions onto locomotio
   harness.viewportHarness.notify({ width: 1000, height: 500 });
   await settle();
   assert.deepEqual(attrsOfUpdate(-1), { x: "500", y: "266" }, "resize recenters the actor (x = w/2, y = h/2 + 16)");
+  harness.viewportHarness.notify({ width: 1002, height: 500 });
+  await settle();
+  assert.deepEqual(attrsOfUpdate(-1), { x: "501" }, "width-only resize projects x, not an unchanged y");
+  harness.viewportHarness.notify({ width: 1002, height: 502 });
+  await settle();
+  assert.deepEqual(attrsOfUpdate(-1), { y: "267" }, "height-only resize projects y, not an unchanged x");
   // A null/invalid viewport never updates attrs.
   const before = harness.domain().updates.length;
   harness.viewportHarness.notify(null);
@@ -457,6 +463,15 @@ test("T3: cancelled Content reads map to cancelled(), other init errors to ADVEN
   assert.equal(brokenOutcome.type, "failed");
   assert.equal(brokenOutcome.error.code, "ADVENTURE_MAP_INIT_FAILED", "non-Content init errors get the init failure code");
   assert.equal(brokenHarness.domains.length, 0);
+
+  // Error codes alone are not proof of a ContentReadError. Generic runtime
+  // initialization failures must retain their distinct failure category.
+  const misleadingError = Object.assign(new Error("unrelated runtime failure"), { code: "CONTENT_NOT_FOUND" });
+  const misleadingHarness = startMapFrame({ content: createContentHarness({ recordError: misleadingError }) });
+  const misleadingOutcome = await misleadingHarness.outcome;
+  assert.equal(misleadingOutcome.type, "failed");
+  assert.equal(misleadingOutcome.error.code, "ADVENTURE_MAP_INIT_FAILED");
+  assert.equal(misleadingHarness.domains.length, 0);
 
   const createRenderDomain = () => { throw new Error("renderer refused"); };
   const frame = createFrame();

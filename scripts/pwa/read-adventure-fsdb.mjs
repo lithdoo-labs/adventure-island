@@ -195,8 +195,14 @@ export async function buildCanonicalAdventureAvatarContent({
   const parseRows = (bytes, label) => {
     const rows = [];
     const text = bytes.toString("utf8");
-    for (const [index, line] of text.split(/\r?\n/u).entries()) {
-      if (line.trim().length === 0) continue;
+    const lines = text.split(/\r?\n/u);
+    // Exactly one terminal newline is valid JSONL; internal empty/blank rows
+    // are not records and must not silently disappear from a published Group.
+    if (lines.at(-1) === "") lines.pop();
+    for (const [index, line] of lines.entries()) {
+      if (line.trim().length === 0) {
+        throw new TypeError(`${label} row ${index + 1} is empty`);
+      }
       let row;
       try {
         row = JSON.parse(line);

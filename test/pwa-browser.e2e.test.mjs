@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { access, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
@@ -9,26 +9,35 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { buildAdventureIslandInstallationBundle } from "../scripts/pwa/build-installation-bundle.mjs";
 import {
-  PRESENTATION_SCRIPT_KEY,
-  buildCanonicalSyntheticAvatarContent,
-} from "../scripts/pwa/synthetic-avatar-content.mjs";
+  ACTOR_SCRIPT_KEY,
+  CONTROLS_SCRIPT_KEY,
+} from "../scripts/pwa/build-installation-bundle.mjs";
+import { buildCanonicalAdventureAvatarContent } from "../scripts/pwa/read-adventure-fsdb.mjs";
+import { buildCanonicalSyntheticAvatarContent } from "../scripts/pwa/synthetic-avatar-content.mjs";
 import { FIXTURE_LOGICAL_MODULE, composeAvatarFixturePayload } from "./pwa-avatar-fixture.mjs";
 import { COLORS, FRAME_MARKERS } from "../components/cms-actor/test/synthetic-fsdb.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
-const CANONICAL_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
+const canonicalAdventure = await buildCanonicalAdventureAvatarContent();
+const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 2;
+const FIXTURE_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
 
 // Resolve Playwright from the exact pinned framework workspace installed by CI.
 const requireFromFramework = createRequire(new URL("../loom-realm/apps/pwa/package.json", import.meta.url));
 const { chromium } = requireFromFramework("playwright");
 
-// Unlike the framework's persistent demo, the Adventure Island Smoke
-// subsystem completes its initial Frame immediately: the product moves from
-// "ready" to "settled" before a browser polling loop may observe "ready".
-test("Adventure Island Smoke PWA settles under its isolated Service Worker scope", { timeout: 60_000 }, async () => {
+// ---------------------------------------------------------------------------
+// T5 — the CANONICAL Base → Adventure Map → cms-actor PWA under its real
+// Service Worker scope (issue #62). Driven by LOOMREALM_PWA_URL exactly like
+// the CI staging loopback: the product must reach the ACTIVE "ready" state
+// (the adventure-map Frame intentionally never settles), the single actor
+// must paint real FSDB pixels, trusted keyboard input (page.keyboard.down/up,
+// never synthetic DOM KeyboardEvents) must drive locomotion/facing and
+// release, and a viewport resize must re-center the actor.
+// ---------------------------------------------------------------------------
+test("Adventure Island Base → Adventure Map PWA runs active under its isolated Service Worker scope", { timeout: 120_000 }, async () => {
   const url = process.env.LOOMREALM_PWA_URL;
   assert.ok(url?.endsWith("/pwa/adventure-island/"), "real upstream loopback E2E URL must use Adventure Island scope");
   const browser = await chromium.launch({ headless: true });
@@ -45,14 +54,13 @@ test("Adventure Island Smoke PWA settles under its isolated Service Worker scope
     const response = await page.goto(url, { waitUntil: "domcontentloaded" });
     assert.equal(response?.status(), 200, `index.html response: ${response?.status()}`);
 
-    // A one-frame completed application settles; do NOT use the framework's
-    // openProduct() helper, which waits only for "ready"/"failed".
+    // The map Frame stays active until cancelled: wait for the ACTIVE ready
+    // state (not the smoke-era "settled"), with an explicit failure branch.
     try {
-      await page.waitForFunction(() =>
-        document.documentElement.dataset.loomrealmProduct === "settled"
-        || document.documentElement.dataset.loomrealmProduct === "failed",
-        null, { timeout: 25_000 },
-      );
+      await page.waitForFunction(() => {
+        const state = document.documentElement.dataset.loomrealmProduct;
+        return state === "ready" || state === "settled" || state === "failed";
+      }, null, { timeout: 45_000 });
     } catch (cause) {
       const state = await page.evaluate(() => ({
         path: location.pathname,
@@ -66,7 +74,7 @@ test("Adventure Island Smoke PWA settles under its isolated Service Worker scope
           : null,
         sw: navigator.serviceWorker?.controller?.scriptURL ?? null,
       }));
-      throw new Error(`Smoke PWA did not settle: ${cause.message}\n${JSON.stringify({ state, diagnostics }, null, 2)}`);
+      throw new Error(`Adventure Island PWA did not become ready: ${cause.message}\n${JSON.stringify({ state, diagnostics }, null, 2)}`);
     }
 
     const evidence = await page.evaluate(async () => {
@@ -76,7 +84,9 @@ test("Adventure Island Smoke PWA settles under its isolated Service Worker scope
         pathname: location.pathname,
         productState: document.documentElement.dataset.loomrealmProduct,
         presentationState: document.documentElement.dataset.loomrealmPresentation ?? null,
+        presentationError: document.documentElement.dataset.loomrealmPresentationError ?? null,
         cmsActorRegistered: typeof customElements.get("cms-actor"),
+        controlsInputRegistered: typeof customElements.get("game-controls-input"),
         controlled: navigator.serviceWorker.controller !== null,
         controllerScript: navigator.serviceWorker.controller?.scriptURL ?? null,
         generation,
@@ -88,21 +98,147 @@ test("Adventure Island Smoke PWA settles under its isolated Service Worker scope
       };
     });
     assert.equal(evidence.pathname, "/pwa/adventure-island/");
-    assert.equal(evidence.productState, "settled", JSON.stringify({ diagnostics, evidence }));
+    assert.equal(evidence.productState, "ready", `the canonical slice must stay ACTIVE, not settle: ${JSON.stringify({ diagnostics, evidence })}`);
     assert.equal(evidence.presentationState, "ready", `the canonical presentation bootstrap must succeed: ${JSON.stringify({ diagnostics, evidence })}`);
+    assert.equal(evidence.presentationError, null, JSON.stringify({ diagnostics, evidence }));
     assert.equal(evidence.cmsActorRegistered, "function", "the canonical staging must bootstrap the cms-actor classic script through the Service Worker Content route");
+    assert.equal(evidence.controlsInputRegistered, "function", "the pinned Controls classic script must register game-controls-input");
     assert.equal(evidence.controlled, true, JSON.stringify({ diagnostics, evidence }));
     assert.match(evidence.controllerScript, /\/pwa\/adventure-island\/service-worker\.js$/);
     assert.equal(evidence.generation.appId, "adventure-island");
     assert.equal(evidence.generation.basePath, "/pwa/adventure-island/");
-    assert.deepEqual(evidence.executableModules, ["subsystems/smoke.mjs"]);
+    assert.deepEqual(evidence.executableModules, ["subsystems/base.mjs", "subsystems/adventure-map.mjs"]);
     assert.equal(evidence.contentCount, CANONICAL_CONTENT_COUNT);
-    assert.deepEqual(evidence.presentationScripts, [{ namespace: "Presentation", key: PRESENTATION_SCRIPT_KEY }]);
+    assert.deepEqual(evidence.presentationScripts, [
+      { namespace: "Presentation", key: CONTROLS_SCRIPT_KEY },
+      { namespace: "Presentation", key: ACTOR_SCRIPT_KEY },
+    ]);
     assert.equal(evidence.failure, null);
-    assert.ok(evidence.statuses.some((entry) => entry?.status === "main-started"),
-      "the real Runtime must have started Main");
-    assert.ok(evidence.statuses.some((entry) => entry?.status === "settled"),
-      "the Smoke Frame must settle");
+    assert.ok(evidence.statuses.some((entry) => entry?.status === "main-started"), "the real Runtime must have started Main");
+
+    // Exactly one Controls producer and exactly one actor, painted and
+    // centered from the real FSDB plan.
+    await page.waitForFunction(() => {
+      const actor = document.querySelector("cms-actor");
+      return actor?.getAttribute("data-render-state") === "ready" || actor?.getAttribute("data-render-state") === "error";
+    }, null, { timeout: 45_000 });
+    const actorState = await page.evaluate(() => {
+      const actor = document.querySelector("cms-actor");
+      return {
+        actorCount: document.querySelectorAll("cms-actor").length,
+        producerCount: document.querySelectorAll("game-controls-input").length,
+        renderState: actor?.getAttribute("data-render-state") ?? null,
+        renderError: actor?.getAttribute("data-render-error") ?? null,
+        x: actor?.getAttribute("x") ?? null,
+        y: actor?.getAttribute("y") ?? null,
+        locomotion: actor?.getAttribute("locomotion") ?? null,
+        facing: actor?.getAttribute("facing") ?? null,
+        action: actor?.getAttribute("data-action") ?? null,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+      };
+    });
+    assert.equal(actorState.actorCount, 1, "exactly one cms-actor may be projected");
+    assert.equal(actorState.producerCount, 1, "exactly one game-controls-input producer may be projected");
+    assert.equal(actorState.renderState, "ready", `the actor must paint from the published FSDB plan (${actorState.renderError ?? "?"})`);
+    assert.equal(actorState.locomotion, "stand");
+    assert.equal(actorState.facing, "right");
+    assert.equal(actorState.action, "stand1", "initial rendering must select the real stand action");
+    assert.equal(actorState.x, String(Math.round(actorState.viewport.width / 2)), "the actor starts horizontally centered");
+    assert.equal(actorState.y, String(Math.round(actorState.viewport.height / 2 + 16)), "the actor starts vertically centered (+16 body-origin offset)");
+
+    // The unique actor paints real non-transparent pixels (FSDB atlas).
+    const visibleActorBounds = async () => page.evaluate(() => {
+      const canvas = document.querySelector("cms-actor")?.shadowRoot?.querySelector("canvas");
+      if (!canvas || canvas.width <= 1) return null;
+      const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+      let opaquePixels = 0;
+      let minX = canvas.width;
+      let minY = canvas.height;
+      let maxX = -1;
+      let maxY = -1;
+      for (let pixel = 0; pixel < canvas.width * canvas.height; pixel += 1) {
+        if (data[pixel * 4 + 3] === 0) continue;
+        const x = pixel % canvas.width;
+        const y = Math.floor(pixel / canvas.width);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        opaquePixels += 1;
+      }
+      if (opaquePixels === 0) return { opaquePixels };
+      const rect = canvas.getBoundingClientRect();
+      return {
+        opaquePixels,
+        x: rect.left + (minX + maxX + 1) / 2 * rect.width / canvas.width,
+        y: rect.top + (minY + maxY + 1) / 2 * rect.height / canvas.height,
+        viewportX: window.innerWidth / 2,
+        viewportY: window.innerHeight / 2,
+      };
+    });
+    const expectVisibleCenter = (bounds, phase) => {
+      assert.ok(bounds?.opaquePixels > 0, `${phase}: the real FSDB actor must paint non-transparent pixels`);
+      // The body origin is not the sprite center. Allow less than one small
+      // CMS079 sprite width of animation/anchor variation, but reject a
+      // misplaced actor or a canvas positioned outside the viewport.
+      assert.ok(
+        Math.abs(bounds.x - bounds.viewportX) <= 24 && Math.abs(bounds.y - bounds.viewportY) <= 24,
+        `${phase}: visible FSDB pixels must be centered (within 24 CSS px): ${JSON.stringify(bounds)}`,
+      );
+    };
+    expectVisibleCenter(await visibleActorBounds(), "initial stand");
+
+    // Trusted keyboard input through the real controls channel. Wait for the
+    // interactive state before pressing (the map's consumer is live once the
+    // actor projected; keys pressed before that are not guaranteed to arrive).
+    const expectActor = async (locomotion, facing, action) => {
+      await page.waitForFunction(({ locomotion: wantLocomotion, facing: wantFacing, action: wantAction }) => {
+        const actor = document.querySelector("cms-actor");
+        if (!actor) return false;
+        return actor.getAttribute("locomotion") === wantLocomotion
+          && actor.getAttribute("facing") === wantFacing
+          && actor.getAttribute("data-action") === wantAction;
+      }, { locomotion, facing, action }, { timeout: 20_000 });
+    };
+
+    await page.keyboard.down("ArrowLeft");
+    await expectActor("walk", "left", "walk1");
+    await page.keyboard.up("ArrowLeft");
+    await expectActor("stand", "left", "stand1");
+
+    await page.keyboard.down("ArrowRight");
+    await expectActor("walk", "right", "walk1");
+    await page.keyboard.up("ArrowRight");
+    await expectActor("stand", "right", "stand1");
+
+    await page.keyboard.down("ArrowUp");
+    await expectActor("jump", "right", "jump");
+    await page.keyboard.up("ArrowUp");
+    await expectActor("stand", "right", "stand1");
+
+    await page.keyboard.down("ArrowDown");
+    await expectActor("stand", "right", "stand1");
+    await page.keyboard.up("ArrowDown");
+    await expectActor("stand", "right", "stand1");
+
+    // Resize re-centers the still-unique actor.
+    await page.setViewportSize({ width: 1000, height: 700 });
+    await page.waitForFunction(() => {
+      const actor = document.querySelector("cms-actor");
+      if (!actor) return false;
+      return actor.getAttribute("x") === String(Math.round(1000 / 2))
+        && actor.getAttribute("y") === String(Math.round(700 / 2 + 16));
+    }, null, { timeout: 20_000 });
+    const afterResize = await page.evaluate(() => ({
+      actorCount: document.querySelectorAll("cms-actor").length,
+      productState: document.documentElement.dataset.loomrealmProduct,
+    }));
+    assert.equal(afterResize.actorCount, 1, "resize must not duplicate the actor");
+    assert.equal(afterResize.productState, "ready", "the product stays active after resize");
+    expectVisibleCenter(await visibleActorBounds(), "after resize");
+
+    const pageErrors = diagnostics.filter((line) => line.startsWith("pageerror:"));
+    assert.deepEqual(pageErrors, [], `no unhandled page errors may escape the active slice (${JSON.stringify(pageErrors)})`);
   } finally {
     await browser.close();
   }
@@ -111,13 +247,15 @@ test("Adventure Island Smoke PWA settles under its isolated Service Worker scope
 // ---------------------------------------------------------------------------
 // PR-B: real PWA + Service Worker + Renderer Projector synthetic-actor E2E.
 //
-// Builds the CANONICAL product payload with the real builder, composes the
-// isolated avatar-fixture payload from it (same Content, test-only subsystem),
-// runs the REAL pinned generic PWA builder, serves the result exactly like
-// the CI's staging loopback server, and observes the projected paper doll in
-// real Chromium: pixels for stand/walk/jump, Content version rejection and
-// missing-resource failures with cleared canvases, recovery, and disconnect
-// cancellation with cache release. Never a bare customElements.get check.
+// An ISOLATED historical fixture (issue #62 keeps it out of the canonical
+// path): composes a self-contained payload whose Content is the deterministic
+// synthetic paper-doll closure (struct.ZMap / struct.Look + PNGs + the
+// cms-actor IIFE) and whose subsystem is a test-only director, runs the REAL
+// pinned generic PWA builder, serves the result exactly like the CI's staging
+// loopback server, and observes the projected paper doll in real Chromium:
+// pixels for stand/walk/jump, Content version rejection and missing-resource
+// failures with cleared canvases, recovery, and disconnect cancellation with
+// cache release. Never a bare customElements.get check.
 // ---------------------------------------------------------------------------
 
 const GENERIC_BUILDER = fileURLToPath(new URL("loom-realm/apps/pwa/scripts/build-bundle.mjs", repoRoot));
@@ -217,18 +355,13 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
     await rm(work, { recursive: true, force: true }).catch(() => {});
   });
 
-  // 1. The CANONICAL product payload from the real builder (real Gitlink pin).
-  const canonicalPath = path.join(work, "canonical-bundle.json");
-  const canonical = await buildAdventureIslandInstallationBundle({ outputFile: canonicalPath });
-  assert.equal(canonical.contentCount, CANONICAL_CONTENT_COUNT);
-  const canonicalPayload = JSON.parse(await readFile(canonical.outputFile, "utf8"));
-
-  // 2. The isolated fixture payload: same presentation + Content, test-only
-  //    subsystem that projects the plan the builder proved consistent.
-  const { payload: fixturePayload } = composeAvatarFixturePayload({ canonicalPayload });
+  // 1. The isolated fixture payload: the deterministic synthetic Content and
+  //    presentation, plus a test-only subsystem that projects the plan the
+  //    generator proved consistent.
+  const { payload: fixturePayload } = await composeAvatarFixturePayload();
   await writeFile(fixtureBundlePath, `${JSON.stringify(fixturePayload)}\n`, "utf8");
 
-  // 3. The REAL pinned generic PWA builder with the pinned product identity.
+  // 2. The REAL pinned generic PWA builder with the pinned product identity.
   const build = spawnSync(process.execPath, [
     GENERIC_BUILDER,
     "--bundle", fixtureBundlePath,
@@ -241,7 +374,7 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
     await access(path.join(stagingDir, artifact));
   }
 
-  // 4. Serve exactly like the CI staging loopback and drive real Chromium.
+  // 3. Serve exactly like the CI staging loopback and drive real Chromium.
   server = await serveStaging(stagingDir, "/pwa/adventure-island/");
   try {
     browser = await chromium.launch({ headless: true });
@@ -259,7 +392,7 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
   const response = await page.goto(server.url, { waitUntil: "domcontentloaded" });
   assert.equal(response?.status(), 200, `index.html response: ${response?.status()}`);
 
-  // 5. The fixture subsystem keeps its Frame open: the product must reach
+  // 4. The fixture subsystem keeps its Frame open: the product must reach
   //    "ready" (Main started) without failing; a failure is a test failure.
   await page.waitForFunction(() => {
     const state = document.documentElement.dataset.loomrealmProduct;
@@ -288,12 +421,12 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
   assert.equal(evidence.generation.appId, "adventure-island");
   assert.equal(evidence.generation.basePath, "/pwa/adventure-island/");
   assert.deepEqual(evidence.executableModules, [FIXTURE_LOGICAL_MODULE]);
-  assert.equal(evidence.contentCount, CANONICAL_CONTENT_COUNT);
+  assert.equal(evidence.contentCount, FIXTURE_CONTENT_COUNT);
   assert.equal(evidence.controlled, true, "the Service Worker must control the fixture page");
   assert.match(evidence.controllerScript, /\/pwa\/adventure-island\/service-worker\.js$/);
   assert.equal(evidence.cmsActorRegistered, "function", "the canonical cms-actor IIFE must be bootstrapped from the Service Worker Content route");
 
-  // 6. The worker consumed the published records through the real Content API.
+  // 5. The worker consumed the published records through the real Content API.
   await waitForEvaluate(page, () => {
     const status = document.querySelector("#avatar-fixture-status");
     const verdict = status?.getAttribute("data-records");

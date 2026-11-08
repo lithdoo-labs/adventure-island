@@ -1,6 +1,9 @@
 # Raw MapleStory client files and local research inputs
 .raw/
 
+# Dependencies installed by npm (root workspace and submodule keep their own lockfiles)
+node_modules/
+
 # Local scratch/workspace directories
 .work/
 .tmp/

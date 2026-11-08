@@ -33,16 +33,26 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { STAGING_APP_ID, STAGING_BASE_PATH, buildAdventureIslandPwaStaging } from "../scripts/pwa/build-staging.mjs";
+import { buildAdventureIslandInstallationBundle } from "../scripts/pwa/build-installation-bundle.mjs";
 import {
-  PRESENTATION_SCRIPT_KEY,
-  PRESENTATION_SCRIPT_NAMESPACE,
-  buildCanonicalSyntheticAvatarContent,
-} from "../scripts/pwa/synthetic-avatar-content.mjs";
+  AVATAR_PLAN_KEY,
+  AVATAR_PLAN_NAMESPACE,
+  buildCanonicalAdventureAvatarContent,
+} from "../scripts/pwa/read-adventure-fsdb.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
 const stagingScriptPath = fileURLToPath(new URL("../scripts/pwa/build-staging.mjs", import.meta.url));
-const CANONICAL_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
+const canonicalAdventure = await buildCanonicalAdventureAvatarContent();
+const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 2;
+
+// Absolute sources for the fixture payload builder: esbuild resolves the
+// pinned framework workspace from the REAL repository sources, so isolated
+// fixtures never need a node_modules of their own.
+const EXECUTABLE_ABSOLUTE_SOURCES = Object.freeze({
+  "subsystems/base.mjs": fileURLToPath(new URL("../systems/base/subsystem.mjs", import.meta.url)),
+  "subsystems/adventure-map.mjs": fileURLToPath(new URL("../systems/adventure-map/subsystem.mjs", import.meta.url)),
+});
 
 const readText = (target) => readFile(target, "utf8");
 
@@ -62,11 +72,11 @@ async function makeTempDir(prefix = "adventure-staging-") {
   return mkdtemp(path.join(tmpdir(), prefix));
 }
 
-// Isolated "project root" fixture: canonical documents, shared smoke
-// implementation, the cms-actor classic browser artifact, a protected
-// research/ tree with a sentinel, and a REAL gitlink (git update-index
-// --cacheinfo 160000) pointing at the embedded framework repository —
-// exactly the pin contract of a real checkout.
+// Isolated "project root" fixture: canonical documents, both subsystem
+// sources, both classic browser artifacts, the read-only adventure FSDB
+// closure, a protected research/ tree with a sentinel, and a REAL gitlink
+// (git update-index --cacheinfo 160000) pointing at the embedded framework
+// repository — exactly the pin contract of a real checkout.
 async function makeStagingFixture() {
   const game = await makeTempDir("adventure-staging-fixture-");
   await mkdir(path.join(game, "research"), { recursive: true });
@@ -74,16 +84,27 @@ async function makeStagingFixture() {
   for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) {
     await copyFile(fileURLToPath(new URL(name, repoRoot)), path.join(game, name));
   }
-  await mkdir(path.join(game, "systems", "loomrealm-smoke"), { recursive: true });
-  await copyFile(
-    fileURLToPath(new URL("systems/loomrealm-smoke/subsystem.mjs", repoRoot)),
-    path.join(game, "systems", "loomrealm-smoke", "subsystem.mjs"),
-  );
+  for (const physical of ["systems/base/subsystem.mjs", "systems/adventure-map/subsystem.mjs"]) {
+    const target = path.join(game, physical);
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(path.join(repoRootPath, physical), target);
+  }
   await mkdir(path.join(game, "components", "cms-actor", "browser"), { recursive: true });
   await copyFile(
     fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)),
     path.join(game, "components", "cms-actor", "browser", "cms-actor.browser.js"),
   );
+  const controlsSegments = "loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js".split("/");
+  await mkdir(path.dirname(path.join(game, ...controlsSegments)), { recursive: true });
+  await copyFile(
+    path.join(repoRootPath, ...controlsSegments),
+    path.join(game, ...controlsSegments),
+  );
+  for (const relativeFile of canonicalAdventure.sources) {
+    const target = path.join(game, relativeFile);
+    await mkdir(path.dirname(target), { recursive: true });
+    await copyFile(path.join(repoRootPath, relativeFile), target);
+  }
 
   const framework = path.join(game, "loom-realm");
   await mkdir(path.join(framework, "apps", "pwa"), { recursive: true });
@@ -95,9 +116,19 @@ async function makeStagingFixture() {
 
   runGit(game, "init", "-q");
   runGit(game, "update-index", "--add", "--cacheinfo", `160000,${frameworkSha},loom-realm`);
-  runGit(game, "add", "game.json", "launch.pwa.json", "presentation.json", "systems");
+  runGit(game, "add", "game.json", "launch.pwa.json", "presentation.json", "systems", "content");
   runGit(game, "commit", "-q", "-m", "fixture game");
   return { game, framework, frameworkSha };
+}
+
+/** Fixture payload step: same builder, absolute (repo) executable sources. */
+function fixturePayloadBuilder({ gameRoot, frameworkRoot, outputFile }) {
+  return buildAdventureIslandInstallationBundle({
+    gameRoot,
+    frameworkRoot,
+    outputFile,
+    executableSources: EXECUTABLE_ABSOLUTE_SOURCES,
+  });
 }
 
 // A faithful stub of the upstream generic builder: records its arguments,
@@ -215,7 +246,7 @@ test("staging orchestrates payload and generic builder with pinned arguments", a
   const fixture = await makeStagingFixture();
   try {
     await installStubBuilder(fixture.framework);
-    const summary = await buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework });
+    const summary = await buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework, runPayloadBuilder: fixturePayloadBuilder });
 
     // The stub received exactly the pinned CLI arguments.
     const stubArgs = JSON.parse(await readText(path.join(fixture.framework, "apps", "pwa", "scripts", "stub-args.json")));
@@ -233,22 +264,46 @@ test("staging orchestrates payload and generic builder with pinned arguments", a
     // The payload is the deterministic product input.
     const payload = JSON.parse(await readText(payloadPath));
     assert.equal(payload.formatVersion, 1);
-    assert.equal(payload.executables.length, 1);
-    assert.equal(payload.executables[0].logicalModule, "subsystems/smoke.mjs");
-    // The canonical PR-B Content whitelist travels through staging intact:
-    // the cms-actor classic IIFE plus the deterministic synthetic records and
-    // PNGs — nothing else may appear in the staged bundle.
+    assert.equal(payload.executables.length, 2);
+    assert.deepEqual(
+      payload.executables.map((entry) => entry.logicalModule),
+      ["subsystems/base.mjs", "subsystems/adventure-map.mjs"],
+    );
+    // The canonical Content whitelist travels through staging intact: the two
+    // classic presentation scripts, the read-only FSDB closure, and the
+    // derived bootstrap AvatarPlan record — nothing else may be staged.
     assert.equal(payload.content.length, CANONICAL_CONTENT_COUNT);
     assert.ok(
       payload.content.some((entry) => entry.kind === "resource"
-        && entry.namespace === PRESENTATION_SCRIPT_NAMESPACE
-        && entry.key === PRESENTATION_SCRIPT_KEY),
+        && entry.namespace === "resource.Presentation"
+        && entry.key === "controls/device-input.browser.js"),
+      "the staged bundle must carry the pinned Controls classic IIFE",
+    );
+    assert.ok(
+      payload.content.some((entry) => entry.kind === "resource"
+        && entry.namespace === "resource.Presentation"
+        && entry.key === "cms-actor/cms-actor.browser.js"),
       "the staged bundle must carry the cms-actor classic IIFE",
     );
     assert.ok(
-      payload.content.every((entry) => entry.kind === "record"
-        ? entry.namespace === "struct.ZMap" || entry.namespace === "struct.Look"
-        : entry.namespace === PRESENTATION_SCRIPT_NAMESPACE || entry.namespace === "resource.图"),
+      payload.content.some((entry) => entry.kind === "record"
+        && entry.namespace === AVATAR_PLAN_NAMESPACE
+        && entry.key === AVATAR_PLAN_KEY),
+      "the staged bundle must carry the derived bootstrap AvatarPlan record",
+    );
+    assert.ok(
+      payload.content.every((entry) => {
+        if (entry.kind === "record") {
+          return entry.namespace === "struct.avatar.Part"
+            || entry.namespace === "struct.avatar.DrawOrder"
+            || entry.namespace === "struct.avatar.LayerSlot"
+            || entry.namespace === AVATAR_PLAN_NAMESPACE;
+        }
+        if (entry.kind === "group") {
+          return entry.namespace === "group.avatar.PartFrame" || entry.namespace === "group.avatar.Resource";
+        }
+        return entry.namespace === "resource.Presentation" || entry.namespace === "resource.Avatar";
+      }),
       "no unrelated Content may enter the staged bundle",
     );
 
@@ -271,7 +326,7 @@ test("staging orchestrates payload and generic builder with pinned arguments", a
     assert.equal(summary.bundleId, bundle.bundleId);
 
     // A second run succeeds over the stub-deleted staging directory.
-    const second = await buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework });
+    const second = await buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework, runPayloadBuilder: fixturePayloadBuilder });
     assert.equal(second.bundleId, bundle.bundleId);
   } finally {
     await rm(fixture.game, { recursive: true, force: true });
@@ -284,7 +339,7 @@ test("staging refuses a Gitlink mismatch and an unchecked-out submodule", async 
     await installStubBuilder(mismatchFixture.framework);
     runGit(mismatchFixture.framework, "commit", "--allow-empty", "-q", "-m", "drift");
     await assert.rejects(
-      () => buildAdventureIslandPwaStaging({ gameRoot: mismatchFixture.game, frameworkRoot: mismatchFixture.framework }),
+      () => buildAdventureIslandPwaStaging({ gameRoot: mismatchFixture.game, frameworkRoot: mismatchFixture.framework, runPayloadBuilder: fixturePayloadBuilder }),
       /does not match the pinned repository Gitlink/,
     );
   } finally {
@@ -296,7 +351,7 @@ test("staging refuses a Gitlink mismatch and an unchecked-out submodule", async 
     await installStubBuilder(missingFixture.framework);
     await rm(path.join(missingFixture.framework, ".git"), { recursive: true, force: true });
     await assert.rejects(
-      () => buildAdventureIslandPwaStaging({ gameRoot: missingFixture.game, frameworkRoot: missingFixture.framework }),
+      () => buildAdventureIslandPwaStaging({ gameRoot: missingFixture.game, frameworkRoot: missingFixture.framework, runPayloadBuilder: fixturePayloadBuilder }),
       /not checked out/,
     );
   } finally {
@@ -308,7 +363,7 @@ test("staging refuses missing builder and missing framework build artifacts befo
   const noBuilder = await makeStagingFixture();
   try {
     await assert.rejects(
-      () => buildAdventureIslandPwaStaging({ gameRoot: noBuilder.game, frameworkRoot: noBuilder.framework }),
+      () => buildAdventureIslandPwaStaging({ gameRoot: noBuilder.game, frameworkRoot: noBuilder.framework, runPayloadBuilder: fixturePayloadBuilder }),
       /does not contain the generic PWA builder/,
     );
     await assert.rejects(access(path.join(noBuilder.game, "dist", "staging")), /ENOENT/);
@@ -321,7 +376,7 @@ test("staging refuses missing builder and missing framework build artifacts befo
     await installStubBuilder(noArtifact.framework);
     await rm(path.join(noArtifact.framework, "game-libs", "game-common-controls", "dist", "browser", "device-input.browser.js"));
     await assert.rejects(
-      () => buildAdventureIslandPwaStaging({ gameRoot: noArtifact.game, frameworkRoot: noArtifact.framework }),
+      () => buildAdventureIslandPwaStaging({ gameRoot: noArtifact.game, frameworkRoot: noArtifact.framework, runPayloadBuilder: fixturePayloadBuilder }),
       /required LoomRealm build artifact/,
     );
     await assert.rejects(
@@ -347,7 +402,7 @@ test("staging refuses a symlinked staging target or ancestor without deleting an
       await symlink(path.join(fixture.game, "research"), path.join(fixture.game, "dist", "staging", STAGING_APP_ID));
       const before = await snapshotTree(fixture.game);
       await assert.rejects(
-        () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework }),
+        () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework, runPayloadBuilder: fixturePayloadBuilder }),
         /symlinked staging path|protected/,
       );
       assert.deepEqual(await snapshotTree(fixture.game), before, "nothing may be created or deleted through the symlink");
@@ -370,7 +425,7 @@ test("staging refuses a symlinked staging target or ancestor without deleting an
       await symlink(path.join(fixture.game, "research"), path.join(fixture.game, "dist", "staging"));
       const before = await snapshotTree(fixture.game);
       await assert.rejects(
-        () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework }),
+        () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework, runPayloadBuilder: fixturePayloadBuilder }),
         /symlinked staging path|protected/,
       );
       assert.deepEqual(await snapshotTree(fixture.game), before);
@@ -394,7 +449,7 @@ test("staging refuses a staging directory containing Git-tracked files", async (
     runGit(fixture.game, "add", "-f", "dist/staging/adventure-island/keep.txt");
     runGit(fixture.game, "commit", "-q", "-m", "track staging file");
     await assert.rejects(
-      () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework }),
+      () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework, runPayloadBuilder: fixturePayloadBuilder }),
       /Git-tracked files/,
     );
     assert.equal(await readText(tracked), "tracked content\n");
@@ -409,7 +464,7 @@ test("staging verifies the builder's real output and fails on divergence", async
   const scripts = () => path.join(fixture.framework, "apps", "pwa", "scripts");
   try {
     await installStubBuilder(fixture.framework);
-    const build = () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework });
+    const build = () => buildAdventureIslandPwaStaging({ gameRoot: fixture.game, frameworkRoot: fixture.framework, runPayloadBuilder: fixturePayloadBuilder });
 
     await writeFile(path.join(scripts(), "stub-mode"), "wrong-appid", "utf8");
     await assert.rejects(build, /generation\.json does not describe the pinned Adventure Island staging product/);

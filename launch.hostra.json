@@ -1,6 +1,7 @@
 {
   "formatVersion": 1,
   "subsystems": [
-    { "key": "smoke", "module": "subsystems/smoke.mjs" }
+    { "key": "base", "module": "subsystems/base.mjs" },
+    { "key": "adventure-map", "module": "subsystems/adventure-map.mjs" }
   ]
 }

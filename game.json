@@ -1,10 +1,8 @@
 {
   "formatVersion": 1,
-  "initial": {
-    "subsystem": "smoke",
-    "input": null
-  },
+  "initial": { "subsystem": "base", "input": null },
   "subsystems": [
-    { "key": "smoke" }
+    { "key": "base" },
+    { "key": "adventure-map" }
   ]
 }

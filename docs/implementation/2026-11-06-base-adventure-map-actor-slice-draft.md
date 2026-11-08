@@ -205,7 +205,7 @@ const consumer = createControlsConsumer(
 
 ### 3.3 Actor、Viewport 与资源读取
 
-- 开始时从 `scope.content.record("struct.AdventureAvatarPlan", "bootstrap", { signal: frame.signal })` 读取**Plan 本体**；Content 缺失/不可用（包含 `ContentReadError`）返回 `failed({code:"ADVENTURE_AVATAR_CONTENT_UNAVAILABLE"})`，已中止或 `CONTENT_CANCELLED` 返回 `cancelled()`；其他初始化异常映射为稳定 `ADVENTURE_MAP_INIT_FAILED`，并统一进入 `finally`。不要吞掉错误后展示空 Actor。
+- 开始时从 `scope.content.record("struct.AdventureAvatarPlan", "bootstrap", { signal: frame.signal })` 读取**Plan 本体**；Content 缺失/不可用（必须识别 `ContentReadError` 的类型或跨 Bundle `name` + `code`，不能仅凭任意 `CONTENT_*` code）返回 `failed({code:"ADVENTURE_AVATAR_CONTENT_UNAVAILABLE"})`，已中止或 `CONTENT_CANCELLED` 返回 `cancelled()`；其他初始化异常映射为稳定 `ADVENTURE_MAP_INIT_FAILED`，并统一进入 `finally`。不要吞掉错误后展示空 Actor。
 - 初始化一次 `scope.createRenderDomain({ zIndex: 0, roots: [ { key: "adventure-player", tag: "cms-actor", attrs: {...}, data: { avatarPlan }, children: [] } ] })`，Actor 的稳定 key 不复用为新节点。初始 `locomotion=stand`、`facing=right`；外观 attrs 继续遵循 [cms-actor 既有契约](../../components/cms-actor/IMPLEMENTATION.md)。
 - `cms-actor` 的 `x/y` 是身体原点（接近脚底），不是 sprite 中心或世界坐标。演示期通过 `scope.viewport.current`、`subscribe` 计算 `x=Math.round(width/2)`、`y=Math.round(height/2+16)`；**初始与后续 `attrs.x/y` 均必须转换为字符串**（LoomRealm RenderNode attrs 为 string map）；`+16` 是暂定视觉偏移，须以**现有 FSDB 实际角色**在 Chromium 中的可见中心检查调整，不属于领域常量。Viewport 为 `null`、无效或零尺寸时不更新。首次有效尺寸及 resize 都需要验证。
 - `domain.update({ nodes: [{ key, attrs: { set: changedAttrs } }] })` 只包含变化项；`avatarPlan` 在创建节点时传入一次，`cms-actor` 内部管理 Canvas、帧序列和 PNG Resource cache。
@@ -299,7 +299,7 @@ try {
 
 `struct.AdventureAvatarPlan/bootstrap` 是**派生产物而非第二个素材源**，不写入 FSDB 目录；Value 是 AvatarPlanV1 本体，不包一层 `{avatarPlan}`。Map Frame 只读 bootstrap Record，然后 `data:{avatarPlan:record.value}` 初始化唯一 Actor，方向变化仅更新字符串 attrs，不重新读取 FSDB 或重新编译 Plan。
 
-**最小 fail-closed 验证只针对选中闭包：** JSON/JSONL 语法合法，选中 Part/Group 存在，Resource Group 的 `name` 与 Frame 的 `(action,frame)` 没有歧义重复，atlas image logical key 唯一且对应的 PNG 存在；Adapter 自身负责动作、redirect、anchors 和 Plan schema 检查。Bundle Builder 再从**最终发布 entries** 解码 Plan 和被引用 PNG，核对每个 `resource.namespace/key/contentVersion` 与实际 SHA-256 一致。资源缺失、版本矛盾或错误直接失败，不以空 Plan/透明图片替代。不为此功能新建全库 FSDB Integrity Validator，也不重复写 Actor 已有的 PNG 解码、裁剪、缓存和逐像素测试。
+**最小 fail-closed 验证只针对选中闭包：** JSON/JSONL 语法合法（JSONL 允许一处终止换行，内部空行/纯空白行必须失败），选中 Part/Group 存在，Resource Group 的 `name` 与 Frame 的 `(action,frame)` 没有歧义重复，atlas image logical key 唯一且对应的 PNG 存在；Adapter 自身负责动作、redirect、anchors 和 Plan schema 检查。Bundle Builder 再从**最终发布 entries** 解码 Plan 和被引用 PNG，核对每个 `resource.namespace/key/contentVersion` 与实际 SHA-256 一致。资源缺失、版本矛盾或错误直接失败，不以空 Plan/透明图片替代。不为此功能新建全库 FSDB Integrity Validator，也不重复写 Actor 已有的 PNG 解码、裁剪、缓存和逐像素测试。
 
 #### 4.1.3 测试责任与复用
 
@@ -308,14 +308,14 @@ try {
 
 ### 4.2 双工作区安装、构建顺序和发布策略（P0）
 
-新的 `base` / `adventure-map` 需要 `@loomrealm/subsystem` 和 `@loomrealm-game/common-controls/subsystem`；产品 Bundle Builder 需要根工作区 `esbuild`。当前 Adventure Island 根 `package.json` 尚无 Workspaces、上述依赖或根 `package-lock.json`。**依赖方案固定如下，不在实现时临时改用 registry 包或 PokeMan 的 node_modules：**
+新的 `base` / `adventure-map` 需要 `@loomrealm/subsystem` 和 `@loomrealm-game/common-controls/subsystem`；产品 Bundle Builder 需要根工作区 `esbuild`。当前功能 PR 已引入上述 Workspaces、依赖与根 `package-lock.json`。**依赖方案固定如下，不在实现时临时改用 registry 包或 PokeMan 的 node_modules：**
 
 - 根 `package.json` 增加 `workspaces: ["loom-realm/packages/*", "loom-realm/game-libs/*"]`，使固定 gitlink 中的 `packages/subsystem` 和 `game-libs/common-controls` 成为产品根工作区可解析的本地 workspace。
 - 产品 `dependencies` 声明 `"@loomrealm/subsystem": "file:loom-realm/packages/subsystem"` 与 `"@loomrealm-game/common-controls": "0.1.0-alpha.0"`；后者由固定子模块 workspace 满足。
 - 产品 `devDependencies` 声明 `"esbuild": "0.25.9"`，供根 `scripts/pwa/build-installation-bundle.mjs` 编译两个 Subsystem。
 - 生成并提交产品根 `package-lock.json`。固定 submodule 自己的 `loom-realm/package-lock.json` 原样保留，用于 LoomRealm 自有构建工具、通用 PWA Builder 与 Playwright；两份 lockfile 职责不同。
 
-固定 LoomRealm 在 [其根 package.json](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/package.json) 提供 `build:game-common-controls-input`，并按其既有 workspace 顺序构建 framework 与 common-controls。产品根工作区负责解析产品 Subsystem 和产品 esbuild；submodule 工作区仍负责通用 PWA Builder / Playwright。当前 [staging 预检](../../scripts/pwa/build-staging.mjs) 只在 `loom-realm/node_modules/esbuild` 或 `loom-realm/apps/pwa/node_modules/esbuild` 查找 esbuild，因此不能假设根 `node_modules/esbuild` 就满足 staging 前置条件。
+固定 LoomRealm 在 [其根 package.json](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/package.json) 提供 `build:game-common-controls-input`，但该宽泛脚本在干净检出时还会类型检查未先构建的 game-package / Hostra 依赖。产品 CI **不直接调用它**，而是按固定 workspace 顺序先构建 Controls 所需的依赖与 common-controls。产品根工作区负责解析产品 Subsystem 和产品 esbuild；submodule 工作区仍负责通用 PWA Builder / Playwright。当前 [staging 预检](../../scripts/pwa/build-staging.mjs) 只在 `loom-realm/node_modules/esbuild` 或 `loom-realm/apps/pwa/node_modules/esbuild` 查找 esbuild，因此不能假设根 `node_modules/esbuild` 就满足 staging 前置条件。
 
 **双锁安装必须在干净 checkout 中作为同一 CI Job 实测。** Node 22 / 固定 npm 10 工具链下先执行根 `npm ci --no-audit --no-fund`，再执行 `npm ci --prefix loom-realm --no-audit --no-fund`。这两次安装是否会因嵌套 workspace / hoisting 互相影响，不能只靠配置推断；必须验证根 workspace 链接、submodule 的 `node_modules/esbuild`、Controls 构建入口和 PWA Builder 都可用。若冲突，实施 PR 必须解决安装拓扑，不得删掉锁文件或改用未固定 registry 版本绕过。
 
@@ -325,7 +325,10 @@ try {
 checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
   → npm ci --no-audit --no-fund（产品根 package-lock.json）
   → npm ci --prefix loom-realm --no-audit --no-fund（固定 submodule lockfile）
-  → npm run build:game-common-controls-input --prefix loom-realm
+  → npm run build --prefix loom-realm -w @loomrealm/foundation -w @loomrealm/wire \
+      -w @loomrealm/shared-state -w @loomrealm/session-events \
+      -w @loomrealm/platform-ports -w @loomrealm/runtime-control \
+      -w @loomrealm/data -w @loomrealm/subsystem -w @loomrealm-game/common-controls
   → 校验 loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js
   → 根 esbuild 编译 systems/base/subsystem.mjs 与 systems/adventure-map/subsystem.mjs
   → pwa:bundle：从现有 FSDB 只读发布角色闭包与派生 Plan Record，另发布 2 个 executable / 2 个 classic scripts
@@ -333,7 +336,7 @@ checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
   → Node 契约/安全测试 + cms-actor 测试 + canonical PWA Chromium / Service Worker E2E
 ```
 
-**Controls 构建必须早于产品 `pwa:bundle`。** 当前 CI 只在 `npm run build:bundle --prefix loom-realm --workspace @loomrealm/pwa` 阶段间接构建 common-controls；但产品 Bundle Builder 在此之前就需要读取 `device-input.browser.js`。因此 `.github/workflows/pwa-ci.yml` 必须在 `npm run pwa:bundle` 之前显式执行 `npm run build:game-common-controls-input --prefix loom-realm` 并检查产物存在。随后 LoomRealm 自己的 `build:bundle` 仍按 pinned API 执行；它内部可能再次构建依赖，这是上游发布流程，不得用产品 esbuild 编译替代。
+**Controls 构建必须早于产品 `pwa:bundle`。** 产品 Bundle Builder 在此之前就要读取 `device-input.browser.js`。当前主线 `.github/workflows/pwa-ci.yml` 已在 `pwa:bundle` 前按上述最小 workspace 顺序构建，并检查最终 IIFE 非空；它不调用可能被未构建 Hostra/game-package 声明文件阻塞的 `build:game-common-controls-input`。随后 `@loomrealm/pwa` 构建自身依赖，再独立构建 `@loomrealm/game-launcher-hostra`。这是经干净 checkout 验证通过的当前门禁；不能把旧的宽泛脚本当作必须直接执行的 CI 命令。
 
 产品构建器从根工作区 `import { build } from "esbuild"`。`EXECUTABLE_SOURCE_BINDINGS` 只允许两个受控源文件：`systems/base/subsystem.mjs`、`systems/adventure-map/subsystem.mjs`；每个入口以绝对路径调用 `build({ absWorkingDir: game, entryPoints: [entryPoint], bundle: true, format: "esm", platform: "browser", target: "chrome140", sourcemap: false, write: false })`，检查每次仅有一个有效输出，将输出绑定到对应 logical module，再按最终输出字节计算 SHA-256 和 `contentVersion`。不接收任意用户指定入口。
 
@@ -368,7 +371,7 @@ checkout + 初始化固定 gitlink + 校验 gitlink SHA + Node 22 / npm 10
 | T2 Map 动作 | 同一个 runtime 文件 | 左右 walk/facing、up jump、down stand、松键恢复；复用 Controls Tracker，不做按键组合矩阵 |
 | T3 Map 失败/取消 | 同一个 runtime 文件 | Content 不可用失败、Abort 取消、同步投影错误进入 failed 且清理 Consumer/Viewport/Domain |
 | T4 FSDB → Bundle | **扩展现有** `test/pwa-bundle.test.mjs` 一个 focused case | 从现有 FSDB 闭包生成 Plan；从最终 Bundle 重新解码 Plan/PNG，校验唯一 identity、SHA-256、Plan 字节限制 |
-| T5 正式浏览器 | **改写现有** `test/pwa-browser.e2e.test.mjs` canonical 场景 | Service Worker 内 Base → Map ready/active、唯一 Actor 画出非透明像素、可信键盘 down/up、动作/面向、松键及 Resize 居中 |
+| T5 正式浏览器 | **改写现有** `test/pwa-browser.e2e.test.mjs` canonical 场景 | Service Worker 内 Base → Map ready/active、唯一 Actor 画出非透明像素、可信键盘 down/up、动作/面向与实际 `data-action`（`stand1` / `walk1` / `jump`）、松键及 Resize 居中 |
 
 **其他测试是“迁移断言和保留回归”，不是本 Issue 的新测试开发：** `game-entry.test.mjs` 和 `presentation.test.mjs` 修改旧 Smoke/单脚本断言；`pwa-staging.test.mjs` 修改 fixture；`pwa-bundle.test.mjs` 保留已有安全负例。Actor 的部件、帧时钟、PNG、缓存、冲突和复原已由 `components/cms-actor/test/**` 覆盖；统一 Controls 状态机由固定 LoomRealm 负责。**不要求**在新 E2E 再测全装备组合、截图像素矩阵、断线恢复和手柄硬件矩阵。
 

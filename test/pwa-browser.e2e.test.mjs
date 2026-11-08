@@ -145,15 +145,46 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(actorState.y, String(Math.round(actorState.viewport.height / 2 + 16)), "the actor starts vertically centered (+16 body-origin offset)");
 
     // The unique actor paints real non-transparent pixels (FSDB atlas).
-    const opaquePixels = await page.evaluate(() => {
+    const visibleActorBounds = async () => page.evaluate(() => {
       const canvas = document.querySelector("cms-actor")?.shadowRoot?.querySelector("canvas");
-      if (!canvas || canvas.width <= 1) return -1;
+      if (!canvas || canvas.width <= 1) return null;
       const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
-      let opaque = 0;
-      for (let index = 3; index < data.length; index += 4) if (data[index] !== 0) opaque += 1;
-      return opaque;
+      let opaquePixels = 0;
+      let minX = canvas.width;
+      let minY = canvas.height;
+      let maxX = -1;
+      let maxY = -1;
+      for (let pixel = 0; pixel < canvas.width * canvas.height; pixel += 1) {
+        if (data[pixel * 4 + 3] === 0) continue;
+        const x = pixel % canvas.width;
+        const y = Math.floor(pixel / canvas.width);
+        minX = Math.min(minX, x);
+        maxX = Math.max(maxX, x);
+        minY = Math.min(minY, y);
+        maxY = Math.max(maxY, y);
+        opaquePixels += 1;
+      }
+      if (opaquePixels === 0) return { opaquePixels };
+      const rect = canvas.getBoundingClientRect();
+      return {
+        opaquePixels,
+        x: rect.left + (minX + maxX + 1) / 2 * rect.width / canvas.width,
+        y: rect.top + (minY + maxY + 1) / 2 * rect.height / canvas.height,
+        viewportX: window.innerWidth / 2,
+        viewportY: window.innerHeight / 2,
+      };
     });
-    assert.ok(opaquePixels > 0, `the actor canvas must contain visible pixels (${opaquePixels})`);
+    const expectVisibleCenter = (bounds, phase) => {
+      assert.ok(bounds?.opaquePixels > 0, `${phase}: the real FSDB actor must paint non-transparent pixels`);
+      // The body origin is not the sprite center. Allow less than one small
+      // CMS079 sprite width of animation/anchor variation, but reject a
+      // misplaced actor or a canvas positioned outside the viewport.
+      assert.ok(
+        Math.abs(bounds.x - bounds.viewportX) <= 24 && Math.abs(bounds.y - bounds.viewportY) <= 24,
+        `${phase}: visible FSDB pixels must be centered (within 24 CSS px): ${JSON.stringify(bounds)}`,
+      );
+    };
+    expectVisibleCenter(await visibleActorBounds(), "initial stand");
 
     // Trusted keyboard input through the real controls channel. Wait for the
     // interactive state before pressing (the map's consumer is live once the
@@ -201,6 +232,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     }));
     assert.equal(afterResize.actorCount, 1, "resize must not duplicate the actor");
     assert.equal(afterResize.productState, "ready", "the product stays active after resize");
+    expectVisibleCenter(await visibleActorBounds(), "after resize");
 
     const pageErrors = diagnostics.filter((line) => line.startsWith("pageerror:"));
     assert.deepEqual(pageErrors, [], `no unhandled page errors may escape the active slice (${JSON.stringify(pageErrors)})`);

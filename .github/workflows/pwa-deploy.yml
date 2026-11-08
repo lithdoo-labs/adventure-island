@@ -1,0 +1,85 @@
+name: Adventure Island PWA Deploy
+
+# This file does nothing until a human does both of the following:
+# 1. Add lithdoo-labs/adventure-island and this workflow on main to the
+#    pwa-deploy-labs runner group. Do not add pwa-ci.yml to that group.
+# 2. Create the repository variable PWA_STAGING_DEPLOY_ENABLED and set it
+#    to the literal true, only after lab-server's shared publisher is on
+#    main and F:/lab-data/pwa/publisher/version.json matches that commit.
+# Pull requests stay on the GitHub-hosted job in pwa-ci.yml. They never
+# receive the production Docker socket. An absent variable skips this job.
+
+on:
+  workflow_run:
+    workflows: ["Adventure Island PWA CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adventure-island-pwa-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publish approved Adventure Island PWA via labs Docker runner
+    if: >-
+      ${{
+        github.repository == 'lithdoo-labs/adventure-island' &&
+        vars.PWA_STAGING_DEPLOY_ENABLED == 'true' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      }}
+    runs-on:
+      group: pwa-deploy-labs
+      labels: [self-hosted, linux, x64, pwa, pwa-labs]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          submodules: true
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: qualified-adventure-island-pwa
+          path: dist/staging/adventure-island
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Publish only the artifact built from current main
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+          PWA_DATA_ROOT: /run/desktop/mnt/host/f/lab-data/pwa
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git rev-parse HEAD:loom-realm)" = "93648192323bf5f57996b7b54cbae641d8a53fdb"
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          current="$(git rev-parse origin/main)"
+          if [ "$current" != "$EXPECTED_SHA" ]; then
+            echo "Skipping superseded Adventure Island commit $EXPECTED_SHA (main=$current)"
+            exit 0
+          fi
+          EXPECTED_SHA="$EXPECTED_SHA" node scripts/pwa/verify-staging.mjs
+          test -S /var/run/docker.sock
+          publisher="$PWA_DATA_ROOT/publisher/bin/deploy.mjs"
+          test -f "$publisher"
+          node "$publisher" publish \
+            --app adventure-island \
+            --source "$GITHUB_WORKSPACE/dist/staging/adventure-island" \
+            --commit "$EXPECTED_SHA" \
+            --game-root "$GITHUB_WORKSPACE" \
+            --data-root "$PWA_DATA_ROOT" \
+            --engine-root "$PWA_DATA_ROOT" \
+            --source-run "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${{ github.event.workflow_run.id }}"

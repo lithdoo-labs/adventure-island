@@ -11,7 +11,8 @@
   "scripts": {
     "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/adventure-runtime.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
     "pwa:bundle": "node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json",
-    "pwa:staging": "node scripts/pwa/build-staging.mjs"
+    "pwa:staging": "node scripts/pwa/build-staging.mjs",
+    "pwa:verify": "node scripts/pwa/verify-staging.mjs"
   },
   "dependencies": {
     "@loomrealm-game/common-controls": "0.1.0-alpha.0",

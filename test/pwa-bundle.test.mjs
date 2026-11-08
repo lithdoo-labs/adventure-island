@@ -716,6 +716,54 @@ test("non-sanctioned Content script sources are rejected — never the ESM sourc
   }
 });
 
+test("adventure FSDB preflight rejects duplicate action frames and symlinked directory roots", async () => {
+  // Change only a temporary copy of the already-used FSDB closure.
+  const fixture = await makeIsolatedGameRoot();
+  try {
+    const groupFile = path.join(
+      fixture.root, ADVENTURE_FSDB_RELATIVE_PATH,
+      "[group]avatar.PartFrame", "avatar.part.body.00002000.jsonl",
+    );
+    const original = await readFile(groupFile, "utf8");
+    const firstFrame = original.split(/\r?\n/u).find((line) => line.trim().length > 0);
+    assert.ok(firstFrame, "the fixture must contain at least one body frame");
+    await writeFile(groupFile, `${original.trimEnd()}\n${firstFrame}\n`, "utf8");
+    await assert.rejects(
+      buildCanonicalAdventureAvatarContent({ gameRoot: fixture.root }),
+      /duplicate \(action,frame\)/u,
+      "ambiguous (action,frame) rows must fail before building the Plan",
+    );
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+
+  if (symlinkSupport.ok) {
+    // Both a symlinked FSDB root and a symlinked 'content' ancestor must fail.
+    for (const linkTarget of ["content", "fsdb"]) {
+      const game = await makeTempDir("adventure-fsdb-root-symlink-");
+      try {
+        if (linkTarget === "content") {
+          await symlink(path.join(repoRootPath, "content"), path.join(game, "content"), "dir");
+        } else {
+          await mkdir(path.join(game, "content"));
+          await symlink(
+            path.join(repoRootPath, ADVENTURE_FSDB_RELATIVE_PATH),
+            path.join(game, ADVENTURE_FSDB_RELATIVE_PATH),
+            "dir",
+          );
+        }
+        await assert.rejects(
+          buildCanonicalAdventureAvatarContent({ gameRoot: game }),
+          /must be a real directory \(no symlinks\)/u,
+          `${linkTarget}: an FSDB directory symlink must not escape the checkout`,
+        );
+      } finally {
+        await rm(game, { recursive: true, force: true });
+      }
+    }
+  }
+});
+
 test("tampered adventure Content fails the builder's consistency checks", async () => {
   const temp = await makeTempDir();
   try {

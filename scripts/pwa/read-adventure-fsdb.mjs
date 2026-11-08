@@ -30,7 +30,7 @@
  */
 import { createHash } from "node:crypto";
 import { lstat, readFile, realpath } from "node:fs/promises";
-import { join, relative, resolve } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildAdventureAvatarPlan } from "../../components/cms-actor/src/adventure-adapter.mjs";
@@ -125,7 +125,23 @@ export async function buildCanonicalAdventureAvatarContent({
   expression = ADVENTURE_EXPRESSION,
 } = {}) {
   const game = resolve(gameRoot);
-  const fsdbRoot = join(game, ...ADVENTURE_FSDB_RELATIVE_PATH.split("/"));
+  const gameReal = await realpath(game);
+  const contentDirectory = join(game, "content");
+  const fsdbRoot = join(contentDirectory, "[FSDB]adventure");
+  // Checking only the leaf files is insufficient: a symlink at either
+  // 'content/' or the FSDB root could redirect the entire closure outside
+  // the checkout while still passing the leaf-path containment check.
+  for (const directory of [contentDirectory, fsdbRoot]) {
+    const facts = await lstat(directory);
+    if (facts.isSymbolicLink() || !facts.isDirectory()) {
+      throw new TypeError(`adventure FSDB directory ${relative(game, directory)} must be a real directory (no symlinks)`);
+    }
+    const directoryReal = await realpath(directory);
+    const insideGame = relative(gameReal, directoryReal);
+    if (insideGame === "" || insideGame === ".." || insideGame.startsWith(`..${sep}`) || isAbsolute(insideGame)) {
+      throw new TypeError(`adventure FSDB directory ${relative(game, directory)} resolves outside the game root`);
+    }
+  }
   const fsdbReal = await realpath(fsdbRoot);
 
   const entries = [];
@@ -214,6 +230,23 @@ export async function buildCanonicalAdventureAvatarContent({
     async group(namespace, key) {
       const { bytes, physicalPath } = await readTableFile("group", namespace, key);
       const rows = parseRows(bytes, `adventure FSDB group ${namespace}/${key}`);
+      if (namespace === "group.avatar.PartFrame") {
+        // The Adapter indexes frames by action/frame. Ambiguous duplicates
+        // must fail at the boundary instead of silently depending on row order.
+        const frames = new Set();
+        for (const [index, row] of rows.entries()) {
+          const frame = row.frame ?? 0;
+          if (typeof row.action !== "string" || row.action.length === 0
+            || !Number.isInteger(frame) || frame < 0) {
+            throw new TypeError(`adventure FSDB group ${namespace}/${key} row ${index + 1} has an invalid action/frame`);
+          }
+          const identity = JSON.stringify([row.action, frame]);
+          if (frames.has(identity)) {
+            throw new TypeError(`adventure FSDB group ${namespace}/${key} has duplicate (action,frame) ${identity} at row ${index + 1}`);
+          }
+          frames.add(identity);
+        }
+      }
       if (namespace === "group.avatar.Resource") {
         // Fail-closed closure check: resource names must be unambiguous.
         const names = new Set();

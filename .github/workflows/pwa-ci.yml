@@ -94,7 +94,21 @@ jobs:
         run: |
           set -euo pipefail
           if node --input-type=module -e 'import {readFileSync} from "node:fs"; const p=JSON.parse(readFileSync("presentation.json","utf8")); process.exit(p.scripts?.some(s=>s.namespace==="Presentation"&&s.key==="controls/device-input.browser.js")?0:1)'; then
-            npm run build:game-common-controls-input --prefix loom-realm
+            # Only build the pinned Controls dependency chain here. The
+            # framework's broad build:game-common-controls-input also tries to
+            # build desktop/PWA before game-package and Hostra are compiled,
+            # which fails on clean CI checkouts. The next step builds the
+            # complete PWA bundle with its own correctly ordered prerequisites.
+            npm run build --prefix loom-realm \
+              -w @loomrealm/foundation \
+              -w @loomrealm/wire \
+              -w @loomrealm/shared-state \
+              -w @loomrealm/session-events \
+              -w @loomrealm/platform-ports \
+              -w @loomrealm/runtime-control \
+              -w @loomrealm/data \
+              -w @loomrealm/subsystem \
+              -w @loomrealm-game/common-controls
             test -s loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js
           fi
 

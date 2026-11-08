@@ -18,7 +18,7 @@
  * state machine and the Controls channel consumer are the pinned LoomRealm
  * implementations — this file never re-implements held-key tracking.
  */
-import { cancelled, defineSubsystem, failed } from "@loomrealm/subsystem";
+import { ContentReadError, cancelled, defineSubsystem, failed } from "@loomrealm/subsystem";
 import {
   createControlsConsumer,
   createDirectionalControlsTracker,
@@ -63,15 +63,16 @@ const LOCOMOTION_BY_DIRECTION = Object.freeze({
 const VIEWPORT_CENTER_Y_OFFSET = 16;
 
 /**
- * ContentReadError is thrown by the RUNTIME's Content client, whose error
- * class comes from the runtime's own module instance — `instanceof` cannot be
- * trusted across the bundled executable boundary. Duck-type on the frozen
- * error shape (`code: "CONTENT_*"`; the pinned class also sets
- * `name: "ContentReadError"`).
+ * ContentReadError originates in the Runtime Content client, which may use a
+ * different module instance from this bundled executable. Recognize either
+ * the imported class or its stable cross-bundle name/code shape. Do not
+ * reclassify unrelated initialization errors just because their code begins
+ * with "CONTENT_".
  */
 function contentErrorCode(cause) {
-  if (cause !== null && typeof cause === "object" && typeof cause.code === "string"
-    && cause.code.startsWith("CONTENT_")) {
+  if (cause !== null && typeof cause === "object"
+    && (cause instanceof ContentReadError || cause.name === "ContentReadError")
+    && typeof cause.code === "string" && cause.code.startsWith("CONTENT_")) {
     return cause.code;
   }
   return null;
@@ -179,8 +180,13 @@ export default defineSubsystem((scope) => ({
 
       const projectPosition = () => {
         const next = centeredPosition(scope.viewport.current);
-        if (next === null || (next.x === position.x && next.y === position.y)) return;
-        domain.update({ nodes: [{ key: ADVENTURE_PLAYER_NODE_KEY, attrs: { set: { x: next.x, y: next.y } } }] });
+        if (next === null) return;
+        const changed = {};
+        if (next.x !== position.x) changed.x = next.x;
+        if (next.y !== position.y) changed.y = next.y;
+        if (Object.keys(changed).length === 0) return;
+        domain.update({ nodes: [{ key: ADVENTURE_PLAYER_NODE_KEY, attrs: { set: changed } }] });
+        // Commit cached attrs only after the projection succeeds.
         position = next;
       };
       unsubscribeViewport = scope.viewport.subscribe(

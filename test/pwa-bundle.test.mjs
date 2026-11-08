@@ -733,6 +733,14 @@ test("adventure FSDB preflight rejects duplicate action frames and symlinked dir
       /duplicate \(action,frame\)/u,
       "ambiguous (action,frame) rows must fail before building the Plan",
     );
+
+    // A single terminal newline is valid JSONL. Another blank row is not.
+    await writeFile(groupFile, `${original.trimEnd()}\n\n`, "utf8");
+    await assert.rejects(
+      buildCanonicalAdventureAvatarContent({ gameRoot: fixture.root }),
+      /row \d+ is empty/u,
+      "internal blank JSONL rows must fail instead of being skipped",
+    );
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }

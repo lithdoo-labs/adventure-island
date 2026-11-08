@@ -133,6 +133,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         y: actor?.getAttribute("y") ?? null,
         locomotion: actor?.getAttribute("locomotion") ?? null,
         facing: actor?.getAttribute("facing") ?? null,
+        action: actor?.getAttribute("data-action") ?? null,
         viewport: { width: window.innerWidth, height: window.innerHeight },
       };
     });
@@ -141,6 +142,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(actorState.renderState, "ready", `the actor must paint from the published FSDB plan (${actorState.renderError ?? "?"})`);
     assert.equal(actorState.locomotion, "stand");
     assert.equal(actorState.facing, "right");
+    assert.equal(actorState.action, "stand1", "initial rendering must select the real stand action");
     assert.equal(actorState.x, String(Math.round(actorState.viewport.width / 2)), "the actor starts horizontally centered");
     assert.equal(actorState.y, String(Math.round(actorState.viewport.height / 2 + 16)), "the actor starts vertically centered (+16 body-origin offset)");
 
@@ -189,34 +191,35 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     // Trusted keyboard input through the real controls channel. Wait for the
     // interactive state before pressing (the map's consumer is live once the
     // actor projected; keys pressed before that are not guaranteed to arrive).
-    const expectActor = async (locomotion, facing) => {
-      await page.waitForFunction(({ locomotion: wantLocomotion, facing: wantFacing }) => {
+    const expectActor = async (locomotion, facing, action) => {
+      await page.waitForFunction(({ locomotion: wantLocomotion, facing: wantFacing, action: wantAction }) => {
         const actor = document.querySelector("cms-actor");
         if (!actor) return false;
-        const observedFacing = actor.getAttribute("facing");
-        return actor.getAttribute("locomotion") === wantLocomotion && (wantFacing === null || observedFacing === wantFacing);
-      }, { locomotion, facing }, { timeout: 20_000 });
+        return actor.getAttribute("locomotion") === wantLocomotion
+          && actor.getAttribute("facing") === wantFacing
+          && actor.getAttribute("data-action") === wantAction;
+      }, { locomotion, facing, action }, { timeout: 20_000 });
     };
 
     await page.keyboard.down("ArrowLeft");
-    await expectActor("walk", "left");
+    await expectActor("walk", "left", "walk1");
     await page.keyboard.up("ArrowLeft");
-    await expectActor("stand", "left");
+    await expectActor("stand", "left", "stand1");
 
     await page.keyboard.down("ArrowRight");
-    await expectActor("walk", "right");
+    await expectActor("walk", "right", "walk1");
     await page.keyboard.up("ArrowRight");
-    await expectActor("stand", "right");
+    await expectActor("stand", "right", "stand1");
 
     await page.keyboard.down("ArrowUp");
-    await expectActor("jump", "right");
+    await expectActor("jump", "right", "jump");
     await page.keyboard.up("ArrowUp");
-    await expectActor("stand", "right");
+    await expectActor("stand", "right", "stand1");
 
     await page.keyboard.down("ArrowDown");
-    await expectActor("stand", "right");
+    await expectActor("stand", "right", "stand1");
     await page.keyboard.up("ArrowDown");
-    await expectActor("stand", "right");
+    await expectActor("stand", "right", "stand1");
 
     // Resize re-centers the still-unique actor.
     await page.setViewportSize({ width: 1000, height: 700 });

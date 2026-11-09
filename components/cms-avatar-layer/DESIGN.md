@@ -1,5 +1,7 @@
 # cms-avatar-layer
 
+> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文记录人物容器的历史依据和职责边界。
+
 人物所在的层。对应客户端 `FieldDispatcher+0x24`。`SPAWN_PLAYER` 里，角色通过 `GetAvatarLayer(+0x24).Add` 放进这个容器，而不是画在整张地图的最上面。
 
 ## 在树中的位置

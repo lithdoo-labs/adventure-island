@@ -200,7 +200,7 @@ components/cms-portal/
 - Viewport resize 只改变 Camera 的可见范围/夹取结果，不得改写玩家世界坐标或速度。
 - Y 轴方向、缩放、像素取整和 Camera `x/y` 表示视口左上角还是中心点，需在组件实现前写成唯一契约并用像素测试固定。
 
-本草案的暂定约定：世界 Y 向下；Camera 的 `(x,y)` 是 Viewport 左上角对应的世界坐标；世界点 `(wx,wy)` 投影到屏幕点 `(wx-camera.x, wy-camera.y)`。这是建议值，必须与固定 LoomRealm Renderer 的变换模型和 `cms-scene-view` 实际实现核对后冻结。
+Adventure Island RenderNode ABI v1 已冻结以下约定：世界 Y 向下；Camera 的 `(x,y)` 是 Viewport 左上角对应的世界坐标；不提供 Camera zoom，世界像素与 CSS 像素按 1:1 映射；世界点 `(wx,wy)` 投影到屏幕点 `(wx-camera.x, wy-camera.y)`。坐标允许有限小数，Field Runtime 不为绘制而回写取整后的世界位置；如需 pixel snapping，只能是组件内部呈现细节，不能改变权威坐标。Renderer 的 viewport 信息由 `cms-scene-view` 适配，不能反向改变这份 ABI。
 
 ### 4.2 Bounds
 

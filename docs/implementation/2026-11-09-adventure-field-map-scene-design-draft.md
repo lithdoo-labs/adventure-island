@@ -253,7 +253,7 @@ NPC、Reactor、Seat 暂不创建。Foothold 和 Rope 不作为正式画面节�
 ```js
 resource: {
   namespace: "resource.图",
-  key: "Map/Tile/woodMarble/bsc",
+  key: "Tile/woodMarble/bsc/0",
   contentVersion: "sha256:<64 位小写十六进制>"
 }
 ```

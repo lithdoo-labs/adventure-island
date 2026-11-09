@@ -191,7 +191,7 @@ export function validateAvatarPlan(plan) {
       assert(frame && typeof frame === "object" && !Array.isArray(frame), `${frameLabel} must be an object`);
       if (frame.delay !== undefined) {
         assert(typeof frame.delay === "number" && Number.isFinite(frame.delay), `${frameLabel}.delay must be finite`);
-        assert(Math.abs(frame.delay) <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay magnitude must not exceed ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
+        assert(frame.delay >= 0 && frame.delay <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay must be non-negative and at most ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
       }
       if (frame.move !== undefined) {
         assert(isFinitePair(frame.move), `${frameLabel}.move must be a finite pair`);
@@ -223,7 +223,7 @@ export function validateAvatarPlan(plan) {
       assert(frame && typeof frame === "object" && !Array.isArray(frame), `${frameLabel} must be an object`);
       if (frame.delay !== undefined) {
         assert(typeof frame.delay === "number" && Number.isFinite(frame.delay), `${frameLabel}.delay must be finite`);
-        assert(Math.abs(frame.delay) <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay magnitude must not exceed ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
+        assert(frame.delay >= 0 && frame.delay <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay must be non-negative and at most ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
       }
       assert(Array.isArray(frame.layers) && frame.layers.length > 0, `${frameLabel}.layers must be non-empty`);
       assert(frame.layers.length <= AVATAR_PLAN_LIMITS.maxLayersPerFrame, `${frameLabel}.layers must have at most ${AVATAR_PLAN_LIMITS.maxLayersPerFrame} entries`);
@@ -361,7 +361,7 @@ export function occludedLayers(positioned, zOrder) {
 
 export function frameDuration(frame) {
   const delay = frame?.delay;
-  return typeof delay === "number" && Number.isFinite(delay) ? Math.abs(delay) : 0;
+  return typeof delay === "number" && Number.isFinite(delay) && delay >= 0 ? delay : 0;
 }
 
 /**

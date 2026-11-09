@@ -34,17 +34,17 @@ cms-scene-view
 | [cms-back](./cms-back/DESIGN.md) | `cms-back` | 远景和近景 |
 | [cms-map-layer](./cms-map-layer/DESIGN.md) | `cms-map-layer` | 层 0 到 7 |
 | [cms-avatar-layer](./cms-avatar-layer/DESIGN.md) | `cms-avatar-layer` | 人物所在的层 |
-| [cms-actor](./cms-actor/DESIGN.md) | `cms-actor` | 纸娃娃。走和站循环；技能和普攻只播一遍，然后回到当前移动 |
+| [cms-actor](./cms-actor/DESIGN.md) | `cms-actor` | 纸娃娃。走、站、跳、蹲；游泳在姿态还原前画 `fly`。技能和普攻只播一遍，然后回到当前移动 |
 | [cms-npc](./cms-npc/DESIGN.md) | `cms-npc` | 不放。`life` 里 `type=n` 的对话 |
 | [cms-reactor](./cms-reactor/DESIGN.md) | `cms-reactor` | 不放。箱子、开关、花的点击和受击 |
 | [cms-seat](./cms-seat/DESIGN.md) | `cms-seat` | 不放。坐下的坐标 |
-| [cms-portal](./cms-portal/DESIGN.md) | `cms-portal` | 场景出口。第一阶段唯一的地图交互 |
+| [cms-portal](./cms-portal/DESIGN.md) | `cms-portal` | 有游戏帧才画的出口。童话村这条路线的四扇门没有画面，切换在 Field Runtime |
 
 ## 不做成组件的东西
 
 - 立足线、绳梯。碰撞数据。需要看的时候由 `cms-scene-view` 画辅助线。
 - 单个瓦片、单个物件。瓦片是像素放置数组 `tiles`。物件是放置数组 `objs`，字段含画面和 `zM`，不是点击目标。全库条数以 [MAP-DATA-EXTRACTION.md](../research/result/map/MAP-DATA-EXTRACTION.md) 为准，不在这里冻结。
-- 物件上的交互不由物件组件接收。走进场景用 [cms-portal](./cms-portal/DESIGN.md)，对话用 [cms-npc](./cms-npc/DESIGN.md)，打或点箱子、开关、花用 [cms-reactor](./cms-reactor/DESIGN.md)，坐下用 [cms-seat](./cms-seat/DESIGN.md)。`reactor` 和 `name` 留在逻辑记录，不进入视觉 ABI。详见 [cms-map-layer](./cms-map-layer/DESIGN.md)。
+- 物件上的交互不由物件组件接收。走进场景由 Field Runtime 做传送判定，有游戏帧时才由 [cms-portal](./cms-portal/DESIGN.md) 画出口。对话用 [cms-npc](./cms-npc/DESIGN.md)，打或点箱子、开关、花用 [cms-reactor](./cms-reactor/DESIGN.md)，坐下用 [cms-seat](./cms-seat/DESIGN.md)。`reactor` 和 `name` 留在逻辑记录，不进入视觉 ABI。详见 [cms-map-layer](./cms-map-layer/DESIGN.md)。
 - 怪物。同在 `life`，但是 `type=m`。第一阶段不放进树，也还没有单独目录。
 - 方向键。沿用 LoomRealm 的 `game-controls-input`，不放在本目录。
 

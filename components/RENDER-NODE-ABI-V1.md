@@ -8,6 +8,8 @@
 
 本文使用 MUST / MUST NOT / SHOULD / MAY 表达规范强度。本文是 Adventure Island 的产品级组件契约，不复制或修改 LoomRealm 的底层协议。
 
+2026-11-09 目标修订：`locomotion` 增加 `prone` 与 `swim`。`stand`、`walk`、`jump` 的含义不变，五字段和标签集合不变，不另起主版本。`swim` 的画面映射写在 5.6。
+
 ---
 
 ## 1. 冻结范围与协议分层
@@ -321,8 +323,8 @@ data: { backPlan: BackPlanV1 }
 ```
 
 - `back-set/index/animation` 是来源标识；动画帧和资源由 Adapter 预解析进 `backPlan`，组件不得自行按 CMS/WZ 路径查找。
-- `x/y` 是背景锚点，按 §5.1 的产品锚定绘制。`parallax-x/y` 原样映射 `rx/ry`，`background-type` 原样映射 `type`，`tile-step-x/y` 原样映射 `cx/cy`。客户端已确认 type 0–3 走普通分支，type 4 与 6 用 `rx`、type 5 与 7 用 `ry`，滚动步长为 `20000 / |rate|`。`+0x98` 的函数体和时间单位待逆向，所以这些参数的存在不表示视差公式已经可以绘制。P1 只静态绘制 type 0，不解释 `rx/ry`。type 1–7 由 Adapter 报告 unsupported，不进入可发布 Plan。
-- `cx/cy=0` 在 v1 中保留为 0。平铺辅助函数里出现过步长 0 改为 1，但寄存器与 `cx/cy` 的对应待逆向，组件不得把 0 换成图像宽高。
+- `x/y` 是背景锚点，按 §5.1 的产品锚定绘制。`parallax-x/y` 原样映射 `rx/ry`，`background-type` 原样映射 `type`，`tile-step-x/y` 原样映射 `cx/cy`。客户端已确认 type 0–3 走普通分支，type 4 与 6 用 `rx`、type 5 与 7 用 `ry`，滚动步长为 `20000 / |rate|`。`+0x98` 的参数顺序已确认，函数体和时间单位待逆向，所以这些参数的存在不表示视差公式已经可以绘制。P1 只静态绘制 type 0，不解释 `rx/ry`。type 1–7 由 Adapter 报告 unsupported，不进入可发布 Plan。
+- `cx/cy=0` 在 v1 中保留为 0。客户端把它们当作水平、垂直步长，值为 0 时不改用画布宽高。组件也不得把 0 换成图像宽高。
 - `flip` 按 §5.1 围绕锚点水平镜像。`opacity` 按 `opacity / 255` 变成绘制 alpha。二者的客户端混合函数仍待逆向，当前是产品约定。
 - `front` 不作为组件属性。它参与客户端 `index * 1000` 加载键，比较方向待逆向。远景/近景由父节点的 children 顺序表达，该顺序是产品约定。
 - Adapter 对缺失源字段使用产品回退值：`animation="0"`、`rx/ry/cx/cy="0"`、`flip="false"`、`opacity="255"`、`background-type="0"`。本次 303 条样本背景均包含这些字段，因此这些回退值不是样本中观察到的客户端缺省值。
@@ -403,14 +405,14 @@ data: { mapLayerPlan: MapLayerPlanV1 }
 | Render Event | `action`，payload `{ action: string }` |
 
 ```ts
-type LocomotionV1 = "stand" | "walk" | "jump";
+type LocomotionV1 = "stand" | "walk" | "jump" | "prone" | "swim";
 type FacingV1 = "left" | "right";
 
 data: { avatarPlan: AvatarPlanV1 }
 ```
 
 - `x/y` 是身体原点（近似脚底）的世界坐标，使用十进制字符串；Camera 由祖先 `cms-scene-view` 处理。
-- `locomotion` v1 只接受 `stand/walk/jump`，这是 MVP 子集，不代表客户端只有这三种动作。已提取样本还包含 `prone`、`fly`、`stand2`、`walk2` 等动作根；这些持续姿态/武器动作不由一次性 `action` Event 代替。`facing` v1 只接受 `left/right`，其客户端状态映射仍未验证。
+- `locomotion` 接受 `stand`、`walk`、`jump`、`prone`、`swim`。`prone` 对应身体动作 `prone`。`avatar.part.body.00002000` 没有名为 `swim` 的动作，有 `fly`（第 0、1 帧，`delay` 300）。姿态字节还原前，`swim` 画 `fly`，这是产品约定。这些持续姿态不由一次性 `action` Event 代替。`facing` 只接受 `left/right`，其客户端状态映射仍未验证。
 - `skin` 是十进制字符串；`face/hair` 是八位编号字符串；`expression` 是非空表情名；`equips` 是逗号分隔的装备编号，无装备为空字符串。Adapter 对每个 Actor attrs value 执行 ≤ 4096 UTF-8 字节的组件级输入约束。
 - `AvatarPlanV1` 的帧、锚点、遮挡、资源引用和 validator 以 [cms-actor/IMPLEMENTATION.md](./cms-actor/IMPLEMENTATION.md) 为唯一组件级规范；本 ABI 不复制第二份 AvatarPlan schema。
 - 一次性普攻/技能通过 `action` Render Event 触发，不得写入 attrs 或 avatarPlan 的动态播放状态。Actor 的 key 在换地图时保持不变。
@@ -435,7 +437,7 @@ interface PortalPlanV1 {
 data: { portalPlan: PortalPlanV1 }
 ```
 
-- `portal-name` 来自源 `pn`；`portal-type` 来自源 `pt`，使用十进制字符串。客户端已确认 `pt` 2、4、7 使用 `Map/MapHelper.img/portal/game/pv`，10、11 使用实例 `image` 或 `default`，0、1、5、6、8 不加载 pv。3、9、12 不能写成 pv。没有游戏帧时不创建本节点。`portal/editor` 的图标不得进入 `frames`。样本中类型 1 和类型 2 都可以带真实 `tm`；类型 2 只是当前视觉试验子集，不是唯一可跳转类型。
+- `portal-name` 来自源 `pn`；`portal-type` 来自源 `pt`，使用十进制字符串。客户端已确认 `pt` 2、4、7 使用 `Map/MapHelper.img/portal/game/pv`，10、11 使用实例 `image` 或 `default`，0、1、3、5、6、8 不加载 pv。9、12 不发布。`pt` 13 的使用路径另读 `Effect/BasicEff.img/VerticalJump`，也不发布成 pv。`pt` 3 的使用路径仍按 `tm` 跳转。没有游戏帧时不创建本节点。`portal/editor` 的图标不得进入 `frames`。样本中类型 1、类型 2 和类型 3 都可以带真实 `tm`；类型 2 只是当前有 pv 画面的子集。
 - `x/y` 是世界坐标；`flip` 可选，缺省按产品规则为 `"false"`（99 个样本均没有源 `f`）；`hide-tooltip` 可选，均使用 `"true"/"false"`。缺省 false 不是从客户端 `f` 字段反推的事实。
 - `targetMap`、`targetName`、`script`、触发范围、冷却和 `onlyOnce` 规则不属于组件 attrs/data；它们由 MapScenePlan / Field Runtime 的 Portal Record 持有。
 - Portal 组件只绘制 `portalPlan`，不得自行决定是否传送或改变当前地图。
@@ -497,7 +499,7 @@ Web Component 是只读呈现端。它不得拥有第二份玩家坐标、速度
 - 每个 data 顶层 plan 必须有 `formatVersion: 1`。
 - 每个 tag 的 attrs/data 是闭合 schema；缺少必需字段、未知字段、错误类型、非法枚举或无效资源引用都必须由 Adapter/plan validator 明确拒绝。
 - 不得把数字/布尔值混入 attrs；所有 attrs value 必须是字符串。
-- 不得在 v1 下静默改变字段含义、坐标系、排序、事件语义或资源 key 解释。
+- 不得在 v1 下静默改变字段含义、坐标系、排序、事件语义或资源 key 解释。2026-11-09 已写明的 `locomotion` 扩值保持原三个值的含义，不另起主版本。
 - 新增不兼容字段或改变既有字段语义，必须发布新的 ABI/plan major version；不能靠组件内部猜测旧/新格式。
 
 ### 8.2 不混淆协议容量与产品容量

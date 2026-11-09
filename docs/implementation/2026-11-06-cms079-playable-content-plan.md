@@ -2,6 +2,8 @@
 
 > 状态：**待执行**。本文件只定数据契约和第一批内容，不代表切片已经导出，也没有可玩的地图运行库。
 >
+> **2026-11-09 目标已改。** 第一张可玩地图不再是射手村和集市。当前完成定义见 [Adventure Field 地图场景草案](./2026-11-09-adventure-field-map-scene-design-draft.md)：童话村 `222000000`、井口 `222000001`、矩形地带 `230030200`，以及行走、跳跃、蹲下、游泳和这四扇门的切换。下文保留 11 月 6 日的切片记录。
+>
 > 制定日期：2026-11-06。基线：`main` `a1992512ac62a40595c3e7ca812363d1112ae043`。LoomRealm pin 不改：`93648192323bf5f57996b7b54cbae641d8a53fdb`。
 >
 > 全量转换来源：仓库外 `E:\cms079-pr1-work\fsdb-all\[FSDB]cms`，由 PR #1 转换器 `scripts/wz_fsdb/convert_cms.py`（blob `c3951951aecbfe720e19c43e495043c2e2ddd293`）一次 `--scope all` 写出。验收见 `docs/validation/cms079-wz-fsdb-real-closure.md`。该报告的源到目标无损性是 **PARTIAL / NOT ESTABLISHED**；本切片只复制已选中的、结构完整的记录，不把全库重新宣称为无损。

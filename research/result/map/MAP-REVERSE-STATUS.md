@@ -33,15 +33,18 @@ FSDB 是小样本，而且动画帧没有 delay。全量数据来自 Map.wz。
 | 主题 | VA | 等级 |
 |---|---|---|
 | 字符串取值 | `0x7A48D0`，解码 `0x7A4DA9`，旋转 `0x7A4CBE` | VERIFIED。编号 798 = `origin` |
-| VR 边界 | `0x66E59E` | VERIFIED 四边加减 400/300。跟随和 world-to-screen UNKNOWN |
-| Back 实例 | `0x669397` | VERIFIED 属性读取、type 4/6 与 5/7、`20000/abs(rate)` |
-| Back 平铺辅助 | `0x66A8D5` | PARTIALLY VERIFIED。mode bit 和 0 步长改 1 已看见，cx 与寄存器的对应还没走完 |
-| Tile 键 | `0x666C0D` | VERIFIED `z + 10*(layer*3000 - zM) - 1073721834` |
+| VR 边界 | `0x66E59E` | VERIFIED 四边加减 400/300。唯一调用点 `0x66630D`。跟随和 world-to-screen UNKNOWN |
+| Back 实例 | `0x669397` | VERIFIED 属性读取、type 4/6 与 5/7、`20000/abs(rate)`、`+0x98` 的参数顺序 |
+| Back 平铺辅助 | `0x66A8D5` | VERIFIED `cx`/`cy` 是两轴步长，mode bit0/bit1，零步长不是画布尺寸。span 用的槽位方法体 UNKNOWN |
+| Tile 键 | `0x666C0D` | VERIFIED `z + 10*(layer*3000 - zM) - 1073721834`。只交给虚表 `+0xB4` |
 | Obj 键 | `0x66885B` | VERIFIED `layer*30000 + z - 1073739824`。不读 zM |
-| 相同键 | Henesys tile 35 和 34 键相同 | 键 VERIFIED。tie-break UNKNOWN |
-| Portal 实例 | `0x71A203` | VERIFIED `pt` 在 `+8` |
+| 相同键 | Henesys tile 35 和 34 键相同 | 键 VERIFIED。比较器不在本映像，tie-break UNKNOWN |
+| Portal 实例 | `0x71A203` | VERIFIED `pt` 在 `+8`，`pn` 在 `+4`，`tm` 在 `+0x1C`，`tn` 在 `+0x20` |
+| Portal 命中 | `0x71B4FD` | VERIFIED `x±hRange/2`、`y±vRange/2`。导入名未在静态表出现 |
+| Portal 同图 | `0x71B4C0`、`0x963CE1` | VERIFIED `tn` 与另一个 portal 的 `pn` 比较。`x` 和 `y-10` 传入 `0xA4F6F1`，落点写入未还原 |
+| Portal 跨图 | `0x53FF69` | PARTIALLY VERIFIED。参数是 `pn`，不是 `tm`。目标地图写入 UNKNOWN |
 | Portal pv | `0x71ACAF` | VERIFIED 路径 `Map/MapHelper.img/portal/game/pv` |
-| Portal ph / psh | `0x71AF39` / `0x71B1C3` | VERIFIED 路径。哪个 pt 调用它们：INFERRED |
+| Portal ph / psh | `0x71B6D1` | VERIFIED。离开和进入都是 `pt == 10` 走 ph，否则 psh |
 | portalStart / Continue / Exit | `0x71BAE3` / `0x71BDA9` / `0x71B81B` | VERIFIED 这些名字被读取 |
 
 ## 验收
@@ -61,22 +64,26 @@ FSDB 是小样本，而且动画帧没有 delay。全量数据来自 Map.wz。
 
 客户端：
 
-- [ ] Camera 跟随和 world-to-screen。只完成了 VR 边界写入
-- [x] Background 的 type、rx/ry 选择和 20000 除法。COM `+0x98` 内部仍未知
+- [ ] Camera 跟随和 world-to-screen。VR 写入、唯一调用点和“下一项是 life”已经核对，跟随函数不在其中
+- [x] Background 的 type、rx/ry 选择、20000 除法和 `+0x98` 参数顺序。COM 方法体仍未知
+- [x] `cx`/`cy` 与步长寄存器的对应。零值不换成画布宽高
 - [x] Tile 键公式
 - [x] Obj 键公式
-- [ ] 相同键的 tie-break
+- [ ] 相同键的 tie-break。本映像只把一个整数交给虚表 `+0xB4`
 - [x] Portal 的 pv 选择函数
-- [x] pt 2/4/7 → pv，pt 10/11 → `image`/`default`。ph/psh 与 pt 的对应还是 INFERRED
+- [x] pt 2/4/7 → pv，pt 10/11 → `image`/`default`。ph/psh 由 `pt == 10` 决定
+- [x] 跳转命中用 `hRange`/`vRange` 的一半。同图用 `tn` 匹配 `pn`。跨图调用不接收 `tm`
 - [x] 上表里的地址、调用点和反汇编
 - [x] Henesys、101040000、702090203、105050106 的键是用公式和 WZ 字段算出来的，不是运行时画出来的
 
 ## 仍开放
 
-- Camera 位置、dead zone、地图小于视口、world-to-screen、DPR：UNKNOWN
-- 排序方向和相同键的次序：UNKNOWN
-- Background `+0x98` 里的实际位移：UNKNOWN
-- `0x43715C` 返回的时间单位：UNKNOWN
-- pt 0、1、3、5、6、8、9、12 的可见资源：PARTIALLY VERIFIED 或 UNKNOWN
+- Camera 位置、dead zone、地图小于视口、world-to-screen、DPR：UNKNOWN。已排除 VR 函数自身和它的唯一调用点
+- 排序方向和相同键的次序：UNKNOWN。比较不在本映像，键只进入虚表 `+0xB4`
+- Background `+0x98` 的方法体：UNKNOWN。参数顺序已确认
+- `0x43715C` 是 layer 虚表 `+0x58`。时间单位 UNKNOWN
+- 跨图时目标地图 id 的写入：UNKNOWN。`0x53FF69` 收到的是 `pn`
+- `0xA4F6F1` 如何使用 `x` 和 `y-10`：UNKNOWN
+- pt 0、1、3、5、6、8、9、12 的 MapHelper 画面：加载分支不取 pv。pt 13 的使用路径读取 `Effect/BasicEff.img/VerticalJump`
 - info 里大量字段（`fieldLimit`、`mobRate`、`swim` 等）只有原始值，没有对应的读取函数：UNKNOWN
 - 没有运行时断点。全部函数证据是静态反汇编加字符串编号

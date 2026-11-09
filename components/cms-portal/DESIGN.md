@@ -39,12 +39,13 @@
 |---|---|
 | 2、4、7 | `Map/MapHelper.img/portal/game/pv` |
 | 10、11 | 实例 `image`；空值使用 `default` |
-| 3、9、12、13 | 其他分支，不能写成 pv。当前是 unsupported |
-| 0、1、5、6、8 | 不加载 pv，不创建视觉节点 |
+| 0、1、3、5、6、8 | 不加载 pv，不创建视觉节点。`pt` 3 的使用路径仍按 `tm` 跳转 |
+| 9、12 | 不发布，code `portal-visual-unsupported` |
+| 13 | 使用路径另读 `Effect/BasicEff.img/VerticalJump`，不发布成 pv |
 
-`ph` 和 `psh` 的路径已确认，它们与 `pt` 的对应仍待逆向，不写入 `frames`。`pv/0` 的 origin 是 `(43, 173)`，没有 `z` 和 `delay`。原始 WZ 有 `MapHelper.img` 的 818 张 Canvas。当前 CMS FSDB 和 PWA Content 闭包还没有这份资源。提取、校验、转成 Content Resource 并进入 allowlist 之前，不创建 `cms-portal`。`portal/editor` 的 `sp/pi` 不进入 `frames`。
+`ph` 和 `psh` 的路径已确认。离开和进入时 `pt == 10` 选择 ph，否则选择 psh；已有当前传送门的更新路径固定读取 ph。它们不写入 `frames`。`pv/0` 的 origin 是 `(43, 173)`，没有 `z` 和 `delay`。原始 WZ 有 `MapHelper.img` 的 818 张 Canvas。当前 CMS FSDB 和 PWA Content 闭包还没有这份资源。提取、校验、转成 Content Resource 并进入 allowlist 之前，不创建 `cms-portal`。`portal/editor` 的 `sp/pi` 不进入 `frames`。
 
-`tm` 和 `tn` 在实例加载函数里被读取。跳转匹配函数待逆向，所以 `(tm, tn)` 是产品级目标解析，由 Field Runtime 持有。
+`tm == 999999999` 时客户端使用函数直接返回。同图时 `tn` 匹配另一个 portal 的 `pn`。跨图调用收到 `pn`，目标地图写入仍待逆向。`(tm, tn)` 仍是产品级目标解析，由 Field Runtime 持有。
 
 以下源字段属于 Portal Record / Field Runtime，不属于视觉组件：
 
@@ -55,16 +56,16 @@
 | `script` | 脚本路由标识 |
 | `delay` | 触发冷却/延迟语义，待运行库解释 |
 | `onlyOnce` | 一次性触发规则 |
-| `hRange` / `vRange` | 触发范围参数；默认判定仍需还原 |
+| `hRange` / `vRange` | 跳转命中使用 `x±hRange/2`、`y±vRange/2`。动画查找是另一套固定框 `x±100`、`y±50`，不读这两个字段 |
 
 这些字段必须保留在 MapScenePlan 的逻辑 Portal Record 中，由 Field Runtime 决定是否触发和如何换图。不得放入 `cms-portal.attrs/data`，也不得让 Web Component 自己切换地图。
 
 ## 第一阶段
 
-逻辑出口保留在 MapScenePlan。`100000000/in00` 与 `100000100/out00` 可以互相作为产品级目标。游戏帧进入 Content 闭包之后，才为 `visual: "pv"` 且帧非空的记录创建本组件。画面验收使用真实 pv，停在缺 `delay` 的第一帧。编辑器图标和无贴图标记都不算通过。
+逻辑出口保留在 MapScenePlan。第一批启用 `222000000/in00 → 222000001/st00`、`222000001/out00 → 222000000/in00`、`222000001/sea00 → 230030200/east00` 和 `230030200/east00 → 222000001/sea00`。这四条的 `pt` 是 1 或 3，都没有 pv，本组件不为它们创建节点。切换由 Field Runtime 完成。游戏帧进入 Content 闭包之后，才为 `visual: "pv"` 且帧非空的记录创建本组件。画面验收使用真实 pv，停在缺 `delay` 的第一帧。编辑器图标和无贴图标记都不算通过。
 
 ## 不做什么
 
 - 不发送 `CHANGE_MAP`；地图切换由 Field Runtime 用一次 `replace` 提交本地状态。
 - 不按 `pt` 自行选择资源，不画类型 0 的出生点，也不画 `portal/editor`。
-- 不把类型 2 写成唯一可跳转类型。类型 1 有逻辑目标，没有 pv 画面。
+- 不把类型 2 写成唯一可跳转类型。类型 1 和类型 3 有逻辑目标，没有 pv 画面。井口回村的 `out00` 是类型 3。

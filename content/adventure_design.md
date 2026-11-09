@@ -2,7 +2,7 @@
 
 > 状态：正在设计。这是我们自己的内容库，不是 CMS WZ 的直接转换结果。  
 > [cms_design.md](cms_design.md) 只说明客户端数据如何落成转换库。转换库是导入来源，游戏读取的是本文里的表。  
-> 现在写完的是纸娃娃。技能、地图，以及其余数据和资源，都继续记在本文，各自成章。
+> 现在写完的是纸娃娃和地图。技能，以及其余数据和资源，都继续记在本文，各自成章。
 
 ## 1. 库
 
@@ -14,15 +14,15 @@
 | `[group]` | `{键}.jsonl`，每行一个 JSON 对象 | `.info.meta`、`.desc.meta` |
 | `[resource]` | `{路径}.{扩展名}` | 表根目录 `.desc.meta` |
 
-键是单个 NameSegment，编号保留前导零。名字里的前缀用点号分段，点号不放在开头或结尾。声音的字节进 `[resource]音`。纸娃娃的图不进 `[resource]图`，进独立的 `[resource]Avatar`。其他章的资源以后再定。运行时投影不入库。
+键是单个 NameSegment，编号保留前导零。名字里的前缀用点号分段，点号不放在开头或结尾。声音的字节进 `[resource]音`。纸娃娃的图不进 `[resource]图`，进独立的 `[resource]Avatar`。地图的图进 `[resource]Map`。技能和其余章的资源以后再定。运行时投影不入库。
 
-自研的表名、记录键和资源名都带章节前缀，避免和转换库的 `Look`、`Map` 或以后的其他章撞名。纸娃娃的前缀是 `avatar`。部件再接 `part`，装备再接 `equip`，例如 `avatar.part.body.00002000`、`avatar.equip.cap.01002913`。技能、地图各自再用自己的前缀。源数据里的姿势名和绘制层名字保持原样，不加前缀。
+自研的表名、记录键和资源名都带章节前缀，避免和转换库的 `Look`、`Map` 或以后的其他章撞名。纸娃娃的前缀是 `avatar`。部件再接 `part`，装备再接 `equip`，例如 `avatar.part.body.00002000`、`avatar.equip.cap.01002913`。地图的前缀是 `map`，例如 `map.100000000`、`map.back.grassySoil`。技能再用自己的前缀。源数据里的姿势名、图集名和绘制层名字保持原样，不加前缀。
 
 | 章 | 状态 |
 |---|---|
 | 纸娃娃 | 已写 |
 | 技能 | 未写 |
-| 地图 | 未写 |
+| 地图 | 已写 |
 | 其余数据和资源 | 未写 |
 
 ## 2. 纸娃娃
@@ -238,7 +238,164 @@
 
 ## 4. 地图
 
-未写。地图、地形、物件、背景和对应资源在这一章设计。
+地图章存放一张地图的源数据和可复用的画布。导入来源是转换库里的 `struct.Map`、`group.Back`、`group.Tile`、`group.Obj`、`group.Portal`、`group.Foothold`、`group.Rope`，以及 `struct.Back`、`struct.Tileset`、`struct.Obj`、`struct.MapHelper` 和对应 PNG。游戏不读这些转换表。
+
+MapScenePlan、`effectiveBounds`、`clientSortKey`、呈现用的 `visual` 和 `contentVersion` 由构建期 Adapter 投影，不写回本库。比较方向、Camera 跟随、`+0x98` 的方法体和虚表 `+0x58` 的时间单位都还没有恢复，库里不补这些公式。
+
+地图画布不打成大图。一张画布一个 PNG。缺 `z`、缺 `delay` 就不写该字段，不补 0。
+
+### 4.1 表
+
+| 表 | 键 | 内容 |
+|---|---|---|
+| `[struct]map.Map` | `map.100000000` | 地图编号、`info` 里实际存在的标量、小地图、0–7 层的 `tileSet` |
+| `[group]map.Back` | 与地图相同 | 背景放置，源顺序 |
+| `[group]map.Tile` | 与地图相同 | 瓦片放置 |
+| `[group]map.Obj` | 与地图相同 | 物件放置 |
+| `[group]map.Portal` | 与地图相同 | 传送门放置 |
+| `[group]map.Foothold` | 与地图相同 | 立足线 |
+| `[group]map.Rope` | 与地图相同 | 绳子 |
+| `[struct]map.Back` | `map.back.grassySoil` | 这套背景存在 |
+| `[group]map.BackFrame` | 与背景定义相同 | 背景帧 |
+| `[struct]map.Tileset` | `map.tile.woodMarble` | 这套瓦片存在 |
+| `[group]map.TileFrame` | 与图集相同 | `u` / `no` 画布 |
+| `[struct]map.Obj` | `map.obj.acc5` | 这套物件存在 |
+| `[group]map.ObjFrame` | 与物件定义相同 | `l0/l1/l2` 帧 |
+| `[struct]map.Helper` | `map.helper` | 共用辅助图存在 |
+| `[group]map.HelperFrame` | `map.helper` | `MapHelper.img` 的画布 |
+| `[resource]Map` | `back/...`、`tile/...`、`obj/...`、`helper/...`、`minimap/...` | PNG |
+
+定义表只表示这套资源存在。帧在对应的 group 里。放置行用 `bS`、层上的 `tileSet`、`oS` 指回定义，不把像素嵌进行里。JSONL 的行序就是源顺序。
+
+### 4.2 struct.map.Map
+
+下面是 `map.100000000` 的节选。源里还有的标量同样留下。
+
+```json
+{
+  "mapId": "100000000",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 1,
+    "returnMap": 100000000,
+    "forcedReturn": 999999999,
+    "bgm": "Bgm00/FloralLife",
+    "mapMark": "Henesys"
+  },
+  "miniMap": {
+    "width": 7174,
+    "height": 1391,
+    "centerX": 798,
+    "centerY": 661,
+    "mag": 4,
+    "resource": "minimap/100000000"
+  },
+  "layers": {
+    "0": { "tileSet": "woodMarble" },
+    "1": { "tileSet": "woodMarble" },
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}
+```
+
+`info` 只写源里有的标量。`VRLeft`、`VRTop`、`VRRight`、`VRBottom` 四个都在才写 `vr`，值是源整数。上面的射手村节选没有这四项，记录里就没有 `vr`。`+400`、`-300` 和中点折叠不入库。`swim` 留在 `info` 里，库不另做运动表。第一批里童话村和井口是 0，矩形地带是 1。Field Runtime 读取这个标量。客户端读取函数仍待逆向。
+
+`layers` 只收 `"0"` 到 `"7"`。某一层没有 `info/tS` 时，该层是空对象，不写 `tileSet`。没有放置的层不写放置行。
+
+没有小地图画布时不写 `miniMap.resource`。宽高和中心点缺任何一项时，不在库里拼边界。
+
+### 4.3 放置
+
+背景一行对应源里的一条 `back`：
+
+```json
+{"bS":"grassySoil","no":0,"ani":0,"x":0,"y":0,"rx":0,"ry":0,"type":0,"cx":0,"cy":0,"f":0,"a":255,"front":0}
+```
+
+`type`、`rx`、`ry`、`cx`、`cy`、`front` 原样保留。`cx` 或 `cy` 为 0 就写 0，不换成画布宽高。`bS` 对应 `map.back.{bS}`。
+
+瓦片一行：`layer`、`x`、`y`、`u`、`no`、`zM`。`layer` 是 `"0"` 到 `"7"`。图集取该层的 `tileSet`，定义键是 `map.tile.{tileSet}`。
+
+物件一行：`layer`、`oS`、`l0`、`l1`、`l2`、`x`、`y`、`z`、`f`。源里有的 `zM`、`flow`、`cx`、`cy`、`r`、`reactor`、`name` 才写。`flow` 是平铺 mode，不是排序键。定义键是 `map.obj.{oS}`。
+
+传送门一行使用源字段名。`100000000` 的 `in00`：
+
+```json
+{"pn":"in00","pt":2,"x":3026,"y":335,"tm":100000100,"tn":"out00"}
+```
+
+`pn`、`pt`、`x`、`y`、`tm`、`tn` 都留下。`script`、`delay`、`onlyOnce`、`hideTooltip`、`image`、`hRange`、`vRange`、`horizontalImpact`、`verticalImpact` 源里有才写。客户端在 `hRange` 或 `vRange` 缺失时用 100 做命中范围，那是读取时的默认值，不写进缺字段的行。`tm` 为 `999999999` 保持原值。`ph` 和 `psh` 的选择不写在放置行上。
+
+立足线一行：`layer`、`platform`、`id`、`x1`、`y1`、`x2`、`y2`。有连接才写 `prev`、`next`。`force`、`forbidFallDown` 原样保留，不解释成运动规则。垂直段 `x1 === x2` 照样留下。
+
+绳子一行：`x`、`y1`、`y2`、`l`、`uf`、`page`。源里有的编号才写 `id`。
+
+### 4.4 帧
+
+背景帧的键是 `map.back.grassySoil`。静态帧：
+
+```json
+{"kind":"back","no":0,"origin":[128,128],"z":0,"width":256,"height":256,"resource":"back/grassySoil/back/0"}
+```
+
+动画帧的 `kind` 是 `ani`，并带 `frame`。`Back/grassySoil.img/ani/0` 的 10 帧没有 `delay`，行里就没有这个字段。
+
+瓦片帧的键是 `map.tile.woodMarble`，用 `u` 和 `no`。下面四张没有 `z`，行里不写 `z`：
+
+- `tile/greenCrystalCave/bsc/0`
+- `tile/blueCave2/bsc/0`
+- `tile/blueCave2/bsc/1`
+- `tile/blueCave2/bsc/2`
+
+物件帧的键是 `map.obj.{oS}`，带 `l0`、`l1`、`l2`、`frame`。画布上的 `z` 写在帧上，放置上的 `z` 写在放置行上。有 `delay` 才写 `delay`。
+
+UOL 在导入时解开。帧只指向已经解开的画布。悬空或成环就让这条定义导入失败。
+
+### 4.5 MapHelper
+
+`struct.map.Helper` 只有一条，键是 `map.helper`：
+
+```json
+{"gamePortal":["pv","ph","psh"]}
+```
+
+`gamePortal` 标明游戏出口画面的名字。帧在 `group.map.HelperFrame`，用路径段区分，不把 818 张画布塞进 struct。
+
+```json
+{"branch":"portal","use":"game","name":"pv","frame":"0","origin":[43,173],"resource":"helper/portal/game/pv/0"}
+```
+
+`width` 和 `height` 取画布尺寸，一并写入。`pv/0` 没有 `z` 和 `delay`。`ph`、`psh` 的 `use` 仍是 `game`，`name` 是 `ph` 或 `psh`；`portalStart`、`portalContinue`、`portalExit` 写在 `clip`。编辑器的 `sp`、`pi` 用 `use: "editor"` 留下。Adapter 只从 `use: "game"` 取出口画面。
+
+`weather`、`mark`、`worldMap`、`AvatarMegaphone`、`minimap` 同样落在这张 group 里，`branch` 用这些顶层名字。
+
+### 4.6 [resource]Map
+
+逻辑键属于 `resource.Map`。扩展名不属于 ResourceKey。
+
+```text
+[resource]Map/back/grassySoil/back/0.png
+[resource]Map/tile/woodMarble/bsc/0.png
+[resource]Map/obj/acc5/aquaRoad/fish/0/0.png
+[resource]Map/helper/portal/game/pv/0.png
+[resource]Map/minimap/100000000.png
+```
+
+帧上的 `resource` 就是这个逻辑键。宽高写在帧行上。
+
+### 4.7 发布和读取
+
+库可以装全部地图。第一批发布读 `map.222000000`（童话村）、`map.222000001`（井口）和 `map.230030200`（矩形地带），加上它们引用到的 `map.back.*`、`map.tile.*`、`map.obj.*`，以及 `map.helper` 里 `portal/game` 的 `pv`、`ph`、`psh`。上面的 `map.100000000` 只示范记录形状。
+
+构建器从这些表投影 MapScenePlan，不把 Plan 写回 FSDB。四个 VR 齐全才按客户端公式做内缩，否则用小地图或立足线外接矩形，规则在 MapScenePlanV1。童话村和井口四个 VR 都在。井口水平跨度是 800，内缩后左右收到同一个 x，这个结果只出现在 Plan。矩形地带没有 `vr`。`type` 不是 0 的背景、缺 `z` 的瓦片、没有游戏帧的传送门，按该契约失败，不在库里填默认画面。`pt` 3 不加载画面，放置行仍保留，切换由 Field Runtime 做。
+
+`read-adventure-fsdb.mjs` 在地图表进入发布闭包之前，仍只发布纸娃娃。要让 PWA 读到地图，须先把本章的表加进它的白名单。
 
 ## 5. 其余数据和资源
 

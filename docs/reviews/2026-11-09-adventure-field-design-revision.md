@@ -10,6 +10,8 @@
 
 本次修订不改变 RenderNode 五字段，不改变六个 MVP 标签的数据结构，也不把地图公式写回 LoomRealm Render Update。组件实现仍排在这些契约之后。
 
+同日晚些时候，完成定义改为童话村 `222000000`、井口 `222000001`、矩形地带 `230030200` 上的行走、跳跃、蹲下、游泳，以及沿井口的四扇门换图。第 3.4 节把 `pt` 3 改到不加载 pv 的一类，使井口 `out00` 可以切换。第 3.6 节和第 5 节改为注入步长，不再把运动移出当前目标。Bounds、排序、type 0、缺 `delay` 停留和 `replace` 原子性保持原决定。
+
 ## 1. 状态词
 
 设计文档使用下面四个词。逆向笔记里的 VERIFIED、PARTIALLY VERIFIED、INFERRED、UNKNOWN 保留在 `research/result/map/`。一条函数只恢复了键或分支时，已恢复的子事实写「客户端已确认」，缺失的比较器或函数体写「待逆向」。
@@ -68,7 +70,7 @@ bottom = VRBottom - 300
 
 某一轴调整后的宽度或高度小于等于 0 时，该轴两边改为两端之和的有符号除以 2，向零截断，对应反汇编里的 `cdq / sub / sar`。因此 `effectiveBounds` 允许某一边相等。400 和 300 是立即数，这段函数没有读取视口尺寸。
 
-`scenePlan.bounds` 使用 `effectiveBounds`。组件和 Field Runtime 都不再做第二次内缩。没有完整 VR 时，不套用这组立即数；回退到 minimap，再回退到 foothold 外接矩形，这是产品约定。当前 CMS FSDB 的 `100000000` 和 `100000100` 的 `info` 没有 VR 四字段，这两张图的第一版边界走产品回退。若以后的构建输入含有完整 VR，再走客户端调整。
+`scenePlan.bounds` 使用 `effectiveBounds`。组件和 Field Runtime 都不再做第二次内缩。没有完整 VR 时，不套用这组立即数；回退到 minimap，再回退到 foothold 外接矩形，这是产品约定。第一批里童话村和井口四个 VR 都在，走客户端内缩。井口水平跨度是 800，左右收到同一个 x。矩形地带没有 VR，走产品回退。
 
 轴收敛后左右或上下可以相等。这是同一组 `bounds` 字段的校验放宽，字段名和类型不变，RenderNode ABI 仍是 v1。
 
@@ -82,7 +84,8 @@ Camera 跟随、dead zone、world-to-screen 和 DPR 待逆向。世界像素到 
 - type 4、6 用 `rx` 做水平滚动；type 5、7 用 `ry` 做垂直滚动。
 - 滚动步长为 `step = 20000 / |rate|`。
 - `front` 参与 `index * 1000` 加载键。它不参与资源选择。
-- 平铺辅助函数里出现步长 0 改为 1。寄存器和 `cx/cy` 的对应待逆向。
+- 平铺辅助里，`cx` 是水平步长，`cy` 是垂直步长。mode 的 bit0、bit1 分别重复这两个轴。步长为 0 时，背景不改用画布宽高；除数改成 1 只为了避免除零，乘回去的仍是原来的步长。
+- type 0–3 交给 `+0x98` 的参数是 `(origin, 100, 100, rx, ry)`。type 4 和 6 的后两个数是 `(0, ry+100)`，type 5 和 7 是 `(rx+100, 0)`。
 
 `+0x98` 的函数体、`0x43715C` 的时间单位，以及 `front` 键的比较方向，待逆向。
 
@@ -105,10 +108,11 @@ drawTop  = placementY - originY
 |---|---|
 | 2、4、7 | `Map/MapHelper.img/portal/game/pv` |
 | 10、11 | 实例 `image`；空值使用 `default` |
-| 3、9、12 | 进入其他分支，不能写成 pv |
-| 0、1、5、6、8 | 不加载 pv |
+| 0、1、3、5、6、8 | 不加载 pv。`pt` 3 的使用路径仍按 `tm` 跳转，`visual` 为 `none` |
+| 9、12 | 不发布 |
+| 13 | 使用路径读取 `Effect/BasicEff.img/VerticalJump`，不是 pv，不发布 |
 
-`ph` 和 `psh` 的路径已确认，它们和具体 `pt` 的对应仍是推断。`tm`、`tn` 在实例加载函数里被读取；跳转匹配函数待逆向。`(tm, tn)` 是产品级目标解析。
+`ph` 和 `psh` 的路径已确认。`0x71B6D1` 在离开和进入时用 `pt == 10` 选择 ph，否则选择 psh。`0x71BCC8` 在已有当前传送门时固定读取 ph。它们仍不写入 `frames`。`tm == 999999999` 时使用函数直接返回。同图时 `tn` 与另一个 portal 的 `pn` 比较，并把该 portal 的 `x`、`y-10` 传给后续函数，落点写入还没有还原。跨图调用收到的是 `pn`，不是 `tm`。`(tm, tn)` 仍由 Field Runtime 做产品级目标解析；客户端同图匹配不替代这次产品协议。
 
 原始 WZ 中有 `MapHelper.img`，818 张 Canvas。`portal/game/pv/0` 的 origin 是 `(43, 173)`，没有 `z` 和 `delay`。当前缺口是 CMS FSDB 与 PWA Content 闭包还没有这份资源。资源工作依次为：从原始 Map.wz 提取、校验 pv 与 origin 和哈希、转成 Content Resource、写入显式 allowlist、再用游戏画面验收。`portal/editor` 的 `sp/pi` 不进入 `portalPlan`。
 
@@ -126,14 +130,15 @@ LoomRealm Render Update v1 没有通用 `RenderNode.data` 字节上限。容量�
 
 固定 gitlink `93648192323bf5f57996b7b54cbae641d8a53fdb` 的 `Frame` 只有 `id`、`params`、`signal` 和 `call`。`SubsystemScope` 没有帧时间、固定步长或 Tick 订阅。PWA `MainPlatform.scheduler.schedule()` 没有暴露给 Subsystem。
 
-当前版本目标停在 P0–P2。固定步长、Foothold 运动和依赖 Tick 的 Portal 切换从当前 pin 的实现目标移出，直到 LoomRealm 单独评审 Frame-scoped Clock。`systems/adventure-map` 不自建 `setInterval` 或 `requestAnimationFrame`。视觉组件也不拥有第二套游戏时钟；P1 画面不自动推进帧。
+运动和换图留在这次完成定义里。`libs/adventure-field` 提供 `step(state, input, dt)`。相同状态、输入和 `dt` 得到相同状态。测试和浏览器都注入步长，调用同一函数。`systems/adventure-map` 不自建 `setInterval` 或 `requestAnimationFrame`。视觉组件也不拥有第二套游戏时钟；P1 背景帧不自动推进。补算上限和暂停等待上游 Clock 评审。`info.swim` 为 0 时行走、跳跃、蹲下；为 1 时四向游泳。`Physics/default` 的数值是参数，单位待逆向。
 
 ## 4. 验收分层
 
 | 验收 | 可以声称的内容 |
 |---|---|
 | 产品呈现 | 产品锚定、产品绘制顺序、type 0 静态背景、有效边界、节点数量不随 Tile/Obj 增长 |
-| 客户端像素一致 | 比较方向、背景 `+0x98`、Camera 跟随和帧时钟恢复之后，再用动态画面对照 |
+| 产品运动 | 注入固定步长后的行走、跳跃、蹲下、游泳，以及四扇门换图。相同状态、输入和 `dt` 得到相同结果 |
+| 客户端像素一致 | 比较方向、背景 `+0x98`、Camera 跟随、积分单位和帧时钟恢复之后，再用动态画面对照 |
 
 P1 通过只表示产品呈现通过。
 
@@ -141,11 +146,11 @@ P1 通过只表示产品呈现通过。
 
 | 阶段 | 内容 | 当前版本不包含 |
 |---|---|---|
-| P0 | MapScenePlanV1、双地图闭包、引用校验、缺 `z` 与缺资源 fail closed | 浏览器绘制、物理 |
+| P0 | MapScenePlanV1、三张地图闭包、引用校验、缺 `z` 与缺资源 fail closed | 浏览器绘制、物理 |
 | P1 | 静态场景组件；type 0 背景；有游戏 Portal 帧才画出口 | 滚动背景、帧动画、Portal 触发 |
 | P2 | 产品 Camera、effectiveBounds 夹取、Viewport resize | 把 Viewport 当成 Tick；宣称 viewport-state 已资格验收 |
-| P3 | 等 LoomRealm Clock 评审后，再做固定步长、Foothold 和物理 | 在 Subsystem 里自建动画帧循环 |
-| P4 | 双地图 `replace` 切换和 `in00 ↔ out00` | 把本地状态提交写成全像素事务 |
+| P3 | 注入步长：陆地行走、跳跃、蹲下，矩形地带游泳 | 在 Subsystem 里自建动画帧循环；宣称客户端积分已恢复 |
+| P4 | 四扇门一次 `replace`：村 ↔ 井 ↔ 矩形地带 | 把本地状态提交写成全像素事务 |
 
 ## 6. 本次落点
 

@@ -96,7 +96,7 @@ VR 不完整时不调用上述公式。接下来：
 
 投影：`scenePlan.bounds` 等于 `effectiveBounds`。组件不再次内缩。`source`、`adjustment` 和 `sourceBounds` 不进入 RenderNode。
 
-当前 CMS FSDB 的 `100000000` 与 `100000100` 没有 VR 四字段。对这份输入使用产品回退。以后的输入若带有完整 VR，改走 `client-vr-inset`。
+第一批里，`222000000` 和 `222000001` 四个 VR 都在，走 `client-vr-inset`。井口 VR 宽 800，左右内缩后收到同一个 x。`230030200` 没有四个 VR，走产品回退。`100000000` 与 `100000100` 同样没有 VR，它们不在这次闭包里。
 
 Camera 跟随、dead zone 和 world-to-screen 不属于本记录。产品 Camera 使用视口左上角世界坐标，世界像素与 CSS 像素 1:1，夹取范围是 `effectiveBounds`。
 
@@ -269,14 +269,14 @@ interface PortalRecordV1 {
 |---|---|---|
 | 2、4、7 | `pv` | `Map/MapHelper.img/portal/game/pv` |
 | 10、11 | `image` | 实例 `image`；空字符串使用 `default` |
-| 0、1、5、6、8 | `none` | 不加载 pv，省略 `frames` |
-| 其他，包括 3、9、12、13 | 不发布 | code `portal-visual-unsupported` |
+| 0、1、3、5、6、8 | `none` | 不加载 pv，省略 `frames`。`pt` 3 的使用路径仍按 `tm` 跳转 |
+| 9、12、13 | 不发布 | code `portal-visual-unsupported`。`pt` 13 的使用路径另读 `Effect/BasicEff.img/VerticalJump` |
 
-`ph` / `psh` 与 `pt` 的对应待逆向，不写入 `frames`。`frames` 缺 `delay` 时省略该字段。`pv/0` 只有 origin `(43, 173)`，没有 `z` 和 `delay`，因此有帧时也停在第一帧。
+离开和进入时 `pt == 10` 选择 `ph`，否则选择 `psh`。已有当前传送门的更新路径固定读取 `ph`。二者都不写入 `frames`。`frames` 缺 `delay` 时省略该字段。`pv/0` 只有 origin `(43, 173)`，没有 `z` 和 `delay`，因此有帧时也停在第一帧。
 
 `visual` 不是 `"none"` 但 Content 闭包没有对应游戏帧时，code 为 `portal-resource-absent`。禁止用 `portal/editor` 的 `sp/pi` 填充。`visual: "none"` 的记录保留逻辑字段，不投影 `cms-portal`。有非空 `frames` 时才投影，`portalPlan.loop` 为 false。
 
-`enabled` 是产品开关。本次闭包只启用已经验证的 `100000000/in00 → 100000100/out00` 和反向连接。目标不在闭包内或目标名不存在时 `enabled` 为 false。`(tm, tn)` 是产品级目标解析；客户端跳转匹配函数待逆向。触发范围由 Field Runtime 另定，不把 `hRange/vRange` 的缺省写成客户端算法。
+`enabled` 是产品开关。本次闭包启用四条连接：`222000000/in00 → 222000001/st00`，`222000001/out00 → 222000000/in00`，`222000001/sea00 → 230030200/east00`，`230030200/east00 → 222000001/sea00`。这四条都没有源 `hRange` / `vRange`。Field Runtime 按客户端缺省 100 做命中，半幅是 50，不把 100 写回本记录。`222000001/st00` 的 `tm` 是 `999999999`，`230030200/west00` 指向闭包外，二者 `enabled` 为 false。目标不在闭包内或目标名不存在时同样为 false。客户端同图匹配是 `tn` 对上另一个 portal 的 `pn`；跨图调用收到 `pn`，目标地图写入仍待逆向。`(tm, tn)` 继续由 Field Runtime 做产品级目标解析。跳转命中的客户端范围是 `x±hRange/2`、`y±vRange/2`，由 Field Runtime 使用，不放进视觉组件。
 
 ## 8. 投影边界
 
@@ -296,6 +296,7 @@ interface PortalRecordV1 {
 
 - 当前只有 `formatVersion: 1`。
 - 改变字段含义、Bounds 公式、诊断键公式或 `visual` 分支，必须增加主版本并另写契约。
+- 2026-11-09 目标修订把 `type` 3 从 `portal-visual-unsupported` 改到 `visual: "none"`。存储联合类型不变，不升主版本。9、12、13 仍不发布。
 - 新增可选诊断字段而绘制结果不变时，仍须先改本文，再改 Adapter。Validator 在文档更新前拒绝未知字段。
 - RenderNode ABI 的数据结构不随本文的诊断字段一起扩展。
 

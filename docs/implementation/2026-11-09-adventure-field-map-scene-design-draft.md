@@ -297,7 +297,7 @@ key       = <mapId>
 }
 ```
 
-Plan 中每个实际绘制资源都应引用 `namespace/key/contentVersion`，并包含必要的 source rectangle、Canvas 尺寸、origin 和 z 信息；具体字段需与组件实现文档一起冻结。不要要求 Web Component 再读取 `struct.Tileset` 或 `struct.Obj` 等 CMS 结构表。
+Plan 中每个实际绘制资源都应引用 `namespace/key/contentVersion`，并包含必要的 source rectangle、Canvas 尺寸、origin 和 z 信息。投影到 RenderNode 的具体字段、类型和排序已经由 [RenderNode ABI v1](../../components/RENDER-NODE-ABI-V1.md) 冻结；本节的 `MapScenePlanV1` 是构建期/运行库逻辑记录，不是直接交给 Web Component 的单个 data 对象。不要要求 Web Component 再读取 `struct.Tileset` 或 `struct.Obj` 等 CMS 结构表。
 
 ### 5.3 RenderNode 数据预算
 

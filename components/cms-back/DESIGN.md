@@ -36,7 +36,7 @@
     frames: [
       {
         delay: 100,
-        resource: { namespace: "resource.图", key: "Back/grassySoil/ani/0", contentVersion: "sha256:..." },
+        resource: { namespace: "resource.图", key: "Back/grassySoil/ani/0/0", contentVersion: "sha256:..." },
         width: 256,
         height: 128,
         origin: [0, 0]

@@ -24,7 +24,7 @@ cms-scene-view
 └── cms-back              back 里 front=1 的近景
 ```
 
-换场景时替换远景、地图层、NPC、反应堆、座位和出口。`cms-actor` 的 key 保持不变。第一阶段的树只有远景、地图层、人物层和出口。`cms-npc`、`cms-reactor`、`cms-seat` 当前仅有来源/职责草案，不属于已冻结的 RenderNode ABI v1；启用前必须补齐各自的闭合 attrs/data/event schema 与测试。
+换场景时替换远景、地图层、NPC、反应堆、座位和出口。`cms-scene-view`、`cms-avatar-layer` 与 `cms-actor` 的 key 保持不变；地图专属节点 key 使用单调递增的 `sceneEpoch`，遵守 Render Update v1 的 one-shot key 规则。第一阶段的树只有远景、地图层、人物层和出口。`cms-npc`、`cms-reactor`、`cms-seat` 当前仅有来源/职责草案，不属于已冻结的 RenderNode ABI v1；启用前必须补齐各自的闭合 attrs/data/event schema 与测试。
 
 ## 组件
 

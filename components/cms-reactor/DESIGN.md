@@ -1,5 +1,7 @@
 # cms-reactor
 
+> **状态：Future / ABI 未冻结。** 本文是来源与职责草案；`cms-reactor` 不属于 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 的 MVP 标签契约。实现前必须单独冻结 attrs/data/events schema。
+
 一个可打或可点的反应堆。箱子、开关、花属于这一类。数据来自地图节点 `reactor`，不是 `obj`。
 
 ## 在树中的位置

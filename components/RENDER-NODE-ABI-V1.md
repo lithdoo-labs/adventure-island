@@ -243,7 +243,7 @@ interface RasterFrameV1 {
 }
 ```
 
-`source` 存在时，它是解码后整页图集内的像素矩形，且 `source.width/height` 必须等于逻辑小图的 `width/height`。没有 `source` 时，整张解码图的尺寸必须等于逻辑小图尺寸。所有宽高必须是正整数，坐标和原点必须是有限数值。
+`source` 存在时，它是解码后整页图集内的像素矩形，且 `source.w/h` 必须等于逻辑小图的 `width/height`。没有 `source` 时，整张解码图的尺寸必须等于逻辑小图尺寸。所有宽高必须是正整数，坐标和原点必须是有限数值。`RasterFrameV1.delay` 如存在必须是有限、非负毫秒数；帧数组必须非空。
 
 ### 5.2 `cms-scene-view`
 
@@ -344,7 +344,7 @@ interface ObjPlacementV1 {
 
 interface MapLayerPlanV1 {
   readonly formatVersion: 1;
-  readonly assets: readonly MapAssetV1[];
+  readonly assets: readonly MapAssetV1[]; // unique ids; every placement reference resolves
   readonly tiles: readonly TilePlacementV1[];
   readonly objs: readonly ObjPlacementV1[];
 }
@@ -353,7 +353,7 @@ data: { mapLayerPlan: MapLayerPlanV1 }
 ```
 
 - `layer` 是 `"0"` 到 `"7"`；`tile-set` 是图集名，无 Tile 的层可以省略。
-- `assets.id` 在当前 plan 内唯一。Tile placement 只能引用 `kind="tile"` 的 asset；Obj placement 只能引用 `kind="obj"` 的 asset。Tile 放置记录没有独立 flip 字段；Obj 的 `flip` 来自源 `f`。
+- `assets` 必须非空，且每个 asset 至少被一个 placement 引用；`assets.id` 在当前 plan 内唯一。Tile placement 只能引用 `kind="tile"` 的 asset；Obj placement 只能引用 `kind="obj"` 的 asset。Tile 放置记录没有独立 flip 字段；Obj 的 `flip` 来自源 `f`。
 - `canvasZ` 是 Tile 画布在图集中的排序值；Obj placement 的 `z` 是地图放置记录的排序值，两者不可互换。
 - 绘制顺序固定：Obj 组先于 Tile 组；Obj 按 `z` 升序，Tile 按引用 asset 的 `canvasZ` 升序；相同排序值保持各自数组中的源顺序。父树中较小的 layer 先于较大的 layer。
 - `zM` 必须原样保留；ABI v1 的 MVP 绘制不据此做人物前后景分带。
@@ -388,7 +388,7 @@ data: { avatarPlan: AvatarPlanV1 }
 
 - `x/y` 是身体原点（近似脚底）的世界坐标，使用十进制字符串；Camera 由祖先 `cms-scene-view` 处理。
 - `locomotion` 只接受 `stand/walk/jump`；`facing` 只接受 `left/right`。
-- `skin` 是十进制字符串；`face/hair` 是八位编号字符串；`expression` 是非空表情名；`equips` 是逗号分隔的装备编号，无装备为空字符串。
+- `skin` 是十进制字符串；`face/hair` 是八位编号字符串；`expression` 是非空表情名；`equips` 是逗号分隔的装备编号，无装备为空字符串。Adapter 对每个 Actor attrs value 执行 ≤ 4096 UTF-8 字节的组件级输入约束。
 - `AvatarPlanV1` 的帧、锚点、遮挡、资源引用和 validator 以 [cms-actor/IMPLEMENTATION.md](./cms-actor/IMPLEMENTATION.md) 为唯一组件级规范；本 ABI 不复制第二份 AvatarPlan schema。
 - 一次性普攻/技能通过 `action` Render Event 触发，不得写入 attrs 或 avatarPlan 的动态播放状态。Actor 的 key 在换地图时保持不变。
 
@@ -469,6 +469,7 @@ LoomRealm Render Update v1 不定义通用的 RenderNode.data 字节数、成员
 
 当前已冻结的组件级边界：
 
+- `cms-actor` 每个 attrs value ≤ 4096 UTF-8 字节，是该组件的 Adapter 输入策略，不是 LoomRealm 通用限制。
 - `AvatarPlanV1` 的 compact UTF-8 JSON 上限为 262,144 字节；这是 `cms-actor` 的应用层策略，不是 Render Update v1 的协议上限。
 - `cms-actor` 的帧数、层数、锚点数、画布尺寸、delay、合成 Canvas 和解码并发边界，继续由其 IMPLEMENTATION 文档和 validator 管理。
 - MapLayerPlanV1 / BackPlanV1 / PortalPlanV1 的最终 payload 与资源工作集上限必须在选定地图上测量后另行冻结；在此之前不得声称已具备容量验收。不得擅自套用 AvatarPlan 的 262,144 字节限制，也不得将整张地图无界塞进一个 RenderNode。

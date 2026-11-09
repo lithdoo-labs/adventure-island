@@ -1,5 +1,7 @@
 # cms-actor
 
+> 本组件的公共 RenderNode 字段与事件名以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；AvatarPlanV1 的组件级 schema 和实现细节见本文及 IMPLEMENTATION.md。
+
 一个人物，是 `cms-avatar-layer` 的子元素。客户端里它对应 `GetAvatarPart(+0x10)` 上的外观。元素把身体、头、脸、头发和装备合成一个人，自己按帧间隔播动画。移动、跳跃和换场景仍由地图运行库决定。
 
 > 本文件在 PR-A（Issue #46）中做了组件专属增量修订：`data` 从空对象改为承载已解析、有界的 `avatarPlan`，并新增「实现边界」「平台接入」两节。WZ 逆向结论（锚点、z 序、动作表、表情表）保持原样。与修订前设计的差异：动态状态仍在 `attrs`；组件不再假设运行库逐帧驱动，而是自己按 `avatarPlan` 的 `delay` 推进并在 `receiveRenderData` 时整体接收新计划。实现与验证细节见 [IMPLEMENTATION.md](./IMPLEMENTATION.md)。

@@ -463,7 +463,7 @@ interface RasterFrameV1 {
 }
 ```
 
-`source` 存在时，它是解码后整页图集内的像素矩形，`source.x/y` 必须是非负整数，且 `source.w/h` 必须等于逻辑小图的 `width/height`。没有 `source` 时，整张解码图的尺寸必须等于逻辑小图尺寸。所有宽高必须是正整数，坐标和原点必须是有限数值。`RasterFrameV1.delay` 如存在必须是有限、非负毫秒数；帧数组必须非空。
+`source` 存在时，它是解码后整页图集内的像素矩形，`source.x/y` 必须是非负整数，且 `source.w/h` 必须等于逻辑小图的 `width/height`。没有 `source` 时，整张解码图的尺寸必须等于逻辑小图尺寸。所有宽高必须是正整数，坐标和原点必须是有限数值。`RasterFrameV1.delay` 如存在必须是有限、非负毫秒数；未提供 delay 表示停留在该帧，`delay: 0` 表示绘制该帧后立即推进；帧数组必须非空。
 
 ### 5.2 `cms-scene-view`
 

@@ -5,8 +5,10 @@
  * The converter stores WZ nodes as JSON. Body actions such as brandish1
  * point at another action with `{action, frame}` instead of embedding a
  * canvas. Equipment follows that resolved action. ZMap is read in full;
- * the plan keeps only the z names this actor actually paints, in ZMap order,
- * because AvatarPlanV1 caps zOrder at 64 entries and this client has more.
+ * the plan keeps only the z names this actor actually paints, in ZMap order.
+ * Client slot occlusion is derived from explicit item islot/vslot metadata
+ * and the full smap table. Missing or malformed metadata is a hard error;
+ * this adapter never silently falls back to drawing every equipment canvas.
  */
 import { validateAvatarPlan } from "./avatar-model.mjs";
 
@@ -82,7 +84,41 @@ function pair(value, label) {
   return [value[0], value[1]];
 }
 
-function layerFromCanvas(id, canvas, versions) {
+function slotTokens(value, label) {
+  assert(typeof value === "string", `${label} must be a string`);
+  assert(value.length % 2 === 0, `${label} must contain two-character slot tokens`);
+  return value.match(/[\s\S]{2}/g) ?? [];
+}
+
+/**
+ * Reconstruct the audited portion of CMS079 slot-occlusion metadata.
+ * zOrder must be the full zmap.img key order (including two-character slots),
+ * front-to-back. The client assigns -1, -2, ... in that order.
+ */
+export function deriveOcclusionFields({ z, islot, vslot, zOrder, smap }) {
+  assert(typeof z === "string" && z.length > 0, "canvas z is required for occlusion");
+  assert(Array.isArray(zOrder) && zOrder.length > 0, "full zmap order is required for occlusion");
+  assert(zOrder.every((name) => typeof name === "string" && name.length > 0), "zmap order entries must be non-empty strings");
+  assert(new Set(zOrder).size === zOrder.length, "zmap order contains duplicate names");
+  assert(smap && typeof smap === "object" && !Array.isArray(smap), "smap record is required");
+
+  const zValues = new Map(zOrder.map((name, index) => [name, -index - 1]));
+  const occupied = slotTokens(islot, "islot");
+  const visible = slotTokens(vslot, "vslot");
+  assert(occupied.length > 0 || visible.length === 0, "islot is empty while vslot is non-empty");
+
+  let priority = -2147483647; // signed form of the client's 0x80000001 sentinel
+  for (const token of occupied) {
+    assert(zValues.has(token), `islot slot ${token} is absent from zmap`);
+    priority = Math.max(priority, zValues.get(token));
+  }
+
+  assert(Object.prototype.hasOwnProperty.call(smap, z), `smap has no entry for canvas z ${z}`);
+  const covered = new Set(slotTokens(smap[z], `smap[${z}]`));
+  return { priority, tag: visible.filter((token) => covered.has(token)) };
+}
+
+function layerFromCanvas(id, canvas, versions, partSlots, zOrder, smap) {
   assert(typeof id === "string" && id.length > 0, "layer id is empty");
   const version = versions.get(canvas.resource);
   assert(typeof version === "string" && VERSION.test(version), `missing contentVersion for ${canvas.resource}`);
@@ -97,6 +133,15 @@ function layerFromCanvas(id, canvas, versions) {
     }
   }
   assert(Object.keys(anchors).length <= 8, `${id} has more than 8 anchors`);
+  const occlusion = canvas.z === "face"
+    ? {}
+    : deriveOcclusionFields({
+      z: canvas.z,
+      islot: partSlots?.islot,
+      vslot: partSlots?.vslot,
+      zOrder,
+      smap,
+    });
   return {
     id,
     z: canvas.z,
@@ -105,29 +150,30 @@ function layerFromCanvas(id, canvas, versions) {
     height: canvas.height,
     origin,
     ...(Object.keys(anchors).length > 0 ? { anchors } : {}),
+    ...occlusion,
   };
 }
 
-function bodyLayers(node, versions) {
+function bodyLayers(node, versions, occlusion) {
   const layers = [];
   const body = node.body;
   assert(isCanvas(body), "body frame has no body canvas");
-  layers.push(layerFromCanvas("body", body, versions));
+  layers.push(layerFromCanvas("body", body, versions, occlusion.slotMetadata.body, occlusion.zOrder, occlusion.smap));
   for (const [name, value] of Object.entries(node)) {
     if (name === "body" || !isCanvas(value)) continue;
     assert(name !== "body", "duplicate body canvas");
-    layers.push(layerFromCanvas(name, value, versions));
+    layers.push(layerFromCanvas(name, value, versions, occlusion.slotMetadata.body, occlusion.zOrder, occlusion.smap));
   }
   return layers;
 }
 
-function equipLayers(partName, node, versions) {
+function equipLayers(partName, node, versions, occlusion) {
   const layers = [];
   for (const [name, value] of Object.entries(node)) {
     if (!isCanvas(value)) continue;
     const id = name === partName ? partName : `${partName}:${name}`;
     assert(id !== "body", `${id} collides with the body layer`);
-    layers.push(layerFromCanvas(id, value, versions));
+    layers.push(layerFromCanvas(id, value, versions, occlusion.slotMetadata[partName], occlusion.zOrder, occlusion.smap));
   }
   return layers;
 }
@@ -139,7 +185,9 @@ function equipLayers(partName, node, versions) {
  * @param {object} input.face struct.Look 00020000
  * @param {object} input.hair struct.Look 00030000
  * @param {object} input.weapon struct.Look 01302000
- * @param {string[]} input.zOrder full ZMap name order
+ * @param {string[]} input.zOrder full ZMap name order, including slot tokens
+ * @param {Record<string, {islot: string, vslot: string}>} input.slotMetadata per-part item info
+ * @param {Record<string, string>} input.smap smap.img values keyed by canvas z name
  * @param {Map<string, string>} input.versions resource key -> sha256 contentVersion from ContentClient
  * @param {string} [input.expression]
  */
@@ -150,12 +198,17 @@ export function buildProductionAvatarPlan({
   hair,
   weapon,
   zOrder,
+  slotMetadata,
+  smap,
   versions,
   expression = "default",
 }) {
   assert(body && head && face && hair && weapon, "five Look records are required");
   assert(versions instanceof Map, "versions must be a Map from ContentClient");
-  assert(Array.isArray(zOrder) && zOrder.length > 0, "zOrder is required");
+  assert(Array.isArray(zOrder) && zOrder.length > 0, "full zOrder is required");
+  assert(slotMetadata && typeof slotMetadata === "object" && !Array.isArray(slotMetadata), "slotMetadata from CMS item info is required");
+  assert(smap && typeof smap === "object" && !Array.isArray(smap), "smap.img record is required");
+  const occlusion = { zOrder, slotMetadata, smap };
   const standSuffix = Number.isInteger(weapon.info?.stand) ? weapon.info.stand : 1;
   const walkSuffix = Number.isInteger(weapon.info?.walk) ? weapon.info.walk : 1;
   const actionNames = new Set(REQUIRED_ACTIONS);
@@ -173,18 +226,18 @@ export function buildProductionAvatarPlan({
     for (const key of frameKeys) {
       const concrete = resolveConcrete(body, actionName, Number(key));
       assert(concrete, `${actionName}/${key} did not resolve`);
-      const layers = bodyLayers(concrete.node, versions);
+      const layers = bodyLayers(concrete.node, versions, occlusion);
       const headNode = partConcrete(head, concrete.actionName, concrete.frameIndex);
-      if (headNode) layers.push(...equipLayers("head", headNode.node, versions));
+      if (headNode) layers.push(...equipLayers("head", headNode.node, versions, occlusion));
       if (concrete.node.face !== 0) {
         const expressionNode = partConcrete(face, expression, 0) ?? partConcrete(face, concrete.actionName, concrete.frameIndex);
         assert(expressionNode, `face is missing ${expression}`);
-        layers.push(...equipLayers("face", expressionNode.node, versions));
+        layers.push(...equipLayers("face", expressionNode.node, versions, occlusion));
       }
       const hairNode = partConcrete(hair, concrete.actionName, concrete.frameIndex);
-      if (hairNode) layers.push(...equipLayers("hair", hairNode.node, versions));
+      if (hairNode) layers.push(...equipLayers("hair", hairNode.node, versions, occlusion));
       const weaponNode = partConcrete(weapon, concrete.actionName, concrete.frameIndex);
-      if (weaponNode) layers.push(...equipLayers("weapon", weaponNode.node, versions));
+      if (weaponNode) layers.push(...equipLayers("weapon", weaponNode.node, versions, occlusion));
       for (const layer of layers) usedZ.add(layer.z);
       const frame = { layers };
       if (typeof concrete.delay === "number") frame.delay = concrete.delay;

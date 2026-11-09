@@ -1,5 +1,7 @@
 # cms-actor 实施说明
 
+> 公共 RenderNode / Web Presentation ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 和 pinned LoomRealm Web Presentation API v1 为准。本文只定义 AvatarPlanV1 的组件级约束、算法、资源生命周期和验收。
+
 > 状态：算法与 LoomRealm 正式浏览器集成已通过合成素材在**当前固定 LoomRealm gitlink `93648192323bf5f57996b7b54cbae641d8a53fdb`** 上重新验证（PR-A，Issue #46）；真实 CMS 079 素材验证保持 **BLOCKED / 仅本地可选**（见文末三状态表）。
 > 范围：Web Component、有界 `avatarPlan`、帧布局与锚点算法、classic script 构建产物、正式 `bootstrapWebPresentation()` 浏览器闭环、资源生命周期与缓存边界、Node 合成测试与真实 Chromium 集成测试。
 > 本组件由历史 Draft PR #2（HEAD `132853b8`，基于旧 gitlink `8cf8e2d`）选择性移植；移植后在当前 pin 上原样通过全部 ABI 与像素验证，未发现需要放宽边界或改写框架的差异。

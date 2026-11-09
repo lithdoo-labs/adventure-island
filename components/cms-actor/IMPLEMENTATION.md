@@ -127,7 +127,7 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 - 字节数用**有界测量器**（`measureCompactJsonBytes`）在超过预算时立刻中止，不会先拼出无界大字符串；
 - 没有 `source` 的同一 `(namespace, key, contentVersion)` 必须声明一致的 `width/height`。带 `source` 的同一页允许不同小图尺寸，尺寸校验改成源矩形落在解码后的页面内；
 - `locomotionActions` 只接受 `stand` / `walk` / `jump`，且必须指向存在的动作；这是 v1 MVP 子集，不代表客户端动作集合仅有三种（已提取的 `prone`、`fly`、`stand2`、`walk2` 尚未纳入）。
-- CMS079 生产适配器的 `slotMetadata` 必须包含被绘制非 face 部件的 `islot/vslot` 字符串；`smap` 必须是以画布 z 名为 key 的字符串表；缺少任一项、奇数长度槽串、缺失 zmap 槽名或缺失 smap 项均拒绝生成计划，不回退到全画。
+- CMS079 生产适配器必须传入完整 `zmap.img` 记录（槽位 key 的值必须是整数；该记录 key 顺序同时用于画布 z 序）、每个被绘制部件的 `slotMetadata.islot/vslot` 字符串，以及以画布 z 名为 key 的 `smap.img` 字符串表。遮挡 `priority` 取 `islot` 各槽在 zmap 中的最大整数，`tag` 取 `vslot ∩ smap[z]` 并保持 vslot 顺序；缺少元数据、奇数长度槽串、缺失槽位或非整数 zmap 值、缺失 smap 项均拒绝生成计划，不回退到全画。CMS079 源帧的有符号 `delay` 在 Adapter 侧取绝对值后写入非负 AvatarPlan 时长；ABI validator 不接受负时长。
 
 ## 4. 锚点布局
 

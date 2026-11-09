@@ -1,5 +1,7 @@
 # cms-seat
 
+> **状态：Future / ABI 未冻结。** 本文是来源与职责草案；`cms-seat` 不属于 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 的 MVP 标签契约。实现前必须单独冻结 attrs/data/events schema。
+
 一个可坐下的位置。数据来自地图节点 `seat`。椅子的样子仍是物件，坐下去的点是这里的坐标。
 
 ## 在树中的位置

@@ -1,38 +1,34 @@
 # cms-map-layer
 
-> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文记录 CMS 地图层、Tile/Obj 来源和排序依据。
+> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文区分样本字段、产品候选顺序和未验证的客户端绘制语义。
 
-地图八层中的一层。节点名是 `"0"` 到 `"7"`。缺层就不创建元素。
+地图八层中的一层，节点名是 `"0"` 到 `"7"`。空层不创建元素。
 
-## 画什么
+## 样本覆盖与数据形状
 
-这一层里的物件 `obj` 和瓦片 `tile`。合成器的排序键是：
+当前审计只覆盖 21 张实质地图，不代表全库：
+
+- Tile：3,607 条放置记录，字段为 `x,y,u,no,zM`；样本中没有放置级 `z` 或 flip。
+- Obj：1,529 条放置记录，常见字段为 `oS,l0,l1,l2,x,y,z,f,zM`；`zM` 在样本中有 105 个不同值。
+- Obj 样本另有 `r` 337 条（样本值恒为 `"0"`）和 `reactor` 221 条；`name`、`flow` 在本次样本中为 0。
+- Tile 的 `u` 包含主体、边缘和斜边类别，数据形状不支持把它建模成等宽矩阵。
+
+全库 4,259 张地图、165,125 个 Obj、11,817 个 Reactor 关联和 3,697 个 name 的历史计数，在当前工作区没有可复查的完整 XML/CSV，不作为本设计的事实依据。
+
+## 当前产品候选绘制顺序
+
+Task 023 的 HaCreator 移植使用如下排序键：
 
 ```text
-物件：(层号, 0, 物件上的 z, 顺序)
-瓦片：(层号, 1, 图集画布上的 z, 顺序)
+Obj:  (layer, 0, placement.z, sourceOrder)
+Tile: (layer, 1, canvas.z, sourceOrder)
 ```
 
-层号在前，所以先画完较小的层，再画下一层。同一层里物件整组在瓦片之前，组内再按 `z`。
+Adventure Island v1 暂把它作为产品候选顺序：较小 layer 先画；同层 Obj 组先于 Tile；Obj 按放置 `z` 升序；Tile 按 asset 的 `canvasZ` 升序；同值保持源顺序。
 
-瓦片不单独做组件，也不排成矩阵。它们是这一层上的一份放置数组。
+**这不是客户端已确认的排序规则。** 本次没有找到游戏客户端的 Tile/Obj 排序函数；Tile 画布也未包含在当前 canvas 提取中，所以 `canvasZ` 尚未实测。WzComparerR2 是第三方渲染器，不能补足客户端证据。
 
-瓦片的坐标是像素，块的尺寸也不统一：`bsc` 常见 90×60，横边 90×25，竖边 25×60。一块平台由这些块按 `x`、`y` 拼出来，中间可以留空，边缘会叠在主体上。这不是等宽格子，写成矩阵会对不齐。
-
-射手村层 1 就有 577 块瓦片。每块一个元素会把渲染树撑满。整层一个 `cms-map-layer`，瓦片放在它的 `tiles` 数组里，由这一层自己按 `z` 画。
-
-物件同样放在这一层的 `objs` 数组里，不单独做组件。4,259 张地图里有 165,125 个物件，每一条都有 `oS`、`l0`、`l1`、`l2`、`x`、`y`、`z`、`f`、`zM`。这些是画面和遮挡，不是点击目标。
-
-能交互的是地图上的另一类节点，不在 `obj` 里：
-
-- [cms-portal](../cms-portal/DESIGN.md)：走进去换场景
-- [cms-npc](../cms-npc/DESIGN.md)：`life` 里 `type=n` 的对话
-- [cms-reactor](../cms-reactor/DESIGN.md)：箱子、开关、花，打或点的是它自己的坐标
-- [cms-seat](../cms-seat/DESIGN.md)：坐下的坐标。椅子的样子仍是物件
-
-11,817 个物件带了 `reactor` 字段，表示这张图跟着某个反应堆变换，点击落点仍是反应堆自己的坐标。3,697 个物件有 `name`，例如 `gate`，给脚本按名字找图，不是给元素接收点击。
-
-`zM` 决定人物可以从物件前面或后面走过。第一阶段人物整层画在地图层之后，这个字段先留在数组里。
+`zM` 必须原样保留。它在样本中有丰富取值，但客户端是否用它把人物插入 Obj 深度带仍未验证。MVP 暂不使用 `zM` 拆分人物前后景，这是产品限制，不代表客户端忽略它。
 
 ## 运行库交给它的数据
 
@@ -40,8 +36,8 @@
 
 | ABI attrs | 值 | 含义 |
 |---|---|---|
-| `layer` | `"0"` 到 `"7"` | 层号 |
-| `tile-set` | 图集名，可选 | 层 `info/tS`；只有物件的层可以省略 |
+| `layer` | `"0"` 到 `"7"` | 地图层号 |
+| `tile-set` | 图集名，可选 | 有 Tile 的层可由 `info/tS` 提供 |
 
 `data` 的唯一顶层成员是 `mapLayerPlan`，按公共 ABI 使用资源表去重：
 
@@ -70,22 +66,16 @@
 }
 ```
 
-Tile 源放置项的 `x/y/u/no/zM` 由 Adapter 解析：`u/no` 用于确定 Tile asset，放置数组只保留绘制所需的 asset 引用、像素坐标和 `zM`。Tile 的画布排序值 `canvasZ` 来自 `Tile/{tS}.img` 中的 Canvas `z`，不来自 Tile 放置记录。
+Tile 放置项的 `x/y/u/no/zM` 由 Adapter 解析：`u/no` 用于确定 Tile asset，放置数组保留资源引用、像素坐标和 `zM`。Tile 画布的 `canvasZ` 只能在真实画布元数据提取后填入。
 
-Obj 源记录的 `oS/l0/l1/l2` 用于确定 Obj asset；`x/y/z/f/zM` 投影为放置记录，其中 `f` 转为布尔 `flip`。Obj 放置 `z` 与 Tile asset 的 `canvasZ` 是两个不同概念。
+Obj 的 `oS/l0/l1/l2` 用于确定 Obj asset；`x/y/z/f/zM` 投影为放置记录，其中 `f` 转为产品布尔 `flip`。Obj 的 `z` 与 Tile 的 `canvasZ` 是不同字段。
 
-绘制顺序固定为：同层 Obj 先于 Tile；Obj 按放置 `z` 升序；Tile 按引用 asset 的 `canvasZ` 升序；相同排序值保持数组原顺序。父树中的 layer 顺序从 0 到 7。不要把瓦片转成矩阵，也不要为单块瓦片/物件创建 RenderNode。
+## 逻辑与 unsupported
 
-`zM` 在 v1 中必须保留，但 MVP 尚不据此把人物拆成前后景绘制带。物件的 `reactor/name` 是游戏逻辑关联，不进入视觉计划；`r/flow` 的画面语义尚未确认，不能静默丢弃后声称完整复刻。MVP 地图若依赖未支持的扩展字段才能正确显示，Adapter 必须明确报告 unsupported。
+- `reactor/name` 属于游戏逻辑/脚本关联，不进入视觉计划；当前样本只支持确认 `reactor` 有出现，不能据此声称全库频率。
+- `r/flow` 的画面语义尚未确认。MVP allowlist 遇到需要这些字段才能正确呈现的记录时，Adapter MUST 明确报告 unsupported，不得静默丢弃后声称完整复刻。
+- [cms-portal](../cms-portal/DESIGN.md)、[cms-npc](../cms-npc/DESIGN.md)、[cms-reactor](../cms-reactor/DESIGN.md) 和 [cms-seat](../cms-seat/DESIGN.md) 是独立逻辑实体，不从 Obj 的脚本字段推断点击目标。
 
-资源引用、source rectangle、尺寸和校验规则以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准。组件不直接读取 WZ 路径或 FSDB。
+## 第一阶段与不做什么
 
-## 第一阶段
-
-两张合成场景各自给出实际用到的层。空层不出现。占位地面可以落在其中一层，立足线仍然只是碰撞数据。
-
-## 不做什么
-
-- 背景的视差属于 `cms-back`。源物件的 `flow` 字段不属于 v1 视觉 ABI；需要该动画语义的地图在实现支持前必须标为 unsupported，不能作为普通静态 Obj 静默绘制。
-- 不放置人物。人物在 `cms-avatar-layer`。
-- 不从 WZ 路径直接读文件。
+整层一个 `cms-map-layer`，不把单块 Tile/Obj 转成 RenderNode，不把瓦片转成矩阵。人物仍在 `cms-avatar-layer`；背景在 `cms-back`。地图若依赖尚未支持的 `r/flow` 或需要人物与 Obj 的深度交错，在实现支持前必须标记 unsupported。

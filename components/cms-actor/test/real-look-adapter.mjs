@@ -1,6 +1,8 @@
 /**
- * Real-asset Look adapter: struct.Look records produced by scripts/wz_fsdb
- * from a real CMS 079 client -> bounded, renderer-ready AvatarPlanV1.
+ * Test-only real-asset Look helper: struct.Look records produced by scripts/wz_fsdb
+ * from a real CMS 079 client -> bounded AvatarPlanV1 for geometry/render smoke tests.
+ * It intentionally does NOT derive CMS item islot/vslot or smap occlusion fields,
+ * so its output is not evidence of client-accurate equipment occlusion.
  *
  * Handles the actual converter output shape:
  *  - body actions carry numbered frames; a frame may be a REFERENCE frame

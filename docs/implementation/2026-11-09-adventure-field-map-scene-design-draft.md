@@ -224,6 +224,8 @@ Camera 必须夹取到 Bounds。若地图宽/高小于 Viewport，采用居中�
 
 NPC、Reactor、Seat 暂不创建。Foothold 和 Rope 不作为正式画面节点；需要诊断时由 `cms-scene-view` 的可选辅助线显示。
 
+换场景时保留 `cms-scene-view`、`cms-avatar-layer` 与 `cms-actor` 的 key；所有地图专属子节点使用单调递增的 `sceneEpoch` 生成新 key，避免地图 A → B → A 时违反 Render Update v1 的 one-shot key 规则。
+
 ### 4.4 Tile 与 Obj 绘制
 
 - 一个非空地图层对应一个 `cms-map-layer`；不得为每个 Tile/Obj 创建 RenderNode 或 Web Component。

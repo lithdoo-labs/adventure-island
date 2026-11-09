@@ -16,8 +16,8 @@
 
 | 字段 | 放在 | 值 | 含义 | 依据 |
 |---|---|---|---|---|
-| `x` | `attrs` | 十进制字符串 | 场景横坐标。身体画布的 `origin` 放在这里 | `decodeAvatar` 在 `stance` 前读的第一个有符号 i16 |
-| `y` | `attrs` | 十进制字符串 | 场景纵坐标 | 第二个有符号 i16。样本里身体 `origin.y` 等于画布高度，原点在图的底边 |
+| `x` | `attrs` | 十进制字符串 | 世界横坐标。身体画布的 `origin` 放在这里 | `decodeAvatar` 在 `stance` 前读的第一个有符号 i16 |
+| `y` | `attrs` | 十进制字符串 | 世界纵坐标 | 第二个有符号 i16。样本里身体 `origin.y` 等于画布高度，原点在图的底边 |
 | `locomotion` | `attrs` | `stand`、`walk`、`jump` | 身体动画状态 | 第一阶段的移动只产生这三种。武器的 `walk` / `stand` 再决定后缀 |
 | `facing` | `attrs` | `left`、`right` | 朝向 | 与坐标分开更新。`stance` 字节还没拆成动作和朝向 |
 | `skin` | `attrs` | 十进制字符串，如 `0` | 肤色后缀 | `CCharacterStats+0x12`。`UPDATE_STATS` 的 mask `0x001` 读 u8。`UPDATE_CHAR_LOOK`（`0xC7`）在性别之后读同一个 u8 |

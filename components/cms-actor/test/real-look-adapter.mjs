@@ -104,12 +104,19 @@ export function buildRealAvatarPlan(looks, zmapOrder, index, { actions = ["stand
       const bodyFirst = [...entries].sort((left, right) => (right.id === "body" ? 1 : 0) - (left.id === "body" ? 1 : 0));
       const layers = bodyFirst.map((entry) => layerOf(entry, index));
       for (const layer of layers) usedZ.add(layer.z);
-      frames.push({
-        delay: bodyFrame.delay ?? 0,
+      const frame = {
         move: Array.isArray(bodyFrame.move) ? [...bodyFrame.move] : [0, 0],
         flip: Boolean(bodyFrame.flip),
         layers,
-      });
+      };
+      if (bodyFrame.delay !== undefined) {
+        if (typeof bodyFrame.delay !== "number" || !Number.isFinite(bodyFrame.delay)) {
+          throw new TypeError(`${actionName}/${key}.delay must be finite`);
+        }
+        // CMS079 source delay is signed; the client uses its magnitude as the frame hold time.
+        frame.delay = Math.abs(bodyFrame.delay);
+      }
+      frames.push(frame);
     }
     planActions[actionName] = { loop: !NON_LOOP_ACTIONS.has(actionName), frames };
   }

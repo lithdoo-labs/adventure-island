@@ -92,7 +92,7 @@ test("enforces bounded actions, frames and layers", () => {
   assert.throws(() => validateAvatarPlan(tooManyLayers), /at most 32 entries/);
 });
 
-test("rejects a plan whose serialized RenderNode.data passes the frozen 262,144-byte cap", () => {
+test("rejects a plan whose serialized AvatarPlanV1 data exceeds its 262,144-byte application cap", () => {
   const candidate = plan();
   const wide = {
     formatVersion: 1,
@@ -116,7 +116,7 @@ test("rejects a plan whose serialized RenderNode.data passes the frozen 262,144-
     });
   }
   assert.throws(() => measureAvatarPlanDataBytes(wide), RangeError, "bounded measurer aborts at the budget");
-  assert.throws(() => validateAvatarPlan(wide), /exceeds the frozen Render Update v1 cap of 262144/);
+  assert.throws(() => validateAvatarPlan(wide), /exceeds the AvatarPlanV1 application-level cap of 262144/);
 });
 
 test("accepts a sprite and frame whose estimated pixels exceed the obsolete 12 MiB limit", () => {

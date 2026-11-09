@@ -234,6 +234,104 @@ NPC、Reactor、Seat 暂不创建。Foothold 和 Rope 不作为正式画面节�
 
 `cms-back` 每个背景放置项一个节点。保留 `bS/no/ani/x/y/rx/ry/type/cx/cy/f/a/front`；静态和动画资源按 `Back/{bS}` 定义解析。平铺、滚动和视差按现有 `cms-back/DESIGN.md`，背景滚动只由 Camera 与本背景的参数决定，不把玩家坐标直接写进背景组件。
 
+## 4.6 组件接口契约（attrs / data / children / events）
+
+本节把现有组件 DESIGN 文档中的源字段整理成浏览器组件的公共 ABI。组件只接收渲染就绪的数据，不直接读取 CMS/WZ/FSDB 结构；构建期 Adapter 负责把源字段转换成这里定义的接口。
+
+### 4.6.1 所有组件共用的规则
+
+- `attrs` 是 `Record<string, string>`。坐标、编号、枚举均序列化为字符串；数值用十进制表示；布尔值统一用 `"true"` / `"false"`，不使用 HTML boolean attribute 的 presence 语义。
+- 公共属性名统一使用小写 kebab-case。源字段 `bS`、`onlyOnce`、`limitedname` 不直接成为 DOM 属性，分别映射为 `back-set`、`only-once`、`limited-name`。源字段名只留在构建期 Adapter 或诊断元数据里。
+- `data` 是版本化 JSON 对象，承载数组、嵌套结构和绘制计划。每个 `RenderNode.data` 的 compact UTF-8 JSON 不得超过 Render Update V1 的 262,144 字节上限；不得用放宽协议上限来容纳大地图。
+- 图片资源只用 `{ namespace, key, contentVersion }` 逻辑引用；组件通过注入的 Presentation Resource Client 读取并校验版本/MIME。`data` 不得包含 URL、磁盘路径、WZ 路径、bearer 或私有 Content Index。
+- `children` 只表示组件树。场景切换时替换场景子树，但 `cms-avatar-layer` 和 `cms-actor` 的稳定 key 保持不变。
+- 一次性动作通过 RenderDomain transient event 发送，不写入 `attrs` 或 `data`。事件不重放到新建/重连元素；高频位置更新使用局部 `attrs` patch，不重发完整绘制计划。
+- 组件只保存绘制所需的私有状态（动画帧、缓存、资源生命周期）。玩家世界位置、速度、Foothold 接触、Camera 决策和 Portal 触发状态的权威副本只存在于 Adventure Field Runtime。
+
+资源引用的公共形状：
+
+```js
+resource: {
+  namespace: "resource.图",
+  key: "Map/Tile/woodMarble/bsc",
+  contentVersion: "sha256:<64 位小写十六进制>"
+}
+```
+
+### 4.6.2 MVP 六个组件
+
+| 组件 | `attrs`（公共名称；值均为字符串） | `data` | `children` / `events` |
+|---|---|---|---|
+| `cms-scene-view` | `map`、`x`、`y`。`x/y` 是 Camera 左上角的世界坐标，不是玩家坐标 | `scenePlan: { formatVersion: 1, bounds, debug?: { footholds, ropes } }` | 有序场景子树；不接收游戏输入事件 |
+| `cms-back` | `back-set`、`index`、`animation`、`x`、`y`、`parallax-x`、`parallax-y`、`type`、`tile-step-x`、`tile-step-y`、`flip`、`opacity`、`front` | `backPlan: { formatVersion: 1, loop, frames: [{ delay, resource, source?, width, height, origin }] }` | 无子元素；无游戏事件 |
+| `cms-map-layer` | `layer`、`tile-set` | `mapLayerPlan: { formatVersion: 1, assets, tiles, objs }`，见下方结构 | 无子元素；无游戏事件 |
+| `cms-avatar-layer` | 无 | 无 | 只包含稳定 key 的 `cms-actor`；不接收游戏事件 |
+| `cms-actor` | 既有契约：`x`、`y`、`locomotion`、`facing`、`skin`、`face`、`hair`、`expression`、`equips` | 既有 `avatarPlan`（保持 `AvatarPlanV1`，不得与地图数据混用） | 无子元素；接收 transient `action` 事件 `{ action }` |
+| `cms-portal` | `name`、`portal-type`、`x`、`y`、`flip`；可选 `hide-tooltip` | `portalPlan: { formatVersion: 1, loop, frames: [{ delay, resource, source?, width, height, origin }] }` | 无子元素；无游戏事件，触发由 Field Runtime 处理 |
+
+**`cms-scene-view`：** 现有 DESIGN 中 `map/x/y` 的位置保留，但必须冻结 `x/y` 的坐标定义。`scenePlan.bounds` 是场景边界；`debug.footholds/ropes` 仅用于辅助线显示，不是物理运行时的权威数据副本。正式关闭辅助线时省略 `debug` 或给空数组。
+
+**`cms-back`：** 现有 DESIGN 把 `data` 定为空，并让组件根据 `bS/ani` 自行找 `Back/{bS}.img`。建议改成由 Adapter 预先解析 `backPlan`，包括静态/动画帧、帧延迟、原点和版本化图片引用。这样组件不需要知道 FSDB 目录结构。`front` 只作诊断/来源字段，真正的前后顺序以 `children` 顺序为准。
+
+**`cms-map-layer`：** 保留一层一个节点、Tile/Obj 批量绘制的既有决定。建议 `mapLayerPlan` 使用资源表去重，避免每个放置项重复携带长资源键：
+
+```js
+mapLayerPlan: {
+  formatVersion: 1,
+  assets: [{
+    id: "tile:woodMarble:bsc",
+    resource: { namespace, key, contentVersion },
+    width: 90, height: 60, origin: [0, 0], z: 0
+  }],
+  tiles: [{ assetId: "tile:woodMarble:bsc", x: 0, y: 0, zM: 0, flip: false }],
+  objs: [{ assetId: "obj:...", x: 0, y: 0, z: 0, zM: 0, flip: false }]
+}
+```
+
+`assets` 的 `z` 是 Tile/Obj 画布绘制层级；Obj 放置项自己的 `z` 是地图记录上的排序值，两者不可混淆。`zM` 必须保留，即使 MVP 绘制器暂时不消费它。对象的旋转、`flow` 等视觉字段只有在语义已验证后才进入正式绘制契约；未知源字段不得在 MapScenePlan 构建时静默丢弃，应保留在构建期/运行时地图记录中并明确标为未实现。`oS/l0/l1/l2` 是资源解析输入，不要求作为浏览器组件的必需 ABI 暴露。
+
+**`cms-avatar-layer`：** 继续保持无 `attrs`、无 `data` 的纯容器。MVP 只有一个 `cms-actor`。不要把 Foothold、怪物或 NPC 混进这个容器。
+
+**`cms-actor`：** 现有已实现接口直接复用。`x/y` 改为世界坐标，但字段名和 `avatarPlan` 结构不变；Camera 变换由场景祖先提供。移动时只 patch `x/y/locomotion/facing`，外观变化才替换 `avatarPlan`。普攻/技能仍用 `receiveRenderEvent({ name: "action", data: { action } })`。
+
+**`cms-portal`：** 现有 DESIGN 把 `tm/tn/script/hRange/vRange/delay/onlyOnce` 等源字段都交给元素。建议拆分视觉 ABI 与游戏逻辑：`name/portal-type/x/y/flip` 和 `portalPlan` 只负责画面；`targetMap/targetName/script/triggerRange/delay/onlyOnce` 保留在 MapScenePlan/Field Runtime 的 Portal Record 中，不作为组件的权威状态。若需要调试，可以通过单独的 debug overlay 展示触发框。`pt` 不应直接当作游戏动画目录名；动画帧由 Adapter 按已验证的映射生成 `portalPlan`。
+
+### 4.6.3 后续组件（不进入本次 MVP）
+
+| 组件 | 建议 `attrs` | 建议 `data` | 逻辑归属 |
+|---|---|---|---|
+| `cms-npc` | `id`、`x`、`y`、`cy`、`facing`、`hide`、`action`、`limited-name` | `npcPlan`（版本化立绘/动作帧和资源引用） | `rx0/rx1/fh` 等对话范围与立足线信息由 Field Runtime 持有；对话内容由任务/对话系统持有 |
+| `cms-reactor` | `id`、`x`、`y`、`facing`、`state` | `reactorPlan`（各状态的渲染帧与资源引用） | `reactorTime/name` 和受击/点击判定由 Field Runtime 持有；状态变化后 patch `state` |
+| `cms-seat` | `index`、`x`、`y` | 默认空；调试模式可选 `seatDebugPlan` | 是否可坐、按键交互和角色吸附位置由 Field Runtime 持有；椅子本身仍由 `cms-map-layer` 绘制 |
+
+当前仓库没有 `cms-mob`。未来怪物应有独立的 `cms-mob` 设计与动画/状态计划，不复用玩家 `cms-actor` 的 AvatarPlan ABI。
+
+### 4.6.4 游戏逻辑数据与视觉属性的分界
+
+以下字段虽然来自同一份 CMS 地图记录，但不能因为来源相同就全部塞进视觉组件：
+
+| 源数据 | 视觉组件 | Field Runtime / 地图逻辑 |
+|---|---|---|
+| Portal `pn/pt/x/y` | Portal 名称/类型（用于识别与绘制）、位置 | 位置、出口类型判定 |
+| Portal `tm/tn/script/hRange/vRange/delay/onlyOnce` | 仅可选 debug 展示 | 目标解析、触发区域、冷却/一次性规则、脚本路由 |
+| Foothold `x1/y1/x2/y2/id/layer/platform/prev/next/force/forbidFallDown` | 仅 `cms-scene-view` 的可选辅助线投影 | 完整碰撞和平台连接数据 |
+| NPC `id/x/y/cy/f` | NPC 立绘、位置、朝向 | 对话范围、立足线、脚本别名和对话状态 |
+| Reactor `id/x/y/f/state` | 当前状态的立绘 | 命中/点击判定、恢复计时、状态机 |
+| Seat `index/x/y` | 仅可选调试标记 | 可坐判定、角色吸附和坐姿状态 |
+
+这条分界可避免组件和 Subsystem 各自维护一份 Portal/NPC/Reactor/Seat 状态。组件的属性只反映运行库已经决定的视觉结果。
+
+### 4.6.5 现有文档需要同步的差异
+
+1. `cms-back/DESIGN.md` 的 `data` 目前定义为空，但组件又需要解析动画帧和图片；应改为显式 `backPlan`，或另行定义一个正式、版本固定的 Content Plan API。推荐 `backPlan`。
+2. `cms-portal/DESIGN.md` 同时把绘制、目标地图、脚本和触发范围交给组件；应拆成视觉 `portalPlan` 与 Field Runtime Portal Record。并且当前仓库的 `[resource]图` 目录没有 `MapHelper`，游戏 Portal 资源仍需确认。
+3. `cms-scene-view/DESIGN.md` 的 `x/y` 只称镜头位置，未定义左上角/中心点；本设计建议冻结为世界视口左上角坐标。
+4. `cms-map-layer/DESIGN.md` 保留 `zM/r/flow/reactor/name`，但尚未区分哪些是绘制 ABI、哪些是游戏逻辑元数据；Map Adapter 应明确拆分，不能无声丢弃。
+5. `components/README.md` 有完整组件顺序（未来 NPC/Reactor/Seat），`cms-scene-view/DESIGN.md` 只列 MVP 子集。实现时应以 README 的完整顺序为长期契约，MVP 允许省略尚未创建的节点。
+6. `cms-avatar-layer` 应保持纯容器；玩家 `cms-actor` 的既有 attrs/data/event 契约不应因地图实现而改变。
+
+本节是本设计分支提出的接口建议，不代表各组件 DESIGN 文档已完成同步。评审通过后，应按组件逐个修订 DESIGN、schema、实现和测试，避免一次性修改所有 ABI。
+
 ## 5. Map Content 与 PWA Bundle
 
 ### 5.1 构建期闭包，不在浏览器读取 FSDB

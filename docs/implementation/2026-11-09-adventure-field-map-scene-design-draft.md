@@ -2,6 +2,8 @@
 
 > **状态：Draft / 待评审。** 本文定义下一阶段的目标架构、MVP 范围和验收门槛；不代表地图组件、物理或传送功能已经实现。
 >
+> **子契约状态：Adventure Island RenderNode ABI v1 已冻结。** 组件标签及其 attrs/data/children/events 以 [RENDER-NODE-ABI-V1.md](../../components/RENDER-NODE-ABI-V1.md) 为唯一规范；本文其余架构、运行时和验收内容仍为 Draft。
+>
 > 日期：2026-11-09  
 > 设计分支：`design/adventure-field-map-scene`  
 > 基线：`main@554494452933b19de67db44dd8a0f38190df7d25`  

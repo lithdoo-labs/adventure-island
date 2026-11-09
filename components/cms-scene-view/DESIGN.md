@@ -1,5 +1,7 @@
 # cms-scene-view
 
+> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文记录地图来源语义和组件职责。
+
 场景根。对应 LoomRealm 渲染树里的根节点，职责接近 `lr-map-view`，几何是像素场景，不是格子地图。
 
 ## 画什么
@@ -22,15 +24,15 @@
 
 ## 运行库交给它的数据
 
-单个值写成属性。镜头移动时只改坐标。边界和辅助线是整份结构，放在 `data`。
+公共 ABI：
 
 | 字段 | 放在 | 值 | 含义 |
 |---|---|---|---|
 | `map` | `attrs` | 地图编号字符串 | 当前场景 |
-| `x` / `y` | `attrs` | 十进制字符串 | 镜头位置 |
-| `bounds` | `data` | `{ left, top, right, bottom }` | 场景边界，换场景时整份替换 |
-| `footholds` | `data` | `{ x1, y1, x2, y2 }` 的数组 | 辅助线。关掉时是空数组 |
-| `ropes` | `data` | `{ x, y1, y2, l }` 的数组 | 绳和梯的辅助线。`l` 非 0 是梯子。关掉时是空数组 |
+| `x` / `y` | `attrs` | 十进制字符串 | Camera 视口左上角的世界坐标 |
+| `scenePlan` | `data` | `{ formatVersion: 1, bounds, debug? }` | 场景边界和可选调试几何 |
+
+`data` 的唯一顶层成员是 `scenePlan`。其中 `bounds` 为 `{ left, top, right, bottom }`；可选 `debug.footholds` 为 `{ x1, y1, x2, y2 }` 数组，`debug.ropes` 为 `{ x, y1, y2, l }` 数组。正式运行默认省略 `debug`，或使用空数组。完整字段和校验规则见公共 ABI。
 
 边界由运行库算好再交，算法来自 Task 023 的合成器：
 
@@ -44,7 +46,7 @@
 
 `bgm`、`swim`、`fly`、`fieldLimit`、进图脚本、`cloud` / `rain` / `snow` 和 `miniMap` 的画布不进这个元素。
 
-换场景时更新上面的属性和 `data`，并替换远景、地图层和出口。人物元素留在 `cms-avatar-layer` 里。
+换场景时更新 `map/x/y` 和完整 `scenePlan`，并替换远景、地图层和出口。`cms-avatar-layer` 与 `cms-actor` 保留原 key；人物元素留在原容器中，只更新到目标地图落点。
 
 ## 第一阶段
 

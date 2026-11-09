@@ -86,6 +86,6 @@ Obj 源记录的 `oS/l0/l1/l2` 用于确定 Obj asset；`x/y/z/f/zM` 投影为�
 
 ## 不做什么
 
-- 背景的视差属于 `cms-back`。物件上带 `flow` 的少数项仍留在 `objs` 里。
+- 背景的视差属于 `cms-back`。源物件的 `flow` 字段不属于 v1 视觉 ABI；需要该动画语义的地图在实现支持前必须标为 unsupported，不能作为普通静态 Obj 静默绘制。
 - 不放置人物。人物在 `cms-avatar-layer`。
 - 不从 WZ 路径直接读文件。

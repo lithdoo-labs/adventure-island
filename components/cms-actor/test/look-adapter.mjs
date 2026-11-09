@@ -68,12 +68,18 @@ export function buildAvatarPlan(looks, zOrder, index, { expression = "default" }
         const clamped = partAction.frames[Math.min(frameIndex, partAction.frames.length - 1)];
         layers.push(layerFor(clamped.canvases[0], index));
       }
-      frames.push({
-        delay: bodyFrame.delay ?? 0,
+      const frame = {
         move: bodyFrame.move ? [...bodyFrame.move] : [0, 0],
         flip: Boolean(bodyFrame.flip),
         layers,
-      });
+      };
+      if (bodyFrame.delay !== undefined) {
+        if (typeof bodyFrame.delay !== "number" || !Number.isFinite(bodyFrame.delay)) {
+          throw new TypeError(`${actionName}/${frameIndex}.delay must be finite`);
+        }
+        frame.delay = Math.abs(bodyFrame.delay);
+      }
+      frames.push(frame);
     }
     actions[actionName] = { loop: !NON_LOOP_ACTIONS.has(actionName), frames };
   }

@@ -52,7 +52,7 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 
 ## 3. RenderNode 契约
 
-动态状态用字符串 `attrs`（单条 ≤ 4096 字节，符合 Render Update v1）：
+动态状态用字符串 `attrs`（本组件输入约定：单条 ≤ 4096 UTF-8 字节；这是 Adventure Island 组件级约束，不是 Render Update v1 的通用限制）：
 
 | 属性 | 含义 |
 |---|---|
@@ -103,13 +103,13 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 
 身体帧可以带 `showFace`。缺省或为真时，用当前身体帧已经摆好的锚点画表情层；为假时跳过表情轨。`bodyKey` 是身体部件键，组件用它记住这具身体上一个有画布的姿势。
 
-### 3.1 有界性（Render Update v1 硬上限）
+### 3.1 AvatarPlanV1 应用层边界
 
 计划只承载**当前角色当前需要的动作**，不是全量人物/装备/动作目录。`validateAvatarPlan` 按以下边界 fail-closed（`AVATAR_PLAN_LIMITS`）：
 
 | 项 | 上界 |
 |---|---|
-| 序列化 `RenderNode.data`（compact JSON UTF-8） | **262,144 字节**（冻结协议上限） |
+| 序列化 `RenderNode.data` 中 `avatarPlan` 的 compact JSON UTF-8 | **262,144 字节**（AvatarPlanV1 组件级上限） |
 | 图集解码字节 | **无固定上限**；`width/height` 是小图尺寸，不能代表整页 `ImageBitmap` 的内存 |
 | `zOrder` 条目 | 64 |
 | `actions` 条数 | 32 |

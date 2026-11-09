@@ -1,5 +1,7 @@
 # cms-npc
 
+> **状态：Future / ABI 未冻结。** 本文是来源与职责草案；`cms-npc` 不属于 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 的 MVP 标签契约。实现前必须单独冻结 attrs/data/events schema。
+
 一个可对话的 NPC。数据来自地图节点 `life` 里 `type=n` 的条目。`type=m` 是怪物，不是这个元素。
 
 ## 在树中的位置

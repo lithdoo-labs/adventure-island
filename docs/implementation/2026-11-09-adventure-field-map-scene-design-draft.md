@@ -385,9 +385,10 @@ Plan 中每个实际绘制资源都应引用 `namespace/key/contentVersion`，�
 
 `cms-actor` 的 `AvatarPlan` 有 262,144 字节的 RenderNode.data 上限。地图不能简单地把整个 MapScenePlan 放进单个节点。运行时应把 Plan 拆分为：
 
-- `cms-scene-view.data`：Bounds 和可选 Foothold/Rope 调试几何。
-- 每个 `cms-map-layer.data`：该层自己的 `tiles` 与 `objs` 数组。
-- 每个 `cms-back` / `cms-portal`：少量 attrs，data 默认空。
+- `cms-scene-view.data`：`scenePlan.bounds` 和可选 Foothold/Rope 调试几何。
+- 每个 `cms-map-layer.data`：该层自己的 `mapLayerPlan.assets/tiles/objs`。
+- 每个 `cms-back.data` / `cms-portal.data`：分别携带小型 `backPlan` / `portalPlan`（帧、原点和版本化资源引用），不再要求组件按 CMS 路径自行查找。
+- `cms-avatar-layer`：无 attrs/data，只保留子树容器职责。
 - `cms-actor.data`：保持原 AvatarPlan，不与地图数据混合。
 
 构建/投影测试必须对最终 compact UTF-8 JSON 字节数做测量，逐节点验证 LoomRealm Render Update V1 限制；不得只比较 JavaScript 字符串长度。若任一层超过协议限制，先拆分渲染批次或 Content 数据，不得放宽框架上限。

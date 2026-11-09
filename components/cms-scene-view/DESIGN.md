@@ -1,20 +1,30 @@
 # cms-scene-view
 
-> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文区分产品 Camera 约定、样本字段和客户端未验证项。
+> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准。边界计算以 [MAP-SCENE-PLAN-V1.md](../MAP-SCENE-PLAN-V1.md) 为准。
 
 场景根。只提供 Camera 呈现值和场景边界，不把远景、地图层、人物或出口画进自己的像素里。
 
 ## Camera 与场景边界
 
-Camera 的权威决策、跟随、缩放和边界夹取由 Field Runtime 持有。v1 产品约定使用左上角世界坐标、Y 轴向下、不提供 zoom，并按 1:1 世界像素到 CSS 像素映射；原始客户端 Camera 变换尚未找到对应函数，因此这些是产品约定，不是逆向确认。
+三件事分开记录：
 
-边界优先采用地图 `info` 中完整且有效的 `VRLeft/VRTop/VRRight/VRBottom`。没有 VR 时，当前产品回退算法参考 Task 023 合成器：先尝试 `miniMap` 中心/尺寸，再尝试 foothold 外接矩形。该回退算法没有客户端函数证据，不得写成游戏客户端行为。当前审计 21 张实质地图中，14 张有完整 VR；这不是全库统计。
+| 事项 | 状态 |
+|---|---|
+| VR 调整后的 `effectiveBounds` | 客户端已确认。左右各收 400，上下各收 300；轴宽或轴高小于等于 0 时收到向零截断的中点 |
+| Camera `(x, y)`、Y 轴向下、无 zoom、世界像素与 CSS 像素 1:1 | 产品约定 |
+| 跟随、dead zone、world-to-screen、DPR | 待逆向 |
+
+400 和 300 是函数立即数。组件不读取视口尺寸来重做这组内缩，也不把视口写成 800×600。
+
+`scenePlan.bounds` 已经是 `effectiveBounds`。本组件只使用它做夹取，不再加一次 400 或 300。没有完整 VR 时，Plan 里的边界来自产品回退：先 minimap，再 foothold 外接矩形。当前 CMS FSDB 的 `100000000` 和 `100000100` 没有 VR 四字段，这两张图走产品回退。全库 3308 张地图带有四个 VR 字段；这不是“每张图都有 VR”。
+
+地图比视口小时的客户端摆放待逆向。产品可以居中留白，并在验收里标明这是产品约定。Viewport 只提供逻辑尺寸。`loomrealm.viewport-state/1` 仍未完成资格验收，尺寸传递要单独测试。Viewport 不是游戏时钟。
 
 `info/link` 的历史全库数量在当前工作区不可复查；本次 21 张实质地图样本中没有 `link`。在 XML/CSV 恢复前，不得依赖历史全库计数来推导链接地图行为。
 
 ## 子元素顺序
 
-当前产品树顺序参考 Task 023 / HaCreator 合成器，客户端顺序未验证：
+当前产品树顺序参考 Task 023 / HaCreator 合成器。客户端加载键已经恢复，比较方向待逆向，所以这段顺序仍是产品约定：
 
 1. `front=0` 的 `cms-back`
 2. `cms-map-layer`，从 0 到 7
@@ -32,7 +42,7 @@ Camera 的权威决策、跟随、缩放和边界夹取由 Field Runtime 持有�
 | `x` / `y` | `attrs` | 十进制字符串 | v1 产品 Camera 左上角世界坐标 |
 | `scenePlan` | `data` | `{ formatVersion: 1, bounds, debug? }` | 场景边界和可选调试几何 |
 
-`data` 的唯一顶层成员是 `scenePlan`。其中 `bounds` 为 `{ left, top, right, bottom }`；可选 `debug.footholds` 为 `{ x1, y1, x2, y2 }` 数组，`debug.ropes` 为 `{ x, y1, y2, l }` 数组。正式运行默认省略 `debug`，或使用空数组。完整字段和校验规则见公共 ABI。
+`data` 的唯一顶层成员是 `scenePlan`。其中 `bounds` 为 `{ left, top, right, bottom }`，等于 Plan 的 `effectiveBounds`。VR 轴收敛后允许左右相等或上下相等。可选 `debug.footholds` 为 `{ x1, y1, x2, y2 }` 数组，`debug.ropes` 为 `{ x, y1, y2, l }` 数组。正式运行默认省略 `debug`，或使用空数组。`sourceBounds` 不进入本组件。完整字段和校验规则见公共 ABI。
 
 Foothold / Rope 样本仅覆盖 21 张实质地图：2,110 段 foothold 和 118 条 ladder/rope。该样本未出现 `force`、`forbidFallDown`；它们的全库出现率尚不可复查。Foothold 的 `prev/next` 和 Rope 的 `uf/page` 留给移动系统，不因为 debug 绘制而成为组件权威状态。
 
@@ -42,7 +52,7 @@ Foothold / Rope 样本仅覆盖 21 张实质地图：2,110 段 foothold 和 118 
 
 ## 第一阶段
 
-两张合成场景。从场景 A 的出口进入场景 B 后，根元素换成 B 的边界、Camera 呈现值和子元素，人物出现在 B 的落点。这是产品流程测试，不是原始客户端 Camera/地图切换验收。
+两张静态场景。根元素使用各自的 `effectiveBounds` 和产品 Camera。换图、落点和跟随不在本组件的第一阶段验收里。Viewport resize 只改变夹取，不改写玩家世界坐标。
 
 ## 不做什么
 

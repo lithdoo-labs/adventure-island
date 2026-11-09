@@ -6,8 +6,8 @@
 
 资料有两处：
 
-- 地图绘制顺序来自 [研究任务 023](../research/task/023-third-party-wz-parser-cross-validation.md) 的地图合成，证据见 [研究结果 23](../research/result/23-wz-library-cross-validation.md)。`compose` 先画远景，再画 0 到 7 层的物件和瓦片，然后是生命体、反应堆、传送门，最后是近景。立足线和绳梯只作为编辑辅助线，不进正式画面。
-- 人物插层来自 [研究任务 050](../research/task/050-subsystem-semantic-deep-recovery-master-campaign.md) 的 `SPAWN_PLAYER`，证据见 [研究结果 50](../research/result/50-subsystem-semantic-deep-recovery.md)。角色被放进 `FieldDispatcher+0x24` 的 avatar layer，不是整张图的最上面。
+- 当前产品树来自 [研究任务 023](../research/task/023-third-party-wz-parser-cross-validation.md) 的地图合成：远景，0 到 7 层的物件和瓦片，然后是生命体、反应堆、传送门，最后是近景。这是产品顺序。客户端 Tile、Obj 和背景的加载键见 [地图逆向状态](../research/result/map/MAP-REVERSE-STATUS.md)，比较方向仍待逆向。立足线和绳梯只作为编辑辅助线，不进正式画面。逻辑记录见 [MAP-SCENE-PLAN-V1.md](./MAP-SCENE-PLAN-V1.md)。
+- 人物插层的历史笔记来自 [研究任务 050](../research/task/050-subsystem-semantic-deep-recovery-master-campaign.md)。`FieldDispatcher+0x24` 尚未在当前客户端映像里复核。MVP 仍把人物容器放在八层地图之后，这是产品约定。
 
 ## 渲染树
 
@@ -43,8 +43,8 @@ cms-scene-view
 ## 不做成组件的东西
 
 - 立足线、绳梯。碰撞数据。需要看的时候由 `cms-scene-view` 画辅助线。
-- 单个瓦片、单个物件。瓦片是像素放置数组 `tiles`。物件是放置数组 `objs`，共 165,125 条，字段是画面和遮挡（含 `zM`），不是点击目标。
-- 物件上的交互不由物件组件接收。走进场景用 [cms-portal](./cms-portal/DESIGN.md)，对话用 [cms-npc](./cms-npc/DESIGN.md)，打或点箱子、开关、花用 [cms-reactor](./cms-reactor/DESIGN.md)，坐下用 [cms-seat](./cms-seat/DESIGN.md)。约 11,817 个物件的 `reactor` 字段只表示图跟着反应堆变；约 3,697 个 `name` 只给脚本找图。详见 [cms-map-layer](./cms-map-layer/DESIGN.md)。
+- 单个瓦片、单个物件。瓦片是像素放置数组 `tiles`。物件是放置数组 `objs`，字段含画面和 `zM`，不是点击目标。全库条数以 [MAP-DATA-EXTRACTION.md](../research/result/map/MAP-DATA-EXTRACTION.md) 为准，不在这里冻结。
+- 物件上的交互不由物件组件接收。走进场景用 [cms-portal](./cms-portal/DESIGN.md)，对话用 [cms-npc](./cms-npc/DESIGN.md)，打或点箱子、开关、花用 [cms-reactor](./cms-reactor/DESIGN.md)，坐下用 [cms-seat](./cms-seat/DESIGN.md)。`reactor` 和 `name` 留在逻辑记录，不进入视觉 ABI。详见 [cms-map-layer](./cms-map-layer/DESIGN.md)。
 - 怪物。同在 `life`，但是 `type=m`。第一阶段不放进树，也还没有单独目录。
 - 方向键。沿用 LoomRealm 的 `game-controls-input`，不放在本目录。
 

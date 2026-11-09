@@ -34,12 +34,19 @@
 - [ ] **P2-008**：用完整 CMS zmap 和真实帧验证 AvatarPlan 64 项 zOrder 上限足够。
 - [ ] 运行 cms-actor Node 套件、browser artifact `--check`、Chromium 集成套件；执行地图客户端动态像素对照。
 
+## 2026-11-09 证据更新
+
+后续逆向已经改写上面若干阻塞项的范围。现行口径以 [设计评审修订](./2026-11-09-adventure-field-design-revision.md) 和 [MAP-REVERSE-STATUS.md](../../research/result/map/MAP-REVERSE-STATUS.md) 为准。
+
+- Tile / Obj 的加载键、VR 内缩、背景 type 分支和 `20000 / |rate|`、Portal pv 路径、画布 origin 与缺 `z` 的四张 Tile，已经写入契约。
+- 比较方向、相同键次序、背景 `+0x98`、Camera 跟随、帧时钟，以及 `ph/psh` 与 `pt` 的对应，仍然待逆向。
+- MapHelper 的原始资源存在。当前缺的是 Content 闭包，不是路径。
+- 静态场景组件可以按产品呈现验收推进。客户端像素一致仍要等比较器和动态画面对照。
+
 ## 实施门槛
 
-在上述证据闭合前：
-
-1. 不得把地图组件设计状态标为 VERIFIED。
-2. 不得将 HaCreator 或 WzComparerR2 公式称为原始客户端行为。
-3. 背景和 Portal 没有真实游戏资源时必须明确 unsupported，不得用 editor 图标回退。
+1. 产品绘制顺序和 1:1 Camera 继续标成产品约定，不标成客户端已确认。
+2. 不把 HaCreator 或 WzComparerR2 的视差公式称为原始客户端行为。已经反汇编确认的键、VR 内缩和背景分支按修订稿引用。
+3. 背景 type 1–7，以及没有游戏帧的 Portal，保持 unsupported。不用 editor 图标回退。
 4. Field Runtime 继续持有 Camera、碰撞、Portal 触发和换图权威状态。
-5. 只有在地图画布、客户端函数和动态像素对照通过后，才进入地图组件规模化实现。
+5. 当前固定 LoomRealm 没有 Frame Clock。P3 物理不在这一版实现目标里，也不在 Subsystem 里自建动画时钟。

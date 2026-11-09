@@ -1,8 +1,10 @@
 # Adventure Field & Map Scene Runtime 设计草案
 
-> **状态：Draft / 待评审。** 本文定义下一阶段的目标架构、MVP 范围和验收门槛；不代表地图组件、物理或传送功能已经实现。
+> **状态：Draft / 已按 2026-11-09 评审修订收口契约。** 本文定义下一阶段的目标架构、MVP 范围和验收门槛；不代表地图组件、物理或传送功能已经实现。
 >
-> **子契约状态：Adventure Island RenderNode ABI v1 已冻结。** 组件标签及其 attrs/data/children/events 以 [RENDER-NODE-ABI-V1.md](../../components/RENDER-NODE-ABI-V1.md) 为唯一规范；本文其余架构、运行时和验收内容仍为 Draft。
+> **修订：** [2026-11-09 Adventure Field 设计评审修订](../reviews/2026-11-09-adventure-field-design-revision.md)。逻辑记录以 [MAP-SCENE-PLAN-V1.md](../../components/MAP-SCENE-PLAN-V1.md) 为准。
+>
+> **子契约状态：Adventure Island RenderNode ABI v1 已冻结。** 组件标签及其 attrs/data/children/events 以 [RENDER-NODE-ABI-V1.md](../../components/RENDER-NODE-ABI-V1.md) 为唯一规范。本文不改这套数据结构。架构、运行时和验收内容仍为 Draft。
 >
 > 日期：2026-11-09  
 > 设计分支：`design/adventure-field-map-scene`  
@@ -19,8 +21,8 @@
 2. **先做静态真实地图，再做物理和传送。** 第一批只使用射手村 `100000000` 与射手村集市 `100000100`。
 3. **把纯游戏规则放进独立的 `libs/adventure-field/`。** `systems/adventure-map/` 负责 LoomRealm Frame、Controls、Content 和 RenderDomain 编排；纯函数库不依赖 DOM、LoomRealm 或浏览器 API。
 4. **地图素材采用构建期显式闭包。** 从仓库已有 `[FSDB]cms` 记录生成版本固定的 Map Scene Plan 和 PNG Content；浏览器组件不直接读取 FSDB、WZ 或本地文件。
-5. **沿用现有组件设计契约。** `cms-scene-view`、`cms-back`、`cms-map-layer`、`cms-avatar-layer`、`cms-portal` 已有 DESIGN 文档；本阶段是把这些契约实现出来，不重新发明渲染树。
-6. **物理参数先校准再宣称复刻。** `Physics/default` 中有 CMS079 参数，但单位、积分方式和部分碰撞标志的语义仍需验证。
+5. **沿用现有组件职责，先更新绘制语义。** 六个 MVP 组件的分工保持不变。排序、Bounds、背景支持范围、Portal 资源和帧时间按 2026-11-09 修订执行，再进入实现。
+6. **物理参数先校准再宣称复刻。** `Physics/default` 中有 CMS079 参数，但单位、积分方式和部分碰撞标志的语义仍需验证。当前固定 LoomRealm 没有 Frame Clock，固定步长不进入这一版实现目标。
 
 ## 1. 当前基线与已知事实
 
@@ -93,9 +95,8 @@ Map 100000100
 
 - 能从真实 Content 加载射手村和集市的背景、Tile、Obj、Foothold、Portal。
 - 使用像素世界坐标表示人物位置；人物坐标不再由 Viewport 居中计算。
-- Camera 根据 Viewport 和地图 Bounds 显示世界区域，并在后续阶段跟随人物。
-- 人物能在 Foothold 上行走、跳跃、下落和落地；运动结果由确定性的 Field Runtime 计算。
-- 能从射手村 `in00` 进入集市 `out00`，并从集市 `out00` 返回射手村 `in00`。
+- Camera 根据 Viewport 和 `effectiveBounds` 显示世界区域。跟随算法留到客户端函数恢复之后。
+- 人物在 Foothold 上行走、跳跃、下落和落地，以及射手村 `in00` 与集市 `out00` 往返，是 Clock 落地后的 Field 目标，不属于当前 pin。
 - PWA Bundle 仅包含两张地图的显式资源闭包；可重复构建且 Content Version 稳定。
 - Node 单元测试、浏览器组件测试和正式 PWA E2E 均可复现。
 
@@ -109,14 +110,14 @@ Map 100000100
 
 ### 2.3 MVP 完成定义
 
-第一版地图 MVP 必须满足：
+当前 LoomRealm pin 的完成范围是 P0–P2：
 
-1. PWA 启动后看到真实射手村，而非占位背景或单独 Actor 展示页。
-2. 背景、瓦片和物件位置/原点/层级正确，渲染树节点数随背景数和非空图层数增长，而不是随 Tile/Obj 数量增长。
-3. 人物 `x/y` 是世界坐标；Camera 静止时人物不会因 Viewport resize 被重置到世界中心。
-4. 人物能在射手村主要地面完成左右行走、跳跃、下落和落地，不穿透主要平台。
-5. 两张地图之间指定的 `in00 ↔ out00` 连接可以往返传送；不支持的出口明确保持不可触发。
-6. 原有 Actor、Controls、PWA Bundle、生命周期和安全构建测试没有回归。
+1. PWA 启动后看到真实射手村的静态画面，而不是占位背景或单独 Actor 展示页。
+2. 产品锚定和产品绘制顺序正确。渲染树节点数随背景数和非空图层数增长，而不是随 Tile/Obj 数量增长。
+3. 人物 `x/y` 是世界坐标；Camera 使用 `effectiveBounds` 夹取。Viewport resize 不改写玩家世界坐标。
+4. 原有 Actor、Controls、PWA Bundle、生命周期和安全构建测试没有回归。
+
+行走、跳跃、落地和 `in00 ↔ out00` 往返仍是后续 Field MVP，排在 LoomRealm Clock 评审之后。它们不属于当前 pin 的完成定义。P1 的画面验收是产品呈现，不是客户端像素一致。
 
 ## 3. 总体架构
 
@@ -147,12 +148,12 @@ Base Frame
 
 | 所有者 | 负责 | 不负责 |
 |---|---|---|
-| `systems/adventure-map/subsystem.mjs` | Frame 生命周期、Content 读取、Controls 消费、Tick 驱动、RenderDomain 投影、错误映射 | 直接解析 CMS 原始文件、实现几何算法、DOM 操作 |
+| `systems/adventure-map/subsystem.mjs` | Frame 生命周期、Content 读取、Controls 消费、RenderDomain 投影、错误映射 | 直接解析 CMS 原始文件、实现几何算法、DOM 操作、自建 `setInterval` / `requestAnimationFrame` |
 | `libs/adventure-field/`（拟新增） | 纯状态转换、Foothold 索引、移动积分、碰撞、Camera 计算、Portal 目标解析 | LoomRealm、DOM、网络、文件系统、定时器 |
 | 构建期 Map Adapter | 读取固定 CMS FSDB 输入、校验引用、生成 MapScenePlan 和资源闭包 | 运行时状态、玩家运动 |
 | `cms-scene-view` | 世界到 Viewport 的场景投影、Camera Bounds | Foothold 碰撞、Portal 触发 |
 | `cms-map-layer` | 批量绘制一层 Tile/Obj | 地图加载、交互规则、人物移动 |
-| `cms-back` | 背景绘制、平铺和视差 | Camera 跟随决策 |
+| `cms-back` | 按当前支持范围绘制背景 | Camera 跟随决策、未恢复的滚动公式 |
 | `cms-avatar-layer` / `cms-actor` | 人物节点容器和纸娃娃绘制 | 位置决策、物理、地图切换 |
 | `cms-portal` | 按传入数据绘制已启用的出口 | 触发区域计算、Content 加载、切换 Frame |
 
@@ -204,17 +205,21 @@ Adventure Island RenderNode ABI v1 已冻结以下约定：世界 Y 向下；Cam
 
 ### 4.2 Bounds
 
-边界优先级沿用 `cms-scene-view/DESIGN.md`：
+闭合算法在 [MAP-SCENE-PLAN-V1.md](../../components/MAP-SCENE-PLAN-V1.md)。这里只固定职责。
 
-1. `info` 中 `VRLeft/VRTop/VRRight/VRBottom` 四项齐全，且右大于左、下大于上时使用 VR。
-2. 否则使用 `miniMap.width/height/centerX/centerY`：`left=-centerX`、`top=-centerY`、`right=width-centerX`、`bottom=height-centerY`。
-3. 再否则使用 Foothold 外接矩形，并按既有设计左右扩 10、上扩 360、下扩 110。
+四个 VR 都是有限数时，Adapter 计算客户端已确认的有效边界：左右各收 400，上下各收 300；某一轴结果小于等于 0 时，该轴两边收到两端之和的有符号中点，向零截断。`sourceBounds` 保留原始 VR，`effectiveBounds` 是调整结果。400 和 300 是函数立即数，不表示客户端视口已经证明为 800×600。
 
-Camera 必须夹取到 Bounds。若地图宽/高小于 Viewport，采用居中留白，不制造负向抖动。`info/link` 指向其他地图时，Map Adapter 必须先解析链接目标的地图绘制内容，再生成当前 mapId 对应的场景计划；链接语义不能由组件猜测。
+VR 不完整时不套用这组立即数。产品回退先用 minimap 中心和尺寸，再用 foothold 外接矩形并左右扩 10、上扩 360、下扩 110。当前 CMS FSDB 的射手村和集市 `info` 没有 VR 四字段，这两张图对这份输入走产品回退。
+
+`scenePlan.bounds` 等于 `effectiveBounds`。组件收到的边界不再做第二次内缩。Camera 夹取使用这份边界。地图比视口小时如何摆放仍待逆向；在跟随函数出现之前，产品可以采用居中留白，并标明这是产品约定。
+
+Camera 跟随、dead zone、world-to-screen 和 DPR 待逆向。世界像素到 CSS 像素 1:1 是产品约定。三者分开记录，不合成一套已经逆向完成的 Camera。
+
+`info/link` 指向其他地图时，Map Adapter 必须先解析链接目标的地图绘制内容，再生成当前 mapId 对应的场景计划；链接语义不能由组件猜测。
 
 ### 4.3 渲染顺序
 
-顺序以现有 `components/README.md` 为准，MVP 子集为：
+下面是产品树顺序。客户端加载键已经恢复，比较方向仍待逆向。MVP 子集为：
 
 1. `front=0` 的背景。
 2. 非空地图层，按 `layer=0..7`。
@@ -229,14 +234,19 @@ NPC、Reactor、Seat 暂不创建。Foothold 和 Rope 不作为正式画面节�
 ### 4.4 Tile 与 Obj 绘制
 
 - 一个非空地图层对应一个 `cms-map-layer`；不得为每个 Tile/Obj 创建 RenderNode 或 Web Component。
-- Tile 使用 `Tile/{tileSet}` 中的真实 Canvas 尺寸、`origin`、`z` 和 `foothold` 元数据；位置是像素放置，不是统一格子。
-- 同层排序沿用现有契约：Obj 组先于 Tile 组；Obj 按放置记录 `z` 和稳定源顺序，Tile 按图集 Canvas `z` 和稳定源顺序。
-- `zM` 必须保留在投影数据中，供后续人物/物件遮挡分带使用；MVP 先按现有渲染树把 Actor 放在地图层之后，因此部分前景树木/建筑遮挡可能不完全复刻。不能把这一限制隐藏成已完成。
-- `zM` 必须进入 `MapLayerPlanV1`；`reactor/name` 留在地图逻辑记录，不进入视觉 ABI。`r/flow` 的画面语义尚未确认，MVP 遇到依赖这些字段才能正确绘制的记录时必须明确报告 unsupported，不能静默丢弃。
+- Tile 使用 `Tile/{tileSet}` 中的真实 Canvas 尺寸、`origin` 和画布 `z`；位置是像素放置，不是统一格子。放置记录保留 `zM` 和源顺序。Obj 保留放置 `z`、`zM`、`flip` 和源顺序。
+- 客户端已确认 Tile 键使用画布 `z` 与放置 `zM`，Obj 键使用放置 `z` 而不使用 `zM`。两条键的基准常数不同。比较方向和相同键次序待逆向。Adapter 把键写入 MapScenePlan 的 `clientSortKey`，供诊断和以后的像素对照。
+- 产品绘制顺序保持：Obj 组先于 Tile 组；Obj 按 `z` 升序；Tile 按 `canvasZ` 升序；同值保持源顺序。这个顺序来自 HaCreator，必须标注为产品约定。P1 的像素验收只证明产品顺序，不证明客户端比较器。
+- 四张没有画布 `z` 的 Tile Canvas 不得把 `canvasZ` 默认为 0。引用它们的记录是 unsupported，不进入 `MapLayerPlanV1`。
+- `zM` 继续进入视觉放置记录。MVP 仍把 Actor 放在地图层之后，人物和 Obj 的深度穿插尚未实现。`reactor/name` 留在逻辑记录。`r` 不是 0，或存在 `flow` 时，Adapter 报告 unsupported。
 
 ### 4.5 Background
 
-`cms-back` 每个背景放置项一个节点。Adapter 将源字段 `bS/no/ani/x/y/rx/ry/type/cx/cy/f/a` 映射到 ABI v1 的 `back-set/index/animation/x/y/parallax-x/parallax-y/background-type/tile-step-x/tile-step-y/flip/opacity`。源 `front` 只决定该节点位于 Scene children 的远景段还是近景段，不投影为 attrs。静态/动画帧预解析为 `backPlan`；背景滚动只由 Camera 与背景参数决定。
+`cms-back` 每个背景放置项一个节点。Adapter 将源字段 `bS/no/ani/x/y/rx/ry/type/cx/cy/f/a` 映射到 ABI v1 的对应 attrs。源 `front` 只决定远景段或近景段，不投影为 attrs。`front` 参与客户端加载键，比较方向待逆向。
+
+客户端已确认 type 0–3 走普通分支，type 4 与 6 按 `rx` 水平滚动，type 5 与 7 按 `ry` 垂直滚动，滚动步长为 `20000 / |rate|`。`+0x98` 的绘制函数体和时间单位待逆向。P1 只静态绘制 type 0，不解释 `rx/ry`，不把 type 1–7 标成已实现。`cx/cy` 为 0 时不替换成图像尺寸。
+
+帧缺少 `delay` 时停留。`Back/grassySoil.img/ani/0` 有 10 帧且都没有 `delay`，呈现为第一帧静止。`loop: true` 不补帧时间。带 `delay` 的帧也先保留数值，P1 不自动推进，因为产品时钟和客户端时间单位都还没有。
 
 ## 4.6 公共 RenderNode ABI（Frozen）
 
@@ -264,13 +274,13 @@ Adventure Island 的公共 RenderNode 接口已独立冻结为 [components/RENDE
 - `[group]Back`、`[group]Tile`、`[group]Obj`、`[group]Foothold`、`[group]Portal`。
 - 被引用的 `[struct]Tileset`、`[struct]Back`、`[struct]Obj` 定义。
 - 上述定义引用的 `[resource]图/Back`、`[resource]图/Tile`、`[resource]图/Obj` PNG。
-- `cms-portal` 游戏画面所需的 Portal 资源（如果资源来源可在仓库或授权输入中确认）。
+- 已提取并转成 Content Resource 的 `MapHelper` 游戏画面。原始路径已经确认；当前 FSDB 还没有这份资源，闭包在提取完成前不引用它。
 
 构建器必须按记录引用计算闭包，检查缺失引用、重复 Content identity、资源 MIME、PNG 解码尺寸、SHA-256 与确定性。禁止递归打包整个 `[FSDB]cms`，禁止发布 WZ/客户端文件、研究资料、临时工作目录或未经确认的外部资源。
 
 ### 5.2 派生 Map Scene Plan
 
-建议新增版本化、只读的 `MapScenePlanV1` Content Record，暂定身份：
+MapScenePlanV1 的闭合字段、缺字段策略、诊断码和投影边界以 [MAP-SCENE-PLAN-V1.md](../../components/MAP-SCENE-PLAN-V1.md) 为准。Content 身份暂定：
 
 ```text
 kind      = record
@@ -278,28 +288,9 @@ namespace = struct.AdventureMapScenePlan
 key       = <mapId>
 ```
 
-每张地图一个 Plan。它是从 CMS 源记录投影出的运行时数据，不是新的 WZ 格式，也不把原始 CMS 记录直接塞进 RenderNode。建议至少包含：
+每张地图一个 Plan。它是从 CMS 源记录投影出的运行时逻辑数据，不是新的 WZ 格式，也不把原始 CMS 记录直接塞进 RenderNode。根上至少有 `formatVersion`、`mapId`、带 `sourceBounds` 与 `effectiveBounds` 的 `bounds`、`backgrounds`、`layers`、`footholds` 和 `portals`。
 
-```js
-{
-  formatVersion: 1,
-  mapId: "100000000",
-  bounds: { left, top, right, bottom },
-  backgrounds: [/* front, placement, parallax, versioned resource refs */],
-  layers: [
-    {
-      layer: "0",
-      tileSet: "woodMarble",
-      tiles: [/* draw-ready tile placements */],
-      objs: [/* draw-ready object placements */]
-    }
-  ],
-  footholds: [/* validated segment records */],
-  portals: [/* validated portal records */]
-}
-```
-
-Plan 中每个实际绘制资源都应引用 `namespace/key/contentVersion`，并包含必要的 source rectangle、Canvas 尺寸、origin 和 z 信息。投影到 RenderNode 的具体字段、类型和排序已经由 [RenderNode ABI v1](../../components/RENDER-NODE-ABI-V1.md) 冻结；本节的 `MapScenePlanV1` 是构建期/运行库逻辑记录，不是直接交给 Web Component 的单个 data 对象。不要要求 Web Component 再读取 `struct.Tileset` 或 `struct.Obj` 等 CMS 结构表。
+Plan 中每个实际绘制资源都引用 `namespace/key/contentVersion`，并包含 source rectangle、Canvas 尺寸和 origin。Tile 另有画布 `canvasZ`，缺 `z` 时整张 Plan 不发布。投影到 RenderNode 的字段由 [RenderNode ABI v1](../../components/RENDER-NODE-ABI-V1.md) 冻结。`clientSortKey` 和 bounds 来源留在 Plan，不进入组件 data。Web Component 不读取 `struct.Tileset` 或 `struct.Obj`。
 
 ### 5.3 RenderNode 数据预算
 
@@ -317,7 +308,11 @@ LoomRealm Render Update v1 **没有通用的 `RenderNode.data` 字节上限**。
 
 ### 5.4 Portal 资源现状
 
-现有 `cms-portal/DESIGN.md` 指向 `MapHelper.img/portal/game` 的 `pv` 动画；但当前 `content/[FSDB]cms/[resource]图` 根目录可见的资源子目录是 `Back/Look/MiniMap/Obj/Tile`，没有 `MapHelper`。因此 Portal 游戏动画资源闭包目前是**待确认项**。MVP 不得把 `portal/editor` 编辑器图标冒充游戏画面；若暂时拿不到合法游戏资源，应选择明确的无贴图/简化标记方案并在验收中标注，或将 Portal 视觉列为阻塞，不得悄悄引用不存在的 Content。
+客户端资源选择已经确认。`pt` 2、4、7 读取 `Map/MapHelper.img/portal/game/pv`；10、11 读取实例 `image`，空值用 `default`；0、1、5、6、8 不加载 pv；3、9、12 进入其他分支，不能写成 pv。原始 WZ 含有 `MapHelper.img` 和 818 张 Canvas。`pv/0` 的 origin 是 `(43, 173)`，没有 `z` 和 `delay`。
+
+当前 `content/[FSDB]cms/[resource]图` 没有 `MapHelper`。缺口是 Content 闭包，不是原始路径不存在。资源要经过提取、校验、转成 Content Resource、写入 allowlist，再用游戏画面验收。没有这些帧时不创建 `cms-portal`，逻辑 Portal Record 仍留在 Plan。禁止用 `portal/editor` 的 `sp/pi` 充当游戏画面，也不使用无贴图标冒充已验收的 PortalPlan。
+
+`tm` 和 `tn` 已在实例加载函数中读取。跳转匹配函数待逆向，所以 `(tm, tn)` 是产品级目标解析。
 
 ## 6. Adventure Field Runtime
 
@@ -345,10 +340,13 @@ LoomRealm Render Update v1 **没有通用的 `RenderNode.data` 字节上限**。
 
 ### 6.2 Tick 与确定性
 
-- 运动应使用固定时间步长和累积器，避免把浏览器帧间隔直接作为物理积分步长。
-- 暂定目标 60 Hz；每帧限制最大补算步数，避免后台恢复时出现无限追赶。具体数值在性能测试后确定。
-- Tick 驱动必须使用固定 LoomRealm gitlink 中真实存在的 Frame/Clock/Render API。当前 `adventure-map` 只依赖 Controls、Viewport 和 RenderDomain；在确认 pinned API 前，不得在 Subsystem 中自造 `requestAnimationFrame`、`setInterval` 或 DOM 事件循环。
-- 相同初始状态和相同输入序列应产生相同的 Field State；时间来源和输入边沿必须可在 Node 测试中注入。
+固定 gitlink `93648192323bf5f57996b7b54cbae641d8a53fdb` 的 `Frame` 只有 `id`、`params`、`signal` 和 `call`。`SubsystemScope` 提供 SharedState、SessionEvent、Content、Viewport、PresentationEvent 和 `createRenderDomain`，没有帧时间戳、帧间隔、游戏时钟或 Tick 订阅。PWA 平台上的 `scheduler.schedule()` 没有暴露给 Subsystem。
+
+因此当前版本不实现固定步长、累积器、补算上限和确定性运动。这些能力等待 LoomRealm 单独增加 Frame-scoped Clock，包含单调时间、固定步长、暂停/恢复和取消。在那之前，P3 物理从本 pin 的实现目标移除。Subsystem 和视觉组件都不自建 `requestAnimationFrame`、`setInterval` 或第二套游戏时钟。
+
+Viewport 的现有接口是逻辑尺寸和订阅。`loomrealm.viewport-state/1` 仍是 Not Implemented / Not Qualified。Camera 可以按这个接口设计夹取，尺寸传递必须另做 resize、carrier 重连、无效尺寸和 Runtime 终止测试。Viewport 不提供游戏时间，不能当作 Tick。
+
+时钟落地之后，运动仍使用固定时间步长和可注入的时间源。相同初始状态和相同输入序列应产生相同的 Field State。目标频率和最大补算步数到那时再冻结。
 
 ### 6.3 Controls 映射
 
@@ -411,29 +409,33 @@ Portal 检测属于 Field Runtime；`cms-portal` 只负责画面。触发必须�
 
 ### 7.3 原子切换
 
+`replace()` 替换整棵 RenderDomain 状态。`update()` 只能改已有节点的 attrs/data，不能改 children。地图切换必须调用 `domain.replace(nextRenderDomainState)`。
+
+可以保证的一致性是：Field State 与本地 RenderDomain 状态一起提交。RenderManager 先提交本地权威状态，再异步发布 Render Snapshot。协议没有 Renderer ACK，也不保证 Web Component 已经完成图像解码。视觉失败后自动恢复旧地图不在当前协议里。
+
 切换步骤：
 
 1. 锁定当前 transition，忽略重复触发。
-2. 从 Content 读取并校验目标 MapScenePlan；确认目标 Portal `tn` 存在。
-3. 准备目标地图渲染树数据、Foothold 索引和 Camera Bounds；准备失败时保留旧地图和旧玩家状态。
-4. 计算目标落点。初始建议使用目标 Portal 的世界 `x/y`，再按验证后的 Foothold 规则吸附到可站立位置；吸附容差必须显式配置并测试。
-5. 一次性提交 `mapId`、MapScenePlan、Foothold 索引、玩家坐标/速度/立足线和 Camera 状态。
-6. 更新 RenderDomain：替换背景、地图层、Portal 和场景 Bounds；`cms-avatar-layer` 与 `cms-actor` 的 key 保持不变。
+2. 从 Content 读取并校验目标 MapScenePlan；确认目标 Portal `tn` 存在，资源引用和诊断状态通过。
+3. 在本地准备目标 Foothold 索引、effectiveBounds 和完整 RenderNode 树。准备失败时保留旧地图和旧玩家状态，不调用 replace。
+4. 计算目标落点。初始使用目标 Portal 的世界 `x/y`，再按已实现的 Foothold 规则吸附；吸附容差必须显式配置并测试。物理未落地时，落点算法单独标注为产品约定。
+5. 同步调用 `domain.replace(nextTree)`。调用失败则不提交 Field Runtime 的新状态。
+6. replace 成功后，再提交 `mapId`、MapScenePlan、Foothold 索引、玩家坐标/速度/立足线和 Camera 状态。`cms-avatar-layer` 与 `cms-actor` 的 key 保持不变，场景专属节点使用新的 `sceneEpoch`。
 7. 清除 transition lock；设置短暂重触发保护。
 
-任何步骤失败都不能留下半切换状态。首版不发送 `CHANGE_MAP` 网络封包；这只是本地地图场景切换。
+Render 传输和组件资源加载沿用各自现有生命周期。这次切换是本地权威状态的原子提交，不是所有像素绘制完成之后的跨系统事务。首版不发送 `CHANGE_MAP` 网络封包。实现排在 Clock 和 P3 之后。
 
 ## 8. 分阶段交付
 
 | 阶段 | 交付 | 暂不包含 | 完成门槛 |
 |---|---|---|---|
-| P0：数据契约与闭包 | MapScenePlanV1、两地图显式 allowlist、资源引用校验、Bundle 确定性 | 浏览器绘制 | 两张地图所有必需引用闭合；重复构建字节一致；缺资源 fail closed |
-| P1：静态 Scene Rendering | `cms-scene-view/back/map-layer/avatar-layer/portal` 最小可用实现；射手村真实地图和 Actor | 物理移动、Portal 触发 | 背景/Tile/Obj 的坐标、origin、z 与像素样本正确；节点数量不随 Tile/Obj 数增长 |
-| P2：World Coordinates & Camera | Actor 世界坐标、Camera Bounds/夹取/Viewport resize | 完整物理 | resize 不改变玩家世界状态；Camera 变换和 Bounds 像素测试通过 |
-| P3：Foothold Movement | 固定 Tick、左右行走、跳跃、重力、落地、斜坡 | 绳梯、穿平台、复杂墙体 | 射手村指定路线无穿地；确定性 Node 测试与 Chromium 操作通过 |
-| P4：Portal Transition | `in00 ↔ out00` 双向原子切换 | 其他地图和特殊 Portal | 两地图往返、目标落点、重复触发保护、失败回滚通过 |
+| P0：数据契约与闭包 | MapScenePlanV1、两地图显式 allowlist、资源引用校验、Bundle 确定性 | 浏览器绘制 | 两张地图所有必需引用闭合；重复构建字节一致；缺资源、缺 Tile `z`、未支持背景 type 均 fail closed |
+| P1：静态 Scene Rendering | 场景组件的静态呈现；type 0 背景；有游戏 Portal 帧才画出口 | 物理、滚动背景、帧动画、Portal 触发 | 产品锚定和产品绘制顺序正确；节点数量不随 Tile/Obj 数增长。此门槛是产品呈现，不是客户端像素一致 |
+| P2：World Coordinates & Camera | 产品 Camera、effectiveBounds 夹取、Viewport resize | 跟随函数、固定步长 | resize 不改变玩家世界坐标；夹取使用 Plan 里的有效边界，组件不第二次内缩 |
+| P3：Foothold Movement | 等 LoomRealm Clock 评审后实现固定步长、行走、跳跃、重力和落地 | 绳梯、穿平台、复杂墙体；在 Subsystem 自建动画时钟 | 射手村指定路线无穿地；确定性 Node 测试与 Chromium 操作通过 |
+| P4：Portal Transition | `in00 ↔ out00` 一次 `replace` 的本地状态切换 | 其他地图和特殊 Portal；全像素事务 | 两地图往返、目标落点、重复触发保护；replace 失败不提交新 Field State |
 
-阶段 P0/P1 可以先独立验收，不必等待物理完成。P2/P3 不得用改变 Actor 屏幕中心的方式伪造世界移动。
+阶段 P0/P1 可以先独立验收，不必等待物理完成。P2 不得用改变 Actor 屏幕中心的方式伪造世界移动。P3/P4 不在当前 LoomRealm pin 的实现目标内。
 
 ## 9. 测试与验收策略
 
@@ -444,9 +446,11 @@ Portal 检测属于 Field Runtime；`cms-portal` 只负责画面。触发必须�
 - 每个 PNG 的 namespace/key/MIME/contentVersion/解码尺寸与引用矩形一致。
 - 只包含两张地图及其传递引用；没有整个 CMS FSDB、WZ、客户端文件或研究目录。
 - Bundle 在相同输入下字节级确定；资源缺失、重复 identity、版本冲突和越界引用均 fail closed。
-- 逐个 RenderNode 测量 compact UTF-8 data 大小，不超过固定 LoomRealm 协议限制。
+- 逐个 RenderNode 测量 compact UTF-8 data 大小，并单独测量 MapScenePlan、资源闭包总字节、解码并发、峰值内存、Canvas 尺寸和资源工作集。这些是应用层测量。LoomRealm Render Update v1 没有通用 data 字节上限，不得把测量结果写成协议上限。`cms-map-layer` 使用视口尺寸 Canvas；射手村 `miniMap.width` 为 7174，不用整幅世界 Canvas。
 
 ### 9.2 Field Runtime 单元测试
+
+P0/P1 覆盖 Plan 校验、产品 Bounds、诊断键和静态投影。下面各项在 Clock 与 P3 落地后执行：
 
 - 固定 Tick 下相同输入序列产生相同状态。
 - 左右加速、松键减速、空中水平控制、跳跃边沿和跳跃冷却。
@@ -459,8 +463,8 @@ Portal 检测属于 Field Runtime；`cms-portal` 只负责画面。触发必须�
 
 - 通过正式 `bootstrapWebPresentation()` 和真实 Content API 加载地图组件与 PNG。
 - 使用可信键盘输入驱动 Controls；不使用合成 `KeyboardEvent` 伪造设备输入。
-- 验证地图真实绘制、Actor 像素、镜头跟随、人物站立/行走/跳跃/落地、两地图传送。
-- 对照固定像素样本检查 Tile 拼接、Obj 原点、背景视差、图层顺序和透明度。
+- P1 验证静态地图绘制、Actor 像素、产品锚点和产品图层顺序。镜头跟随、行走、跳跃、落地和两地图传送分别属于 P2 之后与 P3/P4。
+- 对照固定像素样本时，标明样本验收的是产品锚定和产品顺序。背景视差在 `+0x98` 恢复前不作为通过条件。
 - Frame cancel/failure 时释放 Controls Consumer、Viewport 订阅、RenderDomain 和组件资源。
 - 运行现有 `npm test`、PWA Bundle、PWA staging 和浏览器 E2E 回归。
 
@@ -469,23 +473,23 @@ Portal 检测属于 Field Runtime；`cms-portal` 只负责画面。触发必须�
 | 项目 | 当前事实/风险 | 设计处理 |
 |---|---|---|
 | 自研 Map FSDB 章节 | `content/adventure_design.md` 地图章尚未定义 | MVP 先用 CMS FSDB 构建期投影；长期 schema 另行评审 |
-| LoomRealm Tick API | 当前 Subsystem 未使用游戏物理 Tick | 先核对固定 gitlink 的 Frame/Clock API；不自造浏览器定时器 |
-| Camera 坐标约定 | 现有 DESIGN 只定义 `x/y` 为 Camera 坐标，原点/符号需冻结 | 实现前补充唯一坐标契约与像素测试 |
+| LoomRealm Tick API | 固定 pin 的 Frame 和 SubsystemScope 没有时钟 | P3 移出当前实现目标；Clock 单独向上游评审；不自建浏览器定时器 |
+| Camera 坐标约定 | 跟随和 world-to-screen 待逆向 | 1:1 与视口左上角是产品约定；VR 内缩是客户端已确认算法；三者分开验收 |
 | Physics 参数单位 | `Physics/default` 数值已存在，但完整积分公式/单位未确认 | 建立校准 fixture，标注证据等级 |
 | Foothold 特殊标志 | `force/forbidFallDown` 的客户端行为尚未完全还原 | 原样保留，首版不猜测语义 |
 | Portal 触发范围 | 多数 Portal 没有 `hRange/vRange` | 首版定义项目 AABB；明确不是原始客户端算法 |
-| Portal 视觉资源 | 当前 FSDB 图资源树未包含 `MapHelper` | 找到合法资源或明确简化/阻塞；不使用编辑器图标冒充游戏画面 |
+| Portal 视觉资源 | 原始路径已确认；当前 FSDB 和 PWA 闭包还没有 MapHelper | 按提取、校验、Content、allowlist、游戏画面五步补齐；没有帧就不创建 `cms-portal` |
 | `zM` 人物遮挡 | 现有首版树把 Actor 放在地图层之后 | MVP 记录限制；后续根据证据设计对象前后分带 |
 | Map Link | `info/link` 会让地图绘制内容引用另一张地图 | Map Adapter 构建期解析并校验链接，不能递归无界读取 |
 | Bundle 体积 | Tile/Obj/Back 引用会带来大量 PNG | P0 先测量实际闭包字节数，再确定缓存/体积预算 |
 
-以下问题应在 P0 评审时明确：
+2026-11-09 修订已经明确：
 
-1. 是否接受以 CMS FSDB 为构建输入、以 MapScenePlanV1 为运行时契约；还是先完成 `adventure_design.md` 的地图 FSDB 章再实施？本草案推荐前者。
-2. Portal 缺少 `MapHelper` 游戏动画资源时，MVP 是否允许无贴图标记，还是必须先补齐资源？
-3. Camera `x/y` 是否采用世界视口左上角约定？
-4. 固定 LoomRealm 是否提供合适的 Frame Tick/Clock 能力；若没有，应该扩展哪个正式契约，而不是在 Subsystem 内绕过框架？
-5. 首版 Foothold 是否只支持脚底点接触与水平/斜坡平台？本草案推荐明确限制并保留诊断。
+1. MVP 以 CMS FSDB 为构建输入，以 MapScenePlanV1 为运行时逻辑契约。自研地图 FSDB 章仍另行评审。
+2. Portal 没有游戏帧时不创建视觉节点，不用编辑器图标或无贴图标记充当通过验收的画面。
+3. Camera `x/y` 采用世界视口左上角，这是产品约定。`scenePlan.bounds` 使用 `effectiveBounds`。
+4. 当前固定 LoomRealm 没有 Frame Clock。P3 等待上游 Clock 评审，不在 Subsystem 内绕过框架。
+5. 首版 Foothold 运动只支持脚底点接触与水平/斜坡平台；垂直段和特殊标志保留并给出诊断。运动本身等待 Clock。
 
 ## 11. 建议的后续 Issue 拆分
 
@@ -493,8 +497,8 @@ Portal 检测属于 Field Runtime；`cms-portal` 只负责画面。触发必须�
 
 1. **P0 — MapScenePlanV1 与双地图 Content Closure**：数据适配、资源闭包、确定性 Bundle、引用完整性测试。
 2. **P1 — CMS Map Scene Components**：`cms-scene-view`、`cms-back`、`cms-map-layer`、`cms-avatar-layer`、`cms-portal` 浏览器实现与像素测试。
-3. **P2/P3 — Adventure Field Runtime**：世界坐标、Camera、固定 Tick、Foothold 索引和基础运动。
-4. **P4 — Portal Transition**：目标地图解析、落点、原子切换和双向 E2E。
+3. **P2 — 产品 Camera 与 Viewport**：世界坐标、effectiveBounds 夹取、resize。不含跟随函数和固定步长。
+4. **P3 / P4 — Clock 之后的运动与传送**：Foothold 运动，以及 `in00 ↔ out00` 的一次 `replace`。Clock 未进入固定 LoomRealm 之前不开工。
 
 每个 Issue 只实现一个可独立验收的垂直切片；不得在同一任务里顺带升级 LoomRealm pin、重跑 WZ 转换、修改 AvatarPlan ABI 或引入全量地图资源。
 
@@ -511,5 +515,8 @@ Portal 检测属于 Field Runtime；`cms-portal` 只负责画面。触发必须�
 - [`components/cms-avatar-layer/DESIGN.md`](../../components/cms-avatar-layer/DESIGN.md)
 - [`components/cms-portal/DESIGN.md`](../../components/cms-portal/DESIGN.md)
 - [`components/cms-actor/IMPLEMENTATION.md`](../../components/cms-actor/IMPLEMENTATION.md)
+- [`components/MAP-SCENE-PLAN-V1.md`](../../components/MAP-SCENE-PLAN-V1.md)
+- [`docs/reviews/2026-11-09-adventure-field-design-revision.md`](../reviews/2026-11-09-adventure-field-design-revision.md)
+- [`research/result/map/MAP-REVERSE-STATUS.md`](../../research/result/map/MAP-REVERSE-STATUS.md)
 - [`research/task/060-map-wz-extraction.md`](../../research/task/060-map-wz-extraction.md)
 - [`research/result/task050-behavior-flows.md`](../../research/result/task050-behavior-flows.md)

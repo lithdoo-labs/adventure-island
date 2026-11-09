@@ -253,6 +253,17 @@ interface RasterFrameV1 {
 
 `source` 存在时，它是解码后整页图集内的像素矩形，`source.x/y` 必须是非负整数，且 `source.w/h` 必须等于逻辑小图的 `width/height`。没有 `source` 时，整张解码图的尺寸必须等于逻辑小图尺寸。所有宽高必须是正整数，坐标和原点必须是有限数值。`RasterFrameV1.delay` 如存在必须是有限、非负毫秒数；毫秒是 Adventure Island v1 的产品时钟单位，尚未由原始客户端定时器确认。未提供 delay 表示停留在该帧，`delay: 0` 表示绘制该帧后立即推进；帧数组必须非空。
 
+地图 Tile、Obj、Back 和 Portal 使用同一条产品锚定，客户端绘制函数尚未恢复这条减法：
+
+```text
+drawLeft = placementX - originX
+drawTop  = placementY - originY
+```
+
+`flip` 为真时围绕放置锚点的竖线做水平镜像，绘制左边缘为 `placementX + originX - width`。v1 不旋转；源数据出现旋转要求时，Adapter 报告 unsupported。`opacity` 是 0–255 的整数，绘制 alpha 为 `opacity / 255`。应用顺序是先按 origin 锚定，再水平镜像。这些规则是产品约定。`cms-actor` 继续使用自己的身体原点，不套用这条地图锚定。
+
+多帧数组里只要有一帧缺少 `delay`，Back 和 Portal 的 v1 呈现停在第一帧。`loop: true` 不补帧时间，也不启动组件私有时钟。全部帧都有 `delay` 时数值照常保留；在产品时钟策略落地前，P1 同样不自动推进。`cms-actor` 的帧推进仍只遵循其 IMPLEMENTATION，不受这段地图规则改写。
+
 ### 5.2 `cms-scene-view`
 
 | 类别 | 冻结字段 |
@@ -287,7 +298,8 @@ data: { scenePlan: ScenePlanV1 }
 
 - `map` 是当前地图编号字符串。
 - `x/y` 是 Adventure Island v1 的产品坐标约定：Camera 视口左上角世界坐标，使用十进制字符串；世界 Y 轴向下，不提供 zoom，世界像素与 CSS 像素按 1:1 映射，世界点按 `screen = world - camera` 投影。该坐标变换和 1:1 约定尚未由原始客户端 Camera 函数确认，不得标注为客户端逆向事实。
-- `bounds` 是场景世界边界，右边必须大于左边、下边必须大于上边。
+- `bounds` 是场景世界边界，等于 MapScenePlan 的 `effectiveBounds`。四个 VR 齐全时，这份边界已经包含客户端已确认的内缩：左右各 400，上下各 300；某一轴小于等于 0 时两边收到向零截断的中点。因此右边可以等于左边，下边可以等于上边。组件不得再次内缩。没有完整 VR 时，边界来自产品回退，不套用 400 和 300。
+- `x/y` 的 1:1 投影、Camera 跟随和这份 VR 内缩是三件不同的事。跟随算法待逆向。1:1 是产品约定。VR 内缩只在源数据有四个 VR 时已经由客户端函数确认。
 - `debug` 仅是可选辅助线投影，不是物理碰撞权威数据。正式场景可省略。
 
 ### 5.3 `cms-back`
@@ -309,8 +321,10 @@ data: { backPlan: BackPlanV1 }
 ```
 
 - `back-set/index/animation` 是来源标识；动画帧和资源由 Adapter 预解析进 `backPlan`，组件不得自行按 CMS/WZ 路径查找。
-- `x/y` 是背景锚点；`parallax-x/y` 分别原样映射源整数 `rx/ry`，只是背景参数，不能据此断言其客户端视差/滚动公式；`background-type` 原样映射源整数 `type`，客户端分支尚未确认；`tile-step-x/y` 原样映射源整数 `cx/cy`。`cx/cy=0` 在 v1 中保留为 0，不隐含替换为图像宽高；若实现选择宽高回退，必须明确标成产品规则。`flip` 和 `opacity` 是产品编码，具体客户端像素语义未确认。
-- `front` 不作为组件属性。远景/近景由父节点的 children 顺序表达。
+- `x/y` 是背景锚点，按 §5.1 的产品锚定绘制。`parallax-x/y` 原样映射 `rx/ry`，`background-type` 原样映射 `type`，`tile-step-x/y` 原样映射 `cx/cy`。客户端已确认 type 0–3 走普通分支，type 4 与 6 用 `rx`、type 5 与 7 用 `ry`，滚动步长为 `20000 / |rate|`。`+0x98` 的函数体和时间单位待逆向，所以这些参数的存在不表示视差公式已经可以绘制。P1 只静态绘制 type 0，不解释 `rx/ry`。type 1–7 由 Adapter 报告 unsupported，不进入可发布 Plan。
+- `cx/cy=0` 在 v1 中保留为 0。平铺辅助函数里出现过步长 0 改为 1，但寄存器与 `cx/cy` 的对应待逆向，组件不得把 0 换成图像宽高。
+- `flip` 按 §5.1 围绕锚点水平镜像。`opacity` 按 `opacity / 255` 变成绘制 alpha。二者的客户端混合函数仍待逆向，当前是产品约定。
+- `front` 不作为组件属性。它参与客户端 `index * 1000` 加载键，比较方向待逆向。远景/近景由父节点的 children 顺序表达，该顺序是产品约定。
 - Adapter 对缺失源字段使用产品回退值：`animation="0"`、`rx/ry/cx/cy="0"`、`flip="false"`、`opacity="255"`、`background-type="0"`。本次 303 条样本背景均包含这些字段，因此这些回退值不是样本中观察到的客户端缺省值。
 
 ### 5.4 `cms-map-layer`
@@ -362,9 +376,10 @@ data: { mapLayerPlan: MapLayerPlanV1 }
 
 - `layer` 是 `"0"` 到 `"7"`；`tile-set` 是图集名，无 Tile 的层可以省略。
 - `assets` 必须非空，`tiles` 或 `objs` 至少有一项，且每个 asset 至少被一个 placement 引用；`assets.id` 在当前 plan 内唯一。Tile placement 只能引用 `kind="tile"` 的 asset；Obj placement 只能引用 `kind="obj"` 的 asset。Tile 放置记录没有独立 flip 字段；Obj 的 `flip` 来自源 `f`。
-- `kind="tile"` 必须提供有限数值 `canvasZ`；`kind="obj"` 不得提供 `canvasZ`。`canvasZ` 计划映射 Tile 画布的 `z`；当前提取没有 Tile 画布样本，因此该值及其客户端排序含义尚未测量。Obj placement 的 `z` 是地图放置记录的源整数，两者不可互换。
-- 当前 v1 产品候选顺序为：Obj 组先于 Tile 组；Obj 按 `z` 升序，Tile 按引用 asset 的 `canvasZ` 升序；相同排序值保持各自数组中的源顺序；父树中较小的 layer 先于较大的 layer。该顺序来自 HaCreator 移植，不是已复核的游戏客户端绘制函数；实现必须将其视为产品选择，不得宣称客户端顺序已确认。
-- `zM` 必须原样保留。样本中它有多个不同值，但客户端比较函数尚未找到；v1 MVP 暂不据此拆分人物前后景带，这是产品限制，不代表客户端不使用 `zM`。
+- `kind="tile"` 必须提供有限数值 `canvasZ`；`kind="obj"` 不得提供 `canvasZ`。`canvasZ` 是 Tile 画布的 `z`，Obj placement 的 `z` 是地图放置记录的源整数，两者不可互换。WZ 提取已经测到画布 `z`。四张没有 `z` 的 Tile Canvas 不得写成 0：`Tile/greenCrystalCave.img/bsc/0`，以及 `Tile/blueCave2.img` 的 `bsc/0`、`bsc/1`、`bsc/2`。引用它们的记录由 Adapter 报告 `tile-canvas-z-absent`，不进入本 plan。
+- 客户端已确认的诊断键由 Adapter 记在 MapScenePlan，不进入本 plan：`tileKey = canvasZ + 10 * (layer * 3000 - zM) - 1073721834`，`objKey = layer * 30000 + z - 1073739824`。Tile 键使用放置 `zM`。Obj 键使用放置 `z`，不使用 `zM`。比较方向和相同键次序待逆向。
+- 当前 v1 产品绘制顺序为：Obj 组先于 Tile 组；Obj 按 `z` 升序，Tile 按引用 asset 的 `canvasZ` 升序；相同排序值保持各自数组中的源顺序；父树中较小的 layer 先于较大的 layer。该顺序来自 HaCreator 移植。实现必须把它标成产品约定。诊断键不改变这个顺序。
+- `zM` 必须原样保留。Tile 的客户端键已经使用它。Obj 的这条加载路径不读 `zM`。v1 MVP 仍不据此把人物插进 Obj 深度带，这是产品限制。
 - `reactor`、`name` 是地图逻辑/脚本关联，不属于 Obj 视觉 ABI。源 `r/flow` 的绘制语义尚未确认，不属于 v1；MVP allowlist 遇到需要这些字段才能正确呈现的记录时，Adapter MUST 明确报告 unsupported，不得静默丢弃后声称完整复刻。
 - 单个 Tile/Obj 不创建 RenderNode 或 Custom Element；整层批量绘制。
 
@@ -420,14 +435,14 @@ interface PortalPlanV1 {
 data: { portalPlan: PortalPlanV1 }
 ```
 
-- `portal-name` 来自源 `pn`；`portal-type` 来自源 `pt`，使用十进制字符串。样本中类型 2 的 16/16 条有真实 `tm`，类型 1 的 20 条中也有 15 条有真实 `tm`。MVP 暂只把类型 2 作为视觉试验子集，不表示类型 2 是唯一可跳转类型；类型 1 的逻辑目标仍由 Field Runtime 保留，画面/碰撞行为待验证。
+- `portal-name` 来自源 `pn`；`portal-type` 来自源 `pt`，使用十进制字符串。客户端已确认 `pt` 2、4、7 使用 `Map/MapHelper.img/portal/game/pv`，10、11 使用实例 `image` 或 `default`，0、1、5、6、8 不加载 pv。3、9、12 不能写成 pv。没有游戏帧时不创建本节点。`portal/editor` 的图标不得进入 `frames`。样本中类型 1 和类型 2 都可以带真实 `tm`；类型 2 只是当前视觉试验子集，不是唯一可跳转类型。
 - `x/y` 是世界坐标；`flip` 可选，缺省按产品规则为 `"false"`（99 个样本均没有源 `f`）；`hide-tooltip` 可选，均使用 `"true"/"false"`。缺省 false 不是从客户端 `f` 字段反推的事实。
 - `targetMap`、`targetName`、`script`、触发范围、冷却和 `onlyOnce` 规则不属于组件 attrs/data；它们由 MapScenePlan / Field Runtime 的 Portal Record 持有。
 - Portal 组件只绘制 `portalPlan`，不得自行决定是否传送或改变当前地图。
 
 ## 6. 场景树结构与顺序
 
-MVP 的唯一 RenderDomain root 是一个 `cms-scene-view`。以下 children 顺序是 Adventure Island v1 的产品树顺序，参考 HaCreator 合成器；原始客户端的层级绘制顺序尚未由客户端函数确认。该树也无法表达 Actor 在同一 layer 的 Obj 之间按 `zM` 穿插，这是当前 MVP 的已知限制。
+MVP 的唯一 RenderDomain root 是一个 `cms-scene-view`。以下 children 顺序是 Adventure Island v1 的产品树顺序，参考 HaCreator 合成器。Tile、Obj 和背景的客户端加载键已经恢复，比较方向待逆向，所以这条 children 顺序仍是产品约定。该树也无法表达 Actor 在同一 layer 的 Obj 之间按 `zM` 穿插，这是当前 MVP 的已知限制。
 
 其 children 顺序为：
 
@@ -464,7 +479,7 @@ Adventure Field Runtime MUST 使用以下身份策略：
 | 数据 | RenderNode ABI | Adventure Field Runtime |
 |---|---|---|
 | Camera 当前偏移 | `cms-scene-view.attrs.x/y` 的呈现值 | Camera 决策和 viewport 夹取 |
-| Scene bounds | `scenePlan.bounds` | 地图边界权威值及计算 |
+| Scene bounds | `scenePlan.bounds`，等于 `effectiveBounds` | `sourceBounds`、VR 内缩或产品回退的计算 |
 | Foothold / Rope | 可选 `scenePlan.debug` 辅助线 | 完整碰撞、平台连接、攀爬和移动语义 |
 | Actor 位置/朝向/动作 | `cms-actor.attrs` 的当前呈现值 | 世界坐标、速度、状态、移动和跳跃 |
 | AvatarPlan | `cms-actor.data.avatarPlan` | 从 FSDB 解析并投影的外观计划 |
@@ -494,7 +509,7 @@ LoomRealm Render Update v1 不定义通用的 RenderNode.data 字节数、成员
 - `cms-actor` 每个 attrs value ≤ 4096 UTF-8 字节，是该组件的 Adapter 输入策略，不是 LoomRealm 通用限制。
 - `AvatarPlanV1` 的 compact UTF-8 JSON 上限为 262,144 字节；这是 `cms-actor` 的应用层策略，不是 Render Update v1 的协议上限。
 - `cms-actor` 的帧数、层数、锚点数、画布尺寸、delay、合成 Canvas 和解码并发边界，继续由其 IMPLEMENTATION 文档和 validator 管理。
-- MapLayerPlanV1 / BackPlanV1 / PortalPlanV1 的最终 payload 与资源工作集上限必须在选定地图上测量后另行冻结；在此之前不得声称已具备容量验收。不得擅自套用 AvatarPlan 的 262,144 字节限制，也不得将整张地图无界塞进一个 RenderNode。
+- MapLayerPlanV1 / BackPlanV1 / PortalPlanV1 的最终 payload 与资源工作集上限必须在选定地图上测量后另行冻结；在此之前不得声称已具备容量验收。不得擅自套用 AvatarPlan 的 262,144 字节限制，也不得将整张地图无界塞进一个 RenderNode。`cms-map-layer` 的画布是视口尺寸加可见区域裁剪，不把射手村 7174 像素宽的地图做成整层世界 Canvas。空间分块留到实测超预算之后。
 
 ### 8.3 资源版本
 

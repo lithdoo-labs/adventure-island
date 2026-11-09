@@ -1,6 +1,6 @@
 # cms-map-layer
 
-> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文区分样本字段、产品候选顺序和未验证的客户端绘制语义。
+> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准。逻辑记录和诊断键以 [MAP-SCENE-PLAN-V1.md](../MAP-SCENE-PLAN-V1.md) 为准。
 
 地图八层中的一层，节点名是 `"0"` 到 `"7"`。空层不创建元素。
 
@@ -15,20 +15,35 @@
 
 全库 4,259 张地图、165,125 个 Obj、11,817 个 Reactor 关联和 3,697 个 name 的历史计数，在当前工作区没有可复查的完整 XML/CSV，不作为本设计的事实依据。
 
-## 当前产品候选绘制顺序
+## 排序
 
-Task 023 的 HaCreator 移植使用如下排序键：
+客户端已确认加载时的整数键。比较方向和相同键次序待逆向。
 
 ```text
-Obj:  (layer, 0, placement.z, sourceOrder)
-Tile: (layer, 1, canvas.z, sourceOrder)
+tileKey = canvasZ + 10 * (layer * 3000 - zM) - 1073721834
+objKey  = layer * 30000 + z - 1073739824
 ```
 
-Adventure Island v1 暂把它作为产品候选顺序：较小 layer 先画；同层 Obj 组先于 Tile；Obj 按放置 `z` 升序；Tile 按 asset 的 `canvasZ` 升序；同值保持源顺序。
+Tile 键使用画布 `z` 和放置 `zM`。Obj 键使用放置 `z`，不使用 `zM`，也不使用资源画布 `z`。两个常数不同。Henesys 层 0 的 tile 35 与 tile 34 键相同，源顺序还不是已确认的 tie-break。
 
-**这不是客户端已确认的排序规则。** 本次没有找到游戏客户端的 Tile/Obj 排序函数；Tile 画布也未包含在当前 canvas 提取中，所以 `canvasZ` 尚未实测。WzComparerR2 是第三方渲染器，不能补足客户端证据。
+`clientSortKey` 写在 MapScenePlan 里，不进入 `mapLayerPlan`。本组件不按这个键排序。
 
-`zM` 必须原样保留。它在样本中有丰富取值，但客户端是否用它把人物插入 Obj 深度带仍未验证。MVP 暂不使用 `zM` 拆分人物前后景，这是产品限制，不代表客户端忽略它。
+产品绘制顺序保持为：较小 layer 先画；同层 Obj 组先于 Tile；Obj 按放置 `z` 升序；Tile 按 asset 的 `canvasZ` 升序；同值保持源顺序。这来自 HaCreator，验收时标成产品约定。
+
+`zM` 必须原样保留。Tile 键已经使用它。Obj 的这条路径不读它。MVP 仍不把人物插进 Obj 深度带。
+
+画布 `z` 已从 WZ 提取。下面四张没有 `z`，引用它们时 Adapter 报告 `tile-canvas-z-absent`，禁止把 `canvasZ` 写成 0：
+
+- `Tile/greenCrystalCave.img/bsc/0`
+- `Tile/blueCave2.img/bsc/0`
+- `Tile/blueCave2.img/bsc/1`
+- `Tile/blueCave2.img/bsc/2`
+
+## 画布
+
+整层一个组件，不等于整层一张世界尺寸 Canvas。射手村 `miniMap.width` 为 7174。本组件使用视口尺寸 Canvas，按 Camera 裁剪可见放置项。不沿用 `cms-actor` 的合成 Canvas 上限。空间分块留到视口 Canvas 的内存测量超预算之后。
+
+绘制使用产品锚定：`drawLeft = x - originX`，`drawTop = y - originY`。`flip` 围绕放置锚点水平镜像。v1 不旋转。
 
 ## 运行库交给它的数据
 
@@ -66,14 +81,14 @@ Adventure Island v1 暂把它作为产品候选顺序：较小 layer 先画；�
 }
 ```
 
-Tile 放置项的 `x/y/u/no/zM` 由 Adapter 解析：`u/no` 用于确定 Tile asset，放置数组保留资源引用、像素坐标和 `zM`。Tile 画布的 `canvasZ` 只能在真实画布元数据提取后填入。
+Tile 放置项的 `x/y/u/no/zM` 由 Adapter 解析：`u/no` 用于确定 Tile asset，放置数组保留资源引用、像素坐标和 `zM`。`canvasZ` 使用画布上的整数 `z`。
 
 Obj 的 `oS/l0/l1/l2` 用于确定 Obj asset；`x/y/z/f/zM` 投影为放置记录，其中 `f` 转为产品布尔 `flip`。Obj 的 `z` 与 Tile 的 `canvasZ` 是不同字段。
 
 ## 逻辑与 unsupported
 
 - `reactor/name` 属于游戏逻辑/脚本关联，不进入视觉计划；当前样本只支持确认 `reactor` 有出现，不能据此声称全库频率。
-- `r/flow` 的画面语义尚未确认。MVP allowlist 遇到需要这些字段才能正确呈现的记录时，Adapter MUST 明确报告 unsupported，不得静默丢弃后声称完整复刻。
+- `r` 缺省或为 0 时不进入视觉记录。`r` 为其他值，或源记录带有 `flow` 时，Adapter 报告 `obj-visual-field-unsupported`。
 - [cms-portal](../cms-portal/DESIGN.md)、[cms-npc](../cms-npc/DESIGN.md)、[cms-reactor](../cms-reactor/DESIGN.md) 和 [cms-seat](../cms-seat/DESIGN.md) 是独立逻辑实体，不从 Obj 的脚本字段推断点击目标。
 
 ## 第一阶段与不做什么

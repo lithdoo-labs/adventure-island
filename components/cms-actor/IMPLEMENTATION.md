@@ -58,7 +58,7 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 
 | 属性 | 含义 |
 |---|---|
-| `x`, `y` | 身体原点在场景中的坐标（十进制字符串） |
+| `x`, `y` | 身体原点在地图世界中的坐标（十进制字符串） |
 | `locomotion` | `stand` / `walk` / `jump` |
 | `facing` | `left` / `right` |
 | `skin`, `face`, `hair`, `expression`, `equips` | 运行时外观选择状态，供游戏适配层重建 `avatarPlan`；组件不据此查 WZ |

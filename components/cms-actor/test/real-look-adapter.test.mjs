@@ -10,18 +10,18 @@ const zmap = {
   Bd: 3,
 };
 const smap = {
-  body: "Bd",
+  body: "H1Bd",
   face: "",
 };
 
 test("derives CMS079 priority from maximum islot zmap value and tag from vslot intersect smap[z]", () => {
   assert.deepEqual(
     deriveOcclusionFields({ z: "body", islot: "Cp", vslot: "CpH1H5", zmap, smap }),
-    { priority: 10, tag: ["Bd"] },
+    { priority: 10, tag: ["H1"] },
   );
   assert.deepEqual(
     deriveOcclusionFields({ z: "body", islot: "HrBd", vslot: "H1Bd", zmap, smap }),
-    { priority: 7, tag: ["Bd"] },
+    { priority: 7, tag: ["H1", "Bd"] },
   );
 });
 

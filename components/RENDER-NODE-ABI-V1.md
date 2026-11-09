@@ -492,7 +492,7 @@ data: { scenePlan: ScenePlanV1 }
 ```
 
 - `map` 是当前地图编号字符串。
-- `x/y` 是 Camera 视口左上角的世界坐标，使用十进制字符串；世界 Y 轴向下。世界点投影为 `screen = world - camera`。
+- `x/y` 是 Camera 视口左上角的世界坐标，使用十进制字符串；世界 Y 轴向下。ABI v1 不提供 Camera zoom，世界像素与 CSS 像素按 1:1 映射。世界点投影为 `screen = world - camera`。
 - `bounds` 是场景世界边界，右边必须大于左边、下边必须大于上边。
 - `debug` 仅是可选辅助线投影，不是物理碰撞权威数据。正式场景可省略。
 
@@ -642,6 +642,18 @@ MVP 的唯一 RenderDomain root 是一个 `cms-scene-view`。其 children 顺序
 5. 零个或多个近景 `cms-back`。
 
 第一段和最后一段的 `cms-back` 位置本身区分远景/近景，不使用 `front` attr。相同组内按源数组顺序保持稳定。空地图层不创建节点。
+
+### 6.1 Node key 生命周期策略
+
+Render Update v1 的 Node key 在同一 wire Domain 生命周期内是 one-shot：节点一旦从已发布树中移除，该 key 永远不能重新使用。地图 A → B → A 时，不能只用 mapId/layer/portal 名称生成可重复的 key。
+
+Adventure Field Runtime MUST 使用以下身份策略：
+
+- `cms-scene-view` 使用稳定 key（例如 `scene-view`），地图切换时只更新该节点。
+- `cms-avatar-layer` 与唯一玩家 `cms-actor` 使用稳定 key（例如 `avatar-layer`、`actor:player`），整个 RenderDomain 生命周期内不删除、不重建。
+- 每次场景实例创建时递增一个 RenderDomain-local 的 `sceneEpoch`。所有场景专属节点 key 必须包含该 epoch，例如 `scene:<epoch>:back:<ordinal>`、`scene:<epoch>:layer:<layer>`、`scene:<epoch>:portal:<ordinal>`。
+- `sceneEpoch` 不放入 attrs/data；它只用于生成不重复的 Node key。地图切换、返回旧地图或重新显示已删除的场景节点时，必须使用新的 epoch/key。
+- 除稳定根节点、avatar-layer 和 actor 外，若任何节点在同一场景实例中被移除后又需要出现，也必须追加新的实例序号生成 fresh key；不得复用已消费的 key。
 
 换场景时：
 

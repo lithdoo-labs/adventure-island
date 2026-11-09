@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://adventure-island.local/map-wz-extract.schema.json",
+  "title": "CMS079 Map.wz metadata extract",
+  "description": "One JSON object per line. Missing WZ children are omitted. Normalized canvas.z and canvas.origin are null when the child is absent; they are never defaulted to 0. Derived sort keys are not stored in these records.",
+  "type": "object",
+  "required": ["kind", "archive", "image", "recordType", "nodePath", "provenance"],
+  "properties": {
+    "kind": {
+      "enum": ["Back", "Tile", "Obj", "MapHelper", "Map", "Other"]
+    },
+    "archive": {"const": "Map.wz"},
+    "image": {"type": "string", "description": "Path inside Map.wz, such as Back/grassySoil.img or Map/Map1/100000000.img."},
+    "recordType": {"enum": ["group", "bag", "canvas"]},
+    "nodePath": {"type": "string", "description": "Slash-separated child names under the image root. Empty string is the image root."},
+    "sourceKey": {"type": "string"},
+    "sourceOrder": {"type": "integer", "minimum": 0},
+    "childOrder": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["order", "name", "type"],
+        "properties": {
+          "order": {"type": "integer"},
+          "name": {"type": "string"},
+          "type": {"type": "string"}
+        }
+      }
+    },
+    "raw": {
+      "type": "array",
+      "description": "Immediate children in WZ order. Only present children are listed.",
+      "items": {"$ref": "#/$defs/value"}
+    },
+    "canvas": {
+      "type": "object",
+      "required": ["z", "zPresent", "width", "height", "origin", "originPresent", "format", "format2", "named"],
+      "properties": {
+        "z": {"type": ["integer", "null"]},
+        "zPresent": {"type": "boolean"},
+        "zType": {"type": ["string", "null"]},
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "origin": {
+          "type": "object",
+          "required": ["x", "y"],
+          "properties": {
+            "x": {"type": ["integer", "null"]},
+            "y": {"type": ["integer", "null"]}
+          }
+        },
+        "originPresent": {"type": "boolean"},
+        "format": {"type": "integer"},
+        "format2": {"type": "integer"},
+        "named": {
+          "type": "object",
+          "description": "Optional canvas children other than origin and z, keyed by their original names. delay is absent when the canvas has no delay child. The misspelled dealy child is kept under that name."
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["sourceFile", "archiveSha256", "imagePath", "imageOffset", "imageSize", "imageSha256", "region", "version", "extractionMethod"],
+      "properties": {
+        "sourceFile": {"type": "string"},
+        "archiveSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "imagePath": {"type": "string"},
+        "imageOffset": {"type": "integer"},
+        "imageSize": {"type": "integer"},
+        "imageSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "region": {"const": "EMS"},
+        "version": {"const": 79},
+        "extractionMethod": {"type": "string"}
+      }
+    }
+  },
+  "$defs": {
+    "value": {
+      "type": "object",
+      "required": ["name", "order", "type"],
+      "properties": {
+        "name": {"type": "string"},
+        "order": {"type": "integer"},
+        "type": {"type": "string"},
+        "value": {},
+        "x": {"type": "integer"},
+        "y": {"type": "integer"},
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "format": {"type": "integer"},
+        "format2": {"type": "integer"},
+        "leHex": {"type": "string"},
+        "points": {"type": "array"},
+        "children": {"type": "array"},
+        "resolution": {
+          "type": "object",
+          "required": ["chain", "status"],
+          "properties": {
+            "chain": {"type": "array", "items": {"type": "string"}},
+            "status": {"enum": ["resolved", "unresolved", "loop", "depth-limit"]},
+            "resolvedPath": {"type": ["string", "null"]},
+            "resolvedType": {"type": ["string", "null"]}
+          }
+        }
+      }
+    }
+  }
+}

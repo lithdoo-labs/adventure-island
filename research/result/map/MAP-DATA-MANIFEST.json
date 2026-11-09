@@ -1,0 +1,89 @@
+{
+  "generatedFrom": "research/scripts/map_wz_extract.py",
+  "archive": {
+    "path": ".work/task-001/extracted/冒险岛online/Map.wz",
+    "bytes": 835954262,
+    "sha256": "9e0d2a0fcecac2c99ee3cb15b03c41b5617d7d0637b55fb132f0eeed27155f69",
+    "version": 79,
+    "regionIv": "B9 7D 63 E9",
+    "regionNameInWzpy": "EMS"
+  },
+  "clientImage": {
+    "path": ".work/task-036/game-image-unpacked.bin",
+    "imageBase": "0x400000",
+    "note": "Virtual image. File offset = VA - 0x400000. String-pool key bytes are not copied into this manifest."
+  },
+  "imagesExtracted": 4614,
+  "imageCounts": {
+    "Tile": 110,
+    "Back": 112,
+    "Obj": 111,
+    "WorldMap": 18,
+    "Map": 4260,
+    "rootImages": ["MapHelper.img", "Effect.img", "Physics.img"]
+  },
+  "recordCounts": {
+    "Back:group": 763,
+    "Back:canvas": 4402,
+    "Back:bag": 29,
+    "Tile:group": 1394,
+    "Tile:canvas": 2348,
+    "Tile:bag": 4,
+    "Obj:group": 15414,
+    "Obj:canvas": 22293,
+    "Obj:bag": 414,
+    "Map:group": 157442,
+    "Map:bag": 1102440,
+    "Map:canvas": 2278,
+    "MapHelper:group": 152,
+    "MapHelper:bag": 44,
+    "MapHelper:canvas": 818
+  },
+  "uol": {
+    "resolved": 898,
+    "unresolved": 0
+  },
+  "canvasChildrenPresent": {
+    "Tile": {"origin": 2348, "z": 2344, "foothold": 1149, "map": 1345},
+    "Back": {"origin": 4402, "z": 4289, "delay": 1738, "a0": 689, "a1": 676},
+    "Obj": {"origin": 22293, "z": 20302, "delay": 8062, "foothold": 2971},
+    "MapHelper": {"origin": 737, "z": 464, "delay": 68}
+  },
+  "mapInstanceBags": {
+    "info": 4438,
+    "back": 48548,
+    "tile": 478444,
+    "obj": 189981,
+    "objBagsWithZm": 165125,
+    "portal": 21446,
+    "foothold": 398609,
+    "ladder": 13719,
+    "minimap": 4556,
+    "layerInfo": 24856
+  },
+  "outputs": {
+    "directory": ".work/map-reverse",
+    "files": [
+      "back.jsonl",
+      "tile.jsonl",
+      "obj.jsonl",
+      "map-helper.jsonl",
+      "extracted.jsonl",
+      "extract-summary.json",
+      "maps/info.jsonl",
+      "maps/back.jsonl",
+      "maps/tile.jsonl",
+      "maps/obj.jsonl",
+      "maps/portal.jsonl",
+      "maps/foothold.jsonl",
+      "maps/ladder.jsonl",
+      "maps/layer-info.jsonl",
+      "maps/minimap.jsonl",
+      "maps/classify-summary.json"
+    ],
+    "gitignored": true,
+    "reason": "extracted.jsonl is about 1.5 GiB. Regenerate with the script instead of committing it."
+  },
+  "elapsedSeconds": 61.411,
+  "parseFailures": []
+}

@@ -331,7 +331,6 @@ interface TilePlacementV1 {
   readonly x: number;
   readonly y: number;
   readonly zM: number;
-  readonly flip: boolean;
 }
 
 interface ObjPlacementV1 {
@@ -354,7 +353,7 @@ data: { mapLayerPlan: MapLayerPlanV1 }
 ```
 
 - `layer` 是 `"0"` 到 `"7"`；`tile-set` 是图集名，无 Tile 的层可以省略。
-- `assets.id` 在当前 plan 内唯一。Tile placement 只能引用 `kind="tile"` 的 asset；Obj placement 只能引用 `kind="obj"` 的 asset。
+- `assets.id` 在当前 plan 内唯一。Tile placement 只能引用 `kind="tile"` 的 asset；Obj placement 只能引用 `kind="obj"` 的 asset。Tile 放置记录没有独立 flip 字段；Obj 的 `flip` 来自源 `f`。
 - `canvasZ` 是 Tile 画布在图集中的排序值；Obj placement 的 `z` 是地图放置记录的排序值，两者不可互换。
 - 绘制顺序固定：Obj 组先于 Tile 组；Obj 按 `z` 升序，Tile 按引用 asset 的 `canvasZ` 升序；相同排序值保持各自数组中的源顺序。父树中较小的 layer 先于较大的 layer。
 - `zM` 必须原样保留；ABI v1 的 MVP 绘制不据此做人物前后景分带。

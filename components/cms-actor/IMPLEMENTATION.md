@@ -20,7 +20,7 @@
 - 可作为 **classic script** 被 LoomRealm `bootstrapWebPresentation()` 正式加载（无 `type="module"` 要求）；
 - 真实 Chromium 集成测试与 Node 纯函数测试。
 
-自研库的装备遮挡由 `adventure-adapter` 写入每张画布的 `priority` 和 `tag`，组件在绘制前按 `0x401C74` 跳过输掉的画布。CMS079 生产入口 `src/real-look-adapter.mjs` 现在要求调用方显式提供每个部件的 `islot/vslot`（`slotMetadata`）和完整 `smap.img`；它按 full zmap order 推导 `priority/tag`，缺失或格式错误时 fail closed，不再默默全画。
+自研库的装备遮挡由 `adventure-adapter` 写入每张画布的 `priority` 和 `tag`，组件在绘制前按 `0x401C74` 跳过输掉的画布。CMS079 生产入口 `src/real-look-adapter.mjs` 现在要求调用方显式提供每个部件的 `islot/vslot`（`slotMetadata`）和完整 `smap.img`；它按 `priority=max(zmap[islot token])` 与 `tag=vslot ∩ smap[z]` 推导 `priority/tag`，缺失或格式错误时 fail closed，不再默默全画。
 
 本地 `test/real-look-adapter.mjs` 是真实资源几何/渲染 smoke helper，不带 Item 的 `islot/vslot` 与 `smap`，因此它不能证明 CMS079 遮挡一致性。客户端 `this+0x38` 预置槽位的来源和求交函数仍有未闭合项；生产路径整体仍标记为 PARTIALLY VERIFIED，不能宣称完全像素等价。
 

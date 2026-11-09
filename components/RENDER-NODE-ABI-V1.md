@@ -125,12 +125,18 @@ interface RenderContextReceiver {
   receiveRenderContext(context: WebPresentationContext): void;
 }
 
+type DeepReadonly<T> =
+  T extends JsonPrimitive ? T :
+  T extends readonly (infer U)[] ? readonly DeepReadonly<U>[] :
+  T extends object ? { readonly [K in keyof T]: DeepReadonly<T[K]> } :
+  T;
+
 interface RenderDataReceiver {
-  receiveRenderData(data: Readonly<JsonObject>): void;
+  receiveRenderData(data: DeepReadonly<JsonObject>): void;
 }
 
 interface RenderEventReceiver {
-  receiveRenderEvent(event: Readonly<{
+  receiveRenderEvent(event: DeepReadonly<{
     name: string;
     data: JsonObject;
   }>): void;
@@ -138,7 +144,7 @@ interface RenderEventReceiver {
 
 interface WebPresentationContext {
   readonly resources: PresentationResourceClient;
-  emitCustomEvent(name: string, data?: JsonObject): void;
+  emitCustomEvent(name: string, data?: InputEventV1["payload"]): void;
 }
 
 interface PresentationResourceClient {
@@ -193,7 +199,7 @@ Component → Subsystem：
 context.emitCustomEvent("interaction", { /* User Input v1 JSON payload */ });
 ```
 
-- 这是唯一反向能力；它是输入意图，不是直接调用游戏逻辑。
+- 这是唯一反向能力；它是受 User Input v1 payload 约束的输入意图，不是直接调用游戏逻辑。
 - Session、Subsystem、generation、Domain 和 target provenance 由 LoomRealm 绑定，业务组件不得自行提供或覆盖。
 - 反向事件由 owning Subsystem 的正常 InputGate 处理；不得在组件回调栈内同步重入游戏逻辑。
 
@@ -427,7 +433,7 @@ interface LogicalResourceRefV1 {
 
 - `namespace` 是逻辑资源命名空间；`key` 是层级 ResourceKey。
 ，并作为预期 SHA-256 版本精确传给 `resources.resource(namespace, key, expectedContentVersion)`。
-- 组件校验返回的 `contentVersion` 与请求版本一致，并按自身格式校验 MIME、解码尺寸和 source rect。
+- 组件校验返回的 `contentVersion` 与请求版本一致；返回 bytes 是调用方所有；并按自身格式校验 MIME、解码尺寸和 source rect。
 - 不允许 URL、物理路径、WZ 路径、FSDB 路径、FileSystemHandle、bearer、origin 或私有 Content locator。
 - `resource.Presentation` 的脚本入口属于 Web Presentation Config，不是 RenderNode data；组件不在运行时动态加载脚本或其他组件。
 

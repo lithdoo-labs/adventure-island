@@ -1,5 +1,7 @@
 # cms-map-layer
 
+> 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文记录 CMS 地图层、Tile/Obj 来源和排序依据。
+
 地图八层中的一层。节点名是 `"0"` 到 `"7"`。缺层就不创建元素。
 
 ## 画什么
@@ -34,22 +36,49 @@
 
 ## 运行库交给它的数据
 
-层号和图集是单个值，写成属性。瓦片和物件是数组，整份放在 `data` 里。
+`attrs`：
 
-| 字段 | 放在 | 值 | 含义 |
-|---|---|---|---|
-| `layer` | `attrs` | `"0"` 到 `"7"` | 层号 |
-| `tile-set` | `attrs` | 图集名，如 `woodMarble` | 层 `info/tS`。空层不创建元素 |
-| `tiles` | `data` | `{ x, y, u, no, zM }` 的数组 | 这一层的放置 |
-| `objs` | `data` | 见下 | 这一层的物件 |
+| ABI attrs | 值 | 含义 |
+|---|---|---|
+| `layer` | `"0"` 到 `"7"` | 层号 |
+| `tile-set` | 图集名，可选 | 层 `info/tS`；只有物件的层可以省略 |
 
-瓦片放置项上的字段是 `x`、`y`、`u`、`no`、`zM`。453,588 块都有 `zM`。排序用的 `z` 写在 `Tile/{tS}.img` 里该块的画布上，例如 `woodMarble` 的 `bsc` 是 90×60，画布 `z` 为 0。
+`data` 的唯一顶层成员是 `mapLayerPlan`，按公共 ABI 使用资源表去重：
 
-层 `info` 上还有 `tSMag`。`211000000` 的层 0 取值 2，图集 `snowyLightrock2` 的 `bsc` 已经是 180×120，下一块的 y 相差 120。按画布像素画就和放置对齐，不再乘 `tSMag`。
+```js
+{
+  mapLayerPlan: {
+    formatVersion: 1,
+    assets: [
+      {
+        id: "tile:woodMarble:bsc",
+        kind: "tile",
+        resource: { namespace: "resource.图", key: "Tile/woodMarble/bsc/0", contentVersion: "sha256:..." },
+        width: 90,
+        height: 60,
+        origin: [0, 0],
+        canvasZ: 0
+      }
+    ],
+    tiles: [
+      { assetId: "tile:woodMarble:bsc", x: 0, y: 0, zM: 0 }
+    ],
+    objs: [
+      { assetId: "obj:...", x: 0, y: 0, z: 100, zM: 0, flip: false }
+    ]
+  }
+}
+```
 
-物件数组的必有字段是 `oS`、`l0`、`l1`、`l2`、`x`、`y`、`z`、`f`、`zM`。可带 `r`、`reactor`、`name`。另外 126 个物件带 `flow`，并带 `rx`、`ry`、`cx`、`cy` 里的若干项，例如 `230010001` 的鱼；滚动怎么加到坐标上，客户端函数还没对上，数组里保留这些数。535 个物件的 `r` 在样本里是 1，画法同样还没对上，原样保留。
+Tile 源放置项的 `x/y/u/no/zM` 由 Adapter 解析：`u/no` 用于确定 Tile asset，放置数组只保留绘制所需的 asset 引用、像素坐标和 `zM`。Tile 的画布排序值 `canvasZ` 来自 `Tile/{tS}.img` 中的 Canvas `z`，不来自 Tile 放置记录。
 
-物件上的 `force`、`forbidFallDown` 留给移动，不放进画面数组。`tags` 和 `maep` 只出现在极少数图上，也不进。
+Obj 源记录的 `oS/l0/l1/l2` 用于确定 Obj asset；`x/y/z/f/zM` 投影为放置记录，其中 `f` 转为布尔 `flip`。Obj 放置 `z` 与 Tile asset 的 `canvasZ` 是两个不同概念。
+
+绘制顺序固定为：同层 Obj 先于 Tile；Obj 按放置 `z` 升序；Tile 按引用 asset 的 `canvasZ` 升序；相同排序值保持数组原顺序。父树中的 layer 顺序从 0 到 7。不要把瓦片转成矩阵，也不要为单块瓦片/物件创建 RenderNode。
+
+`zM` 在 v1 中必须保留，但 MVP 尚不据此把人物拆成前后景绘制带。物件的 `reactor/name` 是游戏逻辑关联，不进入视觉计划；`r/flow` 的画面语义尚未确认，不能静默丢弃后声称完整复刻。MVP 地图若依赖未支持的扩展字段才能正确显示，Adapter 必须明确报告 unsupported。
+
+资源引用、source rectangle、尺寸和校验规则以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准。组件不直接读取 WZ 路径或 FSDB。
 
 ## 第一阶段
 

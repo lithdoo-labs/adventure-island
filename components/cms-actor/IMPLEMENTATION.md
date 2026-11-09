@@ -209,8 +209,8 @@ Canvas 2D 上下文不可用、`createImageBitmap` 缺失等技术错误同样�
 
 | # | 状态 | 结论 | 证据与可复现性 |
 |---|---|---|---|
-| 1 | 合成算法测试 | **通过**（22 例） | `avatar-model.test.mjs` + `browser-artifact.test.mjs`；PR-A 在 pin `9364819` 上复跑通过 |
-| 2 | LoomRealm 正式浏览器集成 | **通过**（20 例真实 Chromium，合成素材） | `integration.chromium.test.mjs`；PR-A 在 pin `9364819` 与真实 Chromium 上复跑通过；历史 PR #2 的旧 pin 证据仅作参考，不作为验收依据 |
+| 1 | 合成算法测试 | **历史基线通过（22 例）；本次增量待重跑** | PR-A 在 pin `9364819` 上的 `avatar-model.test.mjs` + `browser-artifact.test.mjs` 曾复跑通过；本次新增 CMS079 遮挡/有符号 delay 用例及负 delay validator 修复尚未执行 |
+| 2 | LoomRealm 正式浏览器集成 | **历史基线通过（20 例）；本次增量待重跑** | `integration.chromium.test.mjs`；PR-A 在 pin `9364819` 与真实 Chromium 上复跑通过；本次修改尚无对应 Chromium 复跑记录；历史 PR #2 的旧 pin 证据仅作参考，不作为验收依据 |
 | 3 | 真实 CMS 079 素材验证 | **BLOCKED（本仓库无真实素材，显式 skip）** | `real-assets.local.test.mjs`；需持有合法 WZ 的使用者本地执行（`CMS_ACTOR_REAL_FSDB`）；历史 PR #2 曾在 Agent 本机通过（纸娃娃子集），该结论**不可**在本仓库复现，须在新的确认样本上重跑；装备遮挡、表情独立计时、全量 16 包转换仍属后续任务 |
 
 ## 9. 后续集成顺序

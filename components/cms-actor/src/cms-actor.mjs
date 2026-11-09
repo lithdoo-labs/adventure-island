@@ -1036,7 +1036,7 @@ export class CmsActor extends HTMLElementBase {
       this._expressionFrameIndex = index;
       const frame = frames[index];
       if (frame.delay === undefined) break;
-      const duration = Math.abs(frame.delay);
+      const duration = frameDuration(frame);
       if (duration > 0 && this._expressionElapsed < duration) break;
       if (duration > 0) this._expressionElapsed -= duration;
       this._expressionFrameIndex = (index + 1) % frames.length;
@@ -1044,7 +1044,7 @@ export class CmsActor extends HTMLElementBase {
       safety += 1;
       const next = frames[this._expressionFrameIndex];
       if (next.delay === undefined) break;
-      if (Math.abs(next.delay) > 0 && this._expressionElapsed < Math.abs(next.delay)) break;
+      if (frameDuration(next) > 0 && this._expressionElapsed < frameDuration(next)) break;
     }
     return changed;
   }

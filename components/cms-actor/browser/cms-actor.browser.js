@@ -17,15 +17,15 @@ const CONTENT_VERSION_PATTERN = /^sha256:[0-9a-f]{64}$/;
 /**
  * Hard bounds for AvatarPlanV1.
  *
- * Render Update v1 caps serialized `RenderNode.data` at 262,144 compact
- * UTF-8 bytes. The plan is one actor's *currently needed* actions only —
- * never a catalogue of every character, equipment, action and frame. These
- * structural bounds and serialized-data cap keep plans inside the frozen
- * Render protocol envelope. No decoded image-byte estimate is imposed: an
- * atlas sprite crop does not measure the memory used by its decoded page.
+ * AvatarPlanV1 applies an Adventure Island component-level cap of 262,144
+ * compact UTF-8 bytes to this actor's RenderNode.data. Render Update v1 does
+ * not impose a generic RenderNode.data byte limit. The plan is one actor's
+ * currently needed actions only — never a catalogue of every character,
+ * equipment, action and frame. No decoded image-byte estimate is imposed:
+ * an atlas sprite crop does not measure the memory used by its decoded page.
  */
 const AVATAR_PLAN_LIMITS = Object.freeze({
-  /** Frozen Render Update v1 `RenderNode.data` compact byte cap. */
+  /** AvatarPlanV1 application-level compact RenderNode.data byte cap. */
   maxDataBytes: 262_144,
   maxZOrderEntries: 64,
   maxActions: 32,
@@ -197,7 +197,7 @@ function validateAvatarPlan(plan) {
       assert(frame && typeof frame === "object" && !Array.isArray(frame), `${frameLabel} must be an object`);
       if (frame.delay !== undefined) {
         assert(typeof frame.delay === "number" && Number.isFinite(frame.delay), `${frameLabel}.delay must be finite`);
-        assert(Math.abs(frame.delay) <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay magnitude must not exceed ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
+        assert(frame.delay >= 0 && frame.delay <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay must be non-negative and at most ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
       }
       if (frame.move !== undefined) {
         assert(isFinitePair(frame.move), `${frameLabel}.move must be a finite pair`);
@@ -229,7 +229,7 @@ function validateAvatarPlan(plan) {
       assert(frame && typeof frame === "object" && !Array.isArray(frame), `${frameLabel} must be an object`);
       if (frame.delay !== undefined) {
         assert(typeof frame.delay === "number" && Number.isFinite(frame.delay), `${frameLabel}.delay must be finite`);
-        assert(Math.abs(frame.delay) <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay magnitude must not exceed ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
+        assert(frame.delay >= 0 && frame.delay <= AVATAR_PLAN_LIMITS.maxDelayMs, `${frameLabel}.delay must be non-negative and at most ${AVATAR_PLAN_LIMITS.maxDelayMs}ms`);
       }
       assert(Array.isArray(frame.layers) && frame.layers.length > 0, `${frameLabel}.layers must be non-empty`);
       assert(frame.layers.length <= AVATAR_PLAN_LIMITS.maxLayersPerFrame, `${frameLabel}.layers must have at most ${AVATAR_PLAN_LIMITS.maxLayersPerFrame} entries`);
@@ -245,11 +245,11 @@ function validateAvatarPlan(plan) {
     dataBytes = measureAvatarPlanDataBytes(plan);
   } catch (error) {
     if (error instanceof RangeError) {
-      throw new TypeError(`Invalid AvatarPlanV1: serialized RenderNode.data exceeds the frozen Render Update v1 cap of ${AVATAR_PLAN_LIMITS.maxDataBytes} bytes`);
+      throw new TypeError(`Invalid AvatarPlanV1: serialized RenderNode.data exceeds the AvatarPlanV1 application-level cap of ${AVATAR_PLAN_LIMITS.maxDataBytes} bytes`);
     }
     throw error;
   }
-  assert(dataBytes <= AVATAR_PLAN_LIMITS.maxDataBytes, `serialized RenderNode.data is ${dataBytes} bytes, exceeding the frozen Render Update v1 cap of ${AVATAR_PLAN_LIMITS.maxDataBytes}`);
+  assert(dataBytes <= AVATAR_PLAN_LIMITS.maxDataBytes, `serialized RenderNode.data is ${dataBytes} bytes, exceeding the AvatarPlanV1 application-level cap of ${AVATAR_PLAN_LIMITS.maxDataBytes}`);
   return plan;
 }
 
@@ -367,7 +367,7 @@ function occludedLayers(positioned, zOrder) {
 
 function frameDuration(frame) {
   const delay = frame?.delay;
-  return typeof delay === "number" && Number.isFinite(delay) ? Math.abs(delay) : 0;
+  return typeof delay === "number" && Number.isFinite(delay) && delay >= 0 ? delay : 0;
 }
 
 /**
@@ -1516,7 +1516,7 @@ class CmsActor extends HTMLElementBase {
       this._expressionFrameIndex = index;
       const frame = frames[index];
       if (frame.delay === undefined) break;
-      const duration = Math.abs(frame.delay);
+      const duration = frameDuration(frame);
       if (duration > 0 && this._expressionElapsed < duration) break;
       if (duration > 0) this._expressionElapsed -= duration;
       this._expressionFrameIndex = (index + 1) % frames.length;
@@ -1524,7 +1524,7 @@ class CmsActor extends HTMLElementBase {
       safety += 1;
       const next = frames[this._expressionFrameIndex];
       if (next.delay === undefined) break;
-      if (Math.abs(next.delay) > 0 && this._expressionElapsed < Math.abs(next.delay)) break;
+      if (frameDuration(next) > 0 && this._expressionElapsed < frameDuration(next)) break;
     }
     return changed;
   }

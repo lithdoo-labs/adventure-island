@@ -63,9 +63,9 @@ RenderNode MUST 精确包含 `key`、`tag`、`attrs`、`data`、`children` 五�
 
 | 成员 | 规则 | 用途 |
 |---|---|---|
-| `key` | 非空、区分大小写；同一 RenderDomain 全树唯一；移除后在该 wire Domain 生命周期内不得复用 | Node 身份，不是 HTML `id` |
-| `tag` | 非空 Custom Element 标签名；同一个 live key 的 tag 不得改变 | 由 `document.createElement(tag)` 创建 |
-| `attrs` | 字符串到字符串的映射；值也必须是字符串 | 投影为宿主元素属性 |
+| `key` | 非空 Unicode scalar string；区分大小写、不做 normalization；同一 RenderDomain 全树唯一；移除后在该 wire Domain 生命周期内不得复用 | Node 身份，不是 HTML `id` |
+| `tag` | 非空 Unicode scalar Custom Element 标签名；同一个 live key 的 tag 不得改变 | 由 `document.createElement(tag)` 创建 |
+| `attrs` | 非空 Unicode scalar 属性名到有效 Unicode 字符串的映射；值允许空字符串 | 投影为宿主元素属性 |
 | `data` | 普通 JSON object | 通过 `receiveRenderData(fullData)` 交付 |
 | `children` | 有序 RenderNode 数组 | 投影为有序 light DOM 子节点 |
 
@@ -75,7 +75,7 @@ RenderNode MUST 精确包含 `key`、`tag`、`attrs`、`data`、`children` 五�
 - 同一 live key 的 `tag` 不可变。需要改变 tag 时必须结束旧 Node 生命周期并使用新 key。
 - 一个 key 从已发布树中移除后，不能在同一 wire Domain 生命周期中重新引入；不要用删除再创建来模拟重置。
 - `children` 数组顺序是权威的同级顺序。组件不得自行重排受 LoomRealm 管理的 light DOM。
-- `zIndex` 属于 RenderDomainState，不属于 RenderNode，也不得复制进根节点 attrs。
+- `zIndex` 属于 RenderDomainState，不属于 RenderNode，也不得复制进根节点 attrs；它必须是 signed safe integer。
 - `domainId`、Subsystem identity、Data generation、revision 和 transport 信息均不属于 RenderNode。
 
 ### 2.3 Subsystem 写入语义

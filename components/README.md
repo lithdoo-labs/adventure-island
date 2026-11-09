@@ -2,6 +2,8 @@
 
 第一阶段的画面组件。子系统持有渲染树，Web Projector 按标签创建元素。元素只画当前副本，不决定人物走到哪、场景有没有切换。
 
+**公共接口规范：** [Adventure Island RenderNode ABI v1](./RENDER-NODE-ABI-V1.md) 已冻结，统一定义 RenderNode 五字段、Custom Element receiver、资源引用和 MVP 组件的 attrs/data/children/events。各组件 DESIGN 说明来源数据与画法，不得覆盖该 ABI。
+
 资料有两处：
 
 - 地图绘制顺序来自 [研究任务 023](../research/task/023-third-party-wz-parser-cross-validation.md) 的地图合成，证据见 [研究结果 23](../research/result/23-wz-library-cross-validation.md)。`compose` 先画远景，再画 0 到 7 层的物件和瓦片，然后是生命体、反应堆、传送门，最后是近景。立足线和绳梯只作为编辑辅助线，不进正式画面。

@@ -35,7 +35,7 @@ function plan() {
         layer("face", "face", [6, 5], { brow: [0, -5] }),
         layer("hair", "hair", [12, 10], { brow: [0, -8] }),
       ] }] },
-      jump: { loop: false, frames: [{ delay: -200, move: [0, -4], layers: [layer("body", "body", [12, 32])] }] },
+      jump: { loop: false, frames: [{ delay: 200, move: [0, -4], layers: [layer("body", "body", [12, 32])] }] },
     },
   };
 }
@@ -168,13 +168,19 @@ test("applies frame move to this frame only and does not mutate source data", ()
   assert.deepEqual(frame, before);
 });
 
-test("uses WZ delay magnitude and resolves adapter-selected locomotion actions", () => {
+test("uses non-negative frame delays and resolves adapter-selected locomotion actions", () => {
   const candidate = plan();
-  assert.equal(frameDuration({ delay: -200 }), 200);
+  assert.equal(frameDuration({ delay: 200 }), 200);
   assert.equal(frameDuration({}), 0);
   assert.equal(frameDuration({ delay: 0 }), 0);
   assert.equal(frameHolds({}), true);
   assert.equal(frameHolds({ delay: 0 }), false);
+  const negativeAction = plan();
+  negativeAction.actions.jump.frames[0].delay = -1;
+  assert.throws(() => validateAvatarPlan(negativeAction), /delay must be non-negative/);
+  const negativeExpression = plan();
+  negativeExpression.expression = { name: "blink", frames: [{ delay: -1, layers: [layer("expression", "face", [0, 0])] }] };
+  assert.throws(() => validateAvatarPlan(negativeExpression), /delay must be non-negative/);
   assert.equal(resolveActionName(candidate, "stand"), "stand1");
   assert.equal(resolveActionName(candidate, "walk"), "stand1");
   assert.equal(resolveActionName(candidate, "jump"), "jump");

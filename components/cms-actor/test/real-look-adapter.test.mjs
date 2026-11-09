@@ -58,7 +58,7 @@ test("normalizes signed CMS079 frame delays to non-negative AvatarPlan delays", 
       "0": {
         body: canvas("body", "Look/body"),
         face: 1,
-        delay: action === "brandish1" ? -120 : 100,
+        ...(action === "brandish1" ? { delay: -120 } : action === "jump" ? {} : { delay: 100 }),
       },
     };
   }
@@ -87,4 +87,5 @@ test("normalizes signed CMS079 frame delays to non-negative AvatarPlan delays", 
   });
   assert.equal(plan.actions.brandish1.frames[0].delay, 120);
   assert.equal(plan.actions.stand1.frames[0].delay, 100);
+  assert.equal(Object.hasOwn(plan.actions.jump.frames[0], "delay"), false, "a missing source delay remains a hold frame");
 });

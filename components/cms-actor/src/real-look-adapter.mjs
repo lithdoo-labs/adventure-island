@@ -91,26 +91,25 @@ function slotTokens(value, label) {
 }
 
 /**
- * Reconstruct the audited portion of CMS079 slot-occlusion metadata.
- * zOrder must be the full zmap.img key order (including two-character slots),
- * front-to-back. The client assigns -1, -2, ... in that order.
+ * CMS079 audit: priority is the maximum integer stored in zmap.img for the
+ * item's islot tokens; tag is vslot intersected with smap[z], in vslot order.
+ * The zmap record also supplies canvas paint order through its key order.
  */
-export function deriveOcclusionFields({ z, islot, vslot, zOrder, smap }) {
+export function deriveOcclusionFields({ z, islot, vslot, zmap, smap }) {
   assert(typeof z === "string" && z.length > 0, "canvas z is required for occlusion");
-  assert(Array.isArray(zOrder) && zOrder.length > 0, "full zmap order is required for occlusion");
-  assert(zOrder.every((name) => typeof name === "string" && name.length > 0), "zmap order entries must be non-empty strings");
-  assert(new Set(zOrder).size === zOrder.length, "zmap order contains duplicate names");
-  assert(smap && typeof smap === "object" && !Array.isArray(smap), "smap record is required");
+  assert(zmap && typeof zmap === "object" && !Array.isArray(zmap), "full zmap.img record is required");
+  assert(smap && typeof smap === "object" && !Array.isArray(smap), "smap.img record is required");
 
-  const zValues = new Map(zOrder.map((name, index) => [name, -index - 1]));
   const occupied = slotTokens(islot, "islot");
   const visible = slotTokens(vslot, "vslot");
   assert(occupied.length > 0 || visible.length === 0, "islot is empty while vslot is non-empty");
 
   let priority = -2147483647; // signed form of the client's 0x80000001 sentinel
   for (const token of occupied) {
-    assert(zValues.has(token), `islot slot ${token} is absent from zmap`);
-    priority = Math.max(priority, zValues.get(token));
+    assert(Object.prototype.hasOwnProperty.call(zmap, token), `islot slot ${token} is absent from zmap`);
+    const value = zmap[token];
+    assert(Number.isInteger(value), `zmap slot ${token} must map to an integer`);
+    priority = Math.max(priority, value);
   }
 
   assert(Object.prototype.hasOwnProperty.call(smap, z), `smap has no entry for canvas z ${z}`);
@@ -118,7 +117,7 @@ export function deriveOcclusionFields({ z, islot, vslot, zOrder, smap }) {
   return { priority, tag: visible.filter((token) => covered.has(token)) };
 }
 
-function layerFromCanvas(id, canvas, versions, partSlots, zOrder, smap) {
+function layerFromCanvas(id, canvas, versions, partSlots, zmap, smap) {
   assert(typeof id === "string" && id.length > 0, "layer id is empty");
   const version = versions.get(canvas.resource);
   assert(typeof version === "string" && VERSION.test(version), `missing contentVersion for ${canvas.resource}`);
@@ -139,7 +138,7 @@ function layerFromCanvas(id, canvas, versions, partSlots, zOrder, smap) {
       z: canvas.z,
       islot: partSlots?.islot,
       vslot: partSlots?.vslot,
-      zOrder,
+      zmap,
       smap,
     });
   return {
@@ -158,11 +157,11 @@ function bodyLayers(node, versions, occlusion) {
   const layers = [];
   const body = node.body;
   assert(isCanvas(body), "body frame has no body canvas");
-  layers.push(layerFromCanvas("body", body, versions, occlusion.slotMetadata.body, occlusion.zOrder, occlusion.smap));
+  layers.push(layerFromCanvas("body", body, versions, occlusion.slotMetadata.body, occlusion.zmap, occlusion.smap));
   for (const [name, value] of Object.entries(node)) {
     if (name === "body" || !isCanvas(value)) continue;
     assert(name !== "body", "duplicate body canvas");
-    layers.push(layerFromCanvas(name, value, versions, occlusion.slotMetadata.body, occlusion.zOrder, occlusion.smap));
+    layers.push(layerFromCanvas(name, value, versions, occlusion.slotMetadata.body, occlusion.zmap, occlusion.smap));
   }
   return layers;
 }
@@ -173,7 +172,7 @@ function equipLayers(partName, node, versions, occlusion) {
     if (!isCanvas(value)) continue;
     const id = name === partName ? partName : `${partName}:${name}`;
     assert(id !== "body", `${id} collides with the body layer`);
-    layers.push(layerFromCanvas(id, value, versions, occlusion.slotMetadata[partName], occlusion.zOrder, occlusion.smap));
+    layers.push(layerFromCanvas(id, value, versions, occlusion.slotMetadata[partName], occlusion.zmap, occlusion.smap));
   }
   return layers;
 }
@@ -185,7 +184,7 @@ function equipLayers(partName, node, versions, occlusion) {
  * @param {object} input.face struct.Look 00020000
  * @param {object} input.hair struct.Look 00030000
  * @param {object} input.weapon struct.Look 01302000
- * @param {string[]} input.zOrder full ZMap name order, including slot tokens
+ * @param {Record<string, number>} input.zmap full Base.wz/zmap.img record; key order is canvas paint order
  * @param {Record<string, {islot: string, vslot: string}>} input.slotMetadata per-part item info
  * @param {Record<string, string>} input.smap smap.img values keyed by canvas z name
  * @param {Map<string, string>} input.versions resource key -> sha256 contentVersion from ContentClient
@@ -197,7 +196,7 @@ export function buildProductionAvatarPlan({
   face,
   hair,
   weapon,
-  zOrder,
+  zmap,
   slotMetadata,
   smap,
   versions,
@@ -205,10 +204,11 @@ export function buildProductionAvatarPlan({
 }) {
   assert(body && head && face && hair && weapon, "five Look records are required");
   assert(versions instanceof Map, "versions must be a Map from ContentClient");
-  assert(Array.isArray(zOrder) && zOrder.length > 0, "full zOrder is required");
+  assert(zmap && typeof zmap === "object" && !Array.isArray(zmap), "full zmap.img record is required");
+  const zOrder = zNamesFromRecord(zmap);
   assert(slotMetadata && typeof slotMetadata === "object" && !Array.isArray(slotMetadata), "slotMetadata from CMS item info is required");
   assert(smap && typeof smap === "object" && !Array.isArray(smap), "smap.img record is required");
-  const occlusion = { zOrder, slotMetadata, smap };
+  const occlusion = { zmap, slotMetadata, smap };
   const standSuffix = Number.isInteger(weapon.info?.stand) ? weapon.info.stand : 1;
   const walkSuffix = Number.isInteger(weapon.info?.walk) ? weapon.info.walk : 1;
   const actionNames = new Set(REQUIRED_ACTIONS);
@@ -240,7 +240,11 @@ export function buildProductionAvatarPlan({
       if (weaponNode) layers.push(...equipLayers("weapon", weaponNode.node, versions, occlusion));
       for (const layer of layers) usedZ.add(layer.z);
       const frame = { layers };
-      if (typeof concrete.delay === "number") frame.delay = concrete.delay;
+      if (concrete.delay !== undefined) {
+        assert(typeof concrete.delay === "number" && Number.isFinite(concrete.delay), `${actionName}/${key}.delay must be finite`);
+        // CMS079 source delay is signed; the client uses its magnitude as the frame hold time.
+        frame.delay = Math.abs(concrete.delay);
+      }
       if (Array.isArray(concrete.node.move)) frame.move = pair(concrete.node.move, `${actionName}.move`);
       if (typeof concrete.node.flip === "boolean") frame.flip = concrete.node.flip;
       frames.push(frame);

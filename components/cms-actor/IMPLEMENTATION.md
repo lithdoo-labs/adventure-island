@@ -12,7 +12,7 @@
 
 本次实现覆盖：
 
-- `stand1` / `walk1` / `jump` 等动作计划的帧选择与按 `delay` 绝对值推进；
+- `stand1` / `walk1` / `jump` 等动作计划的帧选择与按非负 `delay` 推进；负值由 validator 拒绝，不做绝对值归一化；
 - `receiveRenderEvent({ name: "action", data: { action } })` 单次动作播放，完成后恢复**当时的** `locomotion`；
 - 以 `origin` 和 `map` 锚点合成多张画布，按 `zOrder` 从后向前绘制，左右朝向绕身体原点镜像（含帧 `flip` XOR）；
 - 通过 `PresentationResourceClient.resource(namespace, key, expectedContentVersion)` 读取 PNG，校验返回版本、MIME 与像素尺寸；
@@ -20,7 +20,9 @@
 - 可作为 **classic script** 被 LoomRealm `bootstrapWebPresentation()` 正式加载（无 `type="module"` 要求）；
 - 真实 Chromium 集成测试与 Node 纯函数测试。
 
-自研库的装备遮挡由 `adventure-adapter` 写入每张画布的 `priority` 和 `tag`，组件在绘制前按 `0x401C74` 跳过输掉的画布。没有这两个字段的计划全部照画。`test/look-adapter.mjs` 和 `real-look-adapter.mjs` 不写这两个字段。WZ 解码和真实 CMS 079 素材验收仍不在本组件内。
+自研库的装备遮挡由 `adventure-adapter` 写入每张画布的 `priority` 和 `tag`，组件在绘制前按 `0x401C74` 跳过输掉的画布。CMS079 生产入口 `src/real-look-adapter.mjs` 现在要求调用方显式提供每个部件的 `islot/vslot`（`slotMetadata`）和完整 `smap.img`；它按 full zmap order 推导 `priority/tag`，缺失或格式错误时 fail closed，不再默默全画。
+
+本地 `test/real-look-adapter.mjs` 是真实资源几何/渲染 smoke helper，不带 Item 的 `islot/vslot` 与 `smap`，因此它不能证明 CMS079 遮挡一致性。客户端 `this+0x38` 预置槽位的来源和求交函数仍有未闭合项；生产路径整体仍标记为 PARTIALLY VERIFIED，不能宣称完全像素等价。
 
 ## 2. 平台入口（P0）
 
@@ -119,12 +121,13 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 | 每帧 layer 数 | 32 |
 | 每 layer 锚点数 | 8 |
 | 画布边长 | ≤ 4096 像素 |
-| `delay` 绝对值 | ≤ 600,000 ms |
+| `delay` | 0 到 600,000 ms（非负；毫秒是产品时钟单位，客户端定时器尚未确认） |
 | 动作名 / id / 锚点名 / namespace / key | 64 / 64 / 32 / 64 / 256 UTF-8 字节 |
 
 - 字节数用**有界测量器**（`measureCompactJsonBytes`）在超过预算时立刻中止，不会先拼出无界大字符串；
 - 没有 `source` 的同一 `(namespace, key, contentVersion)` 必须声明一致的 `width/height`。带 `source` 的同一页允许不同小图尺寸，尺寸校验改成源矩形落在解码后的页面内；
-- `locomotionActions` 只接受 `stand` / `walk` / `jump`，且必须指向存在的动作。
+- `locomotionActions` 只接受 `stand` / `walk` / `jump`，且必须指向存在的动作；这是 v1 MVP 子集，不代表客户端动作集合仅有三种（已提取的 `prone`、`fly`、`stand2`、`walk2` 尚未纳入）。
+- CMS079 生产适配器的 `slotMetadata` 必须包含被绘制非 face 部件的 `islot/vslot` 字符串；`smap` 必须是以画布 z 名为 key 的字符串表；缺少任一项、奇数长度槽串、缺失 zmap 槽名或缺失 smap 项均拒绝生成计划，不回退到全画。
 
 ## 4. 锚点布局
 
@@ -138,8 +141,8 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 
 ## 5. 动画与事件
 
-- 身体帧是时间轴；一帧中的身体 layer 一起切换。`delay` 取绝对值。帧上没有 `delay` 表示停住。`delay` 为 0 表示不停留，立刻进入下一帧；一次性姿势的最后一帧即使时长为 0，也结束并回到当前移动姿势。
-- 表情用自己的帧钟。`expression.name` 变了，或表情帧列表变了，帧号归零。只换身体帧、帧列表相同，不动它。多帧表情播完回到第 0 帧；没有 `delay` 的表情帧停住。
+- 身体帧是时间轴；一帧中的身体 layer 一起切换。`delay` 必须是有限非负数，按 v1 产品时钟单位推进；帧上没有 `delay` 表示停住。负值在 validator 阶段拒绝，不取绝对值。`delay` 为 0 表示不停留，立刻进入下一帧；一次性姿势的最后一帧即使时长为 0，也结束并回到当前移动姿势。
+- 表情用自己的帧钟。其 `delay` 同样必须非负；`expression.name` 变了，或表情帧列表变了，帧号归零。只换身体帧、帧列表相同，不动它。多帧表情播完回到第 0 帧；没有 `delay` 的表情帧停住。
 - `loop: true` 的多帧动作循环；`jump` 等非循环动作停在末帧直到 `locomotion` 改变。
 - `action` Render Event 只触发一次私有播放，不写 `attrs`、不进 retained data。计划里还没有这个名字时，只记下这一个名字；下一份计划消费它，有该姿势就从第 0 帧播，没有就丢掉，再往后的计划不补播。新计划仍包含正在播的一次性姿势且帧列表没变时，保留帧号。`stand*` / `walk*` 帧列表没变时，不把走路帧号归零。
 - `bodyKey` 变了就忘掉上一具身体的姿势，改播新计划的 `stand*`。请求的姿势不在计划里时，记住的姿势还在就继续播它，否则播这份计划的 `stand*`。

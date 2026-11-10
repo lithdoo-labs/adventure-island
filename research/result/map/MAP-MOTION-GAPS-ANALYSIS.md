@@ -23,31 +23,39 @@
 
 ## 3. 跳跃公式字段名
 
-反编译代码确认了速度计算的完整结构，但**字段名仍未找到**：
+反编译代码确认了速度计算的完整结构。**初版的字段名推断是错的，已按 Physics.img 存储偏移修正**（见 MAP-PHYSICS-CORRECTION.md）：
 
 ```c
-// 陆跳竖直速度 (0x5BD0D9 → LAB 处):
-//   speedParam = decrypt([move+0x190]+0x48)  → jumpSpeed（推断）
-//   gravityParam = *(double*)(footholdMgr+0x70)  → gravityAcc（推断）
-//   verticalVel = -(speedParam * gravityParam) / decrypt([move+0x190]+0x24)
+// 陆跳竖直速度 (0x9BD1FD):
+//   numerator   = decrypt([move+0x198]+0x48)   // 字段名未知，不是 Physics.img 字段
+//   jumpSpeed   = *(double*)([0xBDD498]+8 + 0x70)   // +0x70 = jumpSpeed（不是 gravityAcc）
+//   denominator = decrypt([move+0x190]+0x24)   // 字段名未知，不是 Physics.img 字段
+//   verticalVel = -(numerator * jumpSpeed) / denominator
 //   if (param1 != 0) verticalVel *= 0.7  // 二次跳衰减
 
+// 无立足点分支 (0x9BD3AD):
+//   乘 +0x48 = swimSpeed，结果写入竖直速度 +0x68
+
+// 乘 +0x90 和 +0x58 的分支 (0x9BD3D4):
+//   +0x90 = flyJumpDec, +0x58 = flySpeed
+
 // 水平速度:
-//   walkParam = decrypt([move+0x198]+0x6C)  → walkForce（推断）
-//   global48 = *(double*)(footholdMgr+0x48)
-//   horizontalVel = -(walkParam * global48 * speedParam * 5.0)
+//   horizontalVel = -(decrypt([move+0x198]+0x6C) × global48 × speedParam × 5.0)
+//   global48 = *(double*)([0xBDD498]+8 + 0x48)   // = swimSpeed（初版误标为 walkForce）
 ```
 
-已确认的常数：
+起跳指令 0x9BD1FD **没有读 gravityAcc**（gravityAcc 在 +0x60）。
+
+已确认的常数（0.3/0.5/1.3 出现在移动对象 +0x150 非零分支，+0x150 是水平键 -1/0/1，不是地图 swim）：
 | 地址 | 值 | 含义 |
 |---|---|---|
 | 0xB0C590 | -0.35355339 | -√2/4，方向系数 |
 | 0xB04F40 | 5.0 | 行走力放大 |
 | 0xB06458 | 0.7 | 二次跳衰减 |
-| 0xB064B0 | 1.3 | 水中跳放大 |
+| 0xB064B0 | 1.3 | 乘 +0x150（水平键）分支 |
 | 0xAFEC18 | 0.8 | 速度上限因子 |
-| 0xB05538 | 0.3 | 水中跳方向A |
-| 0xAFEC20 | 0.5 | 水中跳方向B |
+| 0xB05538 | 0.3 | 乘 +0x150（水平键）分支 |
+| 0xAFEC20 | 0.5 | 乘 +0x150（水平键）分支 |
 
 `move+0x190` 和 `move+0x198` 是 WZ Property 节点指针。写入 +0x198 的函数有 13 个（最相关的是 0x3D36D 和 0x5A133），写入 +0x190 的搜索返回 0——可能是通过虚表或 memcpy 写入的。
 
@@ -119,7 +127,7 @@ uVar4 = *(uint *)(iVar3 + 0x13c) >> 0x11 & 1;
 |---|---|---|
 | 1. swim 标志连接 | **UNKNOWN** | 静态搜索穷尽，未找到复制指令 |
 | 2. swim 动作名 | **UNKNOWN** | 52K 函数中无 "swim" 字符串注册 |
-| 3. 跳跃字段名 | **推断** | 公式完整确认，字段名基于 Physics.img 推断 |
+| 3. 跳跃字段名 | **部分解决** | Physics.img 系数已核实（+0x70=jumpSpeed）；decrypt 参数名仍未知 |
 | 4. +0x80/+0x98 | **已知** | 是绳索命中矩形端点，写入来源未见 |
 | 5. swing/stab | **PARTIAL** | 动作表在攻击代码中引用，选择逻辑在 57KB 函数深处 |
 | 6. 坐下 +0x158 | **已确认** | 写入 1，但无动作名写入 |

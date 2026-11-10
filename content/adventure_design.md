@@ -255,6 +255,7 @@ MapScenePlan、`effectiveBounds`、`clientSortKey`、呈现用的 `visual` 和 `
 | `[group]map.Portal` | 与地图相同 | 传送门放置 |
 | `[group]map.Foothold` | 与地图相同 | 立足线 |
 | `[group]map.Rope` | 与地图相同 | 绳子 |
+| `[group]map.Seat` | 与地图相同 | 座位。点是 `x`、`y` |
 | `[struct]map.Back` | `map.back.grassySoil` | 这套背景存在 |
 | `[group]map.BackFrame` | 与背景定义相同 | 背景帧 |
 | `[struct]map.Tileset` | `map.tile.woodMarble` | 这套瓦片存在 |
@@ -263,6 +264,7 @@ MapScenePlan、`effectiveBounds`、`clientSortKey`、呈现用的 `visual` 和 `
 | `[group]map.ObjFrame` | 与物件定义相同 | `l0/l1/l2` 帧 |
 | `[struct]map.Helper` | `map.helper` | 共用辅助图存在 |
 | `[group]map.HelperFrame` | `map.helper` | `MapHelper.img` 的画布 |
+| `[struct]physics.Default` | `physics.default` | `Physics.img` 的 19 个原始数 |
 | `[resource]Map` | `back/...`、`tile/...`、`obj/...`、`helper/...`、`minimap/...` | PNG |
 
 定义表只表示这套资源存在。帧在对应的 group 里。放置行用 `bS`、层上的 `tileSet`、`oS` 指回定义，不把像素嵌进行里。JSONL 的行序就是源顺序。
@@ -304,7 +306,7 @@ MapScenePlan、`effectiveBounds`、`clientSortKey`、呈现用的 `visual` 和 `
 }
 ```
 
-`info` 只写源里有的标量。`VRLeft`、`VRTop`、`VRRight`、`VRBottom` 四个都在才写 `vr`，值是源整数。上面的射手村节选没有这四项，记录里就没有 `vr`。`+400`、`-300` 和中点折叠不入库。`swim` 留在 `info` 里，库不另做运动表。第一批里童话村和井口是 0，矩形地带是 1。Field Runtime 读取这个标量。客户端读取函数仍待逆向。
+`info` 只写源里有的标量。`VRLeft`、`VRTop`、`VRRight`、`VRBottom` 四个都在才写 `vr`，值是源整数。上面的射手村节选没有这四项，记录里就没有 `vr`。`+400`、`-300` 和中点折叠不入库。`swim` 留在 `info` 里，库不另做运动表。第一批里童话村和井口是 0，矩形地带是 1。Field Runtime 读取这个标量。客户端在 `0x534CBE` 把它收成 0 或 1，存在 `field+0x150`。`0x95A31E` 读过这个字段。起跳公式仍待逆向。
 
 `layers` 只收 `"0"` 到 `"7"`。某一层没有 `info/tS` 时，该层是空对象，不写 `tileSet`。没有放置的层不写放置行。
 
@@ -330,11 +332,13 @@ MapScenePlan、`effectiveBounds`、`clientSortKey`、呈现用的 `visual` 和 `
 {"pn":"in00","pt":2,"x":3026,"y":335,"tm":100000100,"tn":"out00"}
 ```
 
-`pn`、`pt`、`x`、`y`、`tm`、`tn` 都留下。`script`、`delay`、`onlyOnce`、`hideTooltip`、`image`、`hRange`、`vRange`、`horizontalImpact`、`verticalImpact` 源里有才写。客户端在 `hRange` 或 `vRange` 缺失时用 100 做命中范围，那是读取时的默认值，不写进缺字段的行。`tm` 为 `999999999` 保持原值。`ph` 和 `psh` 的选择不写在放置行上。
+`pn`、`pt`、`x`、`y`、`tm`、`tn` 都留下。`script`、`delay`、`onlyOnce`、`hideTooltip`、`image`、`hRange`、`vRange`、`horizontalImpact`、`verticalImpact` 源里有才写。`0x71B4FD` 在 `hRange` 或 `vRange` 缺失时用 100，那是读取时的默认值，不写进缺字段的行。上键换图不读这两个字段。`tm` 为 `999999999` 保持原值。`ph` 和 `psh` 的选择不写在放置行上。
 
 立足线一行：`layer`、`platform`、`id`、`x1`、`y1`、`x2`、`y2`。有连接才写 `prev`、`next`。`force`、`forbidFallDown` 原样保留，不解释成运动规则。垂直段 `x1 === x2` 照样留下。
 
-绳子一行：`x`、`y1`、`y2`、`l`、`uf`、`page`。源里有的编号才写 `id`。
+绳子一行：`x`、`y1`、`y2`、`l`、`uf`、`page`。源里有的编号才写 `id`。爬的命中框不入库。
+
+座位一行：`index`、`x`、`y`。`index` 是源子节点名，全数字时写成整数。点测试把 `x`、`y` 当座位位置。客户端人物框 `x±10`、`y±30` 是读取时的范围，不写进行里。童话村、井口和矩形地带的 `Map.wz` 图像没有 `seat` 节点，不写这个文件。有这个节点的地图才按上面的形状入库。
 
 ### 4.4 帧
 
@@ -395,7 +399,13 @@ UOL 在导入时解开。帧只指向已经解开的画布。悬空或成环就�
 
 构建器从这些表投影 MapScenePlan，不把 Plan 写回 FSDB。四个 VR 齐全才按客户端公式做内缩，否则用小地图或立足线外接矩形，规则在 MapScenePlanV1。童话村和井口四个 VR 都在。井口水平跨度是 800，内缩后左右收到同一个 x，这个结果只出现在 Plan。矩形地带没有 `vr`。`type` 不是 0 的背景、缺 `z` 的瓦片、没有游戏帧的传送门，按该契约失败，不在库里填默认画面。`pt` 3 不加载画面，放置行仍保留，切换由 Field Runtime 做。
 
-`read-adventure-fsdb.mjs` 在地图表进入发布闭包之前，仍只发布纸娃娃。要让 PWA 读到地图，须先把本章的表加进它的白名单。
+`read-adventure-fsdb.mjs` 在地图表进入发布闭包之前，仍只发布纸娃娃。要让 PWA 读到地图，须先把本章的表加进它的白名单。这三张图没有座位行，白名单也不改变 North 在这三张图上不命中。
+
+`scripts/wz_fsdb/import_adventure_field.py` 从转换库写入这三张图、它们引用到的画布，以及 `physics.default`。放置行只收这三张图用到的帧，不收整套图集里没被放到的画布。
+
+### 4.8 运动参数
+
+`[struct]physics.Default` 只有一条，键是 `physics.default`。内容是 `Physics.img` 的 19 个原始数，单位不换算，积分公式不入库。`step` 从这里读 `walkForce`、`walkSpeed`、`walkDrag`、`slipForce`、`slipSpeed`、`gravityAcc`、`fallSpeed`、`jumpSpeed`、`maxFriction`、`minFriction`，以及 `swimForce`、`swimSpeed`、`swimSpeedDec`。其余字段原样留下。
 
 ## 5. 其余数据和资源
 

@@ -10,7 +10,7 @@
 
 本次修订不改变 RenderNode 五字段，不改变六个 MVP 标签的数据结构，也不把地图公式写回 LoomRealm Render Update。组件实现仍排在这些契约之后。
 
-同日晚些时候，完成定义改为童话村 `222000000`、井口 `222000001`、矩形地带 `230030200` 上的行走、跳跃、蹲下、游泳，以及沿井口的四扇门换图。第 3.4 节把 `pt` 3 改到不加载 pv 的一类，使井口 `out00` 可以切换。第 3.6 节和第 5 节改为注入步长，不再把运动移出当前目标。Bounds、排序、type 0、缺 `delay` 停留和 `replace` 原子性保持原决定。
+同日晚些时候，完成定义改为童话村 `222000000`、井口 `222000001`、矩形地带 `230030200` 上的行走、跳跃、蹲下、游泳，以及沿井口的四扇门换图。随后又把攻击、下跳、坐下和爬绳放进同一次目标。按键、三种跳的差别，以及和门、座位、绳子的交互，写在草案第 6.3 和第 6.6 节。客户端记录在 [MAP-MOTION-REVERSE.md](../../research/result/map/MAP-MOTION-REVERSE.md)。交付物是整条 `adventure-map` 进程，不只是地图组件。尚未接入的内容、演示移动的迁移和 `step` 的调用点写在草案第 12 节。第 3.4 节把 `pt` 3 改到不加载 pv 的一类，使井口 `out00` 可以切换。第 3.6 节和第 5 节改为注入步长，不再把运动移出当前目标。Bounds、排序、type 0、缺 `delay` 停留和 `replace` 原子性保持原决定。爬绳的命中框和三种跳的积分仍待逆向，不在这次修订里补公式。
 
 ## 1. 状态词
 
@@ -112,7 +112,7 @@ drawTop  = placementY - originY
 | 9、12 | 不发布 |
 | 13 | 使用路径读取 `Effect/BasicEff.img/VerticalJump`，不是 pv，不发布 |
 
-`ph` 和 `psh` 的路径已确认。`0x71B6D1` 在离开和进入时用 `pt == 10` 选择 ph，否则选择 psh。`0x71BCC8` 在已有当前传送门时固定读取 ph。它们仍不写入 `frames`。`tm == 999999999` 时使用函数直接返回。同图时 `tn` 与另一个 portal 的 `pn` 比较，并把该 portal 的 `x`、`y-10` 传给后续函数，落点写入还没有还原。跨图调用收到的是 `pn`，不是 `tm`。`(tm, tn)` 仍由 Field Runtime 做产品级目标解析；客户端同图匹配不替代这次产品协议。
+`ph` 和 `psh` 的路径已确认。`0x71B6D1` 在离开和进入时用 `pt == 10` 选择 ph，否则选择 psh。`0x71BCC8` 在已有当前传送门时固定读取 ph。它们仍不写入 `frames`。`0x9546DC` 走 `hRange` 的一半；`tm == 999999999` 时那条使用函数直接返回。同图时 `tn` 与另一个 portal 的 `pn` 比较，并把该 portal 的 `x`、`y-10` 传给后续函数，落点写入还没有还原。跨图调用收到的是 `pn`，不是 `tm`。`(tm, tn)` 仍由 Field Runtime 做产品级目标解析；客户端同图匹配不替代这次产品协议。这四扇门的换图不走这条使用函数。上键用 `0x71B44D` 的固定框 `x±20`、`y±50`，见草案第 7.2 节和 [MAP-MOTION-REVERSE.md](../../research/result/map/MAP-MOTION-REVERSE.md)。
 
 原始 WZ 中有 `MapHelper.img`，818 张 Canvas。`portal/game/pv/0` 的 origin 是 `(43, 173)`，没有 `z` 和 `delay`。当前缺口是 CMS FSDB 与 PWA Content 闭包还没有这份资源。资源工作依次为：从原始 Map.wz 提取、校验 pv 与 origin 和哈希、转成 Content Resource、写入显式 allowlist、再用游戏画面验收。`portal/editor` 的 `sp/pi` 不进入 `portalPlan`。
 
@@ -130,14 +130,14 @@ LoomRealm Render Update v1 没有通用 `RenderNode.data` 字节上限。容量�
 
 固定 gitlink `93648192323bf5f57996b7b54cbae641d8a53fdb` 的 `Frame` 只有 `id`、`params`、`signal` 和 `call`。`SubsystemScope` 没有帧时间、固定步长或 Tick 订阅。PWA `MainPlatform.scheduler.schedule()` 没有暴露给 Subsystem。
 
-运动和换图留在这次完成定义里。`libs/adventure-field` 提供 `step(state, input, dt)`。相同状态、输入和 `dt` 得到相同状态。测试和浏览器都注入步长，调用同一函数。`systems/adventure-map` 不自建 `setInterval` 或 `requestAnimationFrame`。视觉组件也不拥有第二套游戏时钟；P1 背景帧不自动推进。补算上限和暂停等待上游 Clock 评审。`info.swim` 为 0 时行走、跳跃、蹲下；为 1 时四向游泳。`Physics/default` 的数值是参数，单位待逆向。
+运动和换图留在这次完成定义里。`libs/adventure-field` 提供 `step(state, input, dt)`。相同状态、输入和 `dt` 得到相同状态。测试注入步长，调用这个函数。浏览器里的连续走动还没有调用点：子系统不自建 `setInterval` 或 `requestAnimationFrame`，视觉组件也不拥有第二套游戏时钟。谁调用 `step`、一步多少毫秒、暂停时停不停，留在草案第 12.6 节，这次不设计。按键用草案第 6.3 节，不追客户端默认键位。进入童话村的出生点定为 `(-92, 294)`。P1 背景帧不自动推进。补算上限和暂停等待上游 Clock 评审。`info.swim` 为 0 时行走、陆地跳、下跳、蹲下；为 1 时四向游泳和水中跳。坐下、爬绳和一次攻击也在这次目标里。参数在 adventure 的 `physics.default`。这些名字不在客户端字符串池，单位待逆向。
 
 ## 4. 验收分层
 
 | 验收 | 可以声称的内容 |
 |---|---|
 | 产品呈现 | 产品锚定、产品绘制顺序、type 0 静态背景、有效边界、节点数量不随 Tile/Obj 增长 |
-| 产品运动 | 注入固定步长后的行走、跳跃、蹲下、游泳，以及四扇门换图。相同状态、输入和 `dt` 得到相同结果 |
+| 产品运动 | 注入固定步长后的行走、陆地跳、水中跳、下跳、蹲下、游泳、坐下、一次攻击，以及上键换图。相同状态、输入和 `dt` 得到相同结果。爬绳等命中框还原 |
 | 客户端像素一致 | 比较方向、背景 `+0x98`、Camera 跟随、积分单位和帧时钟恢复之后，再用动态画面对照 |
 
 P1 通过只表示产品呈现通过。
@@ -149,8 +149,8 @@ P1 通过只表示产品呈现通过。
 | P0 | MapScenePlanV1、三张地图闭包、引用校验、缺 `z` 与缺资源 fail closed | 浏览器绘制、物理 |
 | P1 | 静态场景组件；type 0 背景；有游戏 Portal 帧才画出口 | 滚动背景、帧动画、Portal 触发 |
 | P2 | 产品 Camera、effectiveBounds 夹取、Viewport resize | 把 Viewport 当成 Tick；宣称 viewport-state 已资格验收 |
-| P3 | 注入步长：陆地行走、跳跃、蹲下，矩形地带游泳 | 在 Subsystem 里自建动画帧循环；宣称客户端积分已恢复 |
-| P4 | 四扇门一次 `replace`：村 ↔ 井 ↔ 矩形地带 | 把本地状态提交写成全像素事务 |
+| P3 | 注入步长：陆地行走、陆地跳、下跳、蹲下，水中游泳和水中跳，坐下，一次攻击。爬绳等命中框 | 在 Subsystem 里自建动画帧循环；宣称客户端积分已恢复；猜测绳子宽度 |
+| P4 | 上键进入传送框后，四扇门一次 `replace`：村 ↔ 井 ↔ 矩形地带 | 走进门就跳；把本地状态提交写成全像素事务 |
 
 ## 6. 本次落点
 

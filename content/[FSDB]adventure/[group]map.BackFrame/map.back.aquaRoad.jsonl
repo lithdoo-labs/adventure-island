@@ -1,0 +1,12 @@
+{"kind":"ani","no":19,"frame":"0","origin":[19,10],"z":0,"delay":350,"width":39,"height":20,"resource":"back/aquaRoad/ani/19/0"}
+{"kind":"ani","no":19,"frame":"1","origin":[19,10],"z":0,"delay":350,"width":38,"height":25,"resource":"back/aquaRoad/ani/19/1"}
+{"kind":"ani","no":19,"frame":"2","origin":[19,10],"z":0,"delay":350,"width":39,"height":20,"resource":"back/aquaRoad/ani/19/2"}
+{"kind":"ani","no":19,"frame":"3","origin":[20,10],"z":0,"delay":450,"width":41,"height":18,"resource":"back/aquaRoad/ani/19/3"}
+{"kind":"ani","no":20,"frame":"0","origin":[30,16],"z":0,"delay":350,"width":61,"height":32,"resource":"back/aquaRoad/ani/20/0"}
+{"kind":"ani","no":20,"frame":"1","origin":[30,16],"z":0,"delay":350,"width":59,"height":38,"resource":"back/aquaRoad/ani/20/1"}
+{"kind":"ani","no":20,"frame":"2","origin":[30,16],"z":0,"delay":350,"width":61,"height":32,"resource":"back/aquaRoad/ani/20/2"}
+{"kind":"ani","no":20,"frame":"3","origin":[31,16],"z":0,"delay":450,"width":63,"height":28,"resource":"back/aquaRoad/ani/20/3"}
+{"kind":"ani","no":17,"frame":"0","origin":[200,33],"z":0,"width":401,"height":67,"resource":"back/aquaRoad/ani/17/0"}
+{"kind":"ani","no":17,"frame":"1","origin":[201,33],"z":0,"width":402,"height":67,"resource":"back/aquaRoad/ani/17/1"}
+{"kind":"ani","no":17,"frame":"2","origin":[200,33],"z":0,"width":400,"height":67,"resource":"back/aquaRoad/ani/17/2"}
+{"kind":"ani","no":17,"frame":"3","origin":[201,33],"z":0,"width":402,"height":67,"resource":"back/aquaRoad/ani/17/3"}

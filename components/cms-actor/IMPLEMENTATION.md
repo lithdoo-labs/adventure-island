@@ -61,7 +61,7 @@ components/cms-actor/browser/cms-actor.browser.js   生成并入库的 classic s
 | 属性 | 含义 |
 |---|---|
 | `x`, `y` | 身体原点在地图世界中的坐标（十进制字符串） |
-| `locomotion` | 当前实现接受 `stand` / `walk` / `jump`。设计目标另加 `prone` / `swim` |
+| `locomotion` | 当前实现接受 `stand` / `walk` / `jump`。设计目标另加 `prone` / `swim` / `sit` / `climb` |
 | `facing` | `left` / `right` |
 | `skin`, `face`, `hair`, `expression`, `equips` | 运行时外观选择状态，供游戏适配层重建 `avatarPlan`；组件不据此查 WZ |
 
@@ -126,7 +126,7 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 
 - 字节数用**有界测量器**（`measureCompactJsonBytes`）在超过预算时立刻中止，不会先拼出无界大字符串；
 - 没有 `source` 的同一 `(namespace, key, contentVersion)` 必须声明一致的 `width/height`。带 `source` 的同一页允许不同小图尺寸，尺寸校验改成源矩形落在解码后的页面内；
-- 当前 validator 的 `locomotionActions` 仍只接受 `stand` / `walk` / `jump`。设计目标已在 RenderNode ABI 中加入 `prone` 和 `swim`：`prone` 指向身体动作 `prone`，`swim` 在姿态字节还原前指向 `fly`。实现这三张地图的运动时一起改 validator。已提取样本里还有 `stand2`、`walk2`。
+- 当前 validator 的 `locomotionActions` 仍只接受 `stand` / `walk` / `jump`。RenderNode ABI 已加入 `prone`、`swim`、`sit`、`climb`：`prone` 指向 `prone`，`sit` 指向 `sit`，`swim` 在姿态字节还原前指向 `fly`，`climb` 在 `l` 的动作选择还原前指向 `rope`。攻击用 `action` 事件，不进这个枚举。实现这三张地图的运动时一起改 validator。已提取样本里还有 `stand2`、`walk2`。
 - CMS079 生产适配器必须传入完整 `zmap.img` 记录（槽位 key 的值必须是整数；该记录 key 顺序同时用于画布 z 序）、每个被绘制部件的 `slotMetadata.islot/vslot` 字符串，以及以画布 z 名为 key 的 `smap.img` 字符串表。遮挡 `priority` 取 `islot` 各槽在 zmap 中的最大整数，`tag` 取 `vslot ∩ smap[z]` 并保持 vslot 顺序；缺少元数据、奇数长度槽串、缺失槽位或非整数 zmap 值、缺失 smap 项均拒绝生成计划，不回退到全画。CMS079 源帧的有符号 `delay` 在 Adapter 侧取绝对值后写入非负 AvatarPlan 时长；ABI validator 不接受负时长。
 
 ## 4. 锚点布局

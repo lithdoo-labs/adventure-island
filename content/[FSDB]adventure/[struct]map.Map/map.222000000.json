@@ -1,0 +1,52 @@
+{
+  "mapId": "222000000",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 1,
+    "swim": 0,
+    "returnMap": 222000000,
+    "forcedReturn": 999999999,
+    "mobRate": 0.49999991059303284,
+    "bgm": "Bgm11/DownTown",
+    "mapMark": "Folkvillige",
+    "hideMinimap": 0,
+    "fieldLimit": 0
+  },
+  "vr": {
+    "VRLeft": -3510,
+    "VRTop": -1000,
+    "VRRight": 3600,
+    "VRBottom": 510
+  },
+  "miniMap": {
+    "width": 7357,
+    "height": 1604,
+    "centerX": 3643,
+    "centerY": 971,
+    "mag": 4,
+    "resource": "minimap/222000000"
+  },
+  "layers": {
+    "0": {},
+    "1": {
+      "tileSet": "folkvillige",
+      "tSMag": 1
+    },
+    "2": {
+      "tileSet": "folkvillige",
+      "tSMag": 1
+    },
+    "3": {
+      "tileSet": "folkvillige",
+      "tSMag": 1
+    },
+    "4": {},
+    "5": {
+      "tileSet": "folkvillige",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

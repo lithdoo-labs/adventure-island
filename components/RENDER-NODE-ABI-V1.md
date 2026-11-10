@@ -10,6 +10,8 @@
 
 2026-11-09 目标修订：`locomotion` 增加 `prone` 与 `swim`。`stand`、`walk`、`jump` 的含义不变，五字段和标签集合不变，不另起主版本。`swim` 的画面映射写在 5.6。
 
+2026-11-10 目标修订：同一枚举再增加 `sit` 与 `climb`。字段名、类型和标签集合不变，不另起主版本。`sit` 画身体动作 `sit`。`climb` 在 `l` 选 `ladder` 还是 `rope` 还原前画 `rope`，这是产品约定。攻击仍走 `action` 事件。
+
 ---
 
 ## 1. 冻结范围与协议分层
@@ -405,14 +407,14 @@ data: { mapLayerPlan: MapLayerPlanV1 }
 | Render Event | `action`，payload `{ action: string }` |
 
 ```ts
-type LocomotionV1 = "stand" | "walk" | "jump" | "prone" | "swim";
+type LocomotionV1 = "stand" | "walk" | "jump" | "prone" | "swim" | "sit" | "climb";
 type FacingV1 = "left" | "right";
 
 data: { avatarPlan: AvatarPlanV1 }
 ```
 
 - `x/y` 是身体原点（近似脚底）的世界坐标，使用十进制字符串；Camera 由祖先 `cms-scene-view` 处理。
-- `locomotion` 接受 `stand`、`walk`、`jump`、`prone`、`swim`。`prone` 对应身体动作 `prone`。`avatar.part.body.00002000` 没有名为 `swim` 的动作，有 `fly`（第 0、1 帧，`delay` 300）。姿态字节还原前，`swim` 画 `fly`，这是产品约定。这些持续姿态不由一次性 `action` Event 代替。`facing` 只接受 `left/right`，其客户端状态映射仍未验证。
+- `locomotion` 接受 `stand`、`walk`、`jump`、`prone`、`swim`、`sit`、`climb`。`prone` 对应身体动作 `prone`，`sit` 对应 `sit`。`avatar.part.body.00002000` 没有名为 `swim` 的动作，有 `fly`（第 0、1 帧，`delay` 300）。姿态字节还原前，`swim` 画 `fly`。`climb` 在 `l` 的动作选择还原前画 `rope`。这两条都是产品约定。这些持续姿态不由一次性 `action` Event 代替。`facing` 只接受 `left/right`，其客户端状态映射仍未验证。
 - `skin` 是十进制字符串；`face/hair` 是八位编号字符串；`expression` 是非空表情名；`equips` 是逗号分隔的装备编号，无装备为空字符串。Adapter 对每个 Actor attrs value 执行 ≤ 4096 UTF-8 字节的组件级输入约束。
 - `AvatarPlanV1` 的帧、锚点、遮挡、资源引用和 validator 以 [cms-actor/IMPLEMENTATION.md](./cms-actor/IMPLEMENTATION.md) 为唯一组件级规范；本 ABI 不复制第二份 AvatarPlan schema。
 - 一次性普攻/技能通过 `action` Render Event 触发，不得写入 attrs 或 avatarPlan 的动态播放状态。Actor 的 key 在换地图时保持不变。

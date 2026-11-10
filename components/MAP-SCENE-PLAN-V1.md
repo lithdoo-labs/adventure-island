@@ -42,6 +42,8 @@ interface MapScenePlanV1 {
   readonly backgrounds: readonly BackgroundRecordV1[];
   readonly layers: readonly MapLayerRecordV1[];
   readonly footholds: readonly FootholdRecordV1[];
+  readonly ropes: readonly RopeRecordV1[];
+  readonly seats: readonly SeatRecordV1[];
   readonly portals: readonly PortalRecordV1[];
 }
 
@@ -228,6 +230,32 @@ interface FootholdRecordV1 {
 
 调试投影只带 `x1/y1/x2/y2`。`prev/next/force/forbidFallDown` 留在 Field Runtime。
 
+## 6.1 Rope 与 Seat
+
+```ts
+interface RopeRecordV1 {
+  readonly sourceOrder: number;
+  readonly id?: number;
+  readonly x: number;
+  readonly y1: number;
+  readonly y2: number;
+  readonly l: number;
+  readonly uf: number;
+  readonly page: number;
+}
+
+interface SeatRecordV1 {
+  readonly sourceOrder: number;
+  readonly index: number | string;
+  readonly x: number;
+  readonly y: number;
+}
+```
+
+绳子来自 `[group]map.Rope`。`l`、`uf`、`page` 原样保留。客户端加载时把非 0 的 `l` 和 `uf` 收成 1。爬的命中框，以及 `l` 选 `ladder` 还是 `rope`，仍待逆向。Plan 不补宽度。Field Runtime 不得把猜测的宽度写成客户端命中。没有绳子的地图写空数组。矩形地带是空数组。
+
+座位来自 `[group]map.Seat`。`index` 是源子节点名，全数字时写成整数。点测试用 `x`、`y`。客户端把座位的点放进人物周围 `x±10`、`y±30`。三张验证图的源图像没有 `seat`，`seats` 是空数组，坐下不命中。绳子和座位都不投影成画面节点。
+
 ## 7. Portal
 
 ```ts
@@ -276,7 +304,12 @@ interface PortalRecordV1 {
 
 `visual` 不是 `"none"` 但 Content 闭包没有对应游戏帧时，code 为 `portal-resource-absent`。禁止用 `portal/editor` 的 `sp/pi` 填充。`visual: "none"` 的记录保留逻辑字段，不投影 `cms-portal`。有非空 `frames` 时才投影，`portalPlan.loop` 为 false。
 
-`enabled` 是产品开关。本次闭包启用四条连接：`222000000/in00 → 222000001/st00`，`222000001/out00 → 222000000/in00`，`222000001/sea00 → 230030200/east00`，`230030200/east00 → 222000001/sea00`。这四条都没有源 `hRange` / `vRange`。Field Runtime 按客户端缺省 100 做命中，半幅是 50，不把 100 写回本记录。`222000001/st00` 的 `tm` 是 `999999999`，`230030200/west00` 指向闭包外，二者 `enabled` 为 false。目标不在闭包内或目标名不存在时同样为 false。客户端同图匹配是 `tn` 对上另一个 portal 的 `pn`；跨图调用收到 `pn`，目标地图写入仍待逆向。`(tm, tn)` 继续由 Field Runtime 做产品级目标解析。跳转命中的客户端范围是 `x±hRange/2`、`y±vRange/2`，由 Field Runtime 使用，不放进视觉组件。
+`enabled` 是产品开关。本次闭包启用四条连接：`222000000/in00 → 222000001/st00`，`222000001/out00 → 222000000/in00`，`222000001/sea00 → 230030200/east00`，`230030200/east00 → 222000001/sea00`。这四条都没有源 `hRange` / `vRange`。`222000001/st00` 的 `tm` 是 `999999999`，`230030200/west00` 指向闭包外，二者 `enabled` 为 false。目标不在闭包内或目标名不存在时同样为 false。客户端同图匹配是 `tn` 对上另一个 portal 的 `pn`；跨图调用收到 `pn`，目标地图写入仍待逆向。`(tm, tn)` 继续由 Field Runtime 做产品级目标解析。
+
+换图和范围测试是两条函数，都不写进本记录，也不放进视觉组件：
+
+- 这四扇门的换图用上键 `0x71B44D`。框是门的 `x±20`、`y±50`，跳过 `pt == 0`。`pt` 1 和 `pt` 3 都参加。不把 20 或 50 写回源行。
+- `0x71B4FD` 的范围是 `x±hRange/2`、`y±vRange/2`。缺字段时压入 100，半幅是 50。下跳用它排除 `pt` 12 和 13。不把 100 写回源行。这四扇门不靠走进这个半幅来换图。
 
 ## 8. 投影边界
 
@@ -286,6 +319,7 @@ interface PortalRecordV1 {
 | `backgrounds` | 每个记录一个 `cms-back` | `front` 只决定 children 分段；P1 `loop` 为 false |
 | `layers` | 每个非空层一个 `cms-map-layer` | `clientSortKey`、`sourceOrder` |
 | `footholds` | 可选 `scenePlan.debug.footholds` | 链接、force、forbidFallDown |
+| `ropes`、`seats` | 不投影 | 整段留在 Field Runtime |
 | `portals` 中有帧的记录 | `cms-portal` | `targetMap`、`targetName`、脚本、触发和 `enabled` |
 
 产品锚定由组件执行：`drawLeft = x - originX`，`drawTop = y - originY`。水平镜像围绕放置锚点。绘制 alpha 为 `opacity / 255`。v1 不旋转。
@@ -297,6 +331,7 @@ interface PortalRecordV1 {
 - 当前只有 `formatVersion: 1`。
 - 改变字段含义、Bounds 公式、诊断键公式或 `visual` 分支，必须增加主版本并另写契约。
 - 2026-11-09 目标修订把 `type` 3 从 `portal-visual-unsupported` 改到 `visual: "none"`。存储联合类型不变，不升主版本。9、12、13 仍不发布。
+- 2026-11-10 根上增加 `ropes` 和 `seats`。已有字段的含义不变，绘制结果不变，不升主版本。换图框改为上键的 `x±20`、`y±50`；`hRange` 半幅仍是另一条函数。
 - 新增可选诊断字段而绘制结果不变时，仍须先改本文，再改 Adapter。Validator 在文档更新前拒绝未知字段。
 - RenderNode ABI 的数据结构不随本文的诊断字段一起扩展。
 

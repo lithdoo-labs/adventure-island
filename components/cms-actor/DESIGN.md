@@ -18,7 +18,7 @@
 |---|---|---|---|---|
 | `x` | `attrs` | 十进制字符串 | 世界横坐标。身体画布的 `origin` 放在这里 | `decodeAvatar` 在 `stance` 前读的第一个有符号 i16 |
 | `y` | `attrs` | 十进制字符串 | 世界纵坐标 | 第二个有符号 i16。样本里身体 `origin.y` 等于画布高度，原点在图的底边 |
-| `locomotion` | `attrs` | `stand`、`walk`、`jump`、`prone`、`swim` | 身体动画状态 | 陆地用前四个。`swim` 在姿态字节还原前画 `fly`。武器的 `walk` / `stand` 再决定后缀 |
+| `locomotion` | `attrs` | `stand`、`walk`、`jump`、`prone`、`swim`、`sit`、`climb` | 身体动画状态 | `prone` 画 `prone`，`sit` 画 `sit`。`swim` 在姿态字节还原前画 `fly`。`climb` 在 `l` 的动作选择还原前画 `rope`。武器的 `walk` / `stand` 再决定后缀 |
 | `facing` | `attrs` | `left`、`right` | 朝向 | 与坐标分开更新。`stance` 字节还没拆成动作和朝向 |
 | `skin` | `attrs` | 十进制字符串，如 `0` | 肤色后缀 | `CCharacterStats+0x12`。`UPDATE_STATS` 的 mask `0x001` 读 u8。`UPDATE_CHAR_LOOK`（`0xC7`）在性别之后读同一个 u8 |
 | `face` | `attrs` | 八位编号，如 `00020000` | 脸型 | `decodeAvatar` 在头发之后读的 int32。`UPDATE_STATS` 的脸也是 int32。`Face/` 下 3037 个 `islot=Fc` |
@@ -131,7 +131,7 @@ z 序号等于 `zmap["face"]` 的画布不参加这次占槽。其余画布按�
 
 ## 动作名怎么定
 
-身体是时间轴的主人。运行库给 `locomotion`。没武器时后缀用 `1`：`stand1`、`walk1`。`jump` 和 `prone` 不加后缀。`swim` 画已有的 `fly`，不另造名为 `swim` 的动作目录。
+身体是时间轴的主人。运行库给 `locomotion`。没武器时后缀用 `1`：`stand1`、`walk1`。`jump`、`prone` 和 `sit` 不加后缀。`swim` 画已有的 `fly`，不另造名为 `swim` 的动作目录。`climb` 画 `rope`，直到 `l` 选 `ladder` 还是 `rope` 还原。
 
 武器 `info` 里的整数改后缀。`01302000` 的 `walk=1`、`stand=1`，目录是 `walk1`、`stand1`。`01422057` 的 `walk=2`、`stand=2`，目录是 `walk2`、`stand2`，没有 `walk1`。同一套后缀用于身体、头、头发、衣服和武器。
 
@@ -255,9 +255,9 @@ z 序号等于 `zmap["face"]` 的画布不参加这次占槽。其余画布按�
 
 ## 第一阶段画出来的人
 
-肤色 `0` 的身体和头、脸 `00020000`、头发 `00030000`、表情 `default`。行走播 `stand1`、`walk1`，跳跃播 `jump`，蹲下播 `prone`。游泳在姿态字节还原前播 `fly`。游戏侧把这些动作解析成 `avatarPlan` 后交给组件；装备层也使用相同的画布描述、锚点和 z 顺序。这一阶段的运行库不施放技能。运行库要播一次性动作时，对这个元素的 key 发 `action` 事件。
+肤色 `0` 的身体和头、脸 `00020000`、头发 `00030000`、表情 `default`。行走播 `stand1`、`walk1`，陆地跳播 `jump`，蹲下播 `prone`，坐下播 `sit`。游泳和水中跳在姿态字节还原前播 `fly`。爬绳在 `l` 的动作选择还原前播 `rope`。游戏侧把这些动作解析成 `avatarPlan` 后交给组件；装备层也使用相同的画布描述、锚点和 z 顺序。这一阶段不放技能列表。攻击由运行库对这个元素的 key 发一次 `action` 事件。没有对应动作时组件丢掉这次事件。
 
-`key` 在换场景时不变。位置只更新 `x`、`y`。陆地落地时把 `locomotion` 设回 `stand` 或 `walk`。蹲下时是 `prone`。游泳时保持 `swim`。
+`key` 在换场景时不变。位置只更新 `x`、`y`。陆地落地时把 `locomotion` 设回 `stand` 或 `walk`。蹲下时是 `prone`。坐下时是 `sit`。游泳时保持 `swim`。爬绳时是 `climb`。`sit` 和 `climb` 还要补进校验器。
 
 ## 还不从字节里猜的部分
 

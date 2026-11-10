@@ -131,7 +131,7 @@ uVar4 = *(uint *)(iVar3 + 0x13c) >> 0x11 & 1;
 | 2. swim 动作名 | **已解决（否定式）** | WZ 149 动作中无 swim；水中沿用当前动作 |
 | 3. 跳跃字段名 | **部分解决** | Physics.img 系数已核实（+0x70=jumpSpeed）；decrypt 参数名仍未知；19 个常数值已从 WZ 提取 |
 | 4. +0x80/+0x98 | **名字已知** | 对应 Rope 记录的 x/y1/y2（数据侧确认字段名），写入代码未见 |
-| 5. swing/stab | **PARTIAL** | 动作词表齐全（数据侧）；选择逻辑在 57KB 函数的运行时调用里 |
+| 5. swing/stab | **已解决** | 近战普攻=swingO1/O2/O3 随机（0xBA59B8 变体表，静态+运行时核对）；弓/弩/枪=shoot1/shoot2/shot；技能走 WZ 动作定义。见 MAP-ATTACK-SELECTION.md |
 | 6. 坐下 +0x158 | **名字已知** | 写入 1；数据侧确认动作名 `sit`（+sit2-6 座高变体）与 [group]Seat |
 | 7. bit 17 | **已确认** | `field+0x13C >> 17 & 1`，阻止下跳 |
 | 8. 传送坐标 | **UNKNOWN** | 位置写入通过加密调用链，非直接赋值 |

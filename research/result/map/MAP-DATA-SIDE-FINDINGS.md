@@ -148,11 +148,12 @@ swingO1/O2/O3/OF, swingP1/P2/PF, swingT1/T2/T3/TF, walk1/2 —— 其余是动�
 | ~~prone（蹲下）动作名~~ | **已解决（数据侧）** | `prone`/`prone2`/`proneStab` |
 | ~~l → ladder/rope 选择~~ | **实现已可行** | l=1→"ladder"，l=0→"rope"；代码路径未溯源 |
 | ~~Rope 记录字段名~~ | **已解决** | x, y1, y2, l, uf, page |
-| swim 标志连接 | 未解决 | SwimArea 矩形命中是数据来源；复制指令未找到 |
-| 水中跳速度写入 | 未解决 | swim 分支无速度写入痕迹 |
-| decrypt 参数名 | 未解决 | 不是 Physics.img 字段 |
-| 逐步积分 | 未解决 | 行走/游泳/重力积分未还原 |
-| +0x80/+0x98 写入 | 未解决 | 名字对应 x/y1/y2，但写入代码未找到 |
-| swing/stab 选择 | 未解决 | 词表齐全，选择逻辑在运行时调用里 |
+| ~~动作索引体系~~ | **已解决** | 149 槽全命名（运行时转储验证，见 MAP-MOTION-REGISTRATION.md） |
+| ~~swing/stab 选择~~ | **已解决** | 近战=swingO1/2/3 随机等（变体表 0xBA59B8），见 MAP-ATTACK-SELECTION.md |
+| swim 标志连接 | 未解决 | SwimArea 矩形命中是数据来源；复制指令未找到。游戏内转储被自旋锁死阻塞（MAP-CAPTURE-CAMPAIGN-063.md F2） |
+| 水中跳速度写入 | 未解决 | 同上（F2 阻塞） |
+| decrypt 参数名 | 未解决 | 同上（F2 阻塞）；分析链已就绪 |
+| 逐步积分 | 未解决 | 常数已齐，游戏内验证被阻塞 |
+| +0x80/+0x98 写入 | 未解决 | 名字对应 x/y1/y2，写入代码未见 |
 | bit 17 ↔ forbidFallDown | 未解决 | 仅知是下跳门闩 |
 | 同图传送坐标写入 | 未解决 | 走加密调用链 |

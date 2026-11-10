@@ -70,26 +70,71 @@ FUN_004aa4ae(...);                 // 提交
 注意：ID 883 紧挨 ladder(882)/rope(884)，且出现在坐下上下文（0x33）——
 若字符串表局部有序，883 的候选是 "ladder2" 或 "sit"，**不能靠字母序断定**（见下节）。
 
-## 字符串号 → 名字：剩余的静态极限
+## 字符串号 → 名字：已通过受控运行时读取完全解决
 
-字符串号→名字的映射在客户端**运行时字符串表**（全局 `DAT_00be2000`，经 `DAT_00afe084`
-回调懒初始化）。已排除的可能性：
+经授权，使用 task-036 的现有 QEMU 内存转储（`E:\vm-store\task-036-captures\t036-mem.elf`，
+物理转储）+ `proc-vamap.csv`（task-036 留下的进程 VA→物理页映射）完成受控读取：
 
-- ❌ 不在映像 UTF-16 字符串池（全部 105,748 个 UTF-16 串中无 swingO1/ladder/rope/sit）
-- ❌ 不在映像 ASCII 字符串（扫描无命中）
-- ❌ 不是 PE 资源 STRINGTABLE（MapleStory.exe 的 .rsrc 只有 BITMAP/ICON/DIALOG/MANIFEST，无 RT_STRING）
-- ❌ 不在 List.wz（空）/ Base.wz（只有 zmap/smap/StandardPDD）
+1. 通过页表映射读全局 `DAT_00be2000` = 0x29A6FC（运行时字符串表，已初始化）
+2. 动作表 0xBDDB10 每项 +0x00 = 动画对象指针（0x29D2EC..0x29F14C，低地址堆）
+3. **单元 +0x00 的目标 = 该槽位自己名字的字符串单元**（短名内联 UTF-16，长名 ASCII 指针）
+4. 全部 149 个槽名提取成功，7 个已知锚点全部命中，143 个字符串号交叉验证零矛盾
 
-结论：该表由壳保护下的初始化代码在运行时解密/构建（可能与 0xBAADF00D 滚动 XOR 族
-同源），来源 blob 尚未定位。**这是当前规则（静态分析）下真实的边界。**
+完整结果：`research/result/map/MOTION-SLOT-NAMES.csv`。
 
-已确认的 4 个锚点名字（853/864/882/884）来自用户早期反汇编的一级证据，不在本次推断。
+### 最终槽位表（149 项）
 
-## 对实现的含义
+前 46 槽（核心动作）：
 
-- 动作索引体系已可从 `MOTION-REGISTRATION-SEQUENCE.csv` 查询：任何反汇编里看到的
-  动作号都能换成字符串号；四个锚点直接可读。
-- 游戏实现不需要索引体系——直接用名字（WZ 149 个动作名清单见 MAP-DATA-SIDE-FINDINGS.md）。
-- 登记序列里 swingO1 登记了 3 次（槽 5/24/28）、stabO1 两次（16/30）：表项是
-  "动作角色槽"（攻击位 1/2/3），不是去重动作清单。149 槽对 149 个 WZ 节点是数量巧合，
-  实际是"槽位语义 + 重复登记"。
+| 槽 | 名字 | 槽 | 名字 | 槽 | 名字 | 槽 | 名字 |
+|---|---|---|---|---|---|---|---|
+| 0 | walk1 | 12 | swingTF | 24 | swingO1※ | 36 | **ladder** |
+| 1 | walk2 | 13 | swingP1 | 25 | swingO2 | 37 | **rope** |
+| 2 | stand1 | 14 | swingP2 | 26 | swingO3 | 38 | dead |
+| 3 | stand2 | 15 | swingPF | 27 | shootF | 39 | **sit** |
+| 4 | alert | 16 | **stabO1** | 28 | swingO1※ | 40-44 | sit2-sit6 |
+| 5 | **swingO1** | 17 | stabO2 | 29 | swingO3 | 45 | tired |
+| 6 | swingO2 | 18 | stabOF | 30 | stabO1※ | 46-50 | alert2-6 |
+| 7 | swingO3 | 19 | stabT1 | 31 | heal | 51 | ladder2 |
+| 8 | swingOF | 20 | stabT2 | 32 | proneStab | 52 | rope2 |
+| 9 | swingT1 | 21 | stabTF | 33 | prone | 53 | shoot6 |
+| 10 | swingT2 | 22 | shoot1 | 34 | fly | 54-57 | magic1/2/3/5 |
+| 11 | swingT3 | 23 | shoot2 | 35 | jump | | |
+
+※ = 重复登记（攻击位 2/3）。58-148 为技能动作（savage、brandish、ghost 系列、
+combo 系列……到 148 windshot），完整清单见 CSV。**注意：magic4 不在表内**
+（WZ 有 magic4，客户端未登记）。
+
+### 反汇编硬编码动作号的最终解码
+
+| 动作号 | 上下文 | 名字 |
+|---|---|---|
+| 0x61 (97) | 攻击分派备选 A（-0xC68=0x61 分支） | **backstep** |
+| 0x57 (87) | 攻击分派备选 B | **eorb** |
+| 0x4E (78) | 攻击分派备选 C | **showdown** |
+| 0x02 | 0x95A31E 动作号 2 | **stand1** |
+| 0x0A | 0x95A31E 动作号 10 | **swingT2** |
+| 0x33 (51) | 0x955C96 的 0x33 分支 | **ladder2**（不是 sit！sit=0x27） |
+
+## 受控运行时读取的完整方法链（可复现）
+
+1. 物理转储：`E:\vm-store\task-036-captures\t036-mem.elf`（2GB，QEMU）
+2. VA→物理：`.work/task-036/proc-vamap.csv`（task-036 页表遍历产物）
+3. 读 `0xBDDB10 + slot*0x18 + 0x00` → 动画对象指针
+4. 读对象 `+0x00` → 名字字符串单元（UTF-16 内联或 ASCII 指针）
+5. 脚本：`.work/task-063/final_names.py`（校验：7 锚点 + 143 ID 零矛盾）
+
+### 隐含的字符串号→名字映射（143 个，完整可查）
+
+由（槽→字符串号）×（槽→名字）联立得出：850=walk1, 851=walk2, 878=stand1,
+879=stand2, 5460=alert, 853=swingO1, 854=swingO2 … 864=stabO1 … 882=ladder,
+883=ladder2, 884=rope, 885=rope2 …（字母序邻域规则在字符串表内成立）。
+
+## 对实现的含义（更新）
+
+- 任何反汇编里的动作号现在都能查名字（`MOTION-SLOT-NAMES.csv`）。
+- 坐下动作 = 0x27 (sit)；**0x955C96 的 0x33 分支是 ladder2（爬梯姿态）**，
+  修正此前"sit 上下文"的猜测。
+- 之前"149 槽 vs 149 节点是数量巧合"的判断部分成立：表内确有重复登记
+  （swingO1×3、stabO1×2 等），且缺 magic4——它不是 WZ 节点的镜像。
+- 游戏实现直接用名字（WZ 149 动作词表）即可，索引体系只用于读反汇编。

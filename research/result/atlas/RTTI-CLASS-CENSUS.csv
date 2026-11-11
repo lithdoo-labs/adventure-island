@@ -1,0 +1,14 @@
+class,occurrences,first_rva
+CDisconnectException,1,0x7a0550
+CMSException,1,0x7a02f8
+CPatchException,1,0x7a0d10
+CSecurityClearFailed,1,0x7d3958
+CSecurityException,1,0x7d4238
+CSecurityInitFailed,1,0x7d3980
+CSecurityKeyCryptInitFailed,1,0x7d3900
+CSecurityThreatDetected,1,0x7d3930
+CSecurityUpdateFailed,1,0x7d39a8
+CTerminateException,1,0x7a0318
+ZException,1,0x7a02d8
+_com_error,1,0x7a02b8
+type_info,1,0x7d53e8

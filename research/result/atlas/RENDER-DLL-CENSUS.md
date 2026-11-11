@@ -71,7 +71,12 @@ DLL 真实 VA = CSV 值 + 0x400000，节表 raw==vaddr，文件偏移 = VA − P
 经 PCOM 名（如 "Gr2D_DX8#Gr2DLayer"）分派创建；FUN_50405aff 是 CWzGr2DLayer
 静态初始化守卫（type_info::raw_name 引用其 TD）。
 
-1. 沿 DAT_50439b28 注册表逐条解出各 DLL 的全部 PCOM 对象创建函数 → 类实例化清单
+**已试（第五日）**：注册表静态走查——5 个 DLL 的注册表 DAT 在文件态**全零**
+（运行时由 DllMain/静态初始化器构建，如 Gr2D 的 FUN_50405aff 守卫模式）。
+静态正路 = 找**注册调用**（调用注册 API 传类名字符串+创建函数的静态初始化函数），
+或运行时转储后走查。RENDER-DLL-PCOM-REGISTRY.csv 空为预期结果。
+
+1. 搜各 DLL 中引用 u_<类名> 字符串的静态初始化函数 → 注册调用点 → 创建函数清单
 2. Canvas 属性序列化（PcSerializeString 链）→ WZ 属性运行时表示
 3. Shape2D CWzVector2D 布局 → foothold 记录互证
 4. NameSpace Package 加载 → 与 wzpy 互证 PKG1 细节

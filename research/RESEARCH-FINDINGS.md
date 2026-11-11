@@ -50,32 +50,35 @@ recv → [sock+0x40] 队列 → 框架FSM(0x2F5896) → 提取(0x2F5811)
 ### 3.2 Physics 参数 (footholdMgr)
 - 全局: [0xBDD498] → [+8] = 参数对象
 - 20 个 WZ 属性从 "Map/Physics.img" 加载 (函数 0xA4D393)
-- gravityAcc @ +0x70, walkForce @ +0x48, walkSpeed @ +0x58
+- **+0x70 = jumpSpeed, +0x48 = swimSpeed, +0x58 = flySpeed, +0x60 = gravityAcc**
+  （修正：早期版本误标为 gravityAcc/walkForce/walkSpeed，见 MAP-PHYSICS-CORRECTION.md）
 
 ## 4. 移动物理
 
-### 4.1 跳跃公式
+### 4.1 跳跃公式（指令级，MAP-MOTION-REVERSE.md 为准）
 ```
-竖直 = -(jumpSpeed × gravityAcc) / decrypt_param
-水平 = -(walkForce × global+0x48 × decrypt_param × 5.0)
-水中跳 = jumpSpeed × swimForce × (0.3|0.5) × rideFactor × 1.3
+陆跳 vy = -(decrypt([move+0x198]+0x48) × Physics[+0x70=jumpSpeed]) / decrypt([move+0x190]+0x24)
+下跳 vy = decrypt([move+0x190]+0x24) / (Physics[+0x70=jumpSpeed] × -0.35355339)，水平速度写 0
+水中跳：指令记录中无式子形状（未解决）
+decrypt 两个字段名：未解决
 ```
+注：常数 0.3/0.5/1.3 乘的是移动对象 +0x150（水平键 -1/0/1），不是水中跳参数。
 
 ### 4.2 已确认常数
 | 地址 | 值 | 含义 |
 |---|---|---|
-| 0xB0C590 | -0.35355339 | -√2/4 |
+| 0xB0C590 | -0.35355339 | -√2/4，下跳分母系数 |
 | 0xB04F40 | 5.0 | 行走力放大 |
 | 0xB06458 | 0.7 | 二次跳衰减 |
-| 0xB064B0 | 1.3 | 水中跳放大 |
-| 0xAFEC18 | 0.8 | 速度上限 |
-| 0xB05538 | 0.3 | 水中跳A |
-| 0xAFEC20 | 0.5 | 水中跳B |
+| 0xB064B0 | 1.3 | 水平键分支乘子 |
+| 0xAFEC18 | 0.8 | 速度上限因子 |
+| 0xB05538 | 0.3 | 水平键分支乘子 |
+| 0xAFEC20 | 0.5 | 水平键分支乘子 |
 
 ### 4.3 加密速度读写链
 - 写入: `FUN_006131F4(value, target)` → 速度字段 + 校验字段
 - 读取: `FUN_00548806(cookie_ptr, cookie_val)` → 返回解密 double
-- 位置: +0x50/+0x60 (水平), +0x68/+0x78 (竖直), +0x20/+0x38 (坐标)
+- 槽对起点: x @ +0x20, y @ +0x38, vx @ +0x50, vy @ +0x68（指令级）
 
 ## 5. 游戏数据
 

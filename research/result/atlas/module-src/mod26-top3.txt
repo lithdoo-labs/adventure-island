@@ -1,0 +1,185 @@
+
+============================================================
+0x613b08 (2430 ch)
+============================================================
+
+/* WARNING: Removing unreachable block (ram,0x00a13bd4) */
+
+undefined4 FUN_00a13b08(void)
+
+{
+  int iVar1;
+  uint uVar2;
+  int extraout_ECX;
+  char *__s1;
+  int unaff_EBP;
+  undefined4 *unaff_FS_OFFSET;
+  undefined1 *puVar3;
+  undefined4 uVar4;
+  undefined1 auStack_30 [4];
+  undefined4 uStack_2c;
+  undefined4 uStack_28;
+  
+  FUN_00a6fc7c();
+  if ((*(uint *)(DAT_00bdd490 + 0x3c0) & 0xfffffffe) == 0x12) {
+    uStack_28 = 0;
+    uStack_2c = 0;
+    puVar3 = auStack_30;
+    *(undefined1 **)(unaff_EBP + -0x10) = auStack_30;
+    uVar4 = 0x157;
+    FUN_007a48d0(auStack_30,0x157);
+    FUN_0040652b(puVar3,uVar4);
+    iVar1 = FUN_0099fcc2();
+    if (iVar1 == 0) goto LAB_00a13b5b;
+LAB_00a13c69:
+    uVar4 = 0;
+  }
+  else {
+LAB_00a13b5b:
+    FUN_004376f2();
+    iVar1 = FUN_005463aa();
+    if (iVar1 == 0) {
+      iVar1 = FUN_004376f2();
+      uVar2 = *(uint *)(iVar1 + 0x13c) >> 6 & 1;
+      *(uint *)(unaff_EBP + -0x14) = uVar2;
+      if (uVar2 != 0) goto LAB_00a13b97;
+      iVar1 = FUN_004376f2();
+      uVar2 = *(uint *)(iVar1 + 0x13c) >> 1 & 1;
+      *(uint *)(unaff_EBP + -0x14) = uVar2;
+      if (uVar2 != 0) goto LAB_00a13b97;
+    }
+    else {
+LAB_00a13b97:
+      uStack_28 = 0;
+      uStack_2c = 0;
+      puVar3 = auStack_30;
+      *(undefined1 **)(unaff_EBP + -0x14) = auStack_30;
+      uVar4 = 0xac8;
+      FUN_007a48d0(auStack_30,0xac8);
+      FUN_0040652b(puVar3,uVar4);
+      iVar1 = FUN_0099fcc2();
+      if (iVar1 != 0) goto LAB_00a13c69;
+    }
+    __s1 = (char *)**(int **)(unaff_EBP + 0x10);
+    if ((char *)**(int **)(unaff_EBP + 0x10) == (char *)0x0) {
+      __s1 = DAT_00be7b74;
+    }
+    uStack_28 = 0xa13be8;
+    iVar1 = _strcmp(__s1,&DAT_00bdd7e4);
+    if (iVar1 == 0) {
+                    /* WARNING: Subroutine does not return */
+      FUN_00402d66();
+    }
+    FUN_00418f94();
+    if ((*(char **)(extraout_ECX + 0x34bc) == (char *)0x0) ||
+       (**(char **)(extraout_ECX + 0x34bc) == '\0')) {
+      if ((*(int *)(unaff_EBP + -0x10) != 0) && (*(int *)(unaff_EBP + -0x10) != 999999999)) {
+        FUN_0040661f();
+        FUN_0040667c();
+      }
+    }
+    else {
+      FUN_0040661f();
+      *(undefined1 **)(unaff_EBP + 0x10) = &stack0xffffffe0;
+      uStack_28 = 0xa13cae;
+      FUN_00418f94();
+      FUN_0046e6ae();
+    }
+    uVar4 = 1;
+  }
+  *unaff_FS_OFFSET = *(undefined4 *)(unaff_EBP + -0xc);
+  return uVar4;
+}
+
+
+============================================================
+0xf746f (1267 ch)
+============================================================
+
+undefined4 __fastcall FUN_004f746f(byte *param_1)
+
+{
+  byte *pbVar1;
+  uint uVar2;
+  uint uVar3;
+  byte bVar4;
+  byte bVar5;
+  uint unaff_EBX;
+  byte *pbVar6;
+  byte *local_14;
+  int local_10;
+  undefined4 local_c;
+  uint local_8;
+  
+  pbVar1 = *(byte **)(param_1 + 8);
+  bVar4 = pbVar1[4];
+  local_c = *(undefined4 *)pbVar1;
+  local_8 = 0x9a65;
+  local_10 = 4;
+  pbVar6 = pbVar1;
+  do {
+    uVar3 = local_8;
+    if (bVar4 == 0) {
+      bVar4 = 0x2a;
+    }
+    bVar5 = *pbVar6 ^ bVar4;
+    bVar4 = bVar4 + *pbVar6 + 0x2a;
+    pbVar6[(int)&local_c - (int)pbVar1] = bVar5;
+    uVar2 = unaff_EBX >> 8;
+    unaff_EBX = local_8 << 3;
+    local_8 = (uVar3 >> 0xd & 7) + (CONCAT31((int3)uVar2,bVar4) & 0xffff00ff) | unaff_EBX;
+    pbVar6 = pbVar6 + 1;
+    local_10 = local_10 + -1;
+  } while (local_10 != 0);
+  if ((((short)local_8 == *(short *)(pbVar1 + 8)) && (*param_1 == pbVar1[5])) &&
+     (param_1[4] == pbVar1[6])) {
+    DAT_00bdf0a4 = DAT_00bdf0a4 + 1;
+    if (DAT_00bdf0a4 % 0x37 == 0) {
+      local_14 = param_1;
+      FUN_004f7524(local_c);
+    }
+    return local_c;
+  }
+  local_14 = (byte *)0x5;
+                    /* WARNING: Subroutine does not return */
+  __CxxThrowException_8(&local_14,&DAT_00b12650);
+}
+
+
+============================================================
+0x6e6ae (844 ch)
+============================================================
+
+void FUN_0046e6ae(void)
+
+{
+  int iVar1;
+  int extraout_ECX;
+  int unaff_EBP;
+  undefined4 *unaff_FS_OFFSET;
+  undefined4 uStack_10;
+  int iStack_c;
+  
+  FUN_00a6fc7c();
+  *(undefined4 *)(unaff_EBP + -4) = 0;
+  if (*(int *)(unaff_EBP + 8) == 0) {
+    iStack_c = 0;
+  }
+  else {
+    iStack_c = *(int *)(*(int *)(unaff_EBP + 8) + -4);
+  }
+  iStack_c = iStack_c + 2;
+  uStack_10 = 0x46e6d9;
+  FUN_0040663d();
+  iStack_c = *(int *)(extraout_ECX + 4) + *(int *)(extraout_ECX + 8);
+  *(undefined4 **)(unaff_EBP + -0x10) = &uStack_10;
+  FUN_00429460(unaff_EBP + 8);
+  iVar1 = FUN_0046e714();
+  *(int *)(extraout_ECX + 8) = *(int *)(extraout_ECX + 8) + iVar1;
+  *(undefined4 *)(unaff_EBP + -4) = 0xffffffff;
+  iStack_c = 0x46e705;
+  FUN_004063b5();
+  *unaff_FS_OFFSET = *(undefined4 *)(unaff_EBP + -0xc);
+  return;
+}
+

@@ -1,0 +1,16 @@
+rva,kind,label,addr
+0x50401081,,NameSpace,5081d1ac
+0x50401081,,FileSystem,5081d194
+0x50401081,,Package,5081d184
+0x50401081,,PackageWriter,5081d168
+0x504023c7,,NotifyAlloc,5081d244
+0x50409a5b,,PCOM_DLL,5081e4ec
+0x50409a8d,,PcCreateObject,5081e548
+0x50409a8d,,PcFreeUnusedLibraries,5081e530
+0x50409a8d,,PcSerializeObject,5081e51c
+0x50409a8d,,PcSerializeString,5081e508
+0x50409a8d,,PcRootNameSpace,5081e4f8
+0x50409b53,,Kernel32_dll,5081d378
+0x5040eadd,,_img,5081e5f8
+0x50413070,,PKG_04x_tmp,5081e620
+0x50413070,,PKG_04x_tmp,5081e620

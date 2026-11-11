@@ -1,0 +1,10 @@
+rva,kind,label,addr
+0x50c010a7,,ResMan,510090a8
+0x50c022d5,,PCOM_DLL,5100a25c
+0x50c02307,,PcCreateObject,5100a2b8
+0x50c02307,,PcFreeUnusedLibraries,5100a2a0
+0x50c02307,,PcSerializeObject,5100a28c
+0x50c02307,,PcSerializeString,5100a278
+0x50c02307,,PcRootNameSpace,5100a268
+0x50c023cd,,Kernel32_dll,510090e8
+0x50c03774,,_ResMan__Failed_in_GetCachedObje,5100a30c

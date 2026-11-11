@@ -1,0 +1,2015 @@
+dll,encoding,file_offset,string
+Gr2D_DX8,u16,217320,Gr2D_DX8
+Gr2D_DX8,u16,221976,Gr2D_DX8: Direct8.1 Initialization failed
+Gr2D_DX8,u16,222060,Shape2D#Vector2D
+Gr2D_DX8,u16,222126,8Gr2D_DX8: Direct8.1 not found
+Gr2D_DX8,u16,222240,directx8.1
+Gr2D_DX8,u16,222284,Canvas
+Gr2D_DX8,u16,222320,Already initialized
+Gr2D_DX8,u16,222360,Unsupported pixel format
+Gr2D_DX8,u16,222580,Invalid format
+Gr2D_DX8,u16,222778,:Canvas not found
+Gr2D_DX8,u16,222864,Gr2D_DX8#Gr2DLayer
+Gr2D_DX8,u16,241766,VS_VERSION_INFO
+Gr2D_DX8,u16,241858,StringFileInfo
+Gr2D_DX8,u16,241894,040904b0
+Gr2D_DX8,u16,241918,Comments
+Gr2D_DX8,u16,241942,CompanyName
+Gr2D_DX8,u16,241974,FileDescription
+Gr2D_DX8,u16,242008,Gr2D_DX8 Module
+Gr2D_DX8,u16,242046,FileVersion
+Gr2D_DX8,u16,242102,InternalName
+Gr2D_DX8,u16,242154,LegalCopyright
+Gr2D_DX8,u16,242184,"Copyright 2001 Wizet, ZMS"
+Gr2D_DX8,u16,242242,LegalTrademarks
+Gr2D_DX8,u16,242282,OLESelfRegister
+Gr2D_DX8,u16,242322,OriginalFilename
+Gr2D_DX8,u16,242356,Gr2D_DX8.DLL
+Gr2D_DX8,u16,242390,PrivateBuild
+Gr2D_DX8,u16,242422,ProductName
+Gr2D_DX8,u16,242486,ProductVersion
+Gr2D_DX8,u16,242546,SpecialBuild
+Gr2D_DX8,u16,242578,VarFileInfo
+Gr2D_DX8,u16,242610,Translation
+Gr2D_DX8,asc,77,!This program cannot be run in DOS mode.
+Gr2D_DX8,asc,264,Rich&
+Gr2D_DX8,asc,544,.text
+Gr2D_DX8,asc,583,`.rdata
+Gr2D_DX8,asc,623,@.data
+Gr2D_DX8,asc,664,.data1
+Gr2D_DX8,asc,704,.rsrc
+Gr2D_DX8,asc,743,@.reloc
+Gr2D_DX8,asc,4278,QQSVW
+Gr2D_DX8,asc,4700,QQVWh
+Gr2D_DX8,asc,5294,90u29p
+Gr2D_DX8,asc,5681,t^HtPHtAHt2
+Gr2D_DX8,asc,7122,t%8^<t 9^H
+Gr2D_DX8,asc,7150,G;~Dv
+Gr2D_DX8,asc,7534,0QCPj
+Gr2D_DX8,asc,7633,PhTQCP
+Gr2D_DX8,asc,9246,BP1L$(3\$(
+Gr2D_DX8,asc,9422,UUUU3
+Gr2D_DX8,asc,9570,hn%@P
+Gr2D_DX8,asc,9972,",bCP3'@Pw"
+Gr2D_DX8,asc,9996,",bCP^"
+Gr2D_DX8,asc,10872,hz+@P
+Gr2D_DX8,asc,11719,cCPhlcCP
+Gr2D_DX8,asc,12096,Q(hDXT33
+Gr2D_DX8,asc,12640,WhpdCP
+Gr2D_DX8,asc,12880,WVh`dCPhLdCP
+Gr2D_DX8,asc,13481,VVVVVV
+Gr2D_DX8,asc,15763,9sdu19u
+Gr2D_DX8,asc,15773,9shu'9u
+Gr2D_DX8,asc,15822,CP_^[
+Gr2D_DX8,asc,15859,@uE9~Lt
+Gr2D_DX8,asc,15905,FLj+WW
+Gr2D_DX8,asc,16470,@VWu#3
+Gr2D_DX8,asc,16851,BPf9]0
+Gr2D_DX8,asc,18026,PhLdCP
+Gr2D_DX8,asc,18133,h`dCPSP
+Gr2D_DX8,asc,18556,tXHtC-
+Gr2D_DX8,asc,18690,h`dCPVP
+Gr2D_DX8,asc,19444,^\)F\
+Gr2D_DX8,asc,19465,^`)N`9}
+Gr2D_DX8,asc,19479,DXT39E
+Gr2D_DX8,asc,19513,-DXT3
+Gr2D_DX8,asc,19654,9^lWt
+Gr2D_DX8,asc,19943,hDXT3VSS
+Gr2D_DX8,asc,20016,dCPVP
+Gr2D_DX8,asc,21154,"TtFHHt<Ht4Ht""HuP"
+Gr2D_DX8,asc,21305,Y|DSSj
+Gr2D_DX8,asc,22749,Vh`dCP
+Gr2D_DX8,asc,23334,h9]@P
+Gr2D_DX8,asc,25279,Rh@eCPP
+Gr2D_DX8,asc,25375,Rh`dCPP
+Gr2D_DX8,asc,25692,@tZf=
+Gr2D_DX8,asc,26160,2WVVj
+Gr2D_DX8,asc,26767,Q@9^0u
+Gr2D_DX8,asc,26789,Q@9^4u
+Gr2D_DX8,asc,26811,Q@9^8u
+Gr2D_DX8,asc,27838,teCPr
+Gr2D_DX8,asc,27880,t=HHt1
+Gr2D_DX8,asc,27889,t$-*XT3t
+Gr2D_DX8,asc,27900,hteCP
+Gr2D_DX8,asc,28003,P@+P83
+Gr2D_DX8,asc,28035,PD+P<3
+Gr2D_DX8,asc,28390,V@+V8
+Gr2D_DX8,asc,28408,VD+V<
+Gr2D_DX8,asc,30947,h`eCPVP
+Gr2D_DX8,asc,31206,h@eCPSP
+Gr2D_DX8,asc,33829,98uCP
+Gr2D_DX8,asc,33872,j j RWQ
+Gr2D_DX8,asc,34887,"9O0t"""
+Gr2D_DX8,asc,35745,3WVVVVj
+Gr2D_DX8,asc,35823,h QCPVP
+Gr2D_DX8,asc,36545,S|RVP
+Gr2D_DX8,asc,36551,Q 9s(u
+Gr2D_DX8,asc,37388,WWWWWW
+Gr2D_DX8,asc,37811,WWWWS
+Gr2D_DX8,asc,40457,h`eCPWP
+Gr2D_DX8,asc,41419,cCPVP
+Gr2D_DX8,asc,42999,cCPSP
+Gr2D_DX8,asc,45225,h<fCP
+Gr2D_DX8,asc,45319,t5HHt8W
+Gr2D_DX8,asc,46782,h`dCPWP
+Gr2D_DX8,asc,47942,HtXHt:
+Gr2D_DX8,asc,52566,BP_^d
+Gr2D_DX8,asc,54600,h@eCPVP
+Gr2D_DX8,asc,55359,"E,uK;M"
+Gr2D_DX8,asc,56263,9~$tZ
+Gr2D_DX8,asc,57799,uU9sH
+Gr2D_DX8,asc,58062,t6;N4
+Gr2D_DX8,asc,58162,YYu>3
+Gr2D_DX8,asc,58283,9F8tY=
+Gr2D_DX8,asc,58294,F8t1=
+Gr2D_DX8,asc,66895,QQVWj(
+Gr2D_DX8,asc,67094,YY|8C;
+Gr2D_DX8,asc,68540,Rh`eCPP
+Gr2D_DX8,asc,73005,%dgCP
+Gr2D_DX8,asc,75659,%hgCP
+Gr2D_DX8,asc,75665,%hgCPU
+Gr2D_DX8,asc,75954,%lgCPU
+Gr2D_DX8,asc,75990,tgCP]
+Gr2D_DX8,asc,76116,PVVt;
+Gr2D_DX8,asc,76352,%<gCPj
+Gr2D_DX8,asc,76365,%@gCPj
+Gr2D_DX8,asc,76378,"%,gCPU"
+Gr2D_DX8,asc,76548,%0gCPU
+Gr2D_DX8,asc,77032,%4gCPU
+Gr2D_DX8,asc,77431,% gCPU
+Gr2D_DX8,asc,78150,%\gCPU
+Gr2D_DX8,asc,78416,|gCP]
+Gr2D_DX8,asc,78567,`gCP]
+Gr2D_DX8,asc,78722,%$gCP
+Gr2D_DX8,asc,78728,%$gCPU
+Gr2D_DX8,asc,78905,%(gCPU
+Gr2D_DX8,asc,79324,%XgCPU
+Gr2D_DX8,asc,81202,;APQ<APT<APW<AP[<AP^<APa<APe<APU
+Gr2D_DX8,asc,81783,D$PPVV
+Gr2D_DX8,asc,82052,D$PPVVt;
+Gr2D_DX8,asc,83913,BPUVW
+Gr2D_DX8,asc,84001,_^][t
+Gr2D_DX8,asc,84808,t$WhwHAP
+Gr2D_DX8,asc,85120,t#hwHAPhjHAPW
+Gr2D_DX8,asc,86127,DXT1t$
+Gr2D_DX8,asc,86135,DXT2t
+Gr2D_DX8,asc,86143,DXT3t
+Gr2D_DX8,asc,86151,DXT4t
+Gr2D_DX8,asc,86159,DXT5u
+Gr2D_DX8,asc,88951,CCGG;\$$
+Gr2D_DX8,asc,89445,;\$(f
+Gr2D_DX8,asc,89746,;\$ f
+Gr2D_DX8,asc,92384,t:It.
+Gr2D_DX8,asc,92392,tDItA
+Gr2D_DX8,asc,97383,8SVW3
+Gr2D_DX8,asc,97579,t#hwHAPhjHAPV
+Gr2D_DX8,asc,98654,WRWWQP
+Gr2D_DX8,asc,99008,=DXT1t$=DXT2t
+Gr2D_DX8,asc,99022,=DXT3t
+Gr2D_DX8,asc,99029,=DXT4t
+Gr2D_DX8,asc,99036,=DXT5t
+Gr2D_DX8,asc,99302,=DXT1tu=DXT2tn=YUY2t+=DXT3t`=DXT4tY=DXT5tR=UYVYt
+Gr2D_DX8,asc,100045,HtpHH
+Gr2D_DX8,asc,100282,HHt|H
+Gr2D_DX8,asc,102019,9pHt_
+Gr2D_DX8,asc,108047,(SVW3
+Gr2D_DX8,asc,110026,",SVW3"
+Gr2D_DX8,asc,112527,s=SVW3
+Gr2D_DX8,asc,114860,QQSVWj
+Gr2D_DX8,asc,115039,UYVYu
+Gr2D_DX8,asc,116980,=DXT1
+Gr2D_DX8,asc,116991,=DXT2ty=DXT3tR=DXT4t+=DXT5
+Gr2D_DX8,asc,117554,=DXT2t
+Gr2D_DX8,asc,119193,DXT13
+Gr2D_DX8,asc,120197,HtaHHt3
+Gr2D_DX8,asc,120466, L16;
+Gr2D_DX8,asc,120484,=DXT2
+Gr2D_DX8,asc,120495,=YUY2
+Gr2D_DX8,asc,120506,=DXT3tf=DXT4t5=DXT5
+Gr2D_DX8,asc,120783,-AL16
+Gr2D_DX8,asc,121211,QSVW3
+Gr2D_DX8,asc,121633,SWj%Y3
+Gr2D_DX8,asc,122045,oCP_^
+Gr2D_DX8,asc,123268,BP_^[
+Gr2D_DX8,asc,124763,9U|VW
+Gr2D_DX8,asc,125778,@oCP;
+Gr2D_DX8,asc,126136,]lf9ELt
+Gr2D_DX8,asc,127859,YY_^[
+Gr2D_DX8,asc,129429,@p *BP
+Gr2D_DX8,asc,129564,"@d ,BP"
+Gr2D_DX8,asc,129578,@|@&BP
+Gr2D_DX8,asc,130005,"A,lDBP"
+Gr2D_DX8,asc,130110,Ah;EBP
+Gr2D_DX8,asc,130124,ApvFBP
+Gr2D_DX8,asc,130138,AxRGBP
+Gr2D_DX8,asc,130405,8BPt.
+Gr2D_DX8,asc,131220,Wuq9E
+Gr2D_DX8,asc,162040,ML;MH
+Gr2D_DX8,asc,165543,_^[t\
+Gr2D_DX8,asc,174463,CPu?h
+Gr2D_DX8,asc,174498,CPh`PCPh
+Gr2D_DX8,asc,174687,u7WPS
+Gr2D_DX8,asc,174704,u&WVS
+Gr2D_DX8,asc,184650,@P`H@P
+Gr2D_DX8,asc,184677,5@PM;@P
+Gr2D_DX8,asc,184689,<@P??@PW?@Pn?@P
+Gr2D_DX8,asc,184721,?@P~?@P
+Gr2D_DX8,asc,184749,?@P%@@PK@@P
+Gr2D_DX8,asc,184773,O@P!O@P5O@PIO@P^
+Gr2D_DX8,asc,184797,.@P QCP
+Gr2D_DX8,asc,184981,O@P!O@P5O@PIO@P
+Gr2D_DX8,asc,189125,+@PQ*@P
+Gr2D_DX8,asc,189337,_@PAx@P
+Gr2D_DX8,asc,189357,]@PIx@P
+Gr2D_DX8,asc,189389,_@PFi@PJi@PTi@Pfi@Pti@P{i@P
+Gr2D_DX8,asc,189425,j@Pxj@P
+Gr2D_DX8,asc,189725,i@P@eCP
+Gr2D_DX8,asc,189805,q@Pwx@P
+Gr2D_DX8,asc,189817,x@PYx@Pcx@Pmx@P
+Gr2D_DX8,asc,189833,l@P2m@POm@Pom@P
+Gr2D_DX8,asc,189849,m@PXn@P[o@P
+Gr2D_DX8,asc,189938,BPYq@P
+Gr2D_DX8,asc,189946,BPzq@P
+Gr2D_DX8,asc,190001,x@Pkv@P
+Gr2D_DX8,asc,190021,u@PQx@P
+Gr2D_DX8,asc,190029,v@PIv@P
+Gr2D_DX8,asc,192850,Y>t$7?*
+Gr2D_DX8,asc,192916,d3d8d.dll
+Gr2D_DX8,asc,192928,DebugSetMute
+Gr2D_DX8,asc,192944,d3d8.dll
+Gr2D_DX8,asc,193754,APSoftware\Microsoft\Direct3D
+Gr2D_DX8,asc,193784,DisableMMX
+Gr2D_DX8,asc,193796,GenuineIntel
+Gr2D_DX8,asc,193812,DisableD3DXPSGP
+Gr2D_DX8,asc,193828,DisablePSGP
+Gr2D_DX8,asc,194324,Application transferred too many scanlines
+Gr2D_DX8,asc,194368,Invalid SOS parameters for sequential JPEG
+Gr2D_DX8,asc,194412,Corrupt JPEG data: found marker 0x%02x instead of RST%d
+Gr2D_DX8,asc,194468,Premature end of JPEG file
+Gr2D_DX8,asc,194496,Warning: unknown JFIF revision number %d.%02d
+Gr2D_DX8,asc,194544,Corrupt JPEG data: bad Huffman code
+Gr2D_DX8,asc,194580,Corrupt JPEG data: premature end of data segment
+Gr2D_DX8,asc,194632,Corrupt JPEG data: %u extraneous bytes before marker 0x%02x
+Gr2D_DX8,asc,194696,Inconsistent progression sequence for component %d coefficient %d
+Gr2D_DX8,asc,194764,Unknown Adobe color transform code %d
+Gr2D_DX8,asc,194804,Obtained XMS handle %u
+Gr2D_DX8,asc,194828,Freed XMS handle %u
+Gr2D_DX8,asc,194848,"Unrecognized component IDs %d %d %d, assuming YCbCr"
+Gr2D_DX8,asc,194900,Opened temporary file %s
+Gr2D_DX8,asc,194928,Closed temporary file %s
+Gr2D_DX8,asc,194956,"  Ss=%d, Se=%d, Ah=%d, Al=%d"
+Gr2D_DX8,asc,194988,    Component %d: dc=%d ac=%d
+Gr2D_DX8,asc,195020,Start Of Scan: %d components
+Gr2D_DX8,asc,195052,Start of Image
+Gr2D_DX8,asc,195068,    Component %d: %dhx%dv q=%d
+Gr2D_DX8,asc,195100,"Start Of Frame 0x%02x: width=%u, height=%u, components=%d"
+Gr2D_DX8,asc,195160,Smoothing not supported with nonstandard sampling ratios
+Gr2D_DX8,asc,195220,RST%d
+Gr2D_DX8,asc,195228,"At marker 0x%02x, recovery action %d"
+Gr2D_DX8,asc,195268,Selected %d colors for quantization
+Gr2D_DX8,asc,195304,Quantizing to %d colors
+Gr2D_DX8,asc,195328,Quantizing to %d = %d*%d*%d colors
+Gr2D_DX8,asc,195364,        %4u %4u %4u %4u %4u %4u %4u %4u
+Gr2D_DX8,asc,195404,Unexpected marker 0x%02x
+Gr2D_DX8,asc,195432,"Skipping marker 0x%02x, length %u"
+Gr2D_DX8,asc,195468,    with %d x %d thumbnail image
+Gr2D_DX8,asc,195504,Unknown JFIF minor revision number %d.%02d
+Gr2D_DX8,asc,195548,Warning: thumbnail image size does not match data length %u
+Gr2D_DX8,asc,195608,"JFIF APP0 marker, density %dx%d  %d"
+Gr2D_DX8,asc,195644,        %3d %3d %3d %3d %3d %3d %3d %3d
+Gr2D_DX8,asc,195684,End Of Image
+Gr2D_DX8,asc,195700,Obtained EMS handle %u
+Gr2D_DX8,asc,195724,Freed EMS handle %u
+Gr2D_DX8,asc,195744,Define Restart Interval %u
+Gr2D_DX8,asc,195772,Define Quantization Table %d  precision %d
+Gr2D_DX8,asc,195816,Define Huffman Table 0x%02x
+Gr2D_DX8,asc,195844,Define Arithmetic Table 0x%02x: 0x%02x
+Gr2D_DX8,asc,195884,"Unknown APP14 marker (not Adobe), length %u"
+Gr2D_DX8,asc,195928,"Unknown APP0 marker (not JFIF), length %u"
+Gr2D_DX8,asc,195976,"Adobe APP14 marker: version %d, flags 0x%04x 0x%04x, transform %d"
+Gr2D_DX8,asc,196044,Caution: quantization tables are too coarse for baseline JPEG
+Gr2D_DX8,asc,196108,6a  7-Feb-96
+Gr2D_DX8,asc,196124,"Copyright (C) 1996, Thomas G. Lane"
+Gr2D_DX8,asc,196160,Write to XMS failed
+Gr2D_DX8,asc,196180,Read from XMS failed
+Gr2D_DX8,asc,196204,Image too wide for this implementation
+Gr2D_DX8,asc,196244,Virtual array controller messed up
+Gr2D_DX8,asc,196280,Unsupported marker type 0x%02x
+Gr2D_DX8,asc,196312,Application transferred too few scanlines
+Gr2D_DX8,asc,196356,Write failed on temporary file --- out of disk space?
+Gr2D_DX8,asc,196412,Seek failed on temporary file
+Gr2D_DX8,asc,196444,Read failed on temporary file
+Gr2D_DX8,asc,196476,Failed to create temporary file %s
+Gr2D_DX8,asc,196512,Invalid JPEG file structure: SOS before SOF
+Gr2D_DX8,asc,196556,Invalid JPEG file structure: two SOI markers
+Gr2D_DX8,asc,196604,Unsupported JPEG process: SOF type 0x%02x
+Gr2D_DX8,asc,196648,Invalid JPEG file structure: missing SOS marker
+Gr2D_DX8,asc,196696,Invalid JPEG file structure: two SOF markers
+Gr2D_DX8,asc,196744,Cannot quantize to more than %d colors
+Gr2D_DX8,asc,196784,Cannot quantize to fewer than %d colors
+Gr2D_DX8,asc,196824,Cannot quantize more than %d color components
+Gr2D_DX8,asc,196872,Insufficient memory (case %d)
+Gr2D_DX8,asc,196904,Not a JPEG file: starts with 0x%02x 0x%02x
+Gr2D_DX8,asc,196948,Quantization table 0x%02x was not defined
+Gr2D_DX8,asc,196992,JPEG datastream contains no image
+Gr2D_DX8,asc,197028,Huffman table 0x%02x was not defined
+Gr2D_DX8,asc,197068,Backing store not supported
+Gr2D_DX8,asc,197096,Requested feature was omitted at compile time
+Gr2D_DX8,asc,197144,Not implemented yet
+Gr2D_DX8,asc,197164,Invalid color quantization mode change
+Gr2D_DX8,asc,197204,Scan script does not transmit all data
+Gr2D_DX8,asc,197244,Cannot transcode due to multiple use of quantization table %d
+Gr2D_DX8,asc,197308,Premature end of input file
+Gr2D_DX8,asc,197336,Empty input file
+Gr2D_DX8,asc,197356,Maximum supported image dimension is %u pixels
+Gr2D_DX8,asc,197404,Missing Huffman code table entry
+Gr2D_DX8,asc,197440,Huffman code size table overflow
+Gr2D_DX8,asc,197476,Fractional sampling not implemented yet
+Gr2D_DX8,asc,197516,Output file write error --- out of disk space?
+Gr2D_DX8,asc,197564,Input file read error
+Gr2D_DX8,asc,197588,Didn't expect more than one scan
+Gr2D_DX8,asc,197624,Write to EMS failed
+Gr2D_DX8,asc,197644,Read from EMS failed
+Gr2D_DX8,asc,197668,Empty JPEG image (DNL not supported)
+Gr2D_DX8,asc,197708,Bogus DQT index %d
+Gr2D_DX8,asc,197728,Bogus DHT index %d
+Gr2D_DX8,asc,197748,Bogus DHT counts
+Gr2D_DX8,asc,197768,Bogus DAC value 0x%x
+Gr2D_DX8,asc,197792,Bogus DAC index %d
+Gr2D_DX8,asc,197812,Unsupported color conversion request
+Gr2D_DX8,asc,197852,"Too many color components: %d, max %d"
+Gr2D_DX8,asc,197892,CCIR601 sampling not implemented yet
+Gr2D_DX8,asc,197932,Suspension not allowed here
+Gr2D_DX8,asc,197960,Buffer passed to JPEG library is too small
+Gr2D_DX8,asc,198004,Bogus virtual array access
+Gr2D_DX8,asc,198032,"JPEG parameter struct mismatch: library thinks size is %u, caller expects %u"
+Gr2D_DX8,asc,198112,Improper call to JPEG library in state %d
+Gr2D_DX8,asc,198156,Invalid scan script at entry %d
+Gr2D_DX8,asc,198188,Bogus sampling factors
+Gr2D_DX8,asc,198212,Invalid progressive parameters at scan script entry %d
+Gr2D_DX8,asc,198268,Invalid progressive parameters Ss=%d Se=%d Ah=%d Al=%d
+Gr2D_DX8,asc,198324,Unsupported JPEG data precision %d
+Gr2D_DX8,asc,198360,Invalid memory pool code %d
+Gr2D_DX8,asc,198388,Sampling factors too large for interleaved scan
+Gr2D_DX8,asc,198436,"Wrong JPEG library version: library is %d, caller expects %d"
+Gr2D_DX8,asc,198500,Bogus marker length
+Gr2D_DX8,asc,198520,Bogus JPEG colorspace
+Gr2D_DX8,asc,198544,Bogus input colorspace
+Gr2D_DX8,asc,198568,IDCT output block size %d not supported
+Gr2D_DX8,asc,198608,Invalid component ID %d in SOS
+Gr2D_DX8,asc,198640,Bogus buffer control mode
+Gr2D_DX8,asc,198668,"MAX_ALLOC_CHUNK is wrong, please fix"
+Gr2D_DX8,asc,198708,"ALIGN_TYPE is wrong, please fix"
+Gr2D_DX8,asc,198740,"Sorry, there are legal restrictions on arithmetic coding"
+Gr2D_DX8,asc,198800,Bogus message code %d
+Gr2D_DX8,asc,198824,0123456789ABCDEF1.0.5
+Gr2D_DX8,asc,199037,m[?%I
+Gr2D_DX8,asc,199584,AuthenticAMD
+Gr2D_DX8,asc,199600,UnknownVendr
+Gr2D_DX8,asc,200208,need dictionary
+Gr2D_DX8,asc,200665,Qkkbal
+Gr2D_DX8,asc,201269,wn>Jj
+Gr2D_DX8,asc,202076,incompatible version
+Gr2D_DX8,asc,202100,buffer error
+Gr2D_DX8,asc,202116,insufficient memory
+Gr2D_DX8,asc,202136,data error
+Gr2D_DX8,asc,202148,stream error
+Gr2D_DX8,asc,202164,file error
+Gr2D_DX8,asc,202176,stream end
+Gr2D_DX8,asc,204524,7H@P 
+Gr2D_DX8,asc,206188,){@P 
+Gr2D_DX8,asc,206276,z{@P 
+Gr2D_DX8,asc,206364,7|@P 
+Gr2D_DX8,asc,212870,InterlockedIncrement
+Gr2D_DX8,asc,212894,InterlockedDecrement
+Gr2D_DX8,asc,212918,HeapDestroy
+Gr2D_DX8,asc,212932,FreeLibrary
+Gr2D_DX8,asc,212946,LoadLibraryA
+Gr2D_DX8,asc,212962,GetProcAddress
+Gr2D_DX8,asc,212980,LocalFree
+Gr2D_DX8,asc,212990,KERNEL32.dll
+Gr2D_DX8,asc,213004,OLEAUT32.dll
+Gr2D_DX8,asc,213020,timeBeginPeriod
+Gr2D_DX8,asc,213038,timeEndPeriod
+Gr2D_DX8,asc,213052,WINMM.dll
+Gr2D_DX8,asc,213064,wcscmp
+Gr2D_DX8,asc,213074,__CxxFrameHandler
+Gr2D_DX8,asc,213094,_purecall
+Gr2D_DX8,asc,213106,_lrotl
+Gr2D_DX8,asc,213116,_lrotr
+Gr2D_DX8,asc,213126,memset
+Gr2D_DX8,asc,213136,_CxxThrowException
+Gr2D_DX8,asc,213158,memcpy
+Gr2D_DX8,asc,213168,sprintf
+Gr2D_DX8,asc,213178,wcslen
+Gr2D_DX8,asc,213188,memmove
+Gr2D_DX8,asc,213198,?raw_name@type_info@@QBEPBDXZ
+Gr2D_DX8,asc,213230,memcmp
+Gr2D_DX8,asc,213240,strcpy
+Gr2D_DX8,asc,213262,_CIacos
+Gr2D_DX8,asc,213272,_finite
+Gr2D_DX8,asc,213282,_ftol
+Gr2D_DX8,asc,213290,floor
+Gr2D_DX8,asc,213298,malloc
+Gr2D_DX8,asc,213314,MSVCRT.dll
+Gr2D_DX8,asc,213328,__dllonexit
+Gr2D_DX8,asc,213342,_onexit
+Gr2D_DX8,asc,213352,_except_handler3
+Gr2D_DX8,asc,213372,?terminate@@YAXXZ
+Gr2D_DX8,asc,213392,??1type_info@@UAE@XZ
+Gr2D_DX8,asc,213416,_initterm
+Gr2D_DX8,asc,213428,_adjust_fdiv
+Gr2D_DX8,asc,213444,GetModuleHandleA
+Gr2D_DX8,asc,213464,GetVersionExA
+Gr2D_DX8,asc,213480,IsProcessorFeaturePresent
+Gr2D_DX8,asc,213506,GDI32.dll
+Gr2D_DX8,asc,213518,RegCloseKey
+Gr2D_DX8,asc,213532,RegQueryValueExA
+Gr2D_DX8,asc,213552,RegOpenKeyA
+Gr2D_DX8,asc,213564,ADVAPI32.dll
+Gr2D_DX8,asc,213657,DllCanUnloadNow
+Gr2D_DX8,asc,213673,DllGetClassObject
+Gr2D_DX8,asc,217094,@PN%@P
+Gr2D_DX8,asc,217105,%@P}&@P
+Gr2D_DX8,asc,217121,Z@Phf@P[
+Gr2D_DX8,asc,217397,bCP|bCPpbCP`bCPTbCPHbCP<bCP0bCP2(
+Gr2D_DX8,asc,217585,0-z=$L
+Gr2D_DX8,asc,217692,0acN0
+Gr2D_DX8,asc,217781,K$W>`
+Gr2D_DX8,asc,217838,xRJ3U
+Gr2D_DX8,asc,218227,k`(v7b
+Gr2D_DX8,asc,218911,\EG]]J
+Gr2D_DX8,asc,219148,e`nhn
+Gr2D_DX8,asc,219164,Pw>@*
+Gr2D_DX8,asc,219391,}JI&N
+Gr2D_DX8,asc,219436,#aB@h
+Gr2D_DX8,asc,219626,<u_[T
+Gr2D_DX8,asc,219829,t3y3]X
+Gr2D_DX8,asc,220565,Ij`%R`;
+Gr2D_DX8,asc,221083,XDIhD
+Gr2D_DX8,asc,221130,qR(YR
+Gr2D_DX8,asc,221290,;RT_^
+Gr2D_DX8,asc,221449,|0z$`
+Gr2D_DX8,asc,221629,mM[NJ
+Gr2D_DX8,asc,221741,&@PWS2_32.DLL
+Gr2D_DX8,asc,221768,IMM32.dll
+Gr2D_DX8,asc,221780,SHELL32.dll
+Gr2D_DX8,asc,221820,Ole32.dll
+Gr2D_DX8,asc,221832,User32.dll
+Gr2D_DX8,asc,221844,Kernel32.dll
+Gr2D_DX8,asc,221860,PCOM.DLL
+Gr2D_DX8,asc,221872,PcRootNameSpace
+Gr2D_DX8,asc,221888,PcSerializeString
+Gr2D_DX8,asc,221908,PcSerializeObject
+Gr2D_DX8,asc,221928,PcFreeUnusedLibraries
+Gr2D_DX8,asc,221952,PcCreateObject
+Gr2D_DX8,asc,222112,Direct3DCreate8
+Gr2D_DX8,asc,222188,D3D8.DLL
+Gr2D_DX8,asc,222208,.?AV_com_error@@
+Gr2D_DX8,asc,222472,.?AVCWzGr2DLayer@@
+Gr2D_DX8,asc,222504,.?AVCWzRawCanvas@@
+Gr2D_DX8,asc,222612,NotifyAlloc
+Gr2D_DX8,asc,222656,WzFlashRenderer.dll
+Gr2D_DX8,asc,222676,IsRenderFlash
+Gr2D_DX8,asc,222692,ReleaseFlash
+Gr2D_DX8,asc,222708,RenderFlash
+Gr2D_DX8,asc,222720,LoadMediaFile
+Gr2D_DX8,asc,222736,InitializeFlashbyDevice
+Gr2D_DX8,asc,222977,4AP%5APo
+Gr2D_DX8,asc,223005,-APo.APz3AP14APR*AP
+Gr2D_DX8,asc,223033,"$AP8*APE*AP=,AP"
+Gr2D_DX8,asc,223049,$AP2%AP
+Gr2D_DX8,asc,223065,5AP!1AP
+Gr2D_DX8,asc,223085,(APx(AP
+Gr2D_DX8,asc,223093,(APa&AP.2AP5/AP
+Gr2D_DX8,asc,223186,AP48APQ=APx7AP_9AP
+Gr2D_DX8,asc,223209,4AP25AP
+Gr2D_DX8,asc,223237,-AP|.AP
+Gr2D_DX8,asc,223245,3AP>4AP_*AP
+Gr2D_DX8,asc,223261,",AP@$AP?BAP"
+Gr2D_DX8,asc,223273,"CAP],AP"
+Gr2D_DX8,asc,223281,$APN%AP
+Gr2D_DX8,asc,223297,5APK1AP
+Gr2D_DX8,asc,223313,'APC>AP
+Gr2D_DX8,asc,223329,&APX2APH/AP
+Gr2D_DX8,asc,223516,UYVYYUY2DXT1DXT2DXT3DXT4DXT5F
+Gr2D_DX8,asc,224452,UYVY 
+Gr2D_DX8,asc,224488,YUY2 
+Gr2D_DX8,asc,224524,DXT1 
+Gr2D_DX8,asc,224560,DXT2 
+Gr2D_DX8,asc,224596,DXT3 
+Gr2D_DX8,asc,224632,DXT4 
+Gr2D_DX8,asc,224668,DXT5 
+Gr2D_DX8,asc,225095,?.vW@
+Gr2D_DX8,asc,231717,"Jj?,L"
+Gr2D_DX8,asc,236280,.?AVtype_info@@
+Gr2D_DX8,asc,237786,Y>t$7?t$7?
+Gr2D_DX8,asc,239007,"4h!""4h!""4h!""4h!""4"
+Gr2D_DX8,asc,239183,"=h!""4h!""4h!""4h!""4"
+Gr2D_DX8,asc,245773,"0!0&0,060I0W0j0t0}0"
+Gr2D_DX8,asc,245801,0d1n1v1
+Gr2D_DX8,asc,245817,2*2B2S2f2
+Gr2D_DX8,asc,245855,"4""424P4V4~4"
+Gr2D_DX8,asc,245869,4=5O5o5
+Gr2D_DX8,asc,245889,5\6c6u7|7
+Gr2D_DX8,asc,245923,8#8)818@8I8
+Gr2D_DX8,asc,245957,;W<_<g<q<w<~<
+Gr2D_DX8,asc,246001,=n=|=
+Gr2D_DX8,asc,246040,0070A0N0
+Gr2D_DX8,asc,246071,4K4R4a4m4|4
+Gr2D_DX8,asc,246087,4Y5c5p5y5
+Gr2D_DX8,asc,246139,7e7l7w7
+Gr2D_DX8,asc,246153,7U8v8}8
+Gr2D_DX8,asc,246163,:2:[:d:j:o:y:
+Gr2D_DX8,asc,246181,:Z;{;
+Gr2D_DX8,asc,246231,1b122>2S2X2>3]3
+Gr2D_DX8,asc,246255,545Z5
+Gr2D_DX8,asc,246285,:n;:=
+Gr2D_DX8,asc,246295,>7>G>W>
+Gr2D_DX8,asc,246319,4l6}6
+Gr2D_DX8,asc,246327,7G8a8
+Gr2D_DX8,asc,246337,:*;D;
+Gr2D_DX8,asc,246353,<C=/>V>e?}?
+Gr2D_DX8,asc,246401,3'3P3w3
+Gr2D_DX8,asc,246409,386H6
+Gr2D_DX8,asc,246421,748k8
+Gr2D_DX8,asc,246433,819f9
+Gr2D_DX8,asc,246439,9?:K:y:
+Gr2D_DX8,asc,246461,;';4;=;C;I;O;Z;h;y;
+Gr2D_DX8,asc,246511,<%<6<<<D<S<\<d<u<{<
+Gr2D_DX8,asc,246559,= =)=/=;=D=J=`=l=
+Gr2D_DX8,asc,246595,>#>+>G>S>i>p>w>
+Gr2D_DX8,asc,246623,?'?4?M?S?c?j?p?
+Gr2D_DX8,asc,246657,0+0U0q0
+Gr2D_DX8,asc,246671,242@2u2~2
+Gr2D_DX8,asc,246683,2!3k3w3
+Gr2D_DX8,asc,246697,334x445
+Gr2D_DX8,asc,246741,7!70797A7R7X7`7o7x7
+Gr2D_DX8,asc,246841,;-<Q<
+Gr2D_DX8,asc,246872,I0b0h0n0t0
+Gr2D_DX8,asc,246905,1D1T1j1
+Gr2D_DX8,asc,246925,2#2*20272<2I2W2|2
+Gr2D_DX8,asc,246943,2K3`3
+Gr2D_DX8,asc,246963,3 4+474e4
+Gr2D_DX8,asc,247001,6!6-6:6A6S6[6|6
+Gr2D_DX8,asc,247029,63797I7O7
+Gr2D_DX8,asc,247065,;*;D;g;{;
+Gr2D_DX8,asc,247089,;8<R<
+Gr2D_DX8,asc,247099,<e>n>
+Gr2D_DX8,asc,247107,>h?y?
+Gr2D_DX8,asc,247163,"2,252M3"
+Gr2D_DX8,asc,247185,607K7
+Gr2D_DX8,asc,247217,:!:2:8:@:O:X:`:q:w:
+Gr2D_DX8,asc,247263,";$;,;=;C;K;Z;c;"
+Gr2D_DX8,asc,247329,414?4P4V4^4m4v4~4
+Gr2D_DX8,asc,247375,5*535J5[5a5i5x5
+Gr2D_DX8,asc,247417,"6,6S6_6"
+Gr2D_DX8,asc,247431,7 7-7T7l7
+Gr2D_DX8,asc,247485,>C>p>
+Gr2D_DX8,asc,247507,1'1w1
+Gr2D_DX8,asc,247519,2P2j2
+Gr2D_DX8,asc,247531,213U4
+Gr2D_DX8,asc,247567,;&<E>_>
+Gr2D_DX8,asc,247589,0J2d2
+Gr2D_DX8,asc,247615,7.8z8
+Gr2D_DX8,asc,247635,>j>r>
+Gr2D_DX8,asc,247667,141:1@1F1x1
+Gr2D_DX8,asc,247691,2.2H2P2e2w2
+Gr2D_DX8,asc,247713,5D6L6
+Gr2D_DX8,asc,247725,9+:m:y:
+Gr2D_DX8,asc,247761,;$;3;<;D;U;[;c;r;{;
+Gr2D_DX8,asc,247809,< </<8<G<S<`<g<y<
+Gr2D_DX8,asc,247839,=$=T=e=
+Gr2D_DX8,asc,247903,1%161<1D1S1\1d1u1{1
+Gr2D_DX8,asc,247937,1 242@2M2T2f2n2
+Gr2D_DX8,asc,247969,3O3U3f3x3~3
+Gr2D_DX8,asc,247983,3P4c4
+Gr2D_DX8,asc,247995,535I5
+Gr2D_DX8,asc,248052,0051 2(292A2R2Z2
+Gr2D_DX8,asc,248093,7 7/787@7Q7W7_7n7w7
+Gr2D_DX8,asc,248143,8+848<8M8S8[8j8s8
+Gr2D_DX8,asc,248185,9#9)919@9I9Q9b9h9p9
+Gr2D_DX8,asc,248235,<M=s==>R>
+Gr2D_DX8,asc,248271,4T5i556J6
+Gr2D_DX8,asc,248303,;g<|<K=`=P>e>O?d?
+Gr2D_DX8,asc,248328,N0c0>1S1C2X283M3
+Gr2D_DX8,asc,248345,414F5V5s5
+Gr2D_DX8,asc,248359,5B6*7=7l7
+Gr2D_DX8,asc,248385,8_8o8
+Gr2D_DX8,asc,248405,9)9n9z9
+Gr2D_DX8,asc,248441,:%:4:=:E:V:\:d:s:|:
+Gr2D_DX8,asc,248489,;!;0;9;Z;c;
+Gr2D_DX8,asc,248501,;(<9<?<G<V<_<g<x<~<
+Gr2D_DX8,asc,248549,=$=5=;=C=R=[=c=t=z=
+Gr2D_DX8,asc,248587,> >(>I>Z>
+Gr2D_DX8,asc,248615,0<0b0
+Gr2D_DX8,asc,248625,1A1Y1a1p1
+Gr2D_DX8,asc,248637,1L2Y2f2s2y2
+Gr2D_DX8,asc,248761,:A:N:[:
+Gr2D_DX8,asc,248787,;V<w<
+Gr2D_DX8,asc,248797,"<""=I="
+Gr2D_DX8,asc,248811,>>?D?
+Gr2D_DX8,asc,248831,0>1G1x1
+Gr2D_DX8,asc,248855,3:4x4
+Gr2D_DX8,asc,248877,;!;-;7;P;];h;
+Gr2D_DX8,asc,248919,<1=5=9===A=E=I=M=
+Gr2D_DX8,asc,248948,03<3E3N3
+Gr2D_DX8,asc,249061,5%5*52565;5@5o5
+Gr2D_DX8,asc,249147,141E1
+Gr2D_DX8,asc,249181,5:6b6h6%7+7S7Y7
+Gr2D_DX8,asc,249199,7I8O8
+Gr2D_DX8,asc,249211,:l=}=
+Gr2D_DX8,asc,249241,2'2E2n2
+Gr2D_DX8,asc,249251,343S3
+Gr2D_DX8,asc,249259,484W4
+Gr2D_DX8,asc,249267,595X5
+Gr2D_DX8,asc,249275,6:6Y6
+Gr2D_DX8,asc,249283,7;7Z7
+Gr2D_DX8,asc,249289,7;8X8w8
+Gr2D_DX8,asc,249299,8]9z9
+Gr2D_DX8,asc,249307,9U:z:
+Gr2D_DX8,asc,249313,";"";A;`;"
+Gr2D_DX8,asc,249321,;(<E<d<
+Gr2D_DX8,asc,249329,<)=I=h=
+Gr2D_DX8,asc,249339,=G>d>
+Gr2D_DX8,asc,249345,>E?t?
+Gr2D_DX8,asc,249467,;`<i<s<{<
+Gr2D_DX8,asc,249479,<L=l=
+Gr2D_DX8,asc,249487,=H>e>
+Gr2D_DX8,asc,249517,0!1Q1
+Gr2D_DX8,asc,249543,4.5p5
+Gr2D_DX8,asc,249571,:/;i;
+Gr2D_DX8,asc,249609,0!0C0\0
+Gr2D_DX8,asc,249623,1&2/2:2H2Q2[2h2q2z2
+Gr2D_DX8,asc,249669,545=5F5V5b5~5
+Gr2D_DX8,asc,249689,7-7I7
+Gr2D_DX8,asc,249697,8/999O9Y9o9y9
+Gr2D_DX8,asc,249729,;B;J;m;s;
+Gr2D_DX8,asc,249753,<9<U<q<
+Gr2D_DX8,asc,249769,=$=s=
+Gr2D_DX8,asc,249809,020N0j0
+Gr2D_DX8,asc,249827,1 1d1|1
+Gr2D_DX8,asc,249867,8-989V9a9
+Gr2D_DX8,asc,249893,:):2:r:
+Gr2D_DX8,asc,249921,"<,<F<y<"
+Gr2D_DX8,asc,249943,>->X>x>~>
+Gr2D_DX8,asc,249988,30J0u0{0
+Gr2D_DX8,asc,250001,1C1V1s1
+Gr2D_DX8,asc,250027,243&4i4{4
+Gr2D_DX8,asc,250045,566C6n6{6
+Gr2D_DX8,asc,250087,:3:F:S:j:
+Gr2D_DX8,asc,250103,:$;>;R;w;
+Gr2D_DX8,asc,250121,<+<B<V<d<
+Gr2D_DX8,asc,250131,<[=v=
+Gr2D_DX8,asc,250143,=F>U>k>
+Gr2D_DX8,asc,250191,081u1
+Gr2D_DX8,asc,250231,4#464H4f4
+Gr2D_DX8,asc,250249,5=5F5
+Gr2D_DX8,asc,250281,777P7c7u7
+Gr2D_DX8,asc,250333,"9""9,969@9J9Q9[9e9l9s9z9"
+Gr2D_DX8,asc,250391,":%:,:3:::A:H:O:V:]:d:k:r:y:"
+Gr2D_DX8,asc,250471,<$<+<2<9<@<G<N<U<\<c<m<w<
+Gr2D_DX8,asc,250527,=!=+=5=?=I=S=Z=d=r=y=
+Gr2D_DX8,asc,250597,<I=U=
+Gr2D_DX8,asc,250609,=s>~>
+Gr2D_DX8,asc,250669,565A5J5R5Y5d5m5u5|5
+Gr2D_DX8,asc,250725,829=9C9T9]9
+Gr2D_DX8,asc,250777,6g6v6
+Gr2D_DX8,asc,250805,9!9&9-9b9i9v9
+Gr2D_DX8,asc,250819,9D:R:Z:u:
+Gr2D_DX8,asc,250837,;c;m;w;
+Gr2D_DX8,asc,250853,;B<i<
+Gr2D_DX8,asc,250859,<)=4=V=e=
+Gr2D_DX8,asc,250871,=d>x>
+Gr2D_DX8,asc,250877,?F?}?
+Gr2D_DX8,asc,250896,(030Z0
+Gr2D_DX8,asc,250915,2=2H2o2
+Gr2D_DX8,asc,250931,4B4I4a4:6
+Gr2D_DX8,asc,250969,:5:D:
+Gr2D_DX8,asc,250981,:%;Q;\;
+Gr2D_DX8,asc,250995,<?<i<q<
+Gr2D_DX8,asc,251007,<o=z=
+Gr2D_DX8,asc,251021,>]>h>
+Gr2D_DX8,asc,251056,"""0N0Y0"
+Gr2D_DX8,asc,251079,1I5S5
+Gr2D_DX8,asc,251095,6'7/7m7t7
+Gr2D_DX8,asc,251113,71888B8z8%9
+Gr2D_DX8,asc,251199,5>5n5%6
+Gr2D_DX8,asc,251219,0)1O1
+Gr2D_DX8,asc,251277,7#7'7+7l7
+Gr2D_DX8,asc,251291,85999=9A9E9I9M9Q9
+Gr2D_DX8,asc,251309,9*:<:L:
+Gr2D_DX8,asc,251385,3u4|4
+Gr2D_DX8,asc,251413,5&585J5[5m5
+Gr2D_DX8,asc,251441,6W6_6i6p6w6
+Gr2D_DX8,asc,251471,7V7^7k7r7y7
+Gr2D_DX8,asc,251505,"8,838@8G8T8"
+Gr2D_DX8,asc,251529,9'969U9
+Gr2D_DX8,asc,251553,:J:_:
+Gr2D_DX8,asc,251575,;*;?;P;
+Gr2D_DX8,asc,251649,>+>J>]>
+Gr2D_DX8,asc,251663,?C?M?W?a?k?
+Gr2D_DX8,asc,251765,4)444G4u4
+Gr2D_DX8,asc,251789,5<5l5
+Gr2D_DX8,asc,251829,7\8b8h8n8V9d9l9r9}9
+Gr2D_DX8,asc,251909,<!<5<L<a<
+Gr2D_DX8,asc,251925,>%>A>U>q>C?U?i?}?
+Gr2D_DX8,asc,251961,050K0_0q0
+Gr2D_DX8,asc,251979,191M1a1u1
+Gr2D_DX8,asc,251993,1$2;2O2c2u2
+Gr2D_DX8,asc,252021,3)3=3Y3u3*4
+Gr2D_DX8,asc,252035,5Q5m5
+Gr2D_DX8,asc,252055,5)6m6
+Gr2D_DX8,asc,252065,6<7x7
+Gr2D_DX8,asc,252073,7Y8e8q8
+Gr2D_DX8,asc,252093,9%999O9c9
+Gr2D_DX8,asc,252107,9H:]:y:
+Gr2D_DX8,asc,252123,;);E;a;};
+Gr2D_DX8,asc,252141,<%<A<]<y<
+Gr2D_DX8,asc,252159,=!===S=q=
+Gr2D_DX8,asc,252179,>/>M>u>
+Gr2D_DX8,asc,252195,?'?;?W?k?}?
+Gr2D_DX8,asc,252243,1 1$1(1@1D1H1L1P1T1X1\1`1d1h1l1p1t1x1|1
+Gr2D_DX8,asc,252347,"2 2$2(2,2024282<2@2D2H2L2P2T2X2\2`2d2h2l2p2t2x2|2"
+Gr2D_DX8,asc,252481,"3 3$3(3,3034383<3@3D3H3L3P3T3X3\3`3d3h3l3p3t3x3|3"
+Gr2D_DX8,asc,252609,"4 4$4(4,4044484<4@4D4H4L4P4T4X4\4`4d4h4l4p4t4x4|4"
+Gr2D_DX8,asc,252737,"5 5,585D5P5h5l5p5t5x5|5"
+Gr2D_DX8,asc,252829,6064686<6@6D6H6L6P6
+Gr2D_DX8,asc,252901,"9 9$9(9,9094989<9@9D9H9L9P9T9X9\9`9d9h9l9p9t9x9|9"
+Gr2D_DX8,asc,253029,": :$:(:,:T:X:\:`:d:h:l:p:t:x:"
+Gr2D_DX8,asc,253127,1H2L2P2T2X2\2`2d2
+Gr2D_DX8,asc,253431,4054585<5@5D5H5L5P5T5X5\5`5d5h5l5p5t5x5|5
+Gr2D_DX8,asc,253551,"6 6$6(6,6064686<6@6D6H6L6P6T6X6\6`6d6h6l6p6t6x6|6"
+Gr2D_DX8,asc,253683,"9 9,9094989H9P9h9|9"
+Gr2D_DX8,asc,253721,":,:8:T:`:|:"
+Gr2D_DX8,asc,253747,;(;D;P;l;t;|;
+Gr2D_DX8,asc,253793,"<$<,<4<<<D<L<T<`<|<"
+Gr2D_DX8,asc,253833,= =<=D=L=X=t=|=
+Gr2D_DX8,asc,253869,">$>,>4><>D>L>T>\>d>l>t>|>"
+Gr2D_DX8,asc,253921,?8?D?L?X?t?
+Gr2D_DX8,asc,253957,0 0<0H0d0l0t0
+Gr2D_DX8,asc,253987,1$101L1X1t1
+Gr2D_DX8,asc,254021,2$202L2T2`2|2
+Gr2D_DX8,asc,254049,3(3D3P3l3t3|3
+Gr2D_DX8,asc,254083,4(4D4P4l4x4
+Gr2D_DX8,asc,254109,5 5(5X5l5x5
+Gr2D_DX8,asc,254133,6(606`6t6
+Gr2D_DX8,asc,254157,7$70787T7\7x7
+Gr2D_DX8,asc,254203,8(8D8L8T8\8d8l8t8|8
+Gr2D_DX8,asc,254249,"9$9,949@9H9d9l9"
+Gr2D_DX8,asc,254283,":$:,:8:@:p:|:"
+Gr2D_DX8,asc,254311,": ;,;4;@;H;x;"
+Gr2D_DX8,asc,254345,"<$<,<H<T<\<h<p<"
+Gr2D_DX8,asc,254385,=$=0=8=T=\=x=
+Gr2D_DX8,asc,254425,>$>0>8>T>\>d>l>t>|>
+Gr2D_DX8,asc,254465,"?$?,?8?T?\?d?l?t?|?"
+Gr2D_DX8,asc,254521,"0$0,040<0D0L0T0p0|0"
+Gr2D_DX8,asc,254555,"0 1,141@1\1h1"
+Gr2D_DX8,asc,254585,"2,282T2`2|2"
+Gr2D_DX8,asc,254611,3$303L3X3t3
+Gr2D_DX8,asc,254653,"4,484T4\4h4"
+Gr2D_DX8,asc,254685,5(5D5L5X5t5|5
+Gr2D_DX8,asc,254717,6 6<6D6P6l6t6
+Gr2D_DX8,asc,254749,"7,747@7\7d7p7"
+Gr2D_DX8,asc,254781,8$808L8T8`8|8
+Gr2D_DX8,asc,254813,9 9<9H9d9p9
+Gr2D_DX8,asc,254843,:$:0:H:T:l:t:
+Gr2D_DX8,asc,254879,";,;4;@;X;`;l;"
+Gr2D_DX8,asc,254911,"<$<,<8<P<\<t<"
+Gr2D_DX8,asc,254959,= =(=0=8=@=H=P=X=`=h=p=x=
+Gr2D_DX8,asc,255033,"0 0$0(0,0004080<0@0D0H0L0P0T0X0\0"
+Gr2D_DX8,asc,255079,0014181<1@1D1H1L1P1
+Gr2D_DX8,asc,255113,5 5p5
+Gr2D_DX8,asc,255159,"7 7$7(7,7074787<7@7D7H7L7P7T7X7\7`7d7h7l7p7t7x7|7"
+Gr2D_DX8,asc,255281,"8 8$8(8,8084888<8@8D8H8L8P8T8X8\8`8d8h8l8p8t8x8|8"
+Canvas,u16,48419,jjjj
+Canvas,u16,106182,jjjjjj
+Canvas,u16,180916,Canvas
+Canvas,u16,180932,Font
+Canvas,u16,185916,Property
+Canvas,u16,186036,origin
+Canvas,u16,186084,.img
+Canvas,u16,188518,VS_VERSION_INFO
+Canvas,u16,188610,StringFileInfo
+Canvas,u16,188646,040904b0
+Canvas,u16,188670,Comments
+Canvas,u16,188694,CompanyName
+Canvas,u16,188726,FileDescription
+Canvas,u16,188760,Canvas Module
+Canvas,u16,188794,FileVersion
+Canvas,u16,188850,InternalName
+Canvas,u16,188898,LegalCopyright
+Canvas,u16,188928,"Copyright 2001 Wizet, ZMS"
+Canvas,u16,188986,LegalTrademarks
+Canvas,u16,189026,OLESelfRegister
+Canvas,u16,189066,OriginalFilename
+Canvas,u16,189100,Canvas.DLL
+Canvas,u16,189130,PrivateBuild
+Canvas,u16,189162,ProductName
+Canvas,u16,189222,ProductVersion
+Canvas,u16,189282,SpecialBuild
+Canvas,u16,189314,VarFileInfo
+Canvas,u16,189346,Translation
+Canvas,asc,77,!This program cannot be run in DOS mode.
+Canvas,asc,520,.text
+Canvas,asc,559,`.rdata
+Canvas,asc,599,@.data
+Canvas,asc,640,.rsrc
+Canvas,asc,679,@.reloc
+Canvas,asc,64572,"U ;U,u^"
+Canvas,asc,67390,"U ;U,u]"
+Canvas,asc,87088,%UUUU
+Canvas,asc,91305,Ah;B`}q
+Canvas,asc,91586,";B,|'j"
+Canvas,asc,92176,;B(})
+Canvas,asc,97080,Jh;H`~
+Canvas,asc,110633,E0;E 
+Canvas,asc,149021,u7WPS
+Canvas,asc,149038,u&WVS
+Canvas,asc,179334,InterlockedDecrement
+Canvas,asc,179358,InterlockedIncrement
+Canvas,asc,179382,HeapDestroy
+Canvas,asc,179396,GetProcAddress
+Canvas,asc,179414,WideCharToMultiByte
+Canvas,asc,179436,LocalFree
+Canvas,asc,179448,FreeLibrary
+Canvas,asc,179462,LoadLibraryA
+Canvas,asc,179478,GetModuleFileNameA
+Canvas,asc,179498,KERNEL32.dll
+Canvas,asc,179514,CreateCompatibleDC
+Canvas,asc,179534,GDI32.dll
+Canvas,asc,179544,OLEAUT32.dll
+Canvas,asc,179560,?ZLZCloseFilter@@YAXPAUZIStream@@@Z
+Canvas,asc,179598,?ZLZCreateInflator@@YAPAUZIStream@@HPAU1@I@Z
+Canvas,asc,179646,?ZLZCreateDeflator@@YAPAUZIStream@@HPAU1@H@Z
+Canvas,asc,179692,ZLZ.dll
+Canvas,asc,179702,_lrotl
+Canvas,asc,179712,memcpy
+Canvas,asc,179722,_lrotr
+Canvas,asc,179740,malloc
+Canvas,asc,179750,__CxxFrameHandler
+Canvas,asc,179770,?raw_name@type_info@@QBEPBDXZ
+Canvas,asc,179802,wcscmp
+Canvas,asc,179812,_purecall
+Canvas,asc,179824,_CxxThrowException
+Canvas,asc,179846,memset
+Canvas,asc,179862,sprintf
+Canvas,asc,179886,_ftol
+Canvas,asc,179894,towlower
+Canvas,asc,179906,wcsncpy
+Canvas,asc,179916,fclose
+Canvas,asc,179926,fread
+Canvas,asc,179934,fopen
+Canvas,asc,179942,strcpy
+Canvas,asc,179952,strlen
+Canvas,asc,179962,wcslen
+Canvas,asc,179970,MSVCRT.dll
+Canvas,asc,179984,??1type_info@@UAE@XZ
+Canvas,asc,180008,__dllonexit
+Canvas,asc,180022,_onexit
+Canvas,asc,180032,_initterm
+Canvas,asc,180044,_adjust_fdiv
+Canvas,asc,180135,DllCanUnloadNow
+Canvas,asc,180151,DllGetClassObject
+Canvas,asc,180792,.?AVCWzStream@@
+Canvas,asc,181048,.?AV_com_error@@
+Canvas,asc,181096,.?AVCWzCanvas@@
+Canvas,asc,181120,.?AVCWzClipToken@@
+Canvas,asc,181152,.?AVCWzDIBRawCanvas@@
+Canvas,asc,181184,.?AVCWzFont@@
+Canvas,asc,181215,FCComClassFactory: asked for non IUnknown interface while creating an aggregated
+Canvas,asc,181304,NotifyAlloc
+Canvas,asc,181529,0-z=$L
+Canvas,asc,181636,0acN0
+Canvas,asc,181725,K$W>`
+Canvas,asc,181782,xRJ3U
+Canvas,asc,182171,k`(v7b
+Canvas,asc,182855,\EG]]J
+Canvas,asc,183092,e`nhn
+Canvas,asc,183108,Pw>@*
+Canvas,asc,183335,}JI&N
+Canvas,asc,183380,#aB@h
+Canvas,asc,183570,<u_[T
+Canvas,asc,183773,t3y3]X
+Canvas,asc,184509,Ij`%R`;
+Canvas,asc,185027,XDIhD
+Canvas,asc,185074,qR(YR
+Canvas,asc,185234,;RT_^
+Canvas,asc,185393,|0z$`
+Canvas,asc,185573,mM[NJ
+Canvas,asc,185687,PKernel32.dll
+Canvas,asc,185704,User32.dll
+Canvas,asc,185716,Ole32.dll
+Canvas,asc,185740,ADVAPI32.dll
+Canvas,asc,185756,SHELL32.dll
+Canvas,asc,185768,IMM32.dll
+Canvas,asc,185780,WINMM.dll
+Canvas,asc,185792,WS2_32.DLL
+Canvas,asc,185804,PCOM.DLL
+Canvas,asc,185816,PcCreateObject
+Canvas,asc,185832,PcFreeUnusedLibraries
+Canvas,asc,185856,PcSerializeObject
+Canvas,asc,185876,PcSerializeString
+Canvas,asc,185896,PcRootNameSpace
+Canvas,asc,186064,.?AVZException@@
+Canvas,asc,186100,List.wz
+Canvas,asc,186142,d*ZFilter: Flush()ing into failed stream ignored
+Canvas,asc,186248,.?AVtype_info@@
+Canvas,asc,192523,0J1y1
+Canvas,asc,192541,2#393Q3i3
+Canvas,asc,192563,3-4E4]4u4
+Canvas,asc,192587,545A5S5v5
+Canvas,asc,192607,6&6>6V6a6
+Canvas,asc,192619,7z<9=@=]=z=
+Canvas,asc,192631,=4>;>N>a>|?
+Canvas,asc,192665,0#050H0m0t0
+Canvas,asc,192691,111D1h1o1
+Canvas,asc,192715,2+2=2`2g2y2
+Canvas,asc,192741,3.3\3c3v3
+Canvas,asc,192765,4(4M4T4g4z4
+Canvas,asc,192789,5$5H5O5b5t5
+Canvas,asc,192815,6@6G6Y6l6
+Canvas,asc,192839,7<7C7V7i7
+Canvas,asc,192863,8-848G8Z8
+Canvas,asc,192887,9(9/9B9T9x9
+Canvas,asc,192911,9 :':9:L:q:x:
+Canvas,asc,192937,;#;6;I;l;s;
+Canvas,asc,192963,<'<:<g<n<
+Canvas,asc,192987,"=""=4=X=_=q="
+Canvas,asc,193013,">,>Q>X>k>~>"
+Canvas,asc,193037,?)?L?S?f?x?
+Canvas,asc,193071,0G0N0`0s0
+Canvas,asc,193095,181?1Q1d1 2'2:2M2p2w2
+Canvas,asc,193131,3+3>3k3r3
+Canvas,asc,193155,4&484\4c4u4
+Canvas,asc,193181,505U5\5o5
+Canvas,asc,193205,6-6P6W6j6|6
+Canvas,asc,193231,7K7R7d7w7
+Canvas,asc,193255,8<8C8U8h8
+Canvas,asc,193279,959<9O9b9
+Canvas,asc,193303,:0:7:J:\:
+Canvas,asc,193327,:+;2;D;W;{;
+Canvas,asc,193353,<#<5<H<u<|<
+Canvas,asc,193379,=/=B=f=m=
+Canvas,asc,193403,>*><>`>g>y>
+Canvas,asc,193427,?$?7?[?b?u?
+Canvas,asc,193463,0(0U0\0o0
+Canvas,asc,193487,"1""1F1M1`1r1"
+Canvas,asc,193513,2@2G2Y2l2
+Canvas,asc,193537,3;3B3U3h3
+Canvas,asc,193563,4H6V7
+Canvas,asc,193637,"1#1,111F1"
+Canvas,asc,193667,4&5U6z6
+Canvas,asc,193691,939@9J9X9_9i9w9
+Canvas,asc,193711,:#:5:G:[:
+Canvas,asc,193735,<d<|<
+Canvas,asc,193743,<>=V=
+Canvas,asc,193813,:.;V;6<
+Canvas,asc,193833,>#>->S>
+Canvas,asc,193843,?J?l?
+Canvas,asc,193883,3v3&4
+Canvas,asc,193919,9$:V;
+Canvas,asc,193960,&0A0_0
+Canvas,asc,194001,7v8f9
+Canvas,asc,194017,:&:3:<:A:G:M:f:s:|:
+Canvas,asc,194063,";#;,;1;F;S;\;a;v;"
+Canvas,asc,194173,?Z?f?
+Canvas,asc,194201,060L0S0
+Canvas,asc,194215,1b1i1
+Canvas,asc,194243,3)3F3P3m3
+Canvas,asc,194275,";"";P;|;"
+Canvas,asc,194325,3M5_5q5
+Canvas,asc,194339,6Y6q6
+Canvas,asc,194347,637K7
+Canvas,asc,194357,8%8z8
+Canvas,asc,194375,9B:f:
+Canvas,asc,194383,;!;l;
+Canvas,asc,194389,;d<9=^=
+Canvas,asc,194423,2$4f7
+Canvas,asc,194457,2G3|3
+Canvas,asc,194487,?@?J?T?Y?
+Canvas,asc,194519,2F3}3
+Canvas,asc,194547,6%6F6v6
+Canvas,asc,194571,:$;4;F;
+Canvas,asc,194601,061M2C6
+Canvas,asc,194619,8V8n8
+Canvas,asc,194641,":"":H:Q:Z:v:"
+Canvas,asc,194684,I2R2[2
+Canvas,asc,194697,6Z6|6
+Canvas,asc,194715,<(<R<5=
+Canvas,asc,194729,>9?w?
+Canvas,asc,194751,1L394
+Canvas,asc,194815,=4>:>?>E>Q>h>o>
+Canvas,asc,194861,?)?8?J?
+Canvas,asc,194891,808?8S8`8i8n8
+Canvas,asc,194913,8>9V9
+Canvas,asc,194927,;C;d;
+Canvas,asc,194977,0x0/1;1?1G1K1T1
+Canvas,asc,194999,323A3U3b3k3p3
+Canvas,asc,195023,525a5\6
+Canvas,asc,195033,6q7P8
+Canvas,asc,195039,8=9`9g9x9
+Canvas,asc,195053,9*:<:]:y:
+Canvas,asc,195067,:*;$<^=}=i>
+Canvas,asc,195079,>0?Q?
+Canvas,asc,195103,4k5D8
+Canvas,asc,195111,:S;~;
+Canvas,asc,195117,=U>g>y>
+Canvas,asc,195129,>O?g?
+Canvas,asc,195163,4&5D6V6
+Canvas,asc,195193,;V;s;};
+Canvas,asc,195245,3>4E4R4_4t4
+Canvas,asc,195275,5*5@5M5
+Canvas,asc,195305,6&7[7e7
+Canvas,asc,195321,9#:c:
+Canvas,asc,195373,"7,9S9"
+Canvas,asc,195379,9o<r=
+Canvas,asc,195397,2;2P3W3
+Canvas,asc,195425,5]6y6i8{8
+Canvas,asc,195441,9c9{9
+Canvas,asc,195449,9=:d:
+Canvas,asc,195457,:&;];d;P<T<X<\<`<d<h<l<
+Canvas,asc,195519,; ;2;F;
+Canvas,asc,195531,< <u<
+Canvas,asc,195549,=L>d>
+Canvas,asc,195601,<&=v=
+Canvas,asc,195647,3;3E3v3
+Canvas,asc,195659,3*444\4f5
+Canvas,asc,195699,;V;F<6=&>a?~?
+Canvas,asc,195731,349W9{9
+Canvas,asc,195781,"1""2w2"
+Canvas,asc,195789,2&333<3A3K3X3d3
+Canvas,asc,195809,4:5f7
+Canvas,asc,195857,0Y0B1
+Canvas,asc,195871,466T7
+Canvas,asc,195887,=A>f>
+Canvas,asc,195909,0&1w1
+Canvas,asc,195935,919N9
+Canvas,asc,195961,"=,>6>@>J>"
+Canvas,asc,196013,2F3v3
+Canvas,asc,196041,8T;C<
+Canvas,asc,196081,2@3p3
+Canvas,asc,196103,4.4;4B4G4l4r4x4
+Canvas,asc,196127,"5""5*505;5H5P5^5c5h5m5x5"
+Canvas,asc,196163,5F6b6h6n6
+Canvas,asc,196183,7*7J7j7
+Canvas,asc,196199,868L8l8
+Canvas,asc,196219,:*:M:m:
+Canvas,asc,196229,:2;J;j;
+Canvas,asc,196249,<:<Z<z<
+Canvas,asc,196265,=&=;=P=e=z=
+Canvas,asc,196289,>:>Z>z>
+Canvas,asc,196305,?:?Z?z?
+Canvas,asc,196329,0B0]0}0
+Canvas,asc,196337,0M1`1
+Canvas,asc,196353,212F2[2p2
+Canvas,asc,196377,3<3Z3z3
+Canvas,asc,196393,4:4\4z4
+Canvas,asc,196409,5-5i5
+Canvas,asc,196421,"6,6J6j6"
+Canvas,asc,196437,7!767M7c7x7
+Canvas,asc,196457,"8""8=8\8q8"
+Canvas,asc,196481,9:9D9W9
+Canvas,asc,196501,: :5:J:_:t:
+Canvas,asc,196519,:-;J;j;
+Canvas,asc,196535,<*<L<j<
+Canvas,asc,196567,>&>:>Z>
+Canvas,asc,196589,?)?>?S?h?
+Canvas,asc,196617,0*0J0j0
+Canvas,asc,196633,1*1L1j1
+Canvas,asc,196649,2*2J2j2
+Canvas,asc,196663,3*3J3
+Canvas,asc,196669,4R4g4|4
+Canvas,asc,196685,4!5I5j5
+Canvas,asc,196701,6*6J6j6
+Canvas,asc,196717,7*7J7
+Canvas,asc,196729,8*8J8a8q8
+Canvas,asc,196787,"1 1$1(1,1014181<1@1D1H1L1P1T1X1\1`1d1h1l1p1t1x1|1"
+Canvas,asc,196915,"2 2$2(2,2024282<2@2D2H2L2P2T2X2\2`2d2h2l2p2t2x2|2"
+Canvas,asc,197025,"3 3$3(3,3034383<3@3L3d3h3l3p3t3x3|3"
+Canvas,asc,197139,"4 4$4(4,4044484<4@4D4H4L4P4T4X4\4`4d4h4l4p4x4"
+Canvas,asc,197255,"5 5$5(5,50585P5T5X5"
+Canvas,asc,197284,\5`5d5h5l5p5t5x5|5
+Canvas,asc,197365,"6 6$6(6,6064686<6@6D6H6L6P6T6X6\6`6d6h6l6p6t6x6|6"
+Canvas,asc,197493,"7 7$7(7,7074787<7@7D7H7L7P7T7X7\7`7d7h7l7p7t7x7|7"
+Canvas,asc,197593,"8,8<8@8H8`8t8"
+Canvas,asc,197623,"9,989T9`9|9"
+Canvas,asc,197649,:(:D:P:l:x:
+Canvas,asc,197675,; ;<;H;d;p;
+Canvas,asc,197709,< <<<D<L<T<\<d<p<
+Canvas,asc,197743,=4=@=\=h=
+Canvas,asc,197773,>8>D>L>X>`>
+Canvas,asc,197803,?@?L?T?`?|?
+Canvas,asc,197839,0(0D0P0l0x0
+Canvas,asc,197865,141@1\1h1
+Canvas,asc,197889,2$202L2X2t2
+Canvas,asc,197915,3 3<3H3d3p3
+Canvas,asc,197941,"4,484T4`4|4"
+Canvas,asc,197967,5(5D5P5l5x5
+Canvas,asc,197993,6(646<6D6P6l6t6|6
+Canvas,asc,198035,7 7<7D7P7l7t7
+Canvas,asc,198065,"8$8,848@8\8h8"
+Canvas,asc,198093,9$909L9X9t9
+Canvas,asc,198119,: :<:H:d:p:
+Canvas,asc,198147,;4;<;H;d;p;
+Canvas,asc,198173,"<,<8<T<`<h<"
+Canvas,asc,198199,=$=0=L=T=`=|=
+Canvas,asc,198227,>(>D>P>l>x>
+Canvas,asc,198253,?4?@?\?h?
+Canvas,asc,198285,0$000L0X0t0
+Canvas,asc,198311,1 1<1H1d1p1
+Canvas,asc,198337,"2,282T2`2|2"
+Canvas,asc,198369,383D3L3X3t3
+Canvas,asc,198403,4$4@4L4T4`4|4
+Canvas,asc,198431,"5 5,545@5\5h5"
+Canvas,asc,198459,6$606L6X6t6
+Canvas,asc,198485,7 7<7H7d7p7
+Canvas,asc,198511,"8,888T8`8|8"
+Canvas,asc,198537,9(9D9P9X9t9|9
+Canvas,asc,198575,:4:<:D:L:T:`:|:
+Canvas,asc,198605,;(;D;P;l;x;
+Canvas,asc,198631,< <<<H<d<p<
+Canvas,asc,198657,"=,=8=T=`=|="
+Canvas,asc,198769,1(1D1P1l1x1
+Canvas,asc,198795,2 2<2H2d2l2
+Canvas,asc,198835,"3$3,343<3D3`3l3t3|3"
+Canvas,asc,198903,"5$5,545@5\5d5p5"
+Canvas,asc,198933,"6,686T6`6|6"
+Canvas,asc,198959,7(7D7P7l7x7
+Canvas,asc,198985,8 8<8D8L8T8\8h8
+Canvas,asc,199017,9@9L9T9`9h9
+Canvas,asc,199047,:H:T:\:h:p:
+Canvas,asc,199101,"0 0$0(0,0004080<0@0D0H0L0P0T0X0\0`0d0h0l0p0t002H2L2P2T2`2d2h2l2p2t2x2"
+Canvas,asc,199175,203`3x3
+Canvas,asc,199185,3X4\4`4d4h4l4p4t4x4
+Shape2D,u16,65824,PolyShape2D
+Shape2D,u16,65848,Convex2D
+Shape2D,u16,65868,Vector2D
+Shape2D,u16,66000,Shape2D#Convex2D
+Shape2D,u16,66056,Shape2D#PolyShape2D
+Shape2D,u16,71120,Shape2D#Vector2D
+Shape2D,u16,73830,VS_VERSION_INFO
+Shape2D,u16,73922,StringFileInfo
+Shape2D,u16,73958,040904b0
+Shape2D,u16,73982,Comments
+Shape2D,u16,74006,CompanyName
+Shape2D,u16,74038,FileDescription
+Shape2D,u16,74072,Shape2D Module
+Shape2D,u16,74110,FileVersion
+Shape2D,u16,74166,InternalName
+Shape2D,u16,74192,Shape2D
+Shape2D,u16,74214,LegalCopyright
+Shape2D,u16,74244,"Copyright 2000 Wizet, ZMS"
+Shape2D,u16,74302,LegalTrademarks
+Shape2D,u16,74342,OLESelfRegister
+Shape2D,u16,74382,OriginalFilename
+Shape2D,u16,74416,Shape2D.DLL
+Shape2D,u16,74446,PrivateBuild
+Shape2D,u16,74478,ProductName
+Shape2D,u16,74542,ProductVersion
+Shape2D,u16,74602,SpecialBuild
+Shape2D,u16,74634,VarFileInfo
+Shape2D,u16,74666,Translation
+Shape2D,asc,77,!This program cannot be run in DOS mode.
+Shape2D,asc,512,.text
+Shape2D,asc,551,`.rdata
+Shape2D,asc,591,@.data
+Shape2D,asc,632,.rsrc
+Shape2D,asc,671,@.reloc
+Shape2D,asc,4213,@QWhL
+Shape2D,asc,4336,QQSVW
+Shape2D,asc,6549,90u29p
+Shape2D,asc,8784,@QVW3
+Shape2D,asc,9286,t^HtPHtAHt2
+Shape2D,asc,11651,2WVVj
+Shape2D,asc,12528,t%8^<t 9^H
+Shape2D,asc,12556,G;~Dv
+Shape2D,asc,13756,S9^ u
+Shape2D,asc,15062,+O$QW
+Shape2D,asc,18959,YY|8C;
+Shape2D,asc,19635,QQVWj(
+Shape2D,asc,20018,hFO@Q
+Shape2D,asc,22888,"TtFHHt<Ht4Ht""HuP"
+Shape2D,asc,23039,Y|DSSj
+Shape2D,asc,23429,@tZf=
+Shape2D,asc,25946,@Q1L$(3\$(
+Shape2D,asc,26122,UUUU3
+Shape2D,asc,26606,AQ+h@Qw
+Shape2D,asc,27126,t/SSSSSSS
+Shape2D,asc,27406,AQ;FXt-
+Shape2D,asc,28009,RVVVV
+Shape2D,asc,29296,PPPPPPPPV
+Shape2D,asc,29349,"""RRRRRRR"
+Shape2D,asc,29633,@Q^[d
+Shape2D,asc,29883,@Q_^d
+Shape2D,asc,29934,PPPPPPPVP
+Shape2D,asc,29987,"""RRRRRRRR"
+Shape2D,asc,30293,F +E 
+Shape2D,asc,30313,DSWPPPPPPP
+Shape2D,asc,31317,SSSSS
+Shape2D,asc,31452,PPPPPPVPP
+Shape2D,asc,31508,PPPPPVPPP
+Shape2D,asc,31721,AQ;FXt
+Shape2D,asc,32453,9_$u_
+Shape2D,asc,32553,"f9],t"
+Shape2D,asc,34535,u$f9u
+Shape2D,asc,37752,C8+A8
+Shape2D,asc,38885,VVVVVV
+Shape2D,asc,44585,AQu?h
+Shape2D,asc,44809,u7WPS
+Shape2D,asc,44826,u&WVS
+Shape2D,asc,49322,@Q 1@Ql1@Q@
+Shape2D,asc,49342,@Q 1@Ql1@Q`
+Shape2D,asc,49381," @Q:,@QD,@QN,@Q"
+Shape2D,asc,49414,@Qpi@Q
+Shape2D,asc,49429,q@Q3r@QJr@Q
+Shape2D,asc,49449,u@QMu@Q^u@Qou@Q
+Shape2D,asc,49473,"u@Q""v@Q"
+Shape2D,asc,49509,z@Q&{@Q
+Shape2D,asc,49517,z@QW{@Q
+Shape2D,asc,49537,}@Qd~@Q
+Shape2D,asc,50085,",@Q~,@Qb,@Ql,@Q"
+Shape2D,asc,50125,1@Qh8@QF9@Q
+Shape2D,asc,50141,9@QN:@Q
+Shape2D,asc,50149,9@Qe:@Q
+Shape2D,asc,50157,:@Q|:@Q1:@Q
+Shape2D,asc,50177,:@QF>@Q
+Shape2D,asc,50185,<@Qn?@Qy
+Shape2D,asc,50194,@QD!@Q
+Shape2D,asc,50294,"@Q2,@Q"
+Shape2D,asc,50305,",@Q(,@Q"
+Shape2D,asc,50426,"@Qv,@QX,@Qb,@Ql,@Q"
+Shape2D,asc,50616,= @QH
+Shape2D,asc,50917,;@QZP@Q
+Shape2D,asc,50941,7@Qm4@Q
+Shape2D,asc,50953,";@Q,<@Q"
+Shape2D,asc,50965,A@Qv6@Qj7@QP4@Q
+Shape2D,asc,50981,5@Q%6@QB6@Q
+Shape2D,asc,50993,L@QJE@Q
+Shape2D,asc,51017,P@Q8Q@QOQ@Q
+Shape2D,asc,51053,A@Q2B@QEB@Q@
+Shape2D,asc,51078,@Q/<@Q
+Shape2D,asc,51121,C@Q9C@Q
+Shape2D,asc,51137,G@QaO@Q
+Shape2D,asc,51173,W@QCK@QH
+Shape2D,asc,51189,I@QqJ@Q
+Shape2D,asc,51201,J@Q\K@Q
+Shape2D,asc,51277,I@QCK@QH
+Shape2D,asc,51305,J@Q$M@Q
+Shape2D,asc,51353,"J@Q""R@Q"
+Shape2D,asc,51361,I@QYR@Q
+Shape2D,asc,55533,s@Q't@Q
+Shape2D,asc,55716,MbP?}
+Shape2D,asc,57908, >@Q 
+Shape2D,asc,58004,H?@Q 
+Shape2D,asc,58836,(Q@Q 
+Shape2D,asc,59964,[y@Q 
+Shape2D,asc,60276,3~@Q 
+Shape2D,asc,62190,InterlockedIncrement
+Shape2D,asc,62214,InterlockedDecrement
+Shape2D,asc,62238,GetProcAddress
+Shape2D,asc,62256,HeapDestroy
+Shape2D,asc,62270,LocalFree
+Shape2D,asc,62282,FreeLibrary
+Shape2D,asc,62296,LoadLibraryA
+Shape2D,asc,62310,KERNEL32.dll
+Shape2D,asc,62324,OLEAUT32.dll
+Shape2D,asc,62340,wcscmp
+Shape2D,asc,62350,__CxxFrameHandler
+Shape2D,asc,62370,_purecall
+Shape2D,asc,62382,?raw_name@type_info@@QBEPBDXZ
+Shape2D,asc,62414,memcpy
+Shape2D,asc,62424,wcslen
+Shape2D,asc,62434,_CxxThrowException
+Shape2D,asc,62456,memcmp
+Shape2D,asc,62466,memset
+Shape2D,asc,62476,sprintf
+Shape2D,asc,62486,_lrotl
+Shape2D,asc,62496,_lrotr
+Shape2D,asc,62526,_ftol
+Shape2D,asc,62532,MSVCRT.dll
+Shape2D,asc,62546,??1type_info@@UAE@XZ
+Shape2D,asc,62570,__dllonexit
+Shape2D,asc,62584,_onexit
+Shape2D,asc,62602,_initterm
+Shape2D,asc,62614,malloc
+Shape2D,asc,62624,_adjust_fdiv
+Shape2D,asc,62712,DllCanUnloadNow
+Shape2D,asc,62728,DllGetClassObject
+Shape2D,asc,65553,f@QLh@Q
+Shape2D,asc,65565,(@Q1+@Q
+Shape2D,asc,65646,"@Q,<@Q"
+Shape2D,asc,65903,FNotifyAlloc
+Shape2D,asc,66120,.?AVCWzVector2D@@
+Shape2D,asc,66152,.?AV?$CWzShape2D@$1?_GUID_ac8daf42_33b1_4f78_b6b0_d28395de21f7@@3U__s_GUID@@AUPU
+Shape2D,asc,66272,.?AV?$CWzShape2D@$1?_GUID_74e25d99_588f_4bad_9898_e9630a1f5fa7@@3U__s_GUID@@AUPU
+Shape2D,asc,66400,.?AVZException@@
+Shape2D,asc,66432,.?AV_com_error@@
+Shape2D,asc,66496,.?AVCWzStream@@
+Shape2D,asc,66737,0-z=$L
+Shape2D,asc,66844,0acN0
+Shape2D,asc,66933,K$W>`
+Shape2D,asc,66990,xRJ3U
+Shape2D,asc,67379,k`(v7b
+Shape2D,asc,68063,\EG]]J
+Shape2D,asc,68300,e`nhn
+Shape2D,asc,68316,Pw>@*
+Shape2D,asc,68543,}JI&N
+Shape2D,asc,68588,#aB@h
+Shape2D,asc,68778,<u_[T
+Shape2D,asc,68981,t3y3]X
+Shape2D,asc,69717,Ij`%R`;
+Shape2D,asc,70235,XDIhD
+Shape2D,asc,70282,qR(YR
+Shape2D,asc,70442,;RT_^
+Shape2D,asc,70601,|0z$`
+Shape2D,asc,70781,mM[NJ
+Shape2D,asc,70893,g@QWS2_32.DLL
+Shape2D,asc,70908,WINMM.dll
+Shape2D,asc,70920,IMM32.dll
+Shape2D,asc,70932,SHELL32.dll
+Shape2D,asc,70944,ADVAPI32.dll
+Shape2D,asc,70960,GDI32.dll
+Shape2D,asc,70972,Ole32.dll
+Shape2D,asc,70984,User32.dll
+Shape2D,asc,70996,Kernel32.dll
+Shape2D,asc,71012,PCOM.DLL
+Shape2D,asc,71024,PcRootNameSpace
+Shape2D,asc,71040,PcSerializeString
+Shape2D,asc,71060,PcSerializeObject
+Shape2D,asc,71080,PcFreeUnusedLibraries
+Shape2D,asc,71104,PcCreateObject
+Shape2D,asc,71168,.?AVCVectorAux@@
+Shape2D,asc,71224,.?AVtype_info@@
+Shape2D,asc,77839,0!0'010D0R0e0s0y0
+Shape2D,asc,77883,2A2S2o2{2
+Shape2D,asc,77905,3G3N3
+Shape2D,asc,77919,4I4P4
+Shape2D,asc,77933,5J5Q5
+Shape2D,asc,77949,6#6*606;6\6i6
+Shape2D,asc,77963,"6""7;7A7G7M7"
+Shape2D,asc,77997,"8""8'8R8j8r8"
+Shape2D,asc,78027,9'9-9:9R9e9|9
+Shape2D,asc,78041,9$:6:N:T:[:b:i:o:
+Shape2D,asc,78067,;';B;i;
+Shape2D,asc,78097,<0<F<\<q<w<|<
+Shape2D,asc,78121,"=""=y="
+Shape2D,asc,78143,> >t>
+Shape2D,asc,78171,"?""?P?g?|?"
+Shape2D,asc,78221,1%1*171U1i1o1v1}1
+Shape2D,asc,78257,1G2N2e2p2|2
+Shape2D,asc,78271,2%3;3T3Z3`3f3
+Shape2D,asc,78295,4q4x41585
+Shape2D,asc,78319,9!9'929?9H9N9T9Z9e9r9{9
+Shape2D,asc,78371,:%:4:=:E:V:\:d:s:|:
+Shape2D,asc,78419,";"";>;O;U;];l;u;};"
+Shape2D,asc,78461,>*>K>X>
+Shape2D,asc,78481,0r1z1
+Shape2D,asc,78501,3C3J3P3W3t3
+Shape2D,asc,78535,7Z8i8
+Shape2D,asc,78547,:+;i;
+Shape2D,asc,78553,;9<A<Y<
+Shape2D,asc,78563,<->G>
+Shape2D,asc,78569,>U?o?
+Shape2D,asc,78597,1D1Y1_1d1
+Shape2D,asc,78613,2)3C3K3f3u3
+Shape2D,asc,78639,7.7>7P7b7q7
+Shape2D,asc,78675,8+999F9e9s9y9
+Shape2D,asc,78691,9;:%;L;m;
+Shape2D,asc,78737,=5=H=N=[=i=
+Shape2D,asc,78757,">"">(>3>?>M>^>d>l>{>"
+Shape2D,asc,78805,?!?)?8?A?H?Q?W?k?
+Shape2D,asc,78836,;0[0z0
+Shape2D,asc,78855,232P2j2|2
+Shape2D,asc,78901,"6""6(606?6H6N6Z6"
+Shape2D,asc,78935,7)7]7c7s7z7
+Shape2D,asc,78987,;S<z<
+Shape2D,asc,78999,===d=
+Shape2D,asc,79033,> >(>->;>S>
+Shape2D,asc,79055,?>?q?
+Shape2D,asc,79084,l1s1}1
+Shape2D,asc,79107,"5,5;5E5X5"
+Shape2D,asc,79171,8T8e8k8s8
+Shape2D,asc,79235,<I<Y<e<
+Shape2D,asc,79271,0)040A0
+Shape2D,asc,79283,"2$3,3A3[3"
+Shape2D,asc,79303,384I4_4e4l4
+Shape2D,asc,79343,<0<W<
+Shape2D,asc,79423,6.6D6J6o6u6
+Shape2D,asc,79451,8I8W8o8
+Shape2D,asc,79479,:>:Q:d:z:
+Shape2D,asc,79537,>;>o>
+Shape2D,asc,79581,1#2l2~2
+Shape2D,asc,79639,"9""929H9N9_9u9"
+Shape2D,asc,79669,:B:W:]:b:
+Shape2D,asc,79693,;!;);C;K;e;m;
+Shape2D,asc,79723,<:<K<
+Shape2D,asc,79733,='?x?
+Shape2D,asc,79755,142@2M2V2\2b2h2s2
+Shape2D,asc,79803,3-363>3O3U3]3l3u3}3
+Shape2D,asc,79851,4)424:4K4Q4Y4h4q4y4
+Shape2D,asc,79899,5%5.555>5D5P5[5
+Shape2D,asc,79935,"7""73797A7P7Y7a7r7x7"
+Shape2D,asc,79997,9.969P9\9e9l9~9
+Shape2D,asc,80019,91:7:R:X:^:
+Shape2D,asc,80031,:Z;m;
+Shape2D,asc,80039,;4<k<
+Shape2D,asc,80057,=B=d=q=x=}=
+Shape2D,asc,80093,>'>4><>J>O>T>Y>d>q>{>
+Shape2D,asc,80155,0+0@0U0i0}0
+Shape2D,asc,80175,181M1l1
+Shape2D,asc,80211,313E3q3
+Shape2D,asc,80231,4!474U4k4}4
+Shape2D,asc,80259,515H5
+Shape2D,asc,80279,6f6y6
+Shape2D,asc,80297,737E7Y7o7
+Shape2D,asc,80329,9!959I9]9q9
+Shape2D,asc,80353,:1:E:
+Shape2D,asc,80421,"1 1$1(1,1014181<1@1D1H1L1P1T1X1\1`1d1h1l1p1t1x1|1"
+Shape2D,asc,80549,"2 2$2(2,2024282<2@2D2H2L2P2T2X2\2`2d2h2l2p2t2x2|2"
+Shape2D,asc,80651,"3 3$3(3,3034383<3@3D3H3L3P3T3X3\3`3d3h3l3p3t3x3|3"
+Shape2D,asc,80777,"4 4,44484D4P4h4l4p4t4x4|4"
+Shape2D,asc,80881,"5 5$5(5,5054585<5@5D5H5L5P5T5X5\5`5d5h5l5p5|5"
+Shape2D,asc,80985,"6 6$6(6,6064686<6@6D6H6L6P6T6X6\6`6d6h6l6p6t6x6|6"
+Shape2D,asc,81103,"7 7$7(7,7074787<7@7D7H7L7P7T7X7\7`7d7h7l7p7t7x7|7"
+Shape2D,asc,81223,"8(8,8084888<8@8D8H8L8P8T8X8\8`8d8h8l8p8t8x8|8"
+Shape2D,asc,81331,"9 9$9(9,9094989<9@9D9H9L9P9T9X9\9`9d9h9l9p9t9"
+Shape2D,asc,81429,: :$:(:0:H:\:l:p:x:
+Shape2D,asc,81465,;4;@;\;h;
+Shape2D,asc,81489,<$<0<L<X<t<
+Shape2D,asc,81517,=$=0=L=X=t=
+Shape2D,asc,81547,">,>4>@>\>h>"
+Shape2D,asc,81573,?$?0?L?X?`?|?
+Shape2D,asc,81621,0 0<0D0X0d0l0t0
+Shape2D,asc,81657,141@1\1h1p1
+Shape2D,asc,81687,"2 2,242@2H2d2"
+Shape2D,asc,81721,3$303L3X3t3|3
+Shape2D,asc,81749,"4,484T4`4|4"
+Shape2D,asc,81775,5$50585h5t5|5
+Shape2D,asc,81803,"6$6,686@6p6|6"
+Shape2D,asc,81833,"7,787T7`7|7"
+Shape2D,asc,81865,8(808D8h8t8|8
+Shape2D,asc,81895,"9,989T9`9|9"
+Shape2D,asc,81929,:(:4:<:H:d:p:
+Shape2D,asc,81959,; ;(;<;`;l;t;
+Shape2D,asc,81987,< <(<D<`<l<t<
+Shape2D,asc,82021,= =<=D=L=X=t=|=
+Shape2D,asc,82057,">$>,>4><>D>L>T>p>|>"
+Shape2D,asc,82095,? ?<?H?d?l?x?
+Shape2D,asc,82131,040@0\0h0
+Shape2D,asc,82155,1$101L1X1t1|1
+Shape2D,asc,82205,"0 0$0(0,0004080P0T0X0\0h0l0p0t0x0|0"
+Shape2D,asc,82267,2X3x3
+NameSpace,u16,119144,PackageWriter
+NameSpace,u16,119172,Package
+NameSpace,u16,119188,FileSystem
+NameSpace,u16,119212,NameSpace
+NameSpace,u16,124408,.img
+NameSpace,u16,127078,VS_VERSION_INFO
+NameSpace,u16,127170,StringFileInfo
+NameSpace,u16,127206,040904b0
+NameSpace,u16,127230,CompanyName
+NameSpace,u16,127262,FileDescription
+NameSpace,u16,127296,NameSpace Module
+NameSpace,u16,127338,FileVersion
+NameSpace,u16,127394,InternalName
+NameSpace,u16,127446,LegalCopyright
+NameSpace,u16,127476,"Copyright 2002 Wizet, ZMS"
+NameSpace,u16,127534,OLESelfRegister
+NameSpace,u16,127574,OriginalFilename
+NameSpace,u16,127608,NameSpace.DLL
+NameSpace,u16,127642,ProductName
+NameSpace,u16,127710,ProductVersion
+NameSpace,u16,127770,VarFileInfo
+NameSpace,u16,127802,Translation
+NameSpace,asc,77,!This program cannot be run in DOS mode.
+NameSpace,asc,240,Richa]
+NameSpace,asc,504,.text
+NameSpace,asc,543,`.rdata
+NameSpace,asc,583,@.data
+NameSpace,asc,624,.rsrc
+NameSpace,asc,663,@.reloc
+NameSpace,asc,4363,QQSVW
+NameSpace,asc,5711,QSVWj 
+NameSpace,asc,9979,90u29p
+NameSpace,asc,11526,~`jdZ
+NameSpace,asc,14731,"TtFHHt<Ht4Ht""HuP"
+NameSpace,asc,14882,Y|DSSj
+NameSpace,asc,15172,t^HtPHtAHt2
+NameSpace,asc,16696,9@@AAf;
+NameSpace,asc,20113,@tZf=
+NameSpace,asc,20500,2WVVj
+NameSpace,asc,22893,",SVW3"
+NameSpace,asc,23026,9~`YYu8j
+NameSpace,asc,25363,t%8^<t 9^H
+NameSpace,asc,25391,G;~Dv
+NameSpace,asc,26313,tEj/Zf
+NameSpace,asc,26329,tHf=.
+NameSpace,asc,26616,t'SShW
+NameSpace,asc,28689,WSPSV
+NameSpace,asc,28774,WSVSP
+NameSpace,asc,29014,RWPSV
+NameSpace,asc,37303,QQVWj(
+NameSpace,asc,41482,P1L$(3\$(
+NameSpace,asc,41657,UUUU3
+NameSpace,asc,44325,HH+HD
+NameSpace,asc,48057,tIHt?Ht1Ht
+NameSpace,asc,51846,N(wRr
+NameSpace,asc,51871,;N(w 
+NameSpace,asc,52055,N(wUr
+NameSpace,asc,52080,;N(w#
+NameSpace,asc,52626,";F,w""r"
+NameSpace,asc,52916,";N,w9r"
+NameSpace,asc,52923,;F(w2
+NameSpace,asc,53040,P _^[
+NameSpace,asc,53122,";N,w$r"
+NameSpace,asc,53200,(SVW3
+NameSpace,asc,53589,"N,;V(u"
+NameSpace,asc,53982,3WVVVVj
+NameSpace,asc,55412,S9^ u
+NameSpace,asc,57085,F4_^]
+NameSpace,asc,58362,u7WPS
+NameSpace,asc,58379,u&WVS
+NameSpace,asc,58843,u8SSSSj
+NameSpace,asc,59225,VVVVj
+NameSpace,asc,59740,"t,Ht%Ht"
+NameSpace,asc,59920,QQSV3
+NameSpace,asc,61582,t^f=\
+NameSpace,asc,62394,ttf=\
+NameSpace,asc,72344,|SVW3
+NameSpace,asc,79669,`SVW3
+NameSpace,asc,83369,QQVWj 
+NameSpace,asc,101511,PPKG1
+NameSpace,asc,101528,"Package file v1.0 Copyright 2002 Wizet, ZMS"
+NameSpace,asc,115098,InterlockedIncrement
+NameSpace,asc,115122,InterlockedDecrement
+NameSpace,asc,115146,GetProcAddress
+NameSpace,asc,115164,LocalFree
+NameSpace,asc,115176,HeapDestroy
+NameSpace,asc,115190,FreeLibrary
+NameSpace,asc,115204,LoadLibraryA
+NameSpace,asc,115220,SetFilePointer
+NameSpace,asc,115238,MapViewOfFile
+NameSpace,asc,115254,CreateFileMappingA
+NameSpace,asc,115276,OpenFileMappingA
+NameSpace,asc,115294,KERNEL32.dll
+NameSpace,asc,115310,wsprintfA
+NameSpace,asc,115320,USER32.dll
+NameSpace,asc,115332,OLEAUT32.dll
+NameSpace,asc,115348,wcscmp
+NameSpace,asc,115358,__CxxFrameHandler
+NameSpace,asc,115378,_purecall
+NameSpace,asc,115390,_CxxThrowException
+NameSpace,asc,115412,memcpy
+NameSpace,asc,115422,sprintf
+NameSpace,asc,115432,?raw_name@type_info@@QBEPBDXZ
+NameSpace,asc,115464,memset
+NameSpace,asc,115474,wcslen
+NameSpace,asc,115484,_ftol
+NameSpace,asc,115492,memcmp
+NameSpace,asc,115502,memmove
+NameSpace,asc,115512,_lrotl
+NameSpace,asc,115522,_lrotr
+NameSpace,asc,115530,MSVCRT.dll
+NameSpace,asc,115544,??1type_info@@UAE@XZ
+NameSpace,asc,115568,__dllonexit
+NameSpace,asc,115582,_onexit
+NameSpace,asc,115592,_except_handler3
+NameSpace,asc,115612,?terminate@@YAXXZ
+NameSpace,asc,115640,_initterm
+NameSpace,asc,115652,malloc
+NameSpace,asc,115662,_adjust_fdiv
+NameSpace,asc,115754,DllCanUnloadNow
+NameSpace,asc,115770,DllGetClassObject
+NameSpace,asc,119256,.?AV_com_error@@
+NameSpace,asc,119364,NotifyAlloc
+NameSpace,asc,119467,"m,w8/8"
+NameSpace,asc,119480,.?AVCWzStream@@
+NameSpace,asc,119504,.?AVCWzNameSpaceProperty@@
+NameSpace,asc,119544,.?AVCWzNameSpace@@
+NameSpace,asc,119576,.?AVCWzFileSystem@@
+NameSpace,asc,119608,.?AVCWzPackage@@
+NameSpace,asc,119865,0-z=$L
+NameSpace,asc,119972,0acN0
+NameSpace,asc,120061,K$W>`
+NameSpace,asc,120118,xRJ3U
+NameSpace,asc,120507,k`(v7b
+NameSpace,asc,121191,\EG]]J
+NameSpace,asc,121428,e`nhn
+NameSpace,asc,121444,Pw>@*
+NameSpace,asc,121671,}JI&N
+NameSpace,asc,121716,#aB@h
+NameSpace,asc,121906,<u_[T
+NameSpace,asc,122109,t3y3]X
+NameSpace,asc,122845,Ij`%R`;
+NameSpace,asc,123363,XDIhD
+NameSpace,asc,123410,qR(YR
+NameSpace,asc,123570,;RT_^
+NameSpace,asc,123729,|0z$`
+NameSpace,asc,123909,mM[NJ
+NameSpace,asc,124023,PWS2_32.DLL
+NameSpace,asc,124036,WINMM.dll
+NameSpace,asc,124048,IMM32.dll
+NameSpace,asc,124060,SHELL32.dll
+NameSpace,asc,124072,ADVAPI32.dll
+NameSpace,asc,124088,GDI32.dll
+NameSpace,asc,124100,Ole32.dll
+NameSpace,asc,124112,User32.dll
+NameSpace,asc,124124,Kernel32.dll
+NameSpace,asc,124140,PCOM.DLL
+NameSpace,asc,124152,PcRootNameSpace
+NameSpace,asc,124168,PcSerializeString
+NameSpace,asc,124188,PcSerializeObject
+NameSpace,asc,124208,PcFreeUnusedLibraries
+NameSpace,asc,124232,PcCreateObject
+NameSpace,asc,124256,.?AVZException@@
+NameSpace,asc,124288,.?AVCWzRawArchive@@
+NameSpace,asc,124320,.?AVCArchiveSource@@
+NameSpace,asc,124352,.?AVCWzArchive@@
+NameSpace,asc,124446,9=PKG%04x.tmp
+NameSpace,asc,124488,.?AVtype_info@@
+NameSpace,asc,131081,"0 0%0,00050;0E0X0f0y0"
+NameSpace,asc,131127,1%2/272B2x2
+NameSpace,asc,131151,3(393E3~3
+NameSpace,asc,131165,3<4H4
+NameSpace,asc,131177,4A5M5
+NameSpace,asc,131189,5F6V6q6
+NameSpace,asc,131207,6l7r7y7
+NameSpace,asc,131277,"0""1C1"
+NameSpace,asc,131327,4&484X4i4~4
+NameSpace,asc,131369,6;6i6
+NameSpace,asc,131379,697X7^7e7l7s7z7
+NameSpace,asc,131407,8 8C9\9b9h9n9
+NameSpace,asc,131433,:+:3:H:Z:
+NameSpace,asc,131457,;%;E;c;
+NameSpace,asc,131493,=D=Z=l=
+NameSpace,asc,131501,>3>9>?>E>x>
+NameSpace,asc,131529,?1?E?W?
+NameSpace,asc,131561,"0""0B0`0"
+NameSpace,asc,131571,121I1
+NameSpace,asc,131587,2%242:2G2V2
+NameSpace,asc,131629,464<4p4
+NameSpace,asc,131655,4+5@5R5Y5c5j5q5|5
+NameSpace,asc,131685,6*61686?6F6M6r6
+NameSpace,asc,131717,7.757<7C7J7Q7
+NameSpace,asc,131741,"8,8Q8"
+NameSpace,asc,131771,;o;v;$<+<t<
+NameSpace,asc,131807,>;>\>o>u>|>
+NameSpace,asc,131847,132O2w2
+NameSpace,asc,131863,4e4&5P5z5
+NameSpace,asc,131905,"7""7/787>7D7J7U7b7k7q7w7}7"
+NameSpace,asc,131959,8)8:8@8H8W8`8h8y8
+NameSpace,asc,132007,9%969<9D9S9\9d9u9{9
+NameSpace,asc,132055,:!:2:8:@:O:X:`:q:w:
+NameSpace,asc,132105,;.;4;<;K;T;\;m;s;{;
+NameSpace,asc,132153,<*<0<8<G<P<X<i<o<w<
+NameSpace,asc,132205,=&=/=5=A=J=P=d=p=}=
+NameSpace,asc,132241,>+>5>;>O>W>h>
+NameSpace,asc,132269,0@0M0c0
+NameSpace,asc,132289,3 3`3p3w3}3
+NameSpace,asc,132309,4T4`4
+NameSpace,asc,132353,6&646:6A6H6O6U6`6
+NameSpace,asc,132385,8L9b9
+NameSpace,asc,132407,;R;h;y;
+NameSpace,asc,132433,=1=8=>=E=J=W=e=
+NameSpace,asc,132481,"4&4,4<4C4o4-5=5"
+NameSpace,asc,132545,3J3.4H4
+NameSpace,asc,132629,:$;L;
+NameSpace,asc,132645,"<""<1<:<B<S<Y<a<p<y<"
+NameSpace,asc,132695,=-=6=>=O=U=]=l=u=}=
+NameSpace,asc,132745,0[0q0
+NameSpace,asc,132777,"4""4P4c4i4v4"
+NameSpace,asc,132801,5#5)565_5h5n5
+NameSpace,asc,132827,6+61696H6Q6n6z6
+NameSpace,asc,132873,909t9
+NameSpace,asc,132883,9$:\:b:i:
+NameSpace,asc,132923,;Y;g;
+NameSpace,asc,132937,; <F<
+NameSpace,asc,132995,262=2L2X2g2v2
+NameSpace,asc,133011,2D3N3[3d3j3
+NameSpace,asc,133037,3(42464>4B4J4
+NameSpace,asc,133055,525@5Q5W5_5n5w5
+NameSpace,asc,133099,6!60696D6
+NameSpace,asc,133111,7)7>7W7^7e7l7
+NameSpace,asc,133139,;9<S<
+NameSpace,asc,133147,<\=v=
+NameSpace,asc,133172,E0_0x0~0
+NameSpace,asc,133195,1/1G1O1
+NameSpace,asc,133209,1!2w2
+NameSpace,asc,133251,3/353=3L3U3]3n3t3|3
+NameSpace,asc,133299,4+41494H4Q4Y4j4p4x4
+NameSpace,asc,133351,5&5=5P5e5l5
+NameSpace,asc,133377,"6,62686>6p6"
+NameSpace,asc,133405,"7$7,7M7^7"
+NameSpace,asc,133445,9(9.959:9G9U9
+NameSpace,asc,133459,92:C:I:Q:`:i:o:
+NameSpace,asc,133487,=Z=v=
+NameSpace,asc,133495,=9>U>
+NameSpace,asc,133505,?#?/?=?N?T?\?k?t?|?
+NameSpace,asc,133561,0(01090J0P0X0g0p0x0
+NameSpace,asc,133609,1)12191H1P1s1{1
+NameSpace,asc,133631,3 323Q3a3s3
+NameSpace,asc,133685,6&7A7V7k7
+NameSpace,asc,133717,9A9f9t9~9
+NameSpace,asc,133773,=$=<=F=N=
+NameSpace,asc,133827,2$232A2V2
+NameSpace,asc,133845,3$4K4
+NameSpace,asc,133851,4L5^5
+NameSpace,asc,133885,8F9x9
+NameSpace,asc,133899,:9;a;
+NameSpace,asc,133907,"<,<V<}<"
+NameSpace,asc,133925,>>>i>
+NameSpace,asc,133937,?3?A?K?S?
+NameSpace,asc,133961,0G0|0
+NameSpace,asc,133983,1$1*1R1X1b1g1
+NameSpace,asc,134007,3%3-3;3@3E3J3U3b3l3
+NameSpace,asc,134035,3#4@4F4L4R4X4]4
+NameSpace,asc,134071,73797d7
+NameSpace,asc,134099,9J9t9
+NameSpace,asc,134127,>S?i?
+NameSpace,asc,134147,0@0N0$1
+NameSpace,asc,134155,2p2z2R3s3
+NameSpace,asc,134169,677O7t7
+NameSpace,asc,134191,8B8I8P8W8{8
+NameSpace,asc,134211,9Y:z:
+NameSpace,asc,134223,<1<I<Q<c<s<
+NameSpace,asc,134239,='=6=>=j=I>b>u>{>
+NameSpace,asc,134283,182D2r2
+NameSpace,asc,134295,3(343@3N3_3e3m3|3
+NameSpace,asc,134341,"4""4*494B4J4[4a4i4x4"
+NameSpace,asc,134391,5&555>5F5W5]5e5t5}5
+NameSpace,asc,134439,"6""616:6B6S6Y6a6p6y6"
+NameSpace,asc,134485,7'7<7C7U7d7l7
+NameSpace,asc,134505,7(8>8b8{8
+NameSpace,asc,134529,9?9F9
+NameSpace,asc,134539,"9,:a:n:"
+NameSpace,asc,134567,;G;R;m;~;
+NameSpace,asc,134591,<><_<y<
+NameSpace,asc,134609,=f=r=
+NameSpace,asc,134653,0(010M0
+NameSpace,asc,134705,:';N;u;
+NameSpace,asc,134767,4T5`5l5z5
+NameSpace,asc,134805,6&6/676H6N6V6e6n6v6
+NameSpace,asc,134853,"7""7+737D7J7R7a7j7r7"
+NameSpace,asc,134903,8'8/8@8F8N8]8f8
+NameSpace,asc,134933,9-9S9k9}9
+NameSpace,asc,134949,:!:?:R:\:p:x:
+NameSpace,asc,134975,;4;Y;
+NameSpace,asc,135123,?H?S?_?
+NameSpace,asc,135148,",0:0K0Q0Y0h0q0y0"
+NameSpace,asc,135193,1%1.161G1M1U1d1m1u1
+NameSpace,asc,135235,"2""2*2u2"
+NameSpace,asc,135261,343;3M3\3d3
+NameSpace,asc,135285,4#4)4X4^4m4
+NameSpace,asc,135303,415Q5
+NameSpace,asc,135325,6^7o7u7}7
+NameSpace,asc,135361,8)8:8@8L8z8
+NameSpace,asc,135379,939?9L9S9e9m9
+NameSpace,asc,135409,:N:T:e:w:}:
+NameSpace,asc,135423,:[;m;
+NameSpace,asc,135443,"<,<I<}<"
+NameSpace,asc,135459,=-=M=
+NameSpace,asc,135473,=*>H>]>q>
+NameSpace,asc,135487,? ?5?I?]?t?
+NameSpace,asc,135509,0-0A0U0i0
+NameSpace,asc,135535,191O1c1
+NameSpace,asc,135557,2%2I2]2q2
+NameSpace,asc,135571,3%3I3
+NameSpace,asc,135581,3)4E4y4
+NameSpace,asc,135591,4=5q5
+NameSpace,asc,135603,6%6;6O6m6
+NameSpace,asc,135629,7-7A7M7Y7m7y7
+NameSpace,asc,135655,8%8M8c8
+NameSpace,asc,135677,9%919E9
+NameSpace,asc,135693,:Y:u:
+NameSpace,asc,135699,:3;f;y;
+NameSpace,asc,135717,<0<=<I<U<a<m<y<
+NameSpace,asc,135743,=8=O=d=y=
+NameSpace,asc,135779,?9?t?
+NameSpace,asc,135797,0-0C0W0k0
+NameSpace,asc,135817,1)1=1Q1e1
+NameSpace,asc,135837,2+2H2h2
+NameSpace,asc,135851,2+3?3Q3e3y3
+NameSpace,asc,135921,"1 1$1(1,1014181<1@1D1H1L1P1T1X1\1`1d1h1l1p1t1x1|1"
+NameSpace,asc,136043,2(242@2X2\2`2d2h2l2p2t2x2|2
+NameSpace,asc,136149,"3 3$3(3,3034383<3@3D3H3L3P3T3X3\3`3d3h3l3p3t3x3|3"
+NameSpace,asc,136247,"4 4$4(4,4044484<4@4D4H4L4P4T4X4\4`4d4h4l4p4t4x4|4"
+NameSpace,asc,136343,5$505H5L5P5T5X5\5`5d5h5l5p5t5x5|5
+NameSpace,asc,136455,"6 6$6(6,6064686<6@6D6H6L6P6T6X6\6`6d6h6l6p6t6x6|6"
+NameSpace,asc,136583,"7 7$7(7,7074787D7\7`7d7h7l7p7t7x7|7"
+NameSpace,asc,136697,"8 8$8(8,8084888<8@8H8T8`8x8|8"
+NameSpace,asc,136820,@9D9H9L9P9T9X9\9`9d9h9l9p9t9x9|9
+NameSpace,asc,136931,: :$:(:0:<:D:T:X:\:`:d:h:l:p:t:x:|:
+NameSpace,asc,137045,"; ;$;(;,;0;4;8;<;@;D;H;L;P;T;X;\;`;d;h;l;p;t;x;|;"
+NameSpace,asc,137173,"< <$<(<,<0<4<8<<<@<H<`<d<h<l<p<t<x<|<"
+NameSpace,asc,137249,"=,=0=4=8=H=T=X=`=x="
+NameSpace,asc,137287,> ><>H>d>p>
+NameSpace,asc,137313,"?,?8?T?`?|?"
+NameSpace,asc,137353,0 0<0D0L0T0\0h0
+NameSpace,asc,137389,1$1@1L1T1`1h1
+NameSpace,asc,137423,"2$2,282T2`2|2"
+NameSpace,asc,137455,343@3\3d3l3t3
+NameSpace,asc,137485,4(4D4P4l4t4|4
+NameSpace,asc,137517,5 5<5H5d5p5
+NameSpace,asc,137553,6(6D6P6l6x6
+NameSpace,asc,137579,747@7\7h7
+NameSpace,asc,137603,"8$8,888T8`8|8"
+NameSpace,asc,137631,9$909L9X9t9
+NameSpace,asc,137659,"9 :,:4:@:H:\:"
+NameSpace,asc,137695,";,;8;T;`;|;"
+NameSpace,asc,137727,<$<0<L<T<\<h<
+NameSpace,asc,137767,"=$=,=4=<=H=d=l=t=|="
+NameSpace,asc,137807,">$>,>4><>X>d>l>x>"
+NameSpace,asc,137847,"?$?,?4?<?D?L?h?t?|?"
+NameSpace,asc,137901,0 0(0D0L0T0\0d0
+NameSpace,asc,137945,181L1T1\1d1l1x1
+NameSpace,asc,137975,242@2\2h2
+NameSpace,asc,137999,3$303L3X3t3
+NameSpace,asc,138027,484D4L4X4t4
+NameSpace,asc,138055,585D5L5X5`5
+NameSpace,asc,138087,646P6\6d6p6
+NameSpace,asc,138145,8(8D8P8l8x8
+NameSpace,asc,138169,909D9P9X9
+NameSpace,asc,138195,:8:L:X:`:
+NameSpace,asc,138225,;4;H;\;d;l;t;|;
+NameSpace,asc,138261,<$<0<L<T<`<|<
+NameSpace,asc,138299,=$=@=T=`=h=
+NameSpace,asc,138339,">,><>H>P>l>t>|>"
+NameSpace,asc,138377,"?$?,?4?@?\?d?l?t?"
+NameSpace,asc,138425,0 0<0H0d0p0
+NameSpace,asc,138453,1 1(1X1d1l1x1
+NameSpace,asc,138483,2(202`2l2t2
+NameSpace,asc,138539,"4$4,484T4\4h4"
+NameSpace,asc,138567,"5$5,585T5`5|5"
+NameSpace,asc,138595,6(6D6L6T6\6d6p6
+NameSpace,asc,138629,7(7D7L7X7t7|7
+NameSpace,asc,138669,"8$8,848<8H8P8l8t8|8"
+NameSpace,asc,138741,:4:@:\:h:
+NameSpace,asc,138765,;$;0;8;T;\;x;
+NameSpace,asc,138799,"<$<,<4<<<D<L<T<`<h<"
+NameSpace,asc,138839,"=$=,=4=<=H=d=p="
+NameSpace,asc,138871,> ><>D>P>l>t>
+NameSpace,asc,138905,?4?@?\?h?
+NameSpace,asc,138937,"0$0,080T0`0|0"
+NameSpace,asc,138973,"0 0$0(0,0004080<0@0D0H0L0P0`0d0h0l0x0|0"
+NameSpace,asc,139065,303x3|3
+NameSpace,asc,139096,t4X5x5
+ResMan,u16,37032,ResMan
+ResMan,u16,45158,VS_VERSION_INFO
+ResMan,u16,45250,StringFileInfo
+ResMan,u16,45286,040904b0
+ResMan,u16,45310,CompanyName
+ResMan,u16,45342,FileDescription
+ResMan,u16,45376,ResMan Module
+ResMan,u16,45410,FileVersion
+ResMan,u16,45466,InternalName
+ResMan,u16,45514,LegalCopyright
+ResMan,u16,45544,"Copyright 2001 Wizet, ZMS"
+ResMan,u16,45602,OLESelfRegister
+ResMan,u16,45642,OriginalFilename
+ResMan,u16,45676,ResMan.DLL
+ResMan,u16,45706,ProductName
+ResMan,u16,45766,ProductVersion
+ResMan,u16,45826,VarFileInfo
+ResMan,u16,45858,Translation
+ResMan,asc,77,!This program cannot be run in DOS mode.
+ResMan,asc,512,.text
+ResMan,asc,551,`.rdata
+ResMan,asc,591,@.data
+ResMan,asc,632,.rsrc
+ResMan,asc,671,@.reloc
+ResMan,asc,4346,QSVWj
+ResMan,asc,4963,QSVWh
+ResMan,asc,6554,90u29p
+ResMan,asc,6973,t^HtPHtAHt2
+ResMan,asc,8835,t%8^<t 9^H
+ResMan,asc,8863,G;~Dv
+ResMan,asc,10884,Q1L$(3\$(
+ResMan,asc,11059,UUUU3
+ResMan,asc,13366,QQSV3
+ResMan,asc,13405,"9^,tU"
+ResMan,asc,13568,9^ltU
+ResMan,asc,14506,SSSSj
+ResMan,asc,14984,9]0Yu
+ResMan,asc,20504,"TtFHHt<Ht4Ht""HuP"
+ResMan,asc,20655,Y|DSSj
+ResMan,asc,21482,9@@AAf;
+ResMan,asc,22002,@tZf=
+ResMan,asc,23553,u7WPS
+ResMan,asc,23570,u&WVS
+ResMan,asc,35538,InterlockedIncrement
+ResMan,asc,35562,InterlockedDecrement
+ResMan,asc,35586,HeapDestroy
+ResMan,asc,35600,FreeLibrary
+ResMan,asc,35614,LoadLibraryA
+ResMan,asc,35630,GetProcAddress
+ResMan,asc,35648,LocalFree
+ResMan,asc,35658,KERNEL32.dll
+ResMan,asc,35672,OLEAUT32.dll
+ResMan,asc,35688,wcscmp
+ResMan,asc,35698,__CxxFrameHandler
+ResMan,asc,35718,_purecall
+ResMan,asc,35730,_lrotl
+ResMan,asc,35740,_lrotr
+ResMan,asc,35750,memset
+ResMan,asc,35760,_CxxThrowException
+ResMan,asc,35782,memcmp
+ResMan,asc,35792,memcpy
+ResMan,asc,35802,sprintf
+ResMan,asc,35812,wcslen
+ResMan,asc,35820,MSVCRT.dll
+ResMan,asc,35834,__dllonexit
+ResMan,asc,35848,_onexit
+ResMan,asc,35858,??1type_info@@UAE@XZ
+ResMan,asc,35890,_initterm
+ResMan,asc,35902,malloc
+ResMan,asc,35912,_adjust_fdiv
+ResMan,asc,36007,DllCanUnloadNow
+ResMan,asc,36023,DllGetClassObject
+ResMan,asc,37289,0-z=$L
+ResMan,asc,37396,0acN0
+ResMan,asc,37485,K$W>`
+ResMan,asc,37542,xRJ3U
+ResMan,asc,37931,k`(v7b
+ResMan,asc,38615,\EG]]J
+ResMan,asc,38852,e`nhn
+ResMan,asc,38868,Pw>@*
+ResMan,asc,39095,}JI&N
+ResMan,asc,39140,#aB@h
+ResMan,asc,39330,<u_[T
+ResMan,asc,39533,t3y3]X
+ResMan,asc,40269,Ij`%R`;
+ResMan,asc,40787,XDIhD
+ResMan,asc,40834,qR(YR
+ResMan,asc,40994,;RT_^
+ResMan,asc,41153,|0z$`
+ResMan,asc,41333,mM[NJ
+ResMan,asc,41447,QWS2_32.DLL
+ResMan,asc,41460,WINMM.dll
+ResMan,asc,41472,IMM32.dll
+ResMan,asc,41484,SHELL32.dll
+ResMan,asc,41496,ADVAPI32.dll
+ResMan,asc,41512,GDI32.dll
+ResMan,asc,41524,Ole32.dll
+ResMan,asc,41536,User32.dll
+ResMan,asc,41548,Kernel32.dll
+ResMan,asc,41564,PCOM.DLL
+ResMan,asc,41576,PcRootNameSpace
+ResMan,asc,41592,PcSerializeString
+ResMan,asc,41612,PcSerializeObject
+ResMan,asc,41632,PcFreeUnusedLibraries
+ResMan,asc,41656,PcCreateObject
+ResMan,asc,41680,.?AVZException@@
+ResMan,asc,41712,.?AV_com_error@@
+ResMan,asc,41740,[ResMan] Failed in GetCachedObject : %s
+ResMan,asc,41928,.?AVtype_info@@
+ResMan,asc,49165,"0!0&0,060I0W0n0"
+ResMan,asc,49209,"2""2O2g2x2"
+ResMan,asc,49237,3Z3m3
+ResMan,asc,49253,4>4U4j4q4
+ResMan,asc,49267,5@5Z5z5
+ResMan,asc,49303,727@7F7N7Z7g7s7|7
+ResMan,asc,49335,8>8f8n8t8z8
+ResMan,asc,49359,8'9j9
+ResMan,asc,49367,9):;:[:k:}:
+ResMan,asc,49389,;h;o;v<}<
+ResMan,asc,49401,<_=u=
+ResMan,asc,49419,=2>;>B>O>`>f>n>}>
+ResMan,asc,49463,?%?+?8?A?X?i?{?
+ResMan,asc,49535,"3""3)3/363<3C3I3Q3V3d3|3"
+ResMan,asc,49567,484g4
+ResMan,asc,49603,7$:+:::F:U:d:n:
+ResMan,asc,49655,<2<<<H<
+ResMan,asc,49703,> >C>M>T>{>
+ResMan,asc,49733,2-4F4
+ResMan,asc,49743,6Q6/7T7u7
+ResMan,asc,49753,7(8e8
+ResMan,asc,49771,=1=Q=)>N>
+ResMan,asc,49795,1G1O1
+ResMan,asc,49803,3>3J3^3z3
+ResMan,asc,49821,4-4I4c4
+ResMan,asc,49835,5F5}5
+ResMan,asc,49857,6&656>6F6W6]6e6t6}6
+ResMan,asc,49911,:!;2;8;@;O;X;v<
+ResMan,asc,49931,<$=7===C=J=\=d=}=
+ResMan,asc,49965,>2?l?
+ResMan,asc,49980,10>0P0g0
+ResMan,asc,49995,0P1X1h1
+ResMan,asc,50011,283r3
+ResMan,asc,50023,"5,5V5r5"
+ResMan,asc,50047,7 8_8s8
+ResMan,asc,50063,9/9:9F9L9
+ResMan,asc,50105,";,;4;B;G;L;Q;\;i;s;"
+ResMan,asc,50133,;*<F<L<R<c<u<
+ResMan,asc,50155,=%=;=M=d=
+ResMan,asc,50181,>E?a?u?
+ResMan,asc,50285,"1 1$1(1,1014181<1@1D1H1L1P1T1X1\1`1d1h1l1p1t1x1|1"
+ResMan,asc,50405,2 2D2H2L2P2X2p2
+ResMan,asc,50441,343@3\3h3
+ResMan,asc,50471,4(4D4P4l4x4
+ResMan,asc,50505,5(5D5P5l5x5
+ResMan,asc,50539,"6$6,646@6\6h6"
+ResMan,asc,50577,7(747<7D7P7X7t7|7
+ResMan,asc,50619,"8$8,848@8H8d8l8"
+ResMan,asc,50653,"9$9,989T9`9|9"
+ResMan,asc,50701,"0 0$0(0,0@0D0H0L0X0\0`0"

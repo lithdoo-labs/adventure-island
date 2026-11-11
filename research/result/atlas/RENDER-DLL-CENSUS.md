@@ -43,9 +43,29 @@ Gr2D_DX8.dll ── Direct3D 8 渲染器（Direct3DCreate8；1264 函数）
 4. Gr2D_DX8 是纯 D3D8 管线（现代实现可直接换 WebGPU/Canvas 等价物，
    只需保留语义层契约）
 
+## RTTI 类名收获（DLL 保留了 RTTI，主 exe 没有）
+
+字符串全量转储（RENDER-DLL-STRINGS.csv，2,014 条）中的 `.?AVCWz*` 类名：
+
+| 类名 | DLL | 语义 |
+|---|---|---|
+| CWzGr2DLayer | Gr2D_DX8 | **渲染层**（Gr2D_DX8#Gr2DLayer） |
+| CWzRawCanvas / CWzCanvas / CWzDIBRawCanvas | Canvas | 画布体系 |
+| CWzClipToken | Canvas | 裁剪令牌 |
+| CWzFont | Canvas | 字体 |
+| CWzVector2D / CVectorAux | Shape2D | 向量 + 辅助 |
+| （Gr2D 引用）WzFlashRenderer.dll / RenderFlash | Gr2D_DX8 | Flash 渲染模块（未随包） |
+
+PCOM 组件命名法：`<DLL>#<Class>`（如 Shape2D#Convex2D）。
+工厂机制：DllGetClassObject → GUID 注册链表（FUN_51402fb6 通用查找）→ 创建分派。
+Canvas 的 `origin`（UTF-16 @0x2d6b4）= WZ 画布 origin 属性运行时名 ✓。
+
+**注**：DLL 反编译 CSV 的 'rva' 列实为 VA−0x400000（导出脚本沿用主 exe 习惯）；
+DLL 真实 VA = CSV 值 + 0x400000，节表 raw==vaddr，文件偏移 = VA − PE 基址。
+
 ## 下一步（L2 深挖顺序）
 
-1. Canvas.dll 的属性序列化（ PcSerializeString 链）→ WZ 属性运行时表示
-2. Shape2D 的 Convex2D 构造 → foothold 运行时记录布局（对照 move+0x198）
-3. NameSpace 的 Package 加载 → PKG1 解析的原版逻辑（与 wzpy 互证加密细节）
-4. Gr2D_DX8 绘制调用链 → 合成顺序（z 序执行侧）
+1. CWzGr2DLayer 的虚表方法清单（RTTI 可定位虚表）→ 层合成 API
+2. Canvas 属性序列化（PcSerializeString 链）→ WZ 属性运行时表示
+3. Shape2D CWzVector2D 布局 → foothold 记录互证
+4. NameSpace Package 加载 → 与 wzpy 互证 PKG1 细节

@@ -148,3 +148,36 @@ with urllib.request.urlopen(req, timeout=120) as r:
 - 避免在 PowerShell 中直接写中文 (用 Python 文件)
 - C 盘空间有限 — 大文件放 E 盘
 - git push 可能需要代理: `git -c http.proxy= -c https.proxy= push origin main`
+
+## 7. wzpy（原始 WZ 二进制解析，2026-11-10 验证）
+
+\位置: .work\tools\wz-python\（仓库内，免安装）
+关键: WzFile.open(path, region='EMS')   # 不是 GMS/CMS，是 EMS！
+\\\python
+import sys; sys.path.insert(0, r'.work\tools\wz-python')
+from wzpy import WzFile
+wz = WzFile.open(r'.work\task-001\extracted\冒险岛online\Character.wz', region='EMS')
+root = wz.root                      # root.images / root.subdirs = 名字列表(str)
+img = root.get('00002000.img')
+ch = img.parse().children()
+ch = ch() if callable(ch) else ch   # children 可能是方法
+names = [c.name for c in ch]        # 节点物理顺序（字母序）
+\已验证：Character.wz v79 解析、00002000.img 149 节点、List.wz 为空（正常）。
+
+## 8. 内存转储分析链（2026-11-10 验证）
+
+- 转储: \E:\vm-store\task-036-captures\t036-mem.elf\（2GB，ELF64 物理）
+- 映射: \.work\task-036\proc-vamap.csv\（va,pa 两列十六进制）
+- 新转储: \.work\task-063\build_vamap.py <elf> <out.csv>\（PAE DTB 枚举）
+- 读法: read_va(va,n) = vamap 查页 → pa2off → 读文件；全局直读拿运行时真值
+- 字符串单元: {u32 0x1d, 1, len, len, name[]}；短名 UTF-16 内联、长名 ASCII 指针
+- 先例: 149 槽动作名全表（research/result/map/MOTION-SLOT-NAMES.csv），
+  7 锚点验证 + 143 ID 交叉零矛盾
+
+## 9. 服务器恢复栈（2026-11-10 验证）
+
+\MySQL(自带): python .work\task-063\start_mysql.py   # --innodb_log_file_size=25165824 必带
+服务器 JAR:  python .work\task-063\start_server.py  # server.Start（绕过 GUI）
+健康检查:    python .work\task-063\server_hello.py  # 期待 15 字节 hello
+\坑：MariaDB 10.11 读不了老 InnoDB ibdata1（必须自带 MySQL 5.x）。
+完整教训: research/result/map/MAP-CAPTURE-CAMPAIGN-063.md

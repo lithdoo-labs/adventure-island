@@ -1,0 +1,73 @@
+=== airborne handler: branches around swimSpeed(+0x48) & fly(+0x58/+0x90) ===
+
+    13:   undefined8 uVar5;
+    14:   
+    15:   FUN_00a6fc7c();
+    16:   iVar1 = FUN_009bd455();
+>>  17:   iVar2 = FUN_004b6abe();
+    18:   if (iVar2 == 0) {
+    19:     iVar2 = extraout_ECX[0x44];
+
+    25:       }
+    26:       fVar4 = (float10)FUN_006a0545();
+    27:       fVar4 = (float10)FUN_00a70fbb((double)fVar4);
+    28:       *(double *)(unaff_EBP + -0x14) = (double)fVar4;
+>>  29:       iVar1 = FUN_0070df65();
+    30:       if (iVar1 == 0) {
+    31:         iVar1 = (**(code **)(*extraout_ECX + 8))();
+
+    30:       if (iVar1 == 0) {
+    31:         iVar1 = (**(code **)(*extraout_ECX + 8))();
+    32:         if (iVar1 == 0) {
+    33:           fVar4 = (float10)FUN_006a0545();
+>>  34:           fVar4 = fVar4 * (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x58) *
+    35:                   (float10)*(double *)(unaff_EBP + -0x14);
+    36:         }
+
+    35:                   (float10)*(double *)(unaff_EBP + -0x14);
+    36:         }
+    37:         else {
+    38:           iVar1 = extraout_ECX[0x54];
+>>  39:           fVar4 = (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x90) *
+    40:                   (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x58) *
+    41:                   (float10)*(double *)(unaff_EBP + -0x14) * (float10)_DAT_00b04f40;
+
+    36:         }
+    37:         else {
+    38:           iVar1 = extraout_ECX[0x54];
+    39:           fVar4 = (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x90) *
+>>  40:                   (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x58) *
+    41:                   (float10)*(double *)(unaff_EBP + -0x14) * (float10)_DAT_00b04f40;
+    42:           *(double *)(unaff_EBP + -0x24) = (double)fVar4;
+
+    49:         }
+    50:       }
+    51:       else {
+    52:         fVar4 = (float10)FUN_006a0545();
+>>  53:         fVar4 = fVar4 * (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x48) *
+    54:                 (float10)*(double *)(unaff_EBP + -0x14) * (float10)_DAT_00b04f40;
+    55:       }
+
+    57:       extraout_ECX[0x1e] = iVar1;
+    58:     }
+    59:     else {
+    60:       FUN_009bf6ec();
+>>  61:       iVar2 = *(int *)(DAT_00bdd498 + 8);
+    62:       fVar4 = (float10)FUN_006a0545();
+    63:       *(double *)(unaff_EBP + -0x24) = (double)fVar4;
+
+   116:     }
+   117:   }
+   118:   else if (extraout_ECX[0x54] != 0) {
+   119:     (**(code **)(*extraout_ECX + 0x14))(0,0,0);
+>> 120:     iVar2 = DAT_00bdd498;
+   121:     uVar5 = _DAT_00afec20;
+   122:     if (iVar1 != 0) {
+
+   130:     iVar1 = FUN_006131f4((double)-((((float10)*(double *)(unaff_EBP + -0x14) *
+   131:                                     (float10)*(double *)(iVar1 + 0x70)) / fVar4) *
+   132:                                   (float10)*(double *)(unaff_EBP + -0x1c)));
+   133:     extraout_ECX[0x1e] = iVar1;
+>> 134:     iVar1 = *(int *)(DAT_00bdd498 + 8);
+   135:     fVar4 = (float10)FUN_006a0545();
+   136:     iVar1 = FUN_006131f4((double)(fVar4 * (float10)*(double *)(iVar1 + 8) *

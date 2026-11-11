@@ -1,0 +1,11 @@
+id,hosts,2level_callers,string_context
+5432,21,121,From_:5;_s_d_s:4;MapleQuest:4;_num1__d:4;_s___d_:3;_d__d:2;UI_UIWindow_img_Delivery_say1:2;bonus:2;UI_UIWindow_img_NewYearsCard_bac:2;_num1_comma:1
+2077,4,6,_setobjstate:1;join00:1
+5549,26,109,From_:5;_s_d_s:4;MapleQuest:4;_num1__d:4;_s___d_:3;_d__d:2;UI_UIWindow_img_Delivery_say1:2;bonus:2;UI_UIWindow_img_NewYearsCard_bac:2;_num1_comma:1
+795,26,58,mCardGet:2;new_n:1;new_s:1;market00:1;out00:1
+797,15,41,centerStart:2;new_n:1;new_s:1;path:1;emotion:1
+800,15,172,MapleQuest:9;From_:9;Bonus:2;UI_UIWindow_img_Maker_randomMake:2;daylimit:2;UI_UIWindow_img_Delivery_say1:2;_s__s_:2;_d__s:1;bonus:1;_empty_:1
+1068,2,0,
+1090,13,0,
+5,2,109,From_:5;_s_d_s:4;MapleQuest:4;_num1__d:4;_s___d_:3;_d__d:2;UI_UIWindow_img_Delivery_say1:2;bonus:2;UI_UIWindow_img_NewYearsCard_bac:2;_num1_comma:1
+2078,1,4,_setobjstate:1;join00:1

@@ -1,0 +1,61 @@
+callers of swim-check (0x30df65): 16
+
+
+=== 0x30de45 (1361 ch) reads=[]
+
+=== 0x53d1ba (1369 ch) reads=[]
+
+=== 0x548b66 (1928 ch) reads=[]
+
+=== 0x552f1f (1424 ch) reads=[]
+
+=== 0x553fa5 (8526 ch) reads=[]
+
+=== 0x55c5b2 (57191 ch) reads=[]
+  *(undefined4 *)(unaff_EBP + -0x1378) = DAT_00bdd498;
+
+=== 0x55fe76 (53763 ch) reads=[]
+  *(undefined4 *)(unaff_EBP + -0xc00) = 0x48;
+  *(undefined4 *)(unaff_EBP + -0x13b8) = DAT_00bdd498;
+
+=== 0x576947 (1178 ch) reads=[]
+
+=== 0x5775af (14702 ch) reads=[]
+
+=== 0x579aa8 (470 ch) reads=[]
+
+=== 0x57a00a (2733 ch) reads=[]
+
+=== 0x5bd0d9 (5511 ch) reads=[]
+  fVar4 = fVar4 * (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x58) *
+  fVar4 = (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x90) *
+  (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x58) *
+  (float10)*(double *)(unaff_EBP + -0x14) * (float10)_DAT_00b04f40;
+  fVar4 = fVar4 * (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x48) *
+  (float10)*(double *)(unaff_EBP + -0x14) * (float10)_DAT_00b04f40;
+  iVar2 = *(int *)(DAT_00bdd498 + 8);
+  iVar1 = FUN_006131f4((double)(fVar4 * (float10)_DAT_00b06458));
+
+=== 0x5bd455 (425 ch) reads=[]
+
+=== 0x5bd757 (13848 ch) reads=[]
+  pdVar2 = *(double **)(DAT_00bdd498 + 8);
+  *(int *)(unaff_EBP + -0x48) != 0)) {
+  *(double *)(unaff_EBP + -0x4c) * *(double *)(*(int *)(DAT_00bdd498 + 8) + 0x88);
+  *(double *)(unaff_EBP + -0x44) * *(double *)(*(int *)(DAT_00bdd498 + 8) + 0x88);
+  iVar5 = *(int *)(DAT_00bdd498 + 8);
+  iVar5 = *(int *)(DAT_00bdd498 + 8);
+  *(double *)(unaff_EBP + -0x68) * *(double *)(*(int *)(DAT_00bdd498 + 8) + 0x18) *
+
+=== 0x5bdf18 (9099 ch) reads=[]
+  iVar8 = *(int *)(DAT_00bdd498 + 8);
+  iVar5 = *(int *)(DAT_00bdd498 + 8);
+  fVar11 = fVar11 * (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x58);
+  fVar11 = fVar11 * (float10)*(double *)(*(int *)(DAT_00bdd498 + 8) + 0x48);
+  dVar4 = *(double *)(*(int *)(DAT_00bdd498 + 8) + 0x50);
+  dVar4 = *(double *)(*(int *)(DAT_00bdd498 + 8) + 0x40);
+  iVar8 = *(int *)(DAT_00bdd498 + 8);
+  iVar5 = *(int *)(DAT_00bdd498 + 8);
+
+=== 0x5cbe89 (17006 ch) reads=[]
+  *(undefined4 *)(unaff_EBP + -0x1c) = DAT_00bdd498;

@@ -1,0 +1,120 @@
+=== rect-builder-A (0x64f93c, 7577 ch) ===
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+undefined4 FUN_00a4f93c(void)
+
+{
+  double dVar1;
+  uint uVar2;
+  uint uVar3;
+  longlong lVar4;
+  double dVar5;
+  int iVar6;
+  int iVar7;
+  undefined4 uVar8;
+  uint uVar9;
+  uint uVar10;
+  int iVar11;
+  int iVar12;
+  int iVar13;
+  int unaff_EBP;
+  undefined4 *unaff_FS_OFFSET;
+  
+  FUN_00a6fc7c();
+  iVar7 = **(int **)(unaff_EBP + 0x10);
+  iVar13 = **(int **)(unaff_EBP + 0x14);
+  iVar6 = iVar7 - *(int *)(unaff_EBP + 8);
+  iVar12 = iVar13 - *(int *)(unaff_EBP + 0xc);
+  *(int *)(unaff_EBP + -0x3c) = iVar6;
+  *(int *)(unaff_EBP + -0x40) = iVar12;
+  if ((iVar6 == 0) && (iVar12 == 0)) {
+    uVar8 = 1;
+    goto LAB_00a4fc5e;
+  }
+  *(undefined4 *)(unaff_EBP + -0x30) = 1;
+  *(undefined4 *)(unaff_EBP + -0x2c) = 2;
+  *(undefined4 *)(unaff_EBP + -0x24) = 0;
+  *(undefined4 *)(unaff_EBP + -0x10) = 0;
+  *(undefined4 *)(unaff_EBP + -0x50) = 0;
+  *(undefined4 *)(unaff_EBP + -0x4c) = 0;
+  *(undefined4 *)(unaff_EBP + -0x48) = 0;
+  *(undefined ***)(unaff_EBP + -0x58) = &PTR_FUN_00b00d88;
+  *(undefined4 *)(unaff_EBP + -4) = 0;
+  FUN_005114aa(*(undefined4 *)(unaff_EBP + 8),*(undefined4 *)(unaff_EBP + 0xc),iVar7,iVar13,
+               unaff_EBP + -0x58);
+  iVar7 = *(int *)(unaff_EBP + -0x4c);
+  if (iVar7 == 0) {
+LAB_00a4fc46:
+    uVar8 = 1;
+  }
+  else {
+    do {
+      dVar5 = _DAT_00afecc0;
+      iVar13 = *(int *)(iVar7 + 4);
+      dVar1 = *(double *)(iVar13 + 0x30);
+      iVar7 = *(int *)((-(uint)(iVar7 != 0) & iVar7 - 0x10U) + 4);
+      *(uint *)(unaff_EBP + -0x44) = -(uint)(iVar7 != 0) & iVar7 + 0x10U;
+      if (((dVar5 < dVar1) || (*(int *)(iVar13 + 0x20) == 0)) ||
+         (*(int *)(iVar13 + 0x20) == *(int *)(unaff_EBP + 0x18))) {
+        uVar8 = *(undefined4 *)(iVar13 + 0x14);
+        iVar7 = *(int *)(iVar13 + 0xc);
+        iVar6 = *(int *)(iVar13 + 0x10);
+        iVar12 = *(int *)(iVar13 + 0x18);
+        *(undefined4 *)(unaff_EBP + -0x14) = uVar8;
+        *(int *)(unaff_EBP + -0x14) = *(int *)(unaff_EBP + -0x14) - iVar7;
+        *(undefined4 *)(unaff_EBP + -0x34) = uVar8;
+        *(int *)(unaff_EBP + -0x18) = iVar12;
+        *(int *)(unaff_EBP + -0x18) = *(int *)(unaff_EBP + -0x18) - iVar6;
+        *(int *)(unaff_EBP + -0x28) = iVar6;
+        *(undefined4 *)(unaff_EBP + -0x20) = **(undefined4 **)(unaff_EBP + 0x10);
+        iVar6 = (*(int *)(unaff_EBP + 0xc) - iVar6) * *(int *)(unaff_EBP + -0x14) -
+                (*(int *)(unaff_EBP + 8) - iVar7) * *(int *)(unaff_EBP + -0x18);
+        iVar11 = (**(int **)(unaff_EBP + 0x14) - *(int *)(unaff_EBP + -0x28)) *
+                 *(int *)(unaff_EBP + -0x14) -
+                 (*(int *)(unaff_EBP + -0x20) - iVar7) * *(int *)(unaff_EBP + -0x18);
+        *(int *)(unaff_EBP + -0x38) = iVar7;
+        if (((iVar6 < 1) && (-1 < iVar11)) && ((iVar6 != 0 || (iVar11 != 0)))) {
+          iVar6 = **(int **)(unaff_EBP + 0x14) - *(int *)(unaff_EBP + 0xc);
+          iVar11 = **(int **)(unaff_EBP + 0x10) - *(int *)(unaff_EBP + 8);
+          iVar7 = (*(
+
+=== rect-builder-B (0x1114aa, 929 ch) ===
+
+void FUN_005114aa(void)
+
+{
+  int iVar1;
+  int iVar2;
+  int extraout_ECX;
+  int unaff_EBP;
+  undefined4 *unaff_FS_OFFSET;
+  
+  FUN_00a6fc7c();
+  iVar1 = *(int *)(unaff_EBP + 8);
+  iVar2 = *(int *)(unaff_EBP + 0x10);
+  *(undefined4 *)(unaff_EBP + -4) = 0;
+  if (iVar1 < iVar2) {
+    *(int *)(unaff_EBP + -0x1c) = iVar1;
+    *(int *)(unaff_EBP + -0x14) = iVar2;
+  }
+  else {
+    *(int *)(unaff_EBP + -0x1c) = iVar2;
+    *(int *)(unaff_EBP + -0x14) = iVar1;
+  }
+  iVar1 = *(int *)(unaff_EBP + 0xc);
+  iVar2 = *(int *)(unaff_EBP + 0x14);
+  if (iVar1 < iVar2) {
+    *(int *)(unaff_EBP + -0x18) = iVar1;
+    *(int *)(unaff_EBP + -0x10) = iVar2;
+  }
+  else {
+    *(int *)(unaff_EBP + -0x18) = iVar2;
+    *(int *)(unaff_EBP + -0x10) = iVar1;
+  }
+  FUN_00511697(*(undefined4 *)(extraout_ECX + 0x1c),unaff_EBP + -0x1c,
+               *(undefined4 *)(unaff_EBP + 0x18));
+  *unaff_FS_OFFSET = *(undefined4 *)(unaff_EBP + -0xc);
+  return;
+}
+

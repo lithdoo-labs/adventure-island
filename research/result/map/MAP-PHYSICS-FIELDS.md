@@ -1,6 +1,6 @@
 # Physics.img 完整字段表 — 从 Ghidra 反编译代码提取
 
-日期: 2026-11-10。来源: Ghidra 反编译函数 0xA4D393（VA 0xE4D393），WZ 属性名字符串在映像地址 0xBD3F64-0xBD4110。
+日期: 2026-11-10。来源: Ghidra 反编译函数（CSV 键 0x64d393，VA 0xA4D393），WZ 属性名字符串在映像地址 0xBD3F64-0xBD4110。
 
 > **修正记录**：初版把 +0x70 标成 gravityAcc、+0x48 标成 walkForce、+0x58 标成 walkSpeed，均为错误推断。
 > 本版按 0xA4D393 加载指令逐条核实，正确偏移见下表。详见 MAP-PHYSICS-CORRECTION.md。
@@ -33,11 +33,11 @@
 
 WZ 路径字符串 `Map/Physics.img` 在 0xBD4110。
 
-## 加载函数 0xA4D393 (VA 0xE4D393)
+## 加载函数（CSV 键 0x64d393 / VA 0xA4D393）
 
 这是 Physics 对象的构造/加载函数。它：
 1. 创建对象并设置 `DAT_00bdd498 = 对象指针`（这就是全局 [0xBDD498]）
-2. 按顺序读取 20 个 WZ double 属性（从 "Map/Physics.img"）写入 `[obj+8]` 所指记录
+2. 按顺序读取 19 个 WZ double 属性（第 20 个标签是路径串 Map/Physics.img）（从 "Map/Physics.img"）写入 `[obj+8]` 所指记录
 3. 每个属性用 `FUN_007a48d0`（字符串读取器）+ `FUN_006a0545`（解密器）加载
 
 ## 用这些偏移核实的公式
@@ -82,7 +82,7 @@ WZ 路径字符串 `Map/Physics.img` 在 0xBD4110。
 
 | 缺口 | 状态 | 说明 |
 |---|---|---|
-| Physics.img 字段名 | **已解决** | 全部 20 个名称 + 存储偏移核实 |
+| Physics.img 字段名 | **已解决** | 19 个字段名 + 存储偏移核实（+第 20 个路径标签） |
 | 陆跳公式的 Physics 系数 | **已解决** | +0x70 = jumpSpeed |
 | decrypt([move+0x190]+0x24) 等参数名 | **未解决** | 不是 Physics.img 字段，是移动对象自身节点 |
 | swim 动画名 | **未解决** | Physics.img 字段名与身体动作名是不同体系 |

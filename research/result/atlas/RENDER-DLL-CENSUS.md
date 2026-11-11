@@ -65,7 +65,13 @@ DLL 真实 VA = CSV 值 + 0x400000，节表 raw==vaddr，文件偏移 = VA − P
 
 ## 下一步（L2 深挖顺序）
 
-1. CWzGr2DLayer 的虚表方法清单（RTTI 可定位虚表）→ 层合成 API
+**已试**：标准 MSVC RTTI COL 链在 DLL 中**不成立**（TD 被代码区直接引用，
+无 COL 结构——RENDER-DLL-VTABLES.csv 为空是预期结果，非 bug）。
+正确路径 = PCOM 注册链：`DllGetClassObject(Gr2D)=FUN_50401a98+DAT_50439b28`，
+经 PCOM 名（如 "Gr2D_DX8#Gr2DLayer"）分派创建；FUN_50405aff 是 CWzGr2DLayer
+静态初始化守卫（type_info::raw_name 引用其 TD）。
+
+1. 沿 DAT_50439b28 注册表逐条解出各 DLL 的全部 PCOM 对象创建函数 → 类实例化清单
 2. Canvas 属性序列化（PcSerializeString 链）→ WZ 属性运行时表示
 3. Shape2D CWzVector2D 布局 → foothold 记录互证
 4. NameSpace Package 加载 → 与 wzpy 互证 PKG1 细节

@@ -64,7 +64,27 @@ WS2_32 调用者=网络族；GDI/DDraw 调用者=UI 绘制族；winmm=音频族�
 └─ 相关函数清单（atlas 行）
 ```
 
-## 已有可查询资产
+## 杠杆进展（2026-11-11 首日）
+
+### L2 DLL 反编译 — ✅ 完成
+5 个 DLL 全部反编译导出（`E:\ghidra-projects\dlls\`）：
+Gr2D_DX8（1,036KB CSV）/ Canvas（740KB）/ Shape2D（299KB）/
+NameSpace（653KB）/ ResMan（150KB）。**渲染引擎源码到手，零覆盖最大块已打开。**
+
+### L1 字符串表破解 — 结构已破，索引算术待收口
+- 字符串记录格式确认：`{u32 0x1d, 1, len, len, name}`（33 字节固定节距）
+- 已知锚：850=walk1…884=rope（143 对，MOTION-SLOT-NAMES.csv）
+- 转储实测：walk1/walk2/stand2/alert/swingO1… 按 33 节距相邻排列（0x3C782530 区）
+  ——该区是 WZ 解析名字缓存（遇序），**不是** ID 索引表本身
+- ID 表本体：`[0xBE2000] = 0x29A6FC`（VA），含双指针单元（0x2Bxxxx 中间层）
+- **下一步**：dump 0x29A6FC 起整个表区 → vamap 解析全部指针 → 读目标字符串
+  （单元格式：cell+0x00 指针或内联）→ 用动作 143 锚标定 ID↔槽位算术
+  → 全量 ID→名映射 → 1,062 函数语义锚定
+- 高频 ID 待识别：5432(×75 调用)、2077(×41)、5549(×33)、795(×30)、797(×29)
+
+### 已跑基线
+- `FUNCTION-ATLAS-BASELINE.csv`：51,222 行，208 语义锚（诚实数字）
+- RTTI 仅 13 类（异常族）——vtable 杠杆弱，靠 L4 构造器族补偿
 
 - `atlas/FUNCTION-STRING-ANCHORS.csv`（1,035 条函数×字符串）
 - `atlas/FUNCTION-CLUSTERS.csv`（96 函数×WZ 命名空间簇）
@@ -73,3 +93,10 @@ WS2_32 调用者=网络族；GDI/DDraw 调用者=UI 绘制族；winmm=音频族�
 - `map/MOTION-SLOT-NAMES.csv` + `RENDER-MAP-SCENE-CONTRACT.md` + `RENDER-ZMAP-ORDER.csv`
 - 协议: `protocol-opcodes.csv`(442) + task044/046 handler 图
 - 移动物理全套: MAP-MOTION-REVERSE / GAPS-FINAL-CLOSURE / DATA-SIDE-FINDINGS
+
+## 已有可查询资产
+
+- atlas/ 全套 CSV（基线/字符串锚/簇/RTTI）
+- E:/ghidra-projects/dlls/*.csv — 5 个 DLL 的反编译（渲染引擎）
+- map/ 移动物理全套 + RENDER-MAP-SCENE-CONTRACT + ZMAP-ORDER
+- 协议: protocol-opcodes.csv(442) + task044/046 handler 图

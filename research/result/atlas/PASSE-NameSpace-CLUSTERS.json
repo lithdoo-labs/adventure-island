@@ -1,0 +1,44 @@
+{
+ "NameSpace": [
+  "0x50401081"
+ ],
+ "FileSystem": [
+  "0x50401081"
+ ],
+ "Package": [
+  "0x50401081"
+ ],
+ "PackageWriter": [
+  "0x50401081"
+ ],
+ "NotifyAlloc": [
+  "0x504023c7"
+ ],
+ "PCOM_DLL": [
+  "0x50409a5b"
+ ],
+ "PcCreateObject": [
+  "0x50409a8d"
+ ],
+ "PcFreeUnusedLibraries": [
+  "0x50409a8d"
+ ],
+ "PcSerializeObject": [
+  "0x50409a8d"
+ ],
+ "PcSerializeString": [
+  "0x50409a8d"
+ ],
+ "PcRootNameSpace": [
+  "0x50409a8d"
+ ],
+ "Kernel32_dll": [
+  "0x50409b53"
+ ],
+ "_img": [
+  "0x5040eadd"
+ ],
+ "PKG_04x_tmp": [
+  "0x50413070"
+ ]
+}

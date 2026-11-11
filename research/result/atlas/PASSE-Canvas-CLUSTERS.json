@@ -1,0 +1,46 @@
+{
+ "Canvas": [
+  "0x4fc05924",
+  "0x4fc1ef50"
+ ],
+ "Font": [
+  "0x4fc05924"
+ ],
+ "NotifyAlloc": [
+  "0x4fc09fc0"
+ ],
+ "PCOM_DLL": [
+  "0x4fc14e30"
+ ],
+ "PcCreateObject": [
+  "0x4fc14e7a"
+ ],
+ "PcFreeUnusedLibraries": [
+  "0x4fc14e7a"
+ ],
+ "PcSerializeObject": [
+  "0x4fc14e7a"
+ ],
+ "PcSerializeString": [
+  "0x4fc14e7a"
+ ],
+ "PcRootNameSpace": [
+  "0x4fc14e7a"
+ ],
+ "Kernel32_dll": [
+  "0x4fc15ae0"
+ ],
+ "Property": [
+  "0x4fc17400",
+  "0x4fc1ef78"
+ ],
+ "origin": [
+  "0x4fc1ef78"
+ ],
+ "_img": [
+  "0x4fc20760"
+ ],
+ "List_wz": [
+  "0x4fc20b10"
+ ]
+}

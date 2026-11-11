@@ -1,0 +1,88 @@
+{
+ "Gr2D_DX8": [
+  "0x50001072"
+ ],
+ "PCOM_DLL": [
+  "0x50001c70"
+ ],
+ "PcCreateObject": [
+  "0x50001ca2"
+ ],
+ "PcFreeUnusedLibraries": [
+  "0x50001ca2"
+ ],
+ "PcSerializeObject": [
+  "0x50001ca2"
+ ],
+ "PcSerializeString": [
+  "0x50001ca2"
+ ],
+ "PcRootNameSpace": [
+  "0x50001ca2"
+ ],
+ "Kernel32_dll": [
+  "0x50001d68"
+ ],
+ "D3D8_DLL": [
+  "0x50002ced"
+ ],
+ "Gr2D_DX8__Direct8_1_not_found": [
+  "0x50002ced"
+ ],
+ "Direct3DCreate8": [
+  "0x50002ced"
+ ],
+ "Shape2D_Vector2D": [
+  "0x50002ced",
+  "0x50009922"
+ ],
+ "Gr2D_DX8__Direct8_1_Initializati": [
+  "0x50002ced"
+ ],
+ "Canvas": [
+  "0x500030d3",
+  "0x5000418c"
+ ],
+ "Already_initialized": [
+  "0x500030d3"
+ ],
+ "Unsupported_pixel_format": [
+  "0x50004860"
+ ],
+ "NotifyAlloc": [
+  "0x500070a5"
+ ],
+ "WzFlashRenderer_dll": [
+  "0x50007ade"
+ ],
+ "InitializeFlashbyDevice": [
+  "0x50007b80"
+ ],
+ "LoadMediaFile": [
+  "0x50007b80"
+ ],
+ "RenderFlash": [
+  "0x50007b80"
+ ],
+ "ReleaseFlash": [
+  "0x50007b80"
+ ],
+ "IsRenderFlash": [
+  "0x50007b80"
+ ],
+ "_Canvas_not_found": [
+  "0x5000b0a7"
+ ],
+ "Gr2D_DX8_Gr2DLayer": [
+  "0x5000ea1d"
+ ],
+ "GenuineIntel": [
+  "0x5001da71"
+ ],
+ "UnknownVendr": [
+  "0x5001faa0"
+ ],
+ "AuthenticAMD": [
+  "0x5001faa0"
+ ]
+}

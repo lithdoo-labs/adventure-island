@@ -1,0 +1,50 @@
+{
+ "Vector2D": [
+  "0x5100106d"
+ ],
+ "Convex2D": [
+  "0x5100106d"
+ ],
+ "PolyShape2D": [
+  "0x5100106d"
+ ],
+ "FNotifyAlloc": [
+  "0x5100177e"
+ ],
+ "Shape2D_Convex2D": [
+  "0x51001aed"
+ ],
+ "Shape2D_PolyShape2D": [
+  "0x51001e63"
+ ],
+ "GUID__GUID_ac8daf42_33b1_4f78_b6b0": [
+  "0x5100293d"
+ ],
+ "GUID__GUID_74e25d99_588f_4bad_9898": [
+  "0x51002970"
+ ],
+ "PCOM_DLL": [
+  "0x51005dac"
+ ],
+ "PcCreateObject": [
+  "0x51005dde"
+ ],
+ "PcFreeUnusedLibraries": [
+  "0x51005dde"
+ ],
+ "PcSerializeObject": [
+  "0x51005dde"
+ ],
+ "PcSerializeString": [
+  "0x51005dde"
+ ],
+ "PcRootNameSpace": [
+  "0x51005dde"
+ ],
+ "Kernel32_dll": [
+  "0x51005ea4"
+ ],
+ "Shape2D_Vector2D": [
+  "0x51006970"
+ ]
+}

@@ -1,0 +1,29 @@
+{
+ "ResMan": [
+  "0x50c010a7"
+ ],
+ "PCOM_DLL": [
+  "0x50c022d5"
+ ],
+ "PcCreateObject": [
+  "0x50c02307"
+ ],
+ "PcFreeUnusedLibraries": [
+  "0x50c02307"
+ ],
+ "PcSerializeObject": [
+  "0x50c02307"
+ ],
+ "PcSerializeString": [
+  "0x50c02307"
+ ],
+ "PcRootNameSpace": [
+  "0x50c02307"
+ ],
+ "Kernel32_dll": [
+  "0x50c023cd"
+ ],
+ "_ResMan__Failed_in_GetCachedObje": [
+  "0x50c03774"
+ ]
+}

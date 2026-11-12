@@ -278,6 +278,10 @@
    "quest_full_flow": "QuestAction(11 reads) -> updateQuest/MobKills/Finish{nextquest} -> addQuestInfo full sync; custom data strings",
    "skill_sync": "addSkillInfo{skill,level,masterLevel} + addCoolDownInfo; skillEffect 0x5A; macros 0x6D",
    "buff_masks": "MapleBuffStat 128-bit bitmask (Long x2); giveBuff family (mount/pirate/homing/energy); cancelBuff sub-codes"
+  },
+  "round27": {
+   "social_subops": "party 0x78{4,8,12,35-portal}, guild 0x7A 16 sub-codes (emblem 4-tuple, GP, 3 rankings), alliance full 1-29, buddy 7/9",
+   "data_details": "fixed-13-padded names, guild member {id,name,job,level,online,contribution,rank,joindate}"
   }
  },
  "signal_classification": {
@@ -298,7 +302,7 @@
   "quests": 0.88,
   "npc_interaction": 0.85,
   "skills_buffs": 0.85,
-  "social_party": 0.86,
+  "social_party": 0.91,
   "shop_trade": 0.9,
   "minimap": 0.9,
   "sound_audio": 0.82,

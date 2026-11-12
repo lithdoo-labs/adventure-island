@@ -1,6 +1,15 @@
-# CMS079 客户端逆向 — 开发者手册（终版）
+# CMS079 客户端逆向 — 开发者手册（v2，十八轮版）
 
-日期: 2026-11-12。本文是全部逆向战役的最终交付物。
+日期: 2026-11-13。本文是全部逆向战役的最终交付物。
+v2 新增：技术栈定论（ATL）、WZ 管线闭环、UI 全地图、音频闭环、攻击表结构、宠物系统。
+
+## 〇、技术栈定论（v2 里程碑，第 15 轮）
+
+**客户端 = MFC + ATL + STL + boost + Concurrency（67 库签名证据）**
+- "PCOM" = **标准 ATL COM**（_ATL_INTMAP_ENTRY 接口映射 / InlineIsEqualUnknown / CMFCComObject）
+- 整个 COM 层可直接参考公开的 atlcom.h
+- 类标识 = UTF-16 名字（Gr2D_DX8/Canvas/Font/Vector2D/Convex2D/PolyShape/NameSpace/FileSystem/Package/PackageWeb/ResMan）
+- 创建链：exe `PcCreateObject(L"名字")` → DLL `DllGetClassObject` wcscmp → 描述符 → 构造器 → 虚表
 
 ## 一、你现在可以做什么
 
@@ -8,17 +17,19 @@
 
 ### ✅ 完全可实现（公式/协议/数据全知）
 - **登录流程**：协议 + AES 加密 + 滚动密钥全知（合成客户端已验证）
-- **移动物理**：陆跳/下跳/游泳跳/爬绳/传送/行走的完整公式
-- **聊天**：协议 + 服务器源码全知
+- **移动物理**：陆跳/下跳/游泳跳/爬绳/传送/行走的完整公式（+飞行常数 floatCoefficient/floatDrag1）
+- **聊天**：协议 + 服务器源码全知（+CN_Chat 聊天室 Marker/Secret/Vip）
 - **物品/背包**：WZ 数据 + 协议全知
-- **任务系统**：协议 + WZ 数据全知
+- **任务系统**：协议 + WZ 数据全知（+PQuest/Exclusive/QuestCategory 组队任务）
 - **NPC 交互**：数据 + 协议全知
 - **社交/组队/公会**：协议 + 服务器源码全知
 
 ### 🔶 可实现（架构/数据已知，实现细节需决策）
-- **地图渲染**：z 序（zmap.img 149 层）+ 精灵管线（NameSpace→ResMan→Canvas）+ origin/变换全知；用现代图形 API 替代 D3D8
-- **战斗系统**：动作选择（swingO1/2/3 随机）+ 命中范围（技能驱动5种公式）+ 伤害公式 + 数字显示全知
-- **UI 窗口**：事件模型（switch 命令泵）+ UIWindow.img 数据全知；个别窗口逻辑需补充
+- **地图渲染**：z 序（zmap.img 149 层）+ 精灵管线三段闭环（ResMan 头解析 → Canvas 反序列化[双格式/宽高界 65535/Property 工厂/递归子节点] → Gr2D 33 条像素格式管线[RGB555/调色板/101010/16 位单通道 + 4×4 有序抖动]）+ ATL COM 层公开参考
+- **战斗系统**：动作选择（攻击表 0xBA59B8 = 18 项×0x10 {count,variant[3]}，variant[rand%count]）+ 命中范围（技能驱动）+ 伤害公式 + 数字显示 + 验证器（反外挂）
+- **UI 窗口**：事件模型 + 58 路径组地图（26+ 窗口：Delivery/MonsterBook/Radio/UtilDlgEx/...）+ 巨函数机制（COM/VARIANT WZ 屏幕构建器）
+- **音频**：管线闭环 = Sound.wz `Sound/field.img/<地图>/<事件>` 命名 + WINMM waveOut/MCI 播放
+- **宠物自动行为**：6 键×41 上下文设置系统
 
 ## 二、核心公式速查
 

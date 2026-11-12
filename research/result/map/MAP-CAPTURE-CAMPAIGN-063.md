@@ -158,3 +158,9 @@ docker exec task024-qemu:
 2. printf 格式串吃反斜杠（需 \\）
 3. 备份在容器 /tmp/{SYSTEM,SOFTWARE}.bak
 **效果**：sppsvc（软件保护服务）禁用 → 激活检查不运行 → 登录放行
+
+### 追加：slui 改名 + AutoAdminLogon（slui 向导才是登录拦截者）
+- sppsvc 禁用后登录时仍弹"需要激活"向导 → 确定向导由 **slui.exe** 渲染
+- 修复：`mv slui.exe slui.exe.bak` + chntpw 设置 Winlogon AutoAdminLogon=1/DefaultUserName=research
+- 注：DefaultPassword 编辑后长度 0（chntpw ed 对该 REG_SZ 的写入异常），自动登录可能失败；
+  但 slui 缺失后手动登录路径理论畅通

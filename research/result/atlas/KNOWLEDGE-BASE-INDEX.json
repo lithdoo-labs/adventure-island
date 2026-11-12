@@ -42,7 +42,10 @@
   "java_methods_with_io": 104,
   "server_writers": 303,
   "handler_dossiers": 102,
-  "functional_modules": 32
+  "functional_modules": 32,
+  "fingerprint_classified": 1402,
+  "fingerprint_confident": 1300,
+  "developer_answerability": "78.9%"
  },
  "signal_classification": {
   "string-anchored": 91,

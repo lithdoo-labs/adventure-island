@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9036736842105263,
+  "overall_progress": 0.9057789473684211,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -195,6 +195,13 @@
   "round14": {
    "namespace_api": "IUnknown triple instruction-level (hardcoded IID_IUnknown {0,0,0xC0,0x46000000}), Release via private heap 0x5081EBE0",
    "resolvepath": "wide path, skip leading //, per-component GetChildByName via vtbl+0x10, VT 0xD variants, 0x10000 flag"
+  },
+  "round15_mega": {
+   "tech_stack": "MFC+ATL+STL+boost+Concurrency confirmed by 67 library signatures",
+   "pcom_identified": "PCOM = standard ATL COM (_ATL_INTMAP_ENTRY interface maps, InlineIsEqualUnknown, CMFCComObject)",
+   "methods_analyzed": 330,
+   "shape2d": "4 interfaces all standard ATL COM layout (QI/Release/dtor at 0/2/3)",
+   "developer_note": "entire COM layer now has public reference (atlcom.h)"
   }
  },
  "signal_classification": {
@@ -207,7 +214,7 @@
  "implementation_readiness": {
   "login_flow": 0.98,
   "character_select": 0.96,
-  "map_rendering": 0.8,
+  "map_rendering": 0.82,
   "movement_physics": 0.95,
   "combat": 0.72,
   "chat": 0.9,

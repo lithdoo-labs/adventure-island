@@ -1,0 +1,68 @@
+dll,rva,signature
+Gr2D_DX8,0x50004fd7,"Single Match\n    public: class _CIP<struct IBinding,&struct _GUID const IID_IBinding> & __thiscall _CIP<struct\n   IBinding,&stru"
+Gr2D_DX8,0x50006067,Single Match\n    public: virtual __thiscall _com_error::~_com_error(void)\n   \n   Library: Visual Studio 2003 Release */\n\nvoid
+Gr2D_DX8,0x50010fe4,"Single Match\n    void __stdcall `vector constructor iterator'(void *,unsigned int,int,void * (__thiscall*)(void\n   *))\n   \n   "
+Gr2D_DX8,0x5002a660,"Single Match\n    __allshl\n   \n   Library: Visual Studio */\n\nlonglong __fastcall __allshl(byte param_1,int param_2)\n\n{\n  ui"
+Gr2D_DX8,0x5002a7b0,"Single Match\n    __alldiv\n   \n   Library: Visual Studio */\n\nundefined8 __alldiv(uint param_1,uint param_2,uint param_3,uint p"
+Gr2D_DX8,0x5002a880,"Single Match\n    __aulldiv\n   \n   Library: Visual Studio */\n\nundefined8 __aulldiv(uint param_1,uint param_2,uint param_3,uint"
+Gr2D_DX8,0x5002a8f0,"Single Match\n    __allshr\n   \n   Library: Visual Studio */\n\nundefined8 __fastcall __allshr(byte param_1,int param_2)\n\n{\n  "
+Gr2D_DX8,0x5002a920,"Single Match\n    __allmul\n   \n   Library: Visual Studio */\n\nlonglong __allmul(uint param_1,int param_2,uint param_3,int param"
+Gr2D_DX8,0x5002ab40,"Single Match\n    __aullshr\n   \n   Library: Visual Studio */\n\nulonglong __fastcall __aullshr(byte param_1,uint param_2)\n\n{\n"
+Canvas,0x4fc05740,Multiple Matches With Same Base Name\n    private: void __thiscall Concurrency::cancellation_token::_Clear(void)\n    private: voi
+Canvas,0x4fc06320,Single Match\n    public: virtual long __stdcall CMFCComObject<class ATL::CAccessibleProxy>::QueryInterface(struct\n   _GUID const
+Canvas,0x4fc06850,Multiple Matches With Same Base Name\n    public: __thiscall Concurrency::details::SafeRWList<struct\n   Concurrency::details::Boo
+Canvas,0x4fc06880,Single Match\n    public: virtual __thiscall ATL::CAccessibleProxy::~CAccessibleProxy(void)\n   \n   Library: Visual Studio 2005 D
+Canvas,0x4fc06ce0,Multiple Matches With Different Base Names\n    public: __thiscall INotifyDBEvents::INotifyDBEvents(void)\n    public: __thiscall 
+Canvas,0x4fc07060,Single Match\n    public: virtual long __stdcall CMFCComObject<class ATL::CAccessibleProxy>::QueryInterface(struct\n   _GUID const
+Canvas,0x4fc07080,"Single Match\n    public: long __thiscall ATL::CAccessibleProxy::_InternalQueryInterface(struct _GUID const &,void\n   * *)\n   \n"
+Canvas,0x4fc070b0,Single Match\n    public: static struct ATL::_ATL_INTMAP_ENTRY const * __stdcall\n   ATL::CAccessibleProxy::_GetEntries(void)\n   
+Canvas,0x4fc07f40,Single Match\n    public: virtual long __stdcall CMFCComObject<class ATL::CAccessibleProxy>::QueryInterface(struct\n   _GUID const
+Canvas,0x4fc07f60,"Single Match\n    public: long __thiscall ATL::CAccessibleProxy::_InternalQueryInterface(struct _GUID const &,void\n   * *)\n   \n"
+Canvas,0x4fc07f90,Single Match\n    public: static struct ATL::_ATL_INTMAP_ENTRY const * __stdcall\n   ATL::CAccessibleProxy::_GetEntries(void)\n   
+Canvas,0x4fc083e0,Single Match\n    public: __thiscall CAsyncPropExchange::CAsyncPropExchange(unsigned long)\n   \n   Libraries: Visual Studio 2003 
+Canvas,0x4fc084e0,Single Match\n    public: __thiscall CAsyncPropExchange::CAsyncPropExchange(unsigned long)\n   \n   Libraries: Visual Studio 2003 
+Canvas,0x4fc095a0,"Single Match\n    int __cdecl ATL::InlineIsEqualUnknown(struct _GUID const &)\n   \n   Libraries: Visual Studio 2005 Debug, Visual"
+Canvas,0x4fc095f0,Multiple Matches With Same Base Name\n    public: unsigned int __thiscall std::_Wrap_alloc<class std::allocator<char>\n   >::max_s
+Canvas,0x4fc09610,Multiple Matches With Same Base Name\n    public: static unsigned int __cdecl std::allocator_traits<class std::allocator<char>\n  
+Canvas,0x4fc09620,Multiple Matches With Same Base Name\n    public: unsigned int __thiscall std::_Wrap_alloc<class std::allocator<char>\n   >::max_s
+Canvas,0x4fc09640,Multiple Matches With Same Base Name\n    public: static unsigned int __cdecl std::allocator_traits<class std::allocator<char>\n  
+Canvas,0x4fc09740,"Single Match\n    void __cdecl __ExceptionPtrDestroy(void *)\n   \n   Libraries: Visual Studio 2010, Visual Studio 2012, Visual St"
+Canvas,0x4fc098a0,"Single Match\n    public: long __thiscall CDHtmlEventSink::ConnectToConnectionPoint(struct IUnknown *,struct _GUID\n   const &,uns"
+Canvas,0x4fc09b10,"Multiple Matches With Different Base Names\n    int __cdecl ATL::InlineIsEqualGUID(struct _GUID const &,struct _GUID const &)\n   "
+Canvas,0x4fc09e90,"Single Match\n    public: long __thiscall ATL::CAccessibleProxy::_InternalQueryInterface(struct _GUID const &,void\n   * *)\n   \n"
+Canvas,0x4fc09ec0,Single Match\n    public: static struct ATL::_ATL_INTMAP_ENTRY const * __stdcall\n   ATL::CAccessibleProxy::_GetEntries(void)\n   
+Canvas,0x4fc0a070,"Single Match\n    public: __thiscall IUnknown::IUnknown(void)\n   \n   Libraries: Visual Studio 2003 Debug, Visual Studio 2005 Deb"
+Canvas,0x4fc0bbb0,Multiple Matches With Same Base Name\n    public: __thiscall std::_Vector_val<struct std::_Simple_types<class std::shared_ptr<stru
+Canvas,0x4fc0c130,"Multiple Matches With Same Base Name\n    public: int __thiscall CArray<struct CTaskDialog::_CTaskDialogButton,struct\n   CTaskDia"
+Canvas,0x4fc0d5b0,Single Match\n    public: __thiscall boost::exception_detail::refcount_ptr<struct\n   boost::exception_detail::error_info_containe
+Canvas,0x4fc0e510,Single Match\n    public: virtual unsigned long __stdcall CMFCComObject<class\n   ATL::CAccessibleProxy>::Release(void)\n   \n   L
+Canvas,0x4fc0e560,Single Match\n    public: virtual long __stdcall CMFCComObject<class ATL::CAccessibleProxy>::QueryInterface(struct\n   _GUID const
+Canvas,0x4fc0e580,"Single Match\n    public: long __thiscall ATL::CAccessibleProxy::_InternalQueryInterface(struct _GUID const &,void\n   * *)\n   \n"
+Canvas,0x4fc0e5b0,Single Match\n    public: static struct ATL::_ATL_INTMAP_ENTRY const * __stdcall\n   ATL::CAccessibleProxy::_GetEntries(void)\n   
+Canvas,0x4fc0ea70,"Multiple Matches With Different Base Names\n    public: class _CIP<struct IBindCtx,&struct _GUID const IID_IBindCtx> & __thiscall "
+Canvas,0x4fc0f590,Single Match\n    protected: unsigned int __thiscall\n   Concurrency::details::_Concurrent_vector_base_v4::_Internal_capacity(void
+Canvas,0x4fc18170,Single Match\n    public: __thiscall boost::exception_detail::refcount_ptr<struct\n   boost::exception_detail::error_info_containe
+Canvas,0x4fc18c80,Single Match\n    public: virtual long __stdcall CMFCComObject<class ATL::CAccessibleProxy>::QueryInterface(struct\n   _GUID const
+Canvas,0x4fc18ca0,"Single Match\n    public: long __thiscall ATL::CAccessibleProxy::_InternalQueryInterface(struct _GUID const &,void\n   * *)\n   \n"
+Canvas,0x4fc18cd0,Single Match\n    public: static struct ATL::_ATL_INTMAP_ENTRY const * __stdcall\n   ATL::CAccessibleProxy::_GetEntries(void)\n   
+Canvas,0x4fc1be60,"Multiple Matches With Different Base Names\n    public: class _CIP<struct IBindCtx,&struct _GUID const IID_IBindCtx> & __thiscall "
+Canvas,0x4fc1bfa0,Single Match\n    protected: unsigned int __thiscall\n   Concurrency::details::_Concurrent_vector_base_v4::_Internal_capacity(void
+Canvas,0x4fc1d780,Multiple Matches With Same Base Name\n    public: char * __thiscall std::allocator<char>::allocate(unsigned int)\n    public: unsi
+Canvas,0x4fc20e10,"Multiple Matches With Same Base Name\n    class std::basic_string<char,struct std::char_traits<char>,class std::allocator<char> > "
+Canvas,0x4fc226d0,"Multiple Matches With Same Base Name\n    public: __thiscall Concurrency::details::List<struct Concurrency::details::ListEntry,cla"
+Canvas,0x4fc22700,"Multiple Matches With Different Base Names\n    public: class _CIP<struct IBindCtx,&struct _GUID const IID_IBindCtx> & __thiscall "
+Canvas,0x4fc244c0,"Single Match\n    __aullshr\n   \n   Library: Visual Studio */\n\nulonglong __fastcall __aullshr(byte param_1,uint param_2)\n\n{\n"
+Canvas,0x4fc244e0,"Single Match\n    __allshl\n   \n   Library: Visual Studio */\n\nlonglong __fastcall __allshl(byte param_1,int param_2)\n\n{\n  ui"
+Shape2D,0x51002bb9,"Single Match\n    public: class _CIP<struct IBinding,&struct _GUID const IID_IBinding> & __thiscall _CIP<struct\n   IBinding,&stru"
+Shape2D,0x51005afb,Single Match\n    public: virtual __thiscall _com_error::~_com_error(void)\n   \n   Library: Visual Studio 2003 Release */\n\nvoid
+Shape2D,0x5100adc0,"Single Match\n    __allshl\n   \n   Library: Visual Studio */\n\nlonglong __fastcall __allshl(byte param_1,int param_2)\n\n{\n  ui"
+NameSpace,0x5040458c,Single Match\n    public: virtual __thiscall _com_error::~_com_error(void)\n   \n   Library: Visual Studio 2003 Release */\n\nvoid
+NameSpace,0x50405ed2,"Single Match\n    public: class _CIP<struct IBinding,&struct _GUID const IID_IBinding> & __thiscall _CIP<struct\n   IBinding,&stru"
+NameSpace,0x5040e130,"Single Match\n    __allshl\n   \n   Library: Visual Studio */\n\nlonglong __fastcall __allshl(byte param_1,int param_2)\n\n{\n  ui"
+NameSpace,0x5040e280,"Single Match\n    __aullrem\n   \n   Library: Visual Studio */\n\nundefined8 __aullrem(uint param_1,uint param_2,uint param_3,uint"
+NameSpace,0x50410e2e,"Single Match\n    public: class _CIP<struct IBinding,&struct _GUID const IID_IBinding> & __thiscall _CIP<struct\n   IBinding,&stru"
+NameSpace,0x50412bd9,"Single Match\n    public: class _CIP<struct IBinding,&struct _GUID const IID_IBinding> & __thiscall _CIP<struct\n   IBinding,&stru"
+NameSpace,0x50414a82,"Single Match\n    public: class _CIP<struct IBinding,&struct _GUID const IID_IBinding> & __thiscall _CIP<struct\n   IBinding,&stru"
+ResMan,0x50c0472b,"Single Match\n    public: class _CIP<struct IBinding,&struct _GUID const IID_IBinding> & __thiscall _CIP<struct\n   IBinding,&stru"
+ResMan,0x50c05568,Single Match\n    public: virtual __thiscall _com_error::~_com_error(void)\n   \n   Library: Visual Studio 2003 Release */\n\nvoid
+ResMan,0x50c05a60,"Single Match\n    __allshl\n   \n   Library: Visual Studio */\n\nlonglong __fastcall __allshl(byte param_1,int param_2)\n\n{\n  ui"

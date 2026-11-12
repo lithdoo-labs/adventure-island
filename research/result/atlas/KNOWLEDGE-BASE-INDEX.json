@@ -49,7 +49,15 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8763089497623199
+  "overall_progress": 0.8836736842105263,
+  "vtable_breakthrough": {
+   "vtables_extracted": 48,
+   "method_slots": 2219,
+   "methods_decompiled": 1083,
+   "exe_callsites": 8440,
+   "iface_var_groups": 342,
+   "date": "2026-11-12"
+  }
  },
  "signal_classification": {
   "string-anchored": 91,
@@ -61,7 +69,7 @@
  "implementation_readiness": {
   "login_flow": 0.98,
   "character_select": 0.95,
-  "map_rendering": 0.7,
+  "map_rendering": 0.78,
   "movement_physics": 0.95,
   "combat": 0.7,
   "chat": 0.9,

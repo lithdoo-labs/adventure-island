@@ -238,7 +238,7 @@
 
 ## 4. 地图
 
-地图章存放一张地图的源数据和可复用的画布。导入来源是转换库里的 `struct.Map`、`group.Back`、`group.Tile`、`group.Obj`、`group.Portal`、`group.Foothold`、`group.Rope`，以及 `struct.Back`、`struct.Tileset`、`struct.Obj`、`struct.MapHelper` 和对应 PNG。游戏不读这些转换表。
+地图章存放一张地图的源数据和可复用的画布。导入来源是转换库里的 `struct.Map`、`group.Back`、`group.Tile`、`group.Obj`、`group.Portal`、`group.Foothold`、`group.Rope`、`group.Seat`，以及 `struct.Back`、`struct.Tileset`、`struct.Obj`、`struct.MapHelper` 和对应 PNG。游戏不读这些转换表。
 
 MapScenePlan、`effectiveBounds`、`clientSortKey`、呈现用的 `visual` 和 `contentVersion` 由构建期 Adapter 投影，不写回本库。比较方向、Camera 跟随、`+0x98` 的方法体和虚表 `+0x58` 的时间单位都还没有恢复，库里不补这些公式。
 
@@ -401,7 +401,7 @@ UOL 在导入时解开。帧只指向已经解开的画布。悬空或成环就�
 
 `read-adventure-fsdb.mjs` 在地图表进入发布闭包之前，仍只发布纸娃娃。要让 PWA 读到地图，须先把本章的表加进它的白名单。这三张图没有座位行，白名单也不改变 North 在这三张图上不命中。
 
-`scripts/wz_fsdb/import_adventure_field.py` 从转换库写入这三张图、它们引用到的画布，以及 `physics.default`。放置行只收这三张图用到的帧，不收整套图集里没被放到的画布。
+`scripts/wz_fsdb/import_adventure_field.py` 从转换库写入童话村到动物园这条走廊的 13 张、它们引用到的画布、有源记录的绳子和座位，以及 `physics.default`。放置行只收这 13 张用到的帧，不收整套图集里没被放到的画布。中央广场 `230000001`、商店街 `230000002` 和动物园 `230000003` 有座位文件。没有 `seat` 或 `ladderRope` 的图不写空文件。
 
 ### 4.8 运动参数
 

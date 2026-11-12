@@ -1,10 +1,10 @@
-"""Import the first field closure into content/[FSDB]adventure.
+"""Import the corridor field closure into content/[FSDB]adventure.
 
 Reads the converted CMS library and writes only:
 
-- maps 222000000, 222000001, and 230030200
-- back, tile, obj, portal, foothold, and rope rows for those maps
-- no seat rows: those three Map.wz images have no seat node
+- the 13 maps from 222000000 through 230000003
+- back, tile, obj, portal, foothold, rope, and seat rows for those maps
+- rope and seat files only when the source group has rows
 - the canvases those rows reference, one PNG each
 - MapHelper portal/game pv, ph, and psh
 - Physics/default as physics.default
@@ -20,7 +20,42 @@ from pathlib import Path
 
 SOURCE = Path(r"E:\cms079-pr1-work\fsdb-all") / "[FSDB]cms"
 DEST = Path(__file__).resolve().parents[2] / "content" / "[FSDB]adventure"
-MAPS = ("222000000", "222000001", "230030200")
+MAPS = (
+    "222000000",
+    "222000001",
+    "230030200",
+    "230030100",
+    "230030000",
+    "230020300",
+    "230020200",
+    "230020100",
+    "230020000",
+    "230000000",
+    "230000001",
+    "230000002",
+    "230000003",
+)
+ORIGINAL = ("222000000", "222000001", "230030200")
+SEAT_COUNTS = {"230000001": 3, "230000002": 6, "230000003": 3}
+ROPE_COUNTS = {
+    "222000000": 1,
+    "222000001": 1,
+    "230030100": 1,
+    "230020200": 1,
+    "230000001": 1,
+    "230000002": 6,
+    "230000003": 5,
+}
+SWIM_MAPS = {
+    "230030200",
+    "230030100",
+    "230030000",
+    "230020300",
+    "230020200",
+    "230020100",
+    "230020000",
+    "230000000",
+}
 VR_KEYS = ("VRLeft", "VRTop", "VRRight", "VRBottom")
 RESOURCE_HEAD = {
     "Back": "back",
@@ -260,7 +295,8 @@ def write_metadata() -> None:
         "[group]map.Obj": "物件放置。一行一条。",
         "[group]map.Portal": "传送门放置。一行一条。缺 hRange 或 vRange 不补 100。",
         "[group]map.Foothold": "立足线。一行一条。",
-        "[group]map.Rope": "绳子。一行一条。",
+        "[group]map.Rope": "绳子。一行一条。没有 ladderRope 的地图不写这个文件。",
+        "[group]map.Seat": "座位。一行一个点。没有 seat 节点的地图不写这个文件。",
         "[struct]map.Back": None,
         "[group]map.BackFrame": "背景帧。静态 kind 为 back，动画 kind 为 ani。缺 delay 不补。",
         "[struct]map.Tileset": None,
@@ -326,6 +362,9 @@ def main() -> None:
         ropes = [pick(row, ("x", "y1", "y2", "l", "uf", "page", "id")) for row in rows("Rope", map_id)]
         if ropes:
             dump_jsonl(DEST / "[group]map.Rope" / f"map.{map_id}.jsonl", ropes)
+        seats = [pick(row, ("index", "x", "y")) for row in rows("Seat", map_id)]
+        if seats:
+            dump_jsonl(DEST / "[group]map.Seat" / f"map.{map_id}.jsonl", seats)
 
     for name, frames in importer.back_frames.items():
         dump_json(DEST / "[struct]map.Back" / f"map.back.{name}.json", {})
@@ -369,8 +408,33 @@ def check(physics: dict) -> None:
         for line in (DEST / "[group]map.Portal" / f"map.{map_id}.jsonl").read_text(encoding="utf-8").splitlines():
             row = json.loads(line)
             links[(map_id, row["pn"])] = row
-            if "hRange" in row or "vRange" in row:
+            if map_id in ORIGINAL and ("hRange" in row or "vRange" in row):
                 raise SystemExit(f"{map_id}/{row['pn']} stored a range the source does not have")
+    for map_id in MAPS:
+        record = load_json(DEST / "[struct]map.Map" / f"map.{map_id}.json")
+        swim = 1 if map_id in SWIM_MAPS else 0
+        if record["info"]["swim"] != swim:
+            raise SystemExit(f"{map_id} swim drifted")
+        field_limit = 4 if map_id in SEAT_COUNTS else 0
+        if record["info"]["fieldLimit"] != field_limit:
+            raise SystemExit(f"{map_id} fieldLimit drifted")
+        seat_path = DEST / "[group]map.Seat" / f"map.{map_id}.jsonl"
+        rope_path = DEST / "[group]map.Rope" / f"map.{map_id}.jsonl"
+        seat_rows = [json.loads(line) for line in seat_path.read_text(encoding="utf-8").splitlines() if line.strip()] if seat_path.is_file() else []
+        rope_rows = [json.loads(line) for line in rope_path.read_text(encoding="utf-8").splitlines() if line.strip()] if rope_path.is_file() else []
+        if len(seat_rows) != SEAT_COUNTS.get(map_id, 0):
+            raise SystemExit(f"{map_id} seat count {len(seat_rows)}")
+        if len(rope_rows) != ROPE_COUNTS.get(map_id, 0):
+            raise SystemExit(f"{map_id} rope count {len(rope_rows)}")
+        minimap = DEST / "[resource]Map" / "minimap" / f"{map_id}.png"
+        if minimap.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
+            raise SystemExit(f"not a png: {minimap}")
+    square = [
+        json.loads(line)
+        for line in (DEST / "[group]map.Seat" / "map.230000001.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    if [(row["index"], row["x"], row["y"]) for row in square] != [(0, -286, -69), (1, -316, -69), (2, -256, -69)]:
+        raise SystemExit(f"square seats drifted: {square}")
     expected = {
         ("222000000", "in00"): (222000001, "st00", 1),
         ("222000001", "out00"): (222000000, "in00", 3),

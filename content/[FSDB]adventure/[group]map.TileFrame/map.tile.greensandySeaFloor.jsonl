@@ -19,3 +19,8 @@
 {"u":"edU","no":1,"origin":[26,27],"z":-4,"width":61,"height":28,"resource":"tile/greensandySeaFloor/edU/1"}
 {"u":"enH1","no":1,"origin":[0,0],"z":-3,"width":90,"height":36,"resource":"tile/greensandySeaFloor/enH1/1"}
 {"u":"enH0","no":0,"origin":[0,29],"z":-3,"width":90,"height":29,"resource":"tile/greensandySeaFloor/enH0/0"}
+{"u":"slLU","no":0,"origin":[90,87],"z":-3,"width":90,"height":87,"resource":"tile/greensandySeaFloor/slLU/0"}
+{"u":"slRU","no":0,"origin":[0,87],"z":-3,"width":90,"height":88,"resource":"tile/greensandySeaFloor/slRU/0"}
+{"u":"slLD","no":0,"origin":[91,0],"z":-3,"width":91,"height":87,"resource":"tile/greensandySeaFloor/slLD/0"}
+{"u":"slRD","no":1,"origin":[0,0],"z":-3,"width":90,"height":87,"resource":"tile/greensandySeaFloor/slRD/1"}
+{"u":"slRD","no":0,"origin":[0,0],"z":-3,"width":91,"height":87,"resource":"tile/greensandySeaFloor/slRD/0"}

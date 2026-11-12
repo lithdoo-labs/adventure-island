@@ -1,0 +1,40 @@
+{
+  "mapId": "230000003",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 1,
+    "swim": 0,
+    "returnMap": 230000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.0,
+    "bgm": "Bgm11/Aquarium",
+    "mapMark": "AquaRoad",
+    "hideMinimap": 0,
+    "fieldLimit": 4
+  },
+  "vr": {
+    "VRLeft": -400,
+    "VRTop": -1305,
+    "VRRight": 400,
+    "VRBottom": 600
+  },
+  "miniMap": {
+    "width": 924,
+    "height": 2039,
+    "centerX": 458,
+    "centerY": 1460,
+    "mag": 4,
+    "resource": "minimap/230000003"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

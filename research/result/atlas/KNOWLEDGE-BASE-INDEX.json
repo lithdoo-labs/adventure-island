@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8915684210526315,
+  "overall_progress": 0.8905157894736841,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -95,8 +95,9 @@
    "cr3_pdpt": "0x3f6ec000",
    "pd": "0x3f7e9000",
    "mode": "PAE",
-   "canvas_base": "0x50000000 (PA 0x3f0a3000)",
-   "runtime_tables": "motion@0x29d2ec, strings@0x29a6fc",
+   "game_dlls_in_dump": false,
+   "dll_note": "timestamp-verified: capture predates DLL loading (spin-lock); only system modules present",
+   "runtime_tables": "motion@0x29d2ec, strings@0x29a6fc (REAL)",
    "unreachable_resolved": [
     "string-table-id-to-name"
    ],
@@ -113,14 +114,14 @@
  "implementation_readiness": {
   "login_flow": 0.98,
   "character_select": 0.95,
-  "map_rendering": 0.8,
+  "map_rendering": 0.79,
   "movement_physics": 0.95,
   "combat": 0.72,
   "chat": 0.9,
   "inventory": 0.85,
   "quests": 0.8,
   "npc_interaction": 0.85,
-  "skills_buffs": 0.76,
+  "skills_buffs": 0.75,
   "social_party": 0.85,
   "shop_trade": 0.85,
   "minimap": 0.9,

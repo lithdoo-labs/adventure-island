@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9026210526315789,
+  "overall_progress": 0.9036736842105263,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -191,6 +191,10 @@
    "formats": "RGB555/4bit-pal/low-bpp/8bit/RGB101010/16bit-mono confirmed by mask evidence",
    "dither": "4x4 ordered dither, index = screen coords mod 4",
    "arch": "Gr2D = CPU pixel conversion + D3D8 dual-track"
+  },
+  "round14": {
+   "namespace_api": "IUnknown triple instruction-level (hardcoded IID_IUnknown {0,0,0xC0,0x46000000}), Release via private heap 0x5081EBE0",
+   "resolvepath": "wide path, skip leading //, per-component GetChildByName via vtbl+0x10, VT 0xD variants, 0x10000 flag"
   }
  },
  "signal_classification": {

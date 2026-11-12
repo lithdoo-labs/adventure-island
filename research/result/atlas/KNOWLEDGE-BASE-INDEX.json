@@ -273,6 +273,11 @@
    "interaction_subops": "0x77 family: shop/trade/Omok(63=move x/y/board)/MatchCard(67)/minigames 48-62 - full sub-opcode table",
    "cashshop_subops": "CS_OP {18,60,66,70,76,106,111,126}, warpCS=35 fields, BuyCashItem=28 reads",
    "hired_merchant": "0x3D MERCH (NPC 9030000), coupon/chalkboard/cash-song"
+  },
+  "round26": {
+   "quest_full_flow": "QuestAction(11 reads) -> updateQuest/MobKills/Finish{nextquest} -> addQuestInfo full sync; custom data strings",
+   "skill_sync": "addSkillInfo{skill,level,masterLevel} + addCoolDownInfo; skillEffect 0x5A; macros 0x6D",
+   "buff_masks": "MapleBuffStat 128-bit bitmask (Long x2); giveBuff family (mount/pirate/homing/energy); cancelBuff sub-codes"
   }
  },
  "signal_classification": {
@@ -290,9 +295,9 @@
   "combat": 0.74,
   "chat": 0.9,
   "inventory": 0.85,
-  "quests": 0.83,
+  "quests": 0.88,
   "npc_interaction": 0.85,
-  "skills_buffs": 0.78,
+  "skills_buffs": 0.85,
   "social_party": 0.86,
   "shop_trade": 0.9,
   "minimap": 0.9,

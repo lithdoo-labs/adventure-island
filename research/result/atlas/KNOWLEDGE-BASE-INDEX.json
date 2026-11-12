@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8952526315789473,
+  "overall_progress": 0.8963052631578946,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -126,6 +126,11 @@
    "pet_auto_system": "6 keys x 41 contexts decoded (e_levelup/e_prelevelup/e_rest/e_HPAlert/e_NOHPPotion/e_NOMPPotion)",
    "batch13": "148 signal fns read, 51 groups",
    "moveobject_ops": "47 fns labeled (crypto-intensive/user/physics groups)",
+   "date": "2026-11-12"
+  },
+  "round7": {
+   "dispatcher17": "case-weight map: 0xd=main-layout(2223L/76calls), 0x11/0xc secondary, 0xe/f data-access family, 0x44-stride record table",
+   "kernel_stack_boundary": "physical dump has no CPU context; spin-point location needs vmcore/exec-trace capture",
    "date": "2026-11-12"
   }
  },

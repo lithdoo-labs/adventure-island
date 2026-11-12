@@ -164,3 +164,21 @@ docker exec task024-qemu:
 - 修复：`mv slui.exe slui.exe.bak` + chntpw 设置 Winlogon AutoAdminLogon=1/DefaultUserName=research
 - 注：DefaultPassword 编辑后长度 0（chntpw ed 对该 REG_SZ 的写入异常），自动登录可能失败；
   但 slui 缺失后手动登录路径理论畅通
+
+## 2026-11-12 激活修复战役（第九轮终局：4 种修复全部失败）
+
+| 尝试 | 结果 |
+|---|---|
+| 1. sppsvc 禁用（chntpw Start 2→4 双 CS） | ✗ 对话框仍现（非服务渲染） |
+| 2. slui.exe 改名 | ✗ 对话框仍现（LogonUI 内置 WPA 检查） |
+| 3. AutoAdminLogon（slui 缺失+空密码） | ✗ 登录过渡屏挂死（已回滚） |
+| 4. QEMU RTC 回拨 2024（宽限日期逻辑） | ✗ 对话框仍现 |
+
+**终局判定**：激活状态 = 安装级损坏（licensing store/tokens.dat 层），
+就地修复不可行；需重建 VM（重跑 task-024 基础设施）或换盘。
+
+**附带确诊（有价值）**：
+- 鼠标输入整场战役从未生效（usb-tablet 绝对设备不收 monitor 事件；PS/2 相对也无渲染路径）
+  ——历史流程全靠键盘是正确的
+- "需要激活"对话框由 LogonUI 内置 WPA 检查渲染（slui/sppsvc 均非其依赖）
+- VM 已恢复基线（RTC=host、slui/hive 原样、登录屏可达）

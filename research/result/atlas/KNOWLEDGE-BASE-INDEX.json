@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8978842105263157,
+  "overall_progress": 0.8963052631578946,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -150,6 +150,22 @@
    "audio_answer": "WINMM.dll dynamic load = waveOut/MCI mechanism identified",
    "hash_import_table": "0xba6434 {dll_ptr, api_hashes}, custom algorithm (protector stub)",
    "methodology_rule": "needs-runtime claims must first exhaust 4 static layers"
+  },
+  "round9_optionA": {
+   "outcome": "BLOCKED - activation corruption is install-grade",
+   "attempts": [
+    "sppsvc-disable",
+    "slui-rename",
+    "autologon",
+    "rtc-2024"
+   ],
+   "all_failed": true,
+   "collateral_discoveries": [
+    "mouse input never worked whole campaign (usb-tablet absolute + no monitor path)",
+    "activation dialog = LogonUI built-in WPA check"
+   ],
+   "vm_state": "restored to logon-screen baseline",
+   "date": "2026-11-12"
   }
  },
  "signal_classification": {

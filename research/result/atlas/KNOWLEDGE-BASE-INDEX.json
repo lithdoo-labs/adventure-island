@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9010421052631578,
+  "overall_progress": 0.9015684210526316,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -180,6 +180,11 @@
    "hottest": "NameSpace 0x50817760 x95 assignments; mega-group 74vts/276assigns",
    "discovery": "48-list was primary vtables only; 510 sub-vtables from multiple inheritance now mapped",
    "date": "2026-11-12"
+  },
+  "round12": {
+   "mechanism": "vtable slices = interface inheritance chain (evidence: 0x5081775C array of 58 identical 0x5080b7a1 ptrs, 95 ctors assign mid-chain views)",
+   "funnel_method": "0x5080b7a1 = QueryInterface-family forwarding stub",
+   "recalibration": "510 sub-vtables are mostly chain views; real class families < 38; mechanism understanding deeper (net)"
   }
  },
  "signal_classification": {

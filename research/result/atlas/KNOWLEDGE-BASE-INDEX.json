@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9144631578947369,
+  "overall_progress": 0.9147789473684211,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -251,6 +251,14 @@
    "c2s_data_fix": "WAVE15-C2S was ALL-EMPTY phantom (160 rows); re-extracted 93 REAL read sequences from full 364-file CFR decompilation (WAVE19-C2S-JAVA-FULL.csv)",
    "key_handlers": "CharacterTransfer(103 reads=full char data format), DamageParse R/M/Ma, MoveMonster, TakeDamage, Duey, CashShop, Guild, MTS",
    "decomp_tree": "full 364-file tree restored at .work/task-063/jar-handler-decomp"
+  },
+  "grand_final": {
+   "protocol_methods_total": 705,
+   "s2c_all_methods": 511,
+   "c2s_all_methods": 87,
+   "client_handlers": 107,
+   "stat_mask_constants": "STR/DEX/INT/LUK/SKIN/FACE/HAIR/LEVEL/JOB/HP/MAXHP/MP/MAXMP bit values found",
+   "semantic_longtail_verdict": "top-150 unlabeled = 149 utility no-signal functions; high-value coverage saturated at 14,215 labeled"
   }
  },
  "signal_classification": {
@@ -265,14 +273,14 @@
   "character_select": 0.96,
   "map_rendering": 0.82,
   "movement_physics": 0.95,
-  "combat": 0.72,
+  "combat": 0.74,
   "chat": 0.9,
   "inventory": 0.85,
-  "quests": 0.82,
+  "quests": 0.83,
   "npc_interaction": 0.85,
-  "skills_buffs": 0.77,
-  "social_party": 0.85,
-  "shop_trade": 0.85,
+  "skills_buffs": 0.78,
+  "social_party": 0.86,
+  "shop_trade": 0.86,
   "minimap": 0.9,
   "sound_audio": 0.82,
   "ui_windows": 0.73,

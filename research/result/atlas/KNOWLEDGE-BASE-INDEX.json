@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8963052631578946,
+  "overall_progress": 0.8973578947368421,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -137,6 +137,11 @@
    "s2c_fix": "WAVE15 all-empty write_seq discovered; re-extracted 321 real sequences from source (WAVE16)",
    "capture_blocker": "Windows 7 activation failure C004F009 blocks login (NOT the F2 busy-spin; both vCPUs HLT idle, EIP=0x8ff5a5d6)",
    "repair_path": "WinRE offline slmgr -rearm OR fresh disk image",
+   "date": "2026-11-12"
+  },
+  "round9": {
+   "s2c_writers_total": 335,
+   "vicious_hammer": "EffectE/EffectP selection by [ebp+0x14] flag, FUN_41cb7f WZ config, widgets at 0x51/0x5B",
    "date": "2026-11-12"
   }
  },

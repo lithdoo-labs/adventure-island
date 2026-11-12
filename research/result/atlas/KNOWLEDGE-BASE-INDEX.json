@@ -77,6 +77,12 @@
     "multipet"
    ],
    "corpus_total_functions": 57946
+  },
+  "corpus_coverage": {
+   "decompiled_ghidra": 52326,
+   "assembly_capstone_frontier": 5620,
+   "total": 57946,
+   "image_code_coverage": "100% (0x400000-0xdda000)"
   }
  },
  "signal_classification": {

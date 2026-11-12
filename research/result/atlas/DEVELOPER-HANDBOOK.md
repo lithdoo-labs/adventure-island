@@ -133,15 +133,25 @@ wz = WzFile.open('Character.wz', region='EMS')  # 注意是 EMS！
 | 攻击系统 | HIT-RANGE-SKILL-TABLE.md |
 | 综合知识 | KNOWLEDGE-BASE-INDEX.json |
 
-## 九、已知的不可达项（诚实边界）
+## 九、已知的不可达项（诚实边界，2026-11-12 更新）
 
 | 项 | 原因 |
 |---|---|
-| 游戏主循环 | 100% COM 虚表驱动，静态不可达 |
-| D3D 绘制序列 | 虚表间接调用，需运行时数据 |
-| DLL 虚表方法 | DLL 不在 t036 转储中（加载于捕获后） |
+| ~~DLL 虚表方法~~ | ✅ **已推翻**——虚表静态提取成功（48 表/2,219 槽，见 DLL-VTABLE-ATLAS.md） |
+| 逐调用点确定绑定 | 栈变量分组是候选级；确定绑定需数据流/运行时 |
 | 字符串表 ID→名 | 访问器经壳混淆，进图转储可解 |
 | 部分深层 c2s | 委托链 >4 层，需运行时追踪 |
+
+### 虚表速查（新增）
+- Gr2D@0x2f2cc = 132 槽绘制分派（33 图元 × 4 操作）
+- NameSpace@0x17548 = WZ 导航接口（槽 7 = 路径解析核心 5.8K 字符）
+- ResMan@0x70d0 = 资源管理（槽 7 = 加载器核心 11K 字符）
+- exe 8,440 个接口调用点 → EXE-DISPATCH-RESOLVED.csv
+
+### 盲区速查（新增）
+- 语料库曾缺失 4.1MB 尾区（0x9d8046-0xdda000）→ 已用 capstone 100% 补齐（FRONTIER-DECOMPILED.csv）
+- 盲区 = MSVC CRT + 10 个新子系统（宠物自动药水/飞行物理/MCPQ/划船/ViciousHammer/Gachapon/多宠物/3 个 UI 窗口）
+- Physics.img 不止 19 常数：floatCoefficient/floatDrag1/flyJumpDec = 飞行物理
 
 ## 十、文件索引
 

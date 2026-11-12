@@ -1,14 +1,14 @@
-# 最终进度仪表盘（第二十轮：怪物技能管线）
+# 最终进度仪表盘（第二十一轮：协议 100% + 音频闭环）
 
 2026-11-13。整体：**91.3%**
 
-## 第二十轮
-- MobSkill 效果渲染管线（affected/tile 双效果，%03d/%d 寻址）
-- 怪物侧技能族全景（MobSkill/MCSkill/MCGuardian/BFSkill/ItemSkill）
-- MonsterBook 图鉴结构（fullMark）
+## 第二十一轮
+- **s2c 协议 100%**：284/284 writer 全解析（17 委托收尾）
+- **音频协议路径闭合**：environmentChange {3=效果, 4=音效, 6=音乐}
+- showSpecialEffect 码表（14/17）；summonAttack = 禁用桩
 
 ## 维度
-战斗 75→**76%** · 对象 64→**65%**
+协议 → **99.5%** · 音频就绪度 78→**82%**
 
 ## 全战役总账
 基线 58.2% → **91.3%**（净增 +33.1pp）

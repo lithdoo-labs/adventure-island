@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.912621052631579,
+  "overall_progress": 0.9134105263157896,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -237,6 +237,15 @@
     "ItemSkill"
    ],
    "monsterbook": "fullMark = card collection UI (55K)"
+  },
+  "round21": {
+   "s2c_coverage": "284/284 = 100% (17 delegates resolved)",
+   "audio_protocol": "environmentChange type codes: 3=effect, 4=sound, 6=music — server->client audio trigger path closed",
+   "special_effects": {
+    "14": "MonsterBook pickup",
+    "17": "item/equip levelup"
+   },
+   "summonAttack": "empty stub (disabled feature)"
   }
  },
  "signal_classification": {
@@ -260,7 +269,7 @@
   "social_party": 0.85,
   "shop_trade": 0.85,
   "minimap": 0.9,
-  "sound_audio": 0.78,
+  "sound_audio": 0.82,
   "ui_windows": 0.73,
   "pets": 0.85
  }

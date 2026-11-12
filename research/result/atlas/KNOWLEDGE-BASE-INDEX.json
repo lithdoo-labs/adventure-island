@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9068315789473684,
+  "overall_progress": 0.9078842105263158,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -205,6 +205,10 @@
   },
   "round16": {
    "deserializer": "Canvas slot20 full read: ZIStream + PPL concurrent vectors, dual-format (old/new), width/height @+0x28/+0x2c with 65535 bounds (throw 0x570), Property factory (named symbol u_Property), recursive child parse"
+  },
+  "round17": {
+   "shape2d": "dual role: geometry ops (shape-D paired 599c methods) + async binding (_CIP<IBinding> URL monikers, matches PackageWeb/FileSystem)",
+   "iid_table": "0x514100f0 = interface GUID array (corrects factory-object misread)"
   }
  },
  "signal_classification": {

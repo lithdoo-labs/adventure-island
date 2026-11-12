@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9165157894736842,
+  "overall_progress": 0.918621052631579,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -282,6 +282,13 @@
   "round27": {
    "social_subops": "party 0x78{4,8,12,35-portal}, guild 0x7A 16 sub-codes (emblem 4-tuple, GP, 3 rankings), alliance full 1-29, buddy 7/9",
    "data_details": "fixed-13-padded names, guild member {id,name,job,level,online,contribution,rank,joindate}"
+  },
+  "round27_sec16": {
+   "item2_closed": "R9 +0x354 = encrypted {rand,key} pair; xorshift RNG @0xBDF028; variant[rand%count] loop closed",
+   "item4_major": "vtable 0xB0CB70 = move object (m4=physics loop); move+0x190 = [Physics+0xAC] writer found (0x9BCCFB reset); 0x1E origin; draft two corrections",
+   "item5": "9 uniform 0x1388(5000) writes + 8 readers + frontier 7 cmps; no sub/dec found (decrement mechanism unproven)",
+   "item3": "comparator narrowed to 19 vtable candidates; method bodies readable in DLLs",
+   "item1": "+0x61: 77 disp8 candidates, mostly frontier; owner struct unresolved"
   }
  },
  "signal_classification": {

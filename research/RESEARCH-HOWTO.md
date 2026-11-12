@@ -134,3 +134,24 @@ python scripts\t056_client.py
 - 与既有记录冲突时：以 A 级为准，修订文档并在提交信息注明撤回内容
 - 工具脚本放 `scripts/`（可复用）或 `.work/task-XXX/`（过程性）
 - `.work/` 与二进制**永不入库**；`research/` 与 `scripts/` 才提交
+
+### 3.8 运行时地址空间重建（2026-11-12 新增，可复用配方）
+
+```
+CR3 = PDPT@PA 0x3F6EC000（PAE 模式，4 项 PDPT 全指 PD@0x3F7E9000 = 32 位 PAE 单 PD 惯例）
+锚点验证：VA 0x600000→PA 0x3EC89000 ✓，VA 0xA00000→PA 0x3F00C000 ✓
+陷阱：①转储含孤儿页（待机页 PTE 已清）必须用活动 PT 链验证 ②内核 VA 不在进程 PD 内
+产出：动作表(0x29D2EC)/字符串表(0x29A6FC)运行时可读；Physics/攻击表选角时 NULL（互证）
+边界：KPCR/内核栈不可达（物理转储无 CPU 上下文）；游戏 DLL 不在转储（时间戳验证）
+```
+
+### 3.9 新增关键事实（2026-11-12 七轮）
+
+- 字符串驻留表：WZ 名称 intern 哈希表（项 0x60B：hash/flags/ASCII 指针/UTF-16 内联/长度）
+- 面部表情 26 种 + 锚点 brow/navel/muzzle（INTERN-TABLE-STRINGS.csv）
+- UI 巨函数 = COM/VARIANT 驱动 WZ 屏幕构建器（0x40263b 智能指针/0x4029b7 BSTR 析构/0x403ac7 WZ 查询）
+- 攻击变体表 0xBA59B8 = 18 项×0x10 {count,variant[3]}，variant[rand%count]，验证器 FUN_007736bb
+- 宠物自动行为 = 6 键×41 上下文（EMOTION-REGISTRATION.csv）
+- DLL 虚表静态提取法：.rdata 连续 .text 指针（DLL-VTABLES-STATIC.csv，48 表/2,219 槽）
+- 盲区 = 0x9D8046-0xDDA000（CRT+游戏功能，FRONTIER-DECOMPILED.csv 已全量 capstone）
+- 派发表 0xafeXXX = 壳运行时重建（静态为加密 blob），thunk 农场 @0xae3xxx

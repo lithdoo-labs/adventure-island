@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8994631578947369,
+  "overall_progress": 0.9010421052631578,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -171,6 +171,14 @@
    "canvas_arch": "singleton refcount + class descriptors + constructors w/ vtable assignments (all static)",
    "multi_interface": "objects with 3 vtable ptrs at +0/+4/+8 (COM multiple inheritance)",
    "binding_chain_closed": "PcCreateObject(name) -> DllGetClassObject -> descriptor -> constructor -> vtable",
+   "date": "2026-11-12"
+  },
+  "round11": {
+   "vtable_assignments": 553,
+   "interface_groups": 38,
+   "in48_hits": 43,
+   "hottest": "NameSpace 0x50817760 x95 assignments; mega-group 74vts/276assigns",
+   "discovery": "48-list was primary vtables only; 510 sub-vtables from multiple inheritance now mapped",
    "date": "2026-11-12"
   }
  },

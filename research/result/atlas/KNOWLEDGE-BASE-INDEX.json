@@ -1,0 +1,34 @@
+{
+ "movement_physics": {
+  "formulas": "land_jump=-(DEC(0x198+0x48)*jumpSpeed)/DEC(0x190+0x24); water_jump=param*swimSpeed*5.0; down_jump=DEC(0x190+0x24)/(jumpSpeed*-0.35355339)",
+  "integration": "pre_physics(VR_clamp+step) -> speed_clamp(foothold_plaintext_limits) -> state_dispatch(walk=slope_projection, air=gravity, rope=clamp_y) -> position_setter(snapshot+ENC_WRITE)",
+  "foothold": "all geometry PLAINTEXT (+0x0C=base_x, +0x10=base_y, +0x30=slope_x, +0x38=slope_y, +0x40=maxSpeed, +0x14=maxY)",
+  "move_slots": "x=+0x20,y=+0x38,vx=+0x50,vy=+0x68 pairs; +0xE0=rope,+0x110=foothold,+0x150=hkey,+0x158=sit,+0x190=jump_den,+0x198=jump_num"
+ },
+ "combat": {
+  "melee": "swingO1/O2/O3 random (variant table 0xBA59B8, type 7)",
+  "ranged": "bow=shoot1, crossbow=shoot2, gun=shot",
+  "hit_range": "SKILL-driven: 3101005(爆炸剑)+200, 3211003/3111003(寒冰/烈火)+120+idx*30, 3111004/3211004(箭雨/升龙)+400, 5121002/15111006(超能力/闪光)=circular sqrt(dx²+dy²)",
+  "damage_formula": "maxDamage = (weaponMaxDmgMul * mainstat + secondstat) * watk / 100",
+  "number_display": "FUN_004369cf(range, base, target) called from 7 attack fns"
+ },
+ "rendering": {
+  "architecture": "PCOM COM-style: NameSpace(WZ files) -> ResMan(cache) -> Canvas(sprites) -> Gr2D(D3D8)",
+  "canvas_bridge": "FUN_5001ef78: ZIStream reads WZ Property -> recursive deserialize -> pixel/origin load",
+  "gr2d_transform": "FUN_50424ae2 (35KB): SIMD PackedFloatingADD/MUL = transform matrix math",
+  "z_order": "zmap.img 149 layers, characterStart at position 6",
+  "dispatch": "all D3D via vtable (no direct calls); main loop unreachable from static"
+ },
+ "ui": {
+  "event_model": "nested switch command pump (8 types x 37 branches), NOT vtable",
+  "encryption": "ZERO encryption in UI layer (all encR=0)",
+  "windows": "15 windows identified via UIWindow.img paths",
+  "lifecycle": "mostly vtable (only 3 fns with plaintext lifecycle strings)"
+ },
+ "protocol": {
+  "c2s": "365 mapped; 32 with extracted read formats; 595 server method I/O inventory",
+  "s2c": "303 writer formats from MaplePacketCreator",
+  "crypto": "AES-256-ECB/OFB, rolling key seed 0xC65053F2, FUNNY_BYTES 256/256 verified",
+  "verified": "synthetic client: login->channel->game->chat->move"
+ }
+}

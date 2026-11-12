@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9015684210526316,
+  "overall_progress": 0.9026210526315789,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -185,6 +185,12 @@
    "mechanism": "vtable slices = interface inheritance chain (evidence: 0x5081775C array of 58 identical 0x5080b7a1 ptrs, 95 ctors assign mid-chain views)",
    "funnel_method": "0x5080b7a1 = QueryInterface-family forwarding stub",
    "recalibration": "510 sub-vtables are mostly chain views; real class families < 38; mechanism understanding deeper (net)"
+  },
+  "round13": {
+   "gr2d_132": "CORRECTED: 33 pixel-format conversion pipelines x {dtor, decode, dither-encode, lock-common} - NOT primitive draw ops",
+   "formats": "RGB555/4bit-pal/low-bpp/8bit/RGB101010/16bit-mono confirmed by mask evidence",
+   "dither": "4x4 ordered dither, index = screen coords mod 4",
+   "arch": "Gr2D = CPU pixel conversion + D3D8 dual-track"
   }
  },
  "signal_classification": {

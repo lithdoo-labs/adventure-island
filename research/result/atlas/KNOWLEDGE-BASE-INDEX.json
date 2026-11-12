@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9153052631578946,
+  "overall_progress": 0.9154631578947368,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -263,6 +263,11 @@
   "round23": {
    "physics_main_loop": "FUN_005be703 (21K/26enc): foothold list walk + cross-product side test + decrypt-pair reads + trapezoid integration",
    "decrypt_pair_final": "encrypted slots = {value, adjacent key} pairs (14-pair layout) - third and final confirmation; move+0x190/0x198 item closed"
+  },
+  "round24": {
+   "protocol_by_opcode": "PROTOCOL-BY-OPCODE.csv: 637 rows (540 s2c + 97 c2s), 467 opcode-name-keyed, 100 number-confirmed",
+   "opcode_values_note": "enum values loaded from external properties (not on disk); numbers from client-side tables (168 names)",
+   "sample_joins": "CHANGE_CHANNEL=0x22, attack trio 0x28/29/2A, trade family=0x77, NPC_TALK=0x36"
   }
  },
  "signal_classification": {

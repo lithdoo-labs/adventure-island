@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8905157894736841,
+  "overall_progress": 0.8926210526315789,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -102,6 +102,18 @@
     "string-table-id-to-name"
    ],
    "date": "2026-11-12"
+  },
+  "round5": {
+   "string_intern_table": "WZ name interning hash table decoded",
+   "face_emotions": 26,
+   "face_anchors": [
+    "brow",
+    "navel",
+    "muzzle"
+   ],
+   "giant_ui_mechanism": "COM/VARIANT WZ-property screen builders (helpers capstone-decoded)",
+   "audio_boundary": "no direct audio strings in corpus; all via intern table",
+   "date": "2026-11-12"
   }
  },
  "signal_classification": {
@@ -113,7 +125,7 @@
  },
  "implementation_readiness": {
   "login_flow": 0.98,
-  "character_select": 0.95,
+  "character_select": 0.96,
   "map_rendering": 0.79,
   "movement_physics": 0.95,
   "combat": 0.72,
@@ -126,7 +138,7 @@
   "shop_trade": 0.85,
   "minimap": 0.9,
   "sound_audio": 0.6,
-  "ui_windows": 0.68,
+  "ui_windows": 0.7,
   "pets": 0.8
  }
 }

@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8873578947368421,
+  "overall_progress": 0.8884105263157894,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -83,6 +83,13 @@
    "assembly_capstone_frontier": 5620,
    "total": 57946,
    "image_code_coverage": "100% (0x400000-0xdda000)"
+  },
+  "dispatch_resolution": {
+   "slots_used": 127,
+   "slots_resolved": 56,
+   "top_slot_0xafe1bc": "abort/terminate path (176 calls)",
+   "page_table_walk": "PT@0x3e96c000 + PT@0x33940000, import page PA 0x3fa4b000",
+   "date": "2026-11-12"
   }
  },
  "signal_classification": {

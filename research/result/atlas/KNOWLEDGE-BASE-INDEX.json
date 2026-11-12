@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9078842105263158,
+  "overall_progress": 0.9099894736842105,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -209,6 +209,19 @@
   "round17": {
    "shape2d": "dual role: geometry ops (shape-D paired 599c methods) + async binding (_CIP<IBinding> URL monikers, matches PackageWeb/FileSystem)",
    "iid_table": "0x514100f0 = interface GUID array (corrects factory-object misread)"
+  },
+  "round18": {
+   "ui_windows": "58 path groups mapped (UI-WINDOW-MAP.csv); windows 18->26+ (Delivery 113K, MonsterBook 84K, Radio, UtilDlgEx)",
+   "new_wz_systems": [
+    "MobSkill",
+    "MCSkill/MCGuardian",
+    "BFSkill",
+    "ItemSkill",
+    "PQuest",
+    "CN_Chat-roomList",
+    "Combo/KeyDownBar"
+   ],
+   "sound_naming": "Sound/field.img/<map>/<event> — audio pipeline complete with WINMM"
   }
  },
  "signal_classification": {
@@ -226,14 +239,14 @@
   "combat": 0.72,
   "chat": 0.9,
   "inventory": 0.85,
-  "quests": 0.8,
+  "quests": 0.82,
   "npc_interaction": 0.85,
-  "skills_buffs": 0.75,
+  "skills_buffs": 0.77,
   "social_party": 0.85,
   "shop_trade": 0.85,
   "minimap": 0.9,
-  "sound_audio": 0.72,
-  "ui_windows": 0.7,
+  "sound_audio": 0.78,
+  "ui_windows": 0.73,
   "pets": 0.85
  }
 }

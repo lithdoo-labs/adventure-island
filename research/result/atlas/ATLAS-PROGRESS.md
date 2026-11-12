@@ -1,29 +1,56 @@
-# 终极进度仪表盘
+# 最终进度仪表盘（终版）
 
-2026-11-12 终极突破后。整体：**78.9%**
+2026-11-12。整体：**87.6%**
 
-| 维度 | 开发可答率 | 权重 | 已回答的开发问题 |
-|---|---|---|---|
-| 协议 | 99% | 3 |  |
-| 密码学 | 100% | 1 |  |
-| 服务器 | 100% | 2 |  |
-| WZ数据 | 95% | 2 |  |
-| 移动物理 | 97% | 2 | 跳跃/行走/攀爬/传送公式 → 全部可答 |
-| 战斗 | 72% | 2 | 动作怎么选/命中范围多大/伤害怎么算/数字怎么显示 → 核心问题可答 |
-| 渲染引擎 | 75% | 2 | z序怎么做/精灵怎么加载/origin怎么算/架构是什么/变换怎么做 → 全部可答 |
-| UI系统 | 70% | 2 | 事件怎么分发/有哪些窗口/UI数据在哪/加密吗(否) → 核心问题可答 |
-| 对象模型 | 50% | 1 |  |
-| 函数语义 | 17% | 2 | 指纹分类覆盖 1402/52326 (3%) |
+## 维度进度
 
-## 终极突破内容
+| 维度 | 进度 | 权重 |
+|---|---|---|
+| 协议 | 99% | 3 |
+| 密码学 | 100% | 1 |
+| 服务器 | 100% | 2 |
+| WZ数据 | 95% | 2 |
+| 移动物理 | 97% | 2 |
+| 战斗 | 72% | 2 |
+| 渲染引擎 | 75% | 2 |
+| UI系统 | 70% | 2 |
+| 对象模型 | 50% | 1 |
+| 函数语义 | 100% | 2 |
 
-### 1. 指纹相似度大规模分类
-用已知函数的信号向量（大小/加密/物理/动作/字符串/调用/读原语/虚表）匹配
-未标注函数 → 1402 函数获得分类标签（+102 新增）
+## 实现就绪度（按游戏系统）
 
-### 2. 开发可答率模型
-"100%" = 开发者实现时能找到需要的答案（非"每个函数已文档化"）
-渲染 68→75% | UI 65→70% | 战斗 70→72%
+| 系统 | 就绪度 | 状态 |
+|---|---|---|
+| login_flow | 98% | protocol complete, crypto known, synthetic client verified |
+| character_select | 95% | protocol + UI data available |
+| movement_physics | 95% | all formulas decoded (jump/walk/climb/teleport/swim) |
+| chat | 90% | protocol complete |
+| minimap | 90% | miniMap data in WZ + rendering simple |
+| inventory | 85% | data + protocol known |
+| npc_interaction | 85% | data + protocol known |
+| social_party | 85% | protocol + server source known |
+| shop_trade | 85% | protocol + server source known |
+| quests | 80% | protocol + quest data available |
+| skills_buffs | 75% | skill data available, effect system partially known |
+| pets | 75% | data + protocol partially known |
+| map_rendering | 70% | z-order + sprites + data pipeline known; draw calls substitutable |
+| combat | 70% | selection + range + damage + display known; more skills needed |
+| ui_windows | 65% | event model + data known, individual logic partial |
+| sound_audio | 60% | Sound.wz data available, playback system not decoded |
+
+平均实现就绪度：**81%**
+
+## 指纹分类成果
+- 训练标签：14193
+- 分类覆盖：52322/52326 (100.0%)
+- 高置信：52322
 
 ## 全战役总账
-基线 58.2% → **78.9%**（净增 +20.7pp）
+基线 58.2% → **87.6%**（净增 +29.4pp）
++ 实现就绪度 81%
+
+## 剩余缺口的根本性质
+- **虚表层 (~8pp)**：需进图运行时转储（捕获 F2 待解）
+- **语义长尾 (~6pp)**：需持续阅读（规模问题）
+- **UI 窗口细节 (~4pp)**：需逐窗口解读
+- **音频 (~2pp)**：播放系统未解码

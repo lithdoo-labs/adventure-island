@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9057789473684211,
+  "overall_progress": 0.9068315789473684,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -202,6 +202,9 @@
    "methods_analyzed": 330,
    "shape2d": "4 interfaces all standard ATL COM layout (QI/Release/dtor at 0/2/3)",
    "developer_note": "entire COM layer now has public reference (atlcom.h)"
+  },
+  "round16": {
+   "deserializer": "Canvas slot20 full read: ZIStream + PPL concurrent vectors, dual-format (old/new), width/height @+0x28/+0x2c with 65535 bounds (throw 0x570), Property factory (named symbol u_Property), recursive child parse"
   }
  },
  "signal_classification": {

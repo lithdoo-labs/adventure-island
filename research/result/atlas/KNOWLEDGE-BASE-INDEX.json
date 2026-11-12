@@ -132,6 +132,12 @@
    "dispatcher17": "case-weight map: 0xd=main-layout(2223L/76calls), 0x11/0xc secondary, 0xe/f data-access family, 0x44-stride record table",
    "kernel_stack_boundary": "physical dump has no CPU context; spin-point location needs vmcore/exec-trace capture",
    "date": "2026-11-12"
+  },
+  "round8": {
+   "s2c_fix": "WAVE15 all-empty write_seq discovered; re-extracted 321 real sequences from source (WAVE16)",
+   "capture_blocker": "Windows 7 activation failure C004F009 blocks login (NOT the F2 busy-spin; both vCPUs HLT idle, EIP=0x8ff5a5d6)",
+   "repair_path": "WinRE offline slmgr -rearm OR fresh disk image",
+   "date": "2026-11-12"
   }
  },
  "signal_classification": {

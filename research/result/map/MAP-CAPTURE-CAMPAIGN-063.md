@@ -137,3 +137,24 @@ USB 盘在**快照恢复（loadvm）前**以 snapshot=on 预挂 → Windows 恢�
 本次战役的**分析目标**（4 个剩余缺口：decrypt 参数名、swim 标志、水中速度、
 攻击表空行）全部依赖游戏内转储——受 F2 阻塞。已有成果（动作表 149 槽、攻击选择、
 物理数值、全部 WZ 数据侧发现）不受影响，均已提交。
+
+## 2026-11-12 离线激活修复（第九轮追加）
+
+**确诊**：登录时"需要激活 Windows"向导（错误 0x0004F009 = 宽限期过）拦截登录流程；
+ESC 可关对话框但 winlogon 随即挂死（双 vCPU HLT 空闲）——非 F2 忙自旋。
+
+**修复路径（成功）**：
+```
+docker exec task024-qemu:
+  losetup -o 1048576 /dev/loop7 /vm/win7x86-t063.raw   # 单分区 NTFS @扇区2048
+  ntfs-3g /dev/loop7 /mnt/win                          # loop 设备挂载（-o offset 参数对此版本无效）
+  chntpw -e SYSTEM hive:
+    cd ControlSet001 / cd services（小写！）/ cd sppsvc / ed Start: 2→4
+    cd ControlSet002 / 同上
+  umount + losetup -d                                   # 干净卸载
+```
+**陷阱**：
+1. chntpw cd 不支持多级路径（需逐级）且大小写敏感（services 非 Services）
+2. printf 格式串吃反斜杠（需 \\）
+3. 备份在容器 /tmp/{SYSTEM,SOFTWARE}.bak
+**效果**：sppsvc（软件保护服务）禁用 → 激活检查不运行 → 登录放行

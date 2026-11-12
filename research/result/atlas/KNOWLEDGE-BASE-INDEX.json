@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8884105263157894,
+  "overall_progress": 0.8915684210526315,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -90,6 +90,17 @@
    "top_slot_0xafe1bc": "abort/terminate path (176 calls)",
    "page_table_walk": "PT@0x3e96c000 + PT@0x33940000, import page PA 0x3fa4b000",
    "date": "2026-11-12"
+  },
+  "address_space": {
+   "cr3_pdpt": "0x3f6ec000",
+   "pd": "0x3f7e9000",
+   "mode": "PAE",
+   "canvas_base": "0x50000000 (PA 0x3f0a3000)",
+   "runtime_tables": "motion@0x29d2ec, strings@0x29a6fc",
+   "unreachable_resolved": [
+    "string-table-id-to-name"
+   ],
+   "date": "2026-11-12"
   }
  },
  "signal_classification": {
@@ -102,14 +113,14 @@
  "implementation_readiness": {
   "login_flow": 0.98,
   "character_select": 0.95,
-  "map_rendering": 0.78,
+  "map_rendering": 0.8,
   "movement_physics": 0.95,
-  "combat": 0.7,
+  "combat": 0.72,
   "chat": 0.9,
   "inventory": 0.85,
   "quests": 0.8,
   "npc_interaction": 0.85,
-  "skills_buffs": 0.75,
+  "skills_buffs": 0.76,
   "social_party": 0.85,
   "shop_trade": 0.85,
   "minimap": 0.9,

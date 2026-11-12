@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9110421052631579,
+  "overall_progress": 0.912621052631579,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -226,6 +226,17 @@
   "round19": {
    "handbook_v2": "Developer Handbook updated with rounds 9-18 (tech stack, pipelines, UI map, audio, attack table, pet system)",
    "delivery_window": "WZ structure fully named: {npc0, say0/say1, icon1/2, sendTB, tax} = NPC parcel delivery UI"
+  },
+  "round20": {
+   "mobskill": "Skill/MobSkill.img/%03d/level/%d/{affected,tile} - monster skill effect render pipeline (29K fn, full COM chain)",
+   "monster_family": [
+    "MobSkill",
+    "MCSkill",
+    "MCGuardian",
+    "BFSkill",
+    "ItemSkill"
+   ],
+   "monsterbook": "fullMark = card collection UI (55K)"
   }
  },
  "signal_classification": {

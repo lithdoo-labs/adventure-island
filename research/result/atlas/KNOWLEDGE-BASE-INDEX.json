@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9147789473684211,
+  "overall_progress": 0.9153052631578946,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -259,6 +259,10 @@
    "client_handlers": 107,
    "stat_mask_constants": "STR/DEX/INT/LUK/SKIN/FACE/HAIR/LEVEL/JOB/HP/MAXHP/MP/MAXMP bit values found",
    "semantic_longtail_verdict": "top-150 unlabeled = 149 utility no-signal functions; high-value coverage saturated at 14,215 labeled"
+  },
+  "round23": {
+   "physics_main_loop": "FUN_005be703 (21K/26enc): foothold list walk + cross-product side test + decrypt-pair reads + trapezoid integration",
+   "decrypt_pair_final": "encrypted slots = {value, adjacent key} pairs (14-pair layout) - third and final confirmation; move+0x190/0x198 item closed"
   }
  },
  "signal_classification": {

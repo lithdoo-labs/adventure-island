@@ -30,5 +30,25 @@
   "s2c": "303 writer formats from MaplePacketCreator",
   "crypto": "AES-256-ECB/OFB, rolling key seed 0xC65053F2, FUNNY_BYTES 256/256 verified",
   "verified": "synthetic client: login->channel->game->chat->move"
+ },
+ "statistics": {
+  "total_functions": 57438,
+  "atlas_artifacts": 113,
+  "semantic_labels": 14193,
+  "fingerprint_index": 52326,
+  "reading_batches": 12,
+  "automated_waves": 17,
+  "classified_signals": 148,
+  "java_methods_with_io": 104,
+  "server_writers": 303,
+  "handler_dossiers": 102,
+  "functional_modules": 32
+ },
+ "signal_classification": {
+  "string-anchored": 91,
+  "crypto-intensive": 34,
+  "crypto-user": 14,
+  "physics-heavy": 11,
+  "physics-ref": 9
  }
 }

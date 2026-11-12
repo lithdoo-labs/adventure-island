@@ -1,0 +1,5 @@
+opcode,n_reads,read_seq
+11111003,13,readByte();readMapleAsciiString();readByte();readInt();readInt();readInt();readInt();readInt();readInt();readByte();readInt();readInt();readInt()
+3,10,readByte();readByte();readInt();readInt();readInt();readByte();readInt();readInt();readInt();readByte()
+100,8,readInt();readInt();readByte();readByte();readByte();readByte();readInt();readByte()
+9001020,3,readByte();readInt();readByte()

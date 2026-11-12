@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.9134105263157896,
+  "overall_progress": 0.9144631578947369,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -246,6 +246,11 @@
     "17": "item/equip levelup"
    },
    "summonAttack": "empty stub (disabled feature)"
+  },
+  "round22": {
+   "c2s_data_fix": "WAVE15-C2S was ALL-EMPTY phantom (160 rows); re-extracted 93 REAL read sequences from full 364-file CFR decompilation (WAVE19-C2S-JAVA-FULL.csv)",
+   "key_handlers": "CharacterTransfer(103 reads=full char data format), DamageParse R/M/Ma, MoveMonster, TakeDamage, Duey, CashShop, Guild, MTS",
+   "decomp_tree": "full 364-file tree restored at .work/task-063/jar-handler-decomp"
   }
  },
  "signal_classification": {

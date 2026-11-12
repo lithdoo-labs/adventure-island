@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8973578947368421,
+  "overall_progress": 0.8978842105263157,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -143,6 +143,13 @@
    "s2c_writers_total": 335,
    "vicious_hammer": "EffectE/EffectP selection by [ebp+0x14] flag, FUN_41cb7f WZ config, widgets at 0x51/0x5B",
    "date": "2026-11-12"
+  },
+  "round9_static_path": {
+   "pcom_class_ids": "name-based via DllGetClassObject (11 class names decoded, 100% static)",
+   "pcom_api": "PcInitModule/PcRootNameSpace/PcCreateObject/...",
+   "audio_answer": "WINMM.dll dynamic load = waveOut/MCI mechanism identified",
+   "hash_import_table": "0xba6434 {dll_ptr, api_hashes}, custom algorithm (protector stub)",
+   "methodology_rule": "needs-runtime claims must first exhaust 4 static layers"
   }
  },
  "signal_classification": {
@@ -155,7 +162,7 @@
  "implementation_readiness": {
   "login_flow": 0.98,
   "character_select": 0.96,
-  "map_rendering": 0.79,
+  "map_rendering": 0.8,
   "movement_physics": 0.95,
   "combat": 0.72,
   "chat": 0.9,
@@ -166,7 +173,7 @@
   "social_party": 0.85,
   "shop_trade": 0.85,
   "minimap": 0.9,
-  "sound_audio": 0.6,
+  "sound_audio": 0.72,
   "ui_windows": 0.7,
   "pets": 0.85
  }

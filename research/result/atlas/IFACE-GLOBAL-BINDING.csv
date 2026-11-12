@@ -1,0 +1,16 @@
+global,n_sites,runtime_ptr,vtable,match,runtime
+0xbe2784,10,0x63661365,,,
+0xbdd490,9,,,,unmapped
+0xbe2788,2,0x11646613,,,
+0xbd9020,2,,,,unmapped
+0xbd9010,1,,,,unmapped
+0xbdee08,1,0xffa80bfe,,,
+0xbdedf8,1,0xa5289758,,,
+0xbdedfc,1,0xfcfb03c4,,,
+0xbdf54c,1,,,,unmapped
+0xbdf5bc,1,,,,unmapped
+0xbdf5b4,1,,,,unmapped
+0xbdd460,1,,,,unmapped
+0xbdd6dc,1,,,,unmapped
+0xa2cda1,1,0x0,,,
+0xbd7ba8,1,,,,unmapped

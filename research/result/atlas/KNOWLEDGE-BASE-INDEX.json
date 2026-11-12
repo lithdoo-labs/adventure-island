@@ -49,7 +49,7 @@
   "final_classified": 52322,
   "final_confident": 52322,
   "implementation_readiness_avg": 0.814375,
-  "overall_progress": 0.8947263157894737,
+  "overall_progress": 0.8952526315789473,
   "vtable_breakthrough": {
    "vtables_extracted": 48,
    "method_slots": 2219,
@@ -121,6 +121,12 @@
    "selection": "variant[rand % count] — swingO1/O2/O3 random confirmed at table level",
    "validator": "FUN_007736bb = anti-cheat motion check",
    "audio_boundary": "zero audio in all 5 DLLs (string+API double scan)"
+  },
+  "round6": {
+   "pet_auto_system": "6 keys x 41 contexts decoded (e_levelup/e_prelevelup/e_rest/e_HPAlert/e_NOHPPotion/e_NOMPPotion)",
+   "batch13": "148 signal fns read, 51 groups",
+   "moveobject_ops": "47 fns labeled (crypto-intensive/user/physics groups)",
+   "date": "2026-11-12"
   }
  },
  "signal_classification": {
@@ -146,6 +152,6 @@
   "minimap": 0.9,
   "sound_audio": 0.6,
   "ui_windows": 0.7,
-  "pets": 0.8
+  "pets": 0.85
  }
 }

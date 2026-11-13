@@ -24,6 +24,9 @@ Checks (14):
   12 retracted/superseded claims must not appear active (VERIFIED w/o marker)
   13 frozen ABI file unchanged (sha256 pin)
   14 legacy exemptions are declared and bounded (no blanket skip)
+  16 t081 evidence integrity: sha normalization, corrected-args regression,
+     requirement-matrix consistency (refs/stale-source/RE-READY boundary),
+     readiness-report stale-conclusion regression
 
 Exit codes: 0 = PASS, 1 = FAIL (errors), 2 = internal error.
 """
@@ -564,6 +567,190 @@ def check_retracted_active():
 
 
 # ------------------------------------------------------------------
+# CHECK 16 — t081 evidence integrity
+# ------------------------------------------------------------------
+# Rule groups added after the t080 acceptance (ACCEPT-WITH-FIXES):
+#   16a EVID-SHA: source_sha256 must be machine-checkable — no ellipsis
+#       shortening; every hex-only token must be a full 64-hex sha256.
+#   16b ARGS-REGRESSION (STALE-ARGS / ARGS-AGREE): the corrected climb-exit
+#       args (move,0,0,0) must stay consistent between C-056 and EV-37, and
+#       the superseded (move,0,rope,0) must not resurface in ACTIVE
+#       authoritative stores. Historical audit quotes (reviewer archives,
+#       correction-context quotes in forensic records) are exempt.
+#   16c MATRIX-*: requirement-matrix claim/evidence refs must exist; a row
+#       citing this-round instruction evidence (EV-33..EV-42) must not
+#       wholesale-describe its evidence as stale non-fresh summaries;
+#       RE-READY rows need a non-D grade, existing evidence refs, and an
+#       explicit boundary disclosure when blocks_acceptance is affirmative.
+#   16d REPORT-STALE / REPORT-MARKER: the active readiness report must not
+#       re-assert the superseded "P4 landing chains lack authoritative C/EV"
+#       conclusion and must carry the corrected statement.
+
+MATRIX_PATH = os.path.join(RR, 'stage-readiness', 'P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv')
+REPORT_PATH = os.path.join(RR, 'stage-readiness', 'P0-P4-READINESS-REPORT.md')
+
+NEW_INSTRUCTION_EVS = {f'EV-{n}' for n in range(33, 43)}
+STALE_SOURCE_MARKERS = ('非本轮',)
+STALE_ARGS_STR = '(move,0,rope,0)'
+
+# Files where the superseded args string is LEGITIMATE audit history:
+#   reviewer archives (by name — exempt because they are NOT in the ACTIVE
+#   file list below) and correction-context quotes in forensic records
+#   (handled by ARGS_CORRECTION_MARKERS context matching).
+CORRECT_ARGS_STR = '(move,0,0,0)'
+ARGS_CORRECTION_MARKERS = re.compile(r'corrected|纠正|earlier draft|原话|错误', re.I)
+
+HEX64_RE = re.compile(r'^[0-9a-fA-F]{64}$')
+HEXISH_RE = re.compile(r'^[0-9a-fA-F]{6,}$')
+
+
+def check_evidence_sha(evid):
+    for eid, e in sorted(evid.items()):
+        sha = e['source_sha256'].strip()
+        if '…' in sha or '...' in sha:
+            err('EVID-SHA', f'{eid}: source_sha256 uses ellipsis shortening '
+                            f'("{sha[:40]}…") — full 64-hex required')
+            continue
+        for tok in re.split(r'[;,/|]| (?:and|;|\+) ', sha):
+            tok = tok.strip()
+            if not tok:
+                continue
+            if HEXISH_RE.match(tok) and not HEX64_RE.match(tok):
+                err('EVID-SHA', f'{eid}: hash-like token "{tok}" in source_sha256 '
+                                f'is not a full 64-hex sha256')
+        # compound sources must map file->hash one-to-one when both are plural
+        src = e['source_file']
+        if ' + ' in src and ';' in sha:
+            n_files = len([x for x in re.split(r'\s*\+\s*', src) if x.strip()])
+            n_hashes = len([x for x in sha.split(';') if x.strip()])
+            if n_files != n_hashes:
+                err('EVID-SHA', f'{eid}: compound source ({n_files} files) does not '
+                                f'map 1:1 to hashes ({n_hashes})')
+
+
+def check_args_regression(sot):
+    claims, evid = sot['claims'], sot['evidence']
+    # consistency between C-056 and EV-37 (only when both exist)
+    c56 = claims.get('C-056')
+    e37 = evid.get('EV-37')
+    if c56 and e37:
+        if CORRECT_ARGS_STR not in c56['claim'] and 'move,0,0,0' not in c56['claim']:
+            err('ARGS-AGREE', 'C-056 claim text no longer carries the corrected '
+                              '(move,0,0,0) climb-exit args')
+        if CORRECT_ARGS_STR not in e37['instruction_or_data'] \
+                and 'move,0,0,0' not in e37['instruction_or_data']:
+            err('ARGS-AGREE', 'EV-37 instruction text no longer carries the corrected '
+                              '(move,0,0,0) climb-exit args')
+    # superseded args must not resurface in ACTIVE authoritative stores
+    active_files = [
+        os.path.join(SOT, 'claims.csv'), os.path.join(SOT, 'evidence.csv'),
+        os.path.join(SOT, 'gaps.csv'),
+        REPORT_PATH, MATRIX_PATH,
+        os.path.join(RR, 'stage-readiness', 'TARGETED-STATIC-FORENSICS-V2.md'),
+        os.path.join(RR, 'stage-readiness', 'INDEPENDENT-STATIC-REVIEW.md'),
+    ]
+    for p in active_files:
+        if not os.path.exists(p):
+            continue
+        text = read_text(p)
+        for m in re.finditer(re.escape(STALE_ARGS_STR), text):
+            ctx = text[max(0, m.start() - 200):m.end() + 200]
+            if ARGS_CORRECTION_MARKERS.search(ctx):
+                continue  # quoted-with-correction context is legitimate audit history
+            err('STALE-ARGS', f'{os.path.relpath(p, REPO)}: superseded climb-exit args '
+                              f'"{STALE_ARGS_STR}" present as an ACTIVE conclusion '
+                              f'(corrected form is "{CORRECT_ARGS_STR}")')
+            break
+
+
+def check_matrix_integrity(sot):
+    if not os.path.exists(MATRIX_PATH):
+        return  # miniature fixtures may omit the matrix; absence is not an error
+    try:
+        header, rows = parse_csv(MATRIX_PATH)
+    except Exception as e:
+        err('MATRIX-PARSE', str(e))
+        return
+    idx = {c: i for i, c in enumerate(header)}
+    need = ['requirement_id', 'claim_ids', 'evidence_ids', 'evidence_grade_and_type',
+            'readiness', 'blocks_acceptance', 'required_original_fact', 'unproven']
+    for c in need:
+        if c not in idx:
+            err('MATRIX-SCHEMA', f'requirement matrix missing column "{c}"')
+            return
+    for r in rows:
+        if len(r) != len(header):
+            continue  # width already flagged by check 1
+        rid = r[idx['requirement_id']]
+        for cid in [x.strip() for x in r[idx['claim_ids']].split(';')
+                    if x.strip() and x.strip() != '—']:
+            if not re.fullmatch(r'C-\d{3}', cid):
+                continue
+            if cid not in sot['claims']:
+                err('MATRIX-REF', f'{rid}: unknown claim id "{cid}"')
+        evs = [x.strip() for x in r[idx['evidence_ids']].split(';')
+               if x.strip() and x.strip() != '—']
+        for eid in evs:
+            if not re.fullmatch(r'EV-\d{2}', eid):
+                continue
+            if eid not in sot['evidence']:
+                err('MATRIX-REF', f'{rid}: unknown evidence id "{eid}"')
+        grade = r[idx['evidence_grade_and_type']]
+        cites_new = any(e in NEW_INSTRUCTION_EVS for e in evs)
+        if cites_new and any(m in grade for m in STALE_SOURCE_MARKERS):
+            err('MATRIX-STALE-SOURCE',
+                f'{rid}: cites this-round instruction evidence ({sorted(set(evs) & NEW_INSTRUCTION_EVS)}) '
+                f'but evidence_grade_and_type still describes it as a stale/non-fresh summary: "{grade[:60]}"')
+        ready = r[idx['readiness']].strip()
+        if ready == 'RE-READY':
+            # D-grade = the letter D as a grade (not the word "DATA")
+            if re.match(r'D(?![A-Za-z])', grade.strip()) or any(m in grade for m in STALE_SOURCE_MARKERS):
+                err('MATRIX-READY-CONFLICT',
+                    f'{rid}: RE-READY with D-grade/stale evidence description "{grade[:60]}"')
+            if not evs:
+                err('MATRIX-READY-CONFLICT', f'{rid}: RE-READY without any evidence reference')
+            blocks = r[idx['blocks_acceptance']].strip()
+            if blocks.startswith('是'):
+                boundary = any('限界' in r[idx[c]] for c in
+                               ('required_original_fact', 'unproven', 'blocks_acceptance'))
+                if not boundary:
+                    err('MATRIX-READY-CONFLICT',
+                        f'{rid}: RE-READY with blocks_acceptance=是 and no disclosed boundary '
+                        f'(scope disclosure required for bounded sub-behavior readiness)')
+
+
+REPORT_STALE_PATTERNS = (
+    '原版准确到达与同步 reset 仍缺权威',
+    '尚未为这段收包/坐标写入独立建条',
+)
+REPORT_REQUIRED_MARKERS = (
+    '坐标写入子行为已取得新的直接静态证据',
+    'NOT STAGE-READY',
+)
+
+
+def check_report_regression():
+    if not os.path.exists(REPORT_PATH):
+        return
+    text = read_text(REPORT_PATH)
+    for pat in REPORT_STALE_PATTERNS:
+        if pat in text:
+            err('REPORT-STALE', f'readiness report re-asserts superseded conclusion: "{pat}"')
+    for marker in REPORT_REQUIRED_MARKERS:
+        if marker not in text:
+            err('REPORT-MARKER', f'readiness report missing required corrected marker: "{marker}"')
+
+
+def check_t081_integrity(sot):
+    if sot is None:
+        return
+    check_evidence_sha(sot['evidence'])          # 16a
+    check_args_regression(sot)                   # 16b
+    check_matrix_integrity(sot)                  # 16c
+    check_report_regression()                    # 16d
+
+
+# ------------------------------------------------------------------
 # CHECK 13 — frozen ABI unchanged
 # ------------------------------------------------------------------
 def check_frozen_abi():
@@ -669,6 +856,7 @@ def main():
     check_frozen_abi()               # 13
     check_exemptions()               # 14
     check_cleanroom_sync(sot)        # 15
+    check_t081_integrity(sot)        # 16 (sha / args regression / matrix / report)
 
     print(f'CSV total: {stats["csv_total"]} (parsed {stats["csv_parsed"]}, strict {stats["csv_strict"]}, '
           f'legacy-width-issues {stats["csv_legacy_width"]})')

@@ -6,14 +6,14 @@
 
 **总体：NOT STAGE-READY。** 不是“不能开工”，而是 **5 个阶段都未满足“全部必要行为有原版证据或正式产品替代且验收边界分开”** 的逐阶段就绪规则。独立的 P0 数据装载、P1 数值键、P2 VR、P3 若干动力子函数、P4 触发和状态提交平台代码可以开工并分别验收。不得因某个阶段总状态为未就绪而阻塞这些模块。
 
-截止本轮，权威台账由 47 Claim / 32 Evidence / 35 Gap 基线更新为 **47→60 Claim / 32→41 Evidence / 41 Gap**（t080 新增 C-048..C-060、EV-33..EV-41，全部来自实际反汇编并经独立复核）。现 Gap 分布：CLOSED-STATIC 14 / PARTIAL-STATIC 12 / OPEN-STATIC 9 / OPEN-RUNTIME 4 / BLOCKED 1 / SUPERSEDED 1。**上一轮"没有原始 EXE/DLL、新指令证据 0 条"的阻塞在本轮解除**——`.work` 内哈希匹配的原始输入被主 Agent 与 Reviewer 双方独立核验并使用。新增 Critical 结论 C-048..C-058、C-060 经 Reviewer ACCEPT（含修正并入）后定 CLOSED-STATIC；C-059 经 REJECT→字节重验后定 CLOSED-STATIC/A。**绝不以该统计数量代替工程完成定义**。
+截至本轮，权威台账分三个阶段：早期 Clean-Room 基线为 47 Claim / 32 Evidence / **35 Gap**；阶段缺口登记（G36–G41）后 t080 **开始**时为 47 Claim / 32 Evidence / **41 Gap**；t080 **完成**后为 **60 Claim / 41 Evidence / 41 Gap**（新增 C-048..C-060、EV-33..EV-41，全部来自实际反汇编并经独立复核）。现 Gap 分布：CLOSED-STATIC 14 / PARTIAL-STATIC 12 / OPEN-STATIC 9 / OPEN-RUNTIME 4 / BLOCKED 1 / SUPERSEDED 1。**上一轮"没有原始 EXE/DLL、新指令证据 0 条"的阻塞在 t080 解除**——`.work` 内哈希匹配的原始输入被主 Agent 与 Reviewer 双方独立核验并使用。新增 Critical 结论 C-048..C-058、C-060 经 Reviewer ACCEPT（含修正并入）后定 CLOSED-STATIC；C-059 经 REJECT→字节重验后定 CLOSED-STATIC/A。**绝不以该统计数量代替工程完成定义**。
 
 下面三种信息必须独立：
 1. **原版可信事实**：例如 C-001/EV-01 计算 Tile 键、C-026/EV-21 VR±(400,300)、C-034/EV-26 Physics 字段；以及已有反汇编报告中精确到 VA 的局部函数。
-2. **设计稿中的“已有取证总结”**：第 6.5、6.6、16 节包含比 `MAP-R1-R14-REVERSE.md` 更晚且更细的 R10 落点链、鞋子 owner、Foothold 换段、爬绳 y+=3×键等。它们是**明确的待核静态定位点**，不能因为缺少新的 C/EV 就当不存在，但也**不能仅因写入设计稿就自动升级为权威指令级证据**。
+2. **设计稿中的"已有取证总结"**：第 6.5、6.6、16 节的 R10 落点链、鞋子 owner、Foothold 换段、爬绳 y+=3×键等地址级定位点，在 t080 已**大部分独立核验为权威指令级证据**（R10 落点链→C-054/C-055；爬绳→C-056；座位→C-057；fh 邻段读取→EV-39 关联）；仍未核验的余留（鞋 +0x198 默认、0x9BF1FA 完整体、0xA4FC6F 抓绳体）继续按"待核静态定位点"对待——**不能仅因写入设计稿就自动升级为权威指令级证据**的规则不变。
 3. **正式的产品实现规则**：Frozen ABI 的 1:1、Obj-before-Tile、source-order stable、layer-only、Portal 首帧、world x/y 与 RenderNode；以及阶段设计稿 §4.2 提出的中心跟随、边界夹取、小图居中、无 deadzone。后者已经给出具体可编码方案，但是否视为正式获批需在设计评审中确认；绝非 CMS079 原版规则。
 
-矩阵中 `RE-GAP-STATIC` 的含义是 **仍然有特定静态验证动作或指令级佐证不足**；`RE-GAP-RUNTIME` 与 `EXTERNAL-BLOCKED` 仅在静态确实已穷尽或交付素材缺失时选用。本轮没有证据足以把 G36/G37/G38/G40/G41 直接归为 runtime-only。仓库包含地图 PNG Resource（不能误写成所有图像缺失），但 Builder 尚未通过目标全闭包测试；缺的是反汇编所需的原始 EXE/DLL（研究工具输入，不等于最终游戏必须分发的素材）。
+矩阵中 `RE-GAP-STATIC` 的含义是 **仍然有特定静态验证动作或指令级佐证不足**；`RE-GAP-RUNTIME` 与 `EXTERNAL-BLOCKED` 仅在静态确实已穷尽或交付素材缺失时选用。本轮没有证据足以把 G36/G37/G38/G40/G41 直接归为 runtime-only。仓库包含地图 PNG Resource（不能误写成所有图像缺失），但 Builder 尚未通过目标全闭包测试；反汇编所需的原始 EXE/DLL 已在 t080 于 `.work` 取得并核验（研究工具输入，不等于最终游戏必须分发的素材）。
 
 ## 1. 逐阶段现状
 
@@ -23,23 +23,23 @@
 | **P1 Scene Render** | 15 | type0静态背景、Tile/普通Obj的产品锚点、原版整数key、首帧Portal资源/可见性、视口批绘 | type1–4完整画面及flow、时间/帧、原版排序；若验收采用冻结的产品排序则最后一项可独立放行 | **未就绪** |
 | **P2 World/Camera/Viewport** | 8 | VR内缩、产品world−camera 1:1、minimap回退、resize不写world | Camera原版跟随未知；设计稿已有“中心跟随+夹取+小图居中、无deadzone”产品候选，待审批对照验收及Frozen ABI职责界定；0x1E/0x5A关系仍开放 | **待正式策略验收** |
 | **P3 Movement/Physics** | 20 | Physics真实数值/字段、T1局部地面一步、默认陆/水跳初速子式、攻击表级动作选择 | 数值代入及特殊槽取证、完整Foothold/落地/下跳/抓绳/坐下/姿态/时间；见下表逐行为 | **未就绪** |
-| **P4 Portal Transition** | 9 | 固定上键框/pt逻辑、tm/tn映射、原子replace+失败回滚 | 原版准确到达与同步 reset 仍缺权威 C/EV；新版设计稿提供同图和跨图回包写点地址（需核证）；全13连通与旧Plan“四门”冲突 | **未就绪** |
+| **P4 Portal Transition** | 9 | pt逻辑、tm/tn映射、原子replace+失败回滚、跨图坐标提交子行为（P4-04 限界 RE-READY） | 坐标写入子行为已取得新的直接静态证据（C-054/EV-35 同图、C-055/EV-36 跨图）；Foothold 重绑、完整状态重置、Camera 更新及剩余 opcode 分发表字节绑定仍未完全闭合；上键命中框数值（P4-01）与全13连通"四门"冲突另列 | **未就绪** |
 
 ### P0 — 内容阶段清单
 
-**RE-READY**：目标 13 图 ID 与基础源记录、Tile 的 `u/no/zM`、Obj 的 `oS/l0/l1/l2/z/f/zM`、Foothold 连接、Rope/Seat 坐标、19 Physics doubles。TileFrame 目标三包 `folkvillige` (27)、`greensandySeaFloor` (26)、`sandySeaFloor` (28) 均有 `z`。注意各 layer 可能引用不同 TileSet；不可把三包合成一个全局键索引。
+**RE-READY**：Tile 的 `u/no/zM`、Obj 的 `oS/l0/l1/l2/z/f/zM`（基础字段；flow 子集另列 P0-05）、Foothold 连接、19 Physics doubles（各有权威 EV 支撑）。TileFrame 目标三包 `folkvillige` (27)、`greensandySeaFloor` (26)、`sandySeaFloor` (28) 均有 `z`。注意各 layer 可能引用不同 TileSet；不可把三包合成一个全局键索引。**t081 边界修订**：13 图 map.info allowlist（P0-01）与 Rope/Seat 坐标（P0-09）的数据存在性已清点但尚无权威 EV 登记——按"RE-READY 需证据支撑"规则暂列 RE-GAP-STATIC，登记 FSDB 数据 EV 后回升。
 
 **PRODUCT-READY**：完整 VR 源可按 C-026 原版收缩；无 VR 的 `minimap→foothold bbox` 是正式产品回退；`info/link` 本次 13 图没有，但允许的泛化解析规则需单独夹具。不是“所有 CMS 地图都无 link”。
 
-**RE-GAP-STATIC**：Back type1–4 的可计算画法和 Objs 的 flow/rx 时间语义。必须保留所有原始影响视觉的字段，Adapter 不可静默丢弃。当前 Frozen v1 遇到这些字段直接 unsupported，符合保守契约但**13图整体不能发布为完整 Plan**。MapHelper 的游戏 pv 等资源已在 `content/[FSDB]adventure`；这不是需要另行获得 WZ 全量客户端的问题。资源 Builder 从独立读取 MapScenePlan 的架构/验证任务，与逆向证据缺失须分开跟踪。
+**RE-GAP-STATIC**：Back type1–4 与 Obj flow 的**静态布置语义已在 t080 指令级闭合**（mode 位、跨度公式、零步长回退、循环界、对象注册——C-048..C-052），剩余的是**动态绘制层**（+0x90/+0x98 运行时体与 view slot 取值）。必须保留所有原始影响视觉的字段，Adapter 不可静默丢弃。当前 Frozen v1 遇到这些字段直接 unsupported，符合保守契约但**13图整体不能发布为完整 Plan**（发布路径见 D-BACK/D-OBJ-FLOW 的 ABI v2/预烘焙评审）。MapHelper 的游戏 pv 等资源已在 `content/[FSDB]adventure`；这不是需要另行获得 WZ 全量客户端的问题。资源 Builder 从独立读取 MapScenePlan 的架构/验证任务，与逆向证据缺失须分开跟踪。
 
 ### P1 — 场景呈现与排序
 
 1. **原版已确认**：Tile 键 `canvasZ + 10*(layer*3000 - zM) - 1073721834`；Obj 键 `layer*30000 + z - 1073739824`；Tile 与 Obj 创建/分派不在同一条通道。背景以 index×1000 为基底的旧结论仍 C-024/B，比较方向 G35 未证。Portal 的 `pv/ph/psh` 分支能找到静态地址和已导入游戏帧。
-2. **原版未证明**：最终 Tile/Obj 容器、比较器、等键稳定性、不同 layer Draw 遍历、Avatar 跨对象插入、背景 type1–4 动态呈现和动画 delay 时钟。22 张 slot45 候选无比较器 ≠ 已知道原版排序方向。R13 的局部出参矛盾必须先复核 0x427EB3 的 ESP/EBP/清栈，不能直接改成 runtime-only。
+2. **原版未证明**：最终 Tile/Obj 容器、比较器、等键稳定性、不同 layer Draw 遍历、Avatar 跨对象插入、背景 type1–4 **动态呈现**（静态布置已证）和动画 delay 时钟。22 张 slot45 候选无比较器 ≠ 已知道原版排序方向。R13 的出参矛盾已在 t080 重构完成（C-053：arg1=OUT，参数序无错；余留为运行时 slot25 写出参绑定，单值 dump 决 G24+G27）。
 3. **产品可实施**：Frozen ABI v1 明确 Obj-before-Tile、各组升序、同键源序、layer0..7，再独立 Avatar 及 Portal；这些规则只能用于**产品级**像素验收。设计稿 `pass=behind/front` 与该树正面冲突，不能偷偷增加 frozen attrs。
 
-背景类型逐项：type0 可依产品锚定画；type1 轴重复、type2 城镇重复、type3 双轴、type4 横向滚动都至少需要 C-024 以外的原版变换/平铺证据或正式产品等价批准。动画有完整 `delay` 的动态资源同样不能只拿旧帧注册函数冒充时间精度。
+背景类型逐项：type0 可依产品锚定画；type1 轴重复、type2 城镇重复、type3 双轴、type4 横向滚动的**原版平铺/零步长/跨度证据已在 t080 取得**（C-048..C-051），剩余为首帧像素所需的 view slot 值与 +0x90/+0x98 动态体，或正式产品等价批准。动画有完整 `delay` 的动态资源同样不能只拿旧帧注册函数冒充时间精度（注册链已证、时钟单位未证）。
 
 ### P2 — Camera 和世界坐标
 
@@ -52,43 +52,43 @@
 | 行为 | 当前最可信证据 | 可编码程度/主要缺口 |
 |---|---|---|
 | 平地行走 | `0x9BD757` 最新 T1 指令记录；`+0xE0` 梯形积分，`0x9BC992` 世界坐标投影 | **已证局部单步可编码**；不得用 `walkSpeed*dt` |
-| 斜坡与换段 | 设计稿 §6.5 列 `0x9BF1FA` 边界、邻段 `+0x4C/+0x50` 的详细静态结论 | 有具体静态定位，**尚未在权威 C/EV 独立纳入及核验分支反证**，按 G40 |
+| 斜坡与换段 | 设计稿 §6.5 列 `0x9BF1FA` 边界、邻段 `+0x4C/+0x50` 的详细静态结论 | t080 已证 0x9BF1FA 头部对 fh 邻段 `+0x4C/+0x50` 的消费（EV-39 关联）；**换段完整体与分支反证未读**，按 G40 |
 | 空中 vx 与重力 | 19 Physics 字段和值；R2/T2/设计稿有数值，`0x9BDF18` | 主公式可写；技能例外/输入资格及单位不能冒称全路径 |
 | 陆地跳 | `0x9BD20E`、默认目标倍率取1；`jumpSpeed=555` | **初速子式 `-jumpSpeed` 可实现**；资格和后续碰撞另列 |
 | 水中跳 | `0x9BD42D`、目标 `swimSpeed=140`，倍率1 | **初速子式 `-(swimSpeed×5)` 可实现**；泳态切换资格另列 |
 | 游泳四方向 | `0x70DF65` 与 T2、R2、设计稿原版路径说明 | 针对8水图有公式/数值；跨图泳态同步还需单测 |
-| 落地/向上穿台/竖线 | `0xA4F6F1`、`0x9CC207`；R12旧版与设计稿最新版边界文字不完全一致 | **须先逐指令排除竖线/半宽歧义**；不把竖线当墙 |
+| 落地/向上穿台/竖线 | `0xA4F6F1`、`0x9CC207`；R12旧版与设计稿最新版边界文字不完全一致 | t080 已裁决：0xA4F6F1 竖线查询**半宽为调用方参数**（portal 站点=1 已证，C-058）——R12 之争按调用点裁断，余留为其余站点参数审计；不把竖线当墙 |
 | 下跳 | `0x95308C`、mpRecovery bit17为0、`K=-0.35355339` | 初速门有精确式，**穿台至下一fh状态**需串联验证 |
 | 蹲下/站起 | `prone` 槽33，`0x93D238` 动作字条件 | 映射可做；输入释放及时序需单测 |
-| 抓绳/爬绳/离绳 | 最新设计稿 §6.6：`0xA4FC6F` 抓取 x±10；`0x9D80EC` 的 `y += 3*verticalKey`；`0x9BFB52` 清挂绳 | **这不是完全空白的行为**；需将指令摘要与目标l/uf/端点场景做核证，姿态 `climb→rope` 为产品替代 |
-| 坐下/站起 | `0x54634C` seat x±10/y±30；`0x9658CC` 收到0xCF后写 `user+0x2944`（设计稿新增链） | 座位数据与原版候选写链存在，需在非网络单人模型中决定如何授权替代触发 |
+| 抓绳/爬绳/离绳 | 最新设计稿 §6.6：`0xA4FC6F` 抓取 x±10；`0x9D80EC` 的 `y += 3*verticalKey`；`0x9BFB52` 清挂绳 | t080 已证爬绳积分（`y += 3.0×键`，常量 3.0 字节直读）与端点夹取 bottom−5/top+1（C-056）；**抓绳 0xA4FC6F 体与离绳完整体未读**，姿态 `climb→rope` 为产品替代 |
+| 坐下/站起 | `0x54634C` seat x±10/y±30；`0x9658CC` 收到0xCF后写 `user+0x2944`（设计稿新增链） | t080 已证座位状态写链（`0x6131B9(0/1,&user+0x2944)`、矩形 x±10/y±30、坐点 `0x9D35F2`、到达复用 0x963C7D 触发族，C-057）；**站起/取消条件与 0xCF 注册未证**，非网络单人授权另批 |
 | 攻击动作 | C-035/C-039/EV-27：weapon variant表 `decryptedRand%count` | 表级/一次 `action` Render Event可做；PRNG逐位和命中矩形非现阶段功能 |
 | Alert | C-036/EV-29 九次写5000，计时递减 G12未知 | 产品 5000ms行为等价候选存在，但 Frozen actor 无alert attrs |
 | 死亡/受击 | G11 `user+0x61` owner未归属 | 无伤害/死亡结算为本期非目标；**不应阻塞**上述模块 |
 | Tick | C-030/EV-23 的 0x1E；G34仍开 | 供确定性产品测试的step可写，**不能声称原版帧频已闭合** |
 
-在矩阵中某个子式 RE-READY 不等于整项动作已经在所有状态、地图边缘与输入下精确对齐。设计稿最新的鞋子 owner 链 `0x94B9C2→0x9BFD4C`、四个 `DEC([move+0x190])=1`、owner鞋 `+0x198` 默认量以及 `0xA4F36C` 立足属性构造，必须在“参数已定”声明中与“字段名未命名但目标默认值可追”区分；本轮没有新原始二进制佐证它们。
+在矩阵中某个子式 RE-READY 不等于整项动作已经在所有状态、地图边缘与输入下精确对齐。设计稿最新的鞋子 owner 链 `0x94B9C2→0x9BFD4C`：t080 已读这对 owner 拷贝函数体（EV-37 附带的 decrypt 机器共址），但四个 `DEC([move+0x190])=1`、owner鞋 `+0x198` 默认量以及 `0xA4F36C` 立足属性构造仍未独立核验，必须在“参数已定”声明中与“字段名未命名但目标默认值可追”区分。
 
 ### P4 — Portal 状态转移
 
-**可立即实现**：读取所有 pt/pn/tm/tn 逻辑记录、上键触发、固定 x±20/y±50、立足资格、目标在13图闭包内的边过滤、原子 replace/失败回滚/sceneEpoch、跨图 targetMap/targetName的产品解析。pt1和pt3无pv照样要换图，pt2有pv不代表只pt2可以跳。
+**可立即实现**：读取所有 pt/pn/tm/tn 逻辑记录、上键触发、目标在13图闭包内的边过滤、原子 replace/失败回滚/sceneEpoch、跨图 targetMap/targetName的产品解析。pt1和pt3无pv照样要换图，pt2有pv不代表只pt2可以跳。**t081 边界修订**：上键命中框（P4-01）的触发链已证（EV-35），但 x±20/y±50 框体数值尚无权威 EV——暂列 RE-GAP-STATIC，读 0x954B58/0x71B44D 后回升。
 
-**必须核对的新旧取证范围**：
-- 较早 `MAP-R1-R14-REVERSE.md` 的 R10 结论仅是 **在“上键命中/发送路径及一层”没有写玩家 +0x20/+0x38**，不等于新场景进入永远不写。
-- 当前设计稿 §16 M12/R10 另外写到**同图 `0x95533D→0x9C1113` 将 `+0x28F8/+0x28FC` 写进位置槽；跨图收到 `0x81` 后 `0x9507F0` 从目标记录 `+0xC/+0x10` 初始化坐标，Y 再减10；同图间隔为 `0x258`**。这些是明确的静态地址级取证总结，优先核对，不应重复写成“压根不存在接收链”。当前权威 Claims/Evidence 尚未为这段收包/坐标写入独立建条，且状态复位/Camera/失败处理仍未形成完整证据链。因此 G38 作为**尚待静态交叉核验**，而不是“落点只能运行时猜”。
-- 即便核证 X、Y 与600ms，也**不能自动证明**着地 Foothold snap、vx/vy/rope/seat清理、Camera刷新和跨图冷却与同图一致。P4 精确验收这些子规则另列在矩阵。
+**必须核对的新旧取证范围（t080 后状态）**：
+- 较早 `MAP-R1-R14-REVERSE.md` 的 R10 结论仅是 **在"上键命中/发送路径及一层"没有写玩家 +0x20/+0x38**——与接收侧落点链不矛盾，t080 已按字节澄清（发送路径确实不写；写入发生在接收/应用侧）。
+- 设计稿 §16 M12/R10 的地址链**已在 t080 独立核验并登记为权威 Claim/Evidence**：同图 `0x95533D→[move-vt+0x40]→0x9C1113`（C-054/EV-35：pending `user+0x28F8/+0x28FC`、冷却门与 `0x78/0x258` 双窗、Y−10、加密落点 move+0x20/+0x38）；跨图 `0x81`→`0x9507F0`（C-055/EV-36：记录 `+0xC/+0x10`、Y−10、边界夹取、速度清零、FH 提示拷贝）。opcode `0x0081=WARP_TO_MAP` 为语料库 A 级；**客户端分发表字节绑定（0x81→0x97EBC9 注册）仍未逐字节追证**。
+- 即便坐标链已证，也**不能自动证明**着地 Foothold snap（0x53E95D/0x9BC89F/0x9BC992 体未读）、vx/vy/rope/seat/姿态完整清理（0x953FA5 体未读）与 Camera 刷新时机。这些子规则单独列在矩阵 P4-05/06/07 并保持开放。
 - 目标数据内部互反门远多于四条：旧 `MapScenePlanV1` §7 只启四门，阶段草案 §1.4 要求13图走廊所有已指定内门。是**设计选择冲突而非原版证据缺失**，需要在 P4 发布前解决。
 
 ## 2. 最小验收门与建议实施顺序
 
-> **t080 插入**：第 2 条的先决条件"若 DLL/EXE 静态输入不可取得"已解除——静态输入本轮取得并核验，G36/G37 静态布置层、G38 落点链、G40/G41 爬绳与座位、G39 注册链已闭合（详见 TARGETED-STATIC-FORENSICS-V2.md / INDEPENDENT-STATIC-REVIEW.md）；矩阵 P4-04 升 RE-READY。G36/G37/G39 的动态子层仍需一次最小运行时捕获（slot25 出参 + view 值 + slot58 双采样）或产品等价授权。
+> **t080 备忘（历史注记，正文已就地同步）**：静态输入在 t080 取得并核验；G36/G37 静态布置层、G38 落点链、G40/G41 爬绳与座位、G39 注册链闭合的细节见 TARGETED-STATIC-FORENSICS-V2.md / INDEPENDENT-STATIC-REVIEW.md；矩阵 P4-04 以限界子行为升 RE-READY（边界见该行）。G36/G37/G39 的动态子层仍需一次最小运行时捕获或产品等价授权。
 
 1. **先交付 P0 中已闭合源表/Physics/Tile与Obj键的 Reader 和 Builder诊断测试**；同一次构建必须让13图 type/flow unsupported 报确切地图和路径，不能静默“成功”。（静态语义已证但 v1 ABI 无字段——产品发布路径见 DESIGN-DECISION-BACKLOG D-BACK/D-OBJ-FLOW。）
-2. **对 G36/G37/G39 做定点原版流图补证**。若 DLL/EXE 静态输入不可取得，明确按“待外部合法研究输入”记录；不得拿临时画面称13图完成。产品批准替代绘制规则后才可发布。
+2. **对 G36/G37/G39 做动态层补证**：静态布置/注册链已闭合，剩余一次最小运行时捕获（slot25 出参 + view slot 值 + slot58 双采样）或产品等价批准；不得拿临时画面称13图完成。
 3. **P1 可以先做 type0、Tile/Obj产品顺序与首帧Portal**，并单独验收；人物精确插层别混入该子任务。
 4. **P2 先实现 Frozen world/world−camera、VR/fallback/resize，再批准具体中心跟随产品规则**；不等 G10 全部原版 Camera 才能开工。
 5. **P3 按完整独立行为用例逐个收口**，优先平地一步、端点换段、地/水两种初速、落地/下跳、抓绳/座位，然后输入状态、计时。不可修改 Physics 原始数值或偷偷取常数替代 decrypt。
-6. **P4 从13图真实 PortalRecord 构建全内图边表**；先以已有设计稿 M12/R10 地址静态核证同/跨图落点，再验状态复位/Camera/冷却；发生错误保持旧世界。
+6. **P4 从13图真实 PortalRecord 构建全内图边表**；同/跨图落点链已静态核证（C-054/C-055），下一步验 Foothold 重绑/状态复位/Camera（P4-05..07）；发生错误保持旧世界。
 
 ## 3. 交付验收规则
 

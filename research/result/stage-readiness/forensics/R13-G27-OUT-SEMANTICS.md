@@ -60,7 +60,7 @@ Within 0x666C0D..0x667052 the only writer of `[ebp-0x10]` is the 0x427EB3 out (0
 | item | verdict |
 |---|---|
 | 0x427EB3 arg1 = OUT pointer; out = post-slot25 arg8-slot dword | DIRECT-INSTRUCTION (new) |
-| tile-path 0x427EB3 arg list (name, key-property, 0,0,0, V{layer}, V{missing}) | DIRECT-INSTRUCTION (new) |
+| tile-path 0x427EB3 arg list (x-int [0x331], y-int [0x332], 0,0,0, V{layer}, V{missing}) | DIRECT-INSTRUCTION (new; labels corrected t081 per reviewer D7) |
 | G27's "arg-order contradiction" reframed to "runtime out-write binding" | DERIVED-FROM-INSTRUCTION |
 | G24's [eax+0xB4] = slot45 of out-object class; concrete class runtime-only | UNCHANGED (OPEN-RUNTIME), now with sharper dump target |
 | equal-key/comparator semantics | UNCHANGED (G01/G07/G33 open) |

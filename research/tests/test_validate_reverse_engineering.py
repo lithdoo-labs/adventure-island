@@ -44,10 +44,12 @@ G03,Map/Sort,"[eax+0xB4] target class",OPEN-RUNTIME,"census","variant class","ru
 """
 
 EVIDENCE = """evidence_id,source_file,source_sha256,address,evidence_type,instruction_or_data,interpretation,claim_id,reproducibility
-EV-01,bin/dummy.bin,00,0x666F5D,instruction,"imul","tile key",C-001,capstone
-EV-02,bin/dummy.bin,00,0x6688C4,instruction,"imul","obj key",C-002,capstone
-EV-03,bin/dummy.bin,00,0x2E2CC,instruction,"dtor","not insert",C-003;C-004,capstone
+EV-01,bin/dummy.bin,FULLHASH1,0x666F5D,instruction,"imul","tile key",C-001,capstone
+EV-02,bin/dummy.bin,FULLHASH2,0x6688C4,instruction,"imul","obj key",C-002,capstone
+EV-03,bin/dummy.bin,FULLHASH3,0x2E2CC,instruction,"dtor","not insert",C-003;C-004,capstone
 """
+# FULLHASHn markers are replaced with generated 64-hex dummies in build_fixture
+# (CHECK 16a requires full-length sha tokens).
 
 CROSSWALK = """gap_id,runtime_issue_id,report_id,mapping_basis,notes
 G01,R4-02,report.md,"comparator","same"
@@ -113,11 +115,23 @@ STRICT_CSVS = {
 ABI_CONTENT = '# frozen render node abi v1 (fixture)\n'
 
 
+MATRIX = """requirement_id,phase,behavior,required_original_fact,original_exactness,claim_ids,evidence_ids,evidence_grade_and_type,13map_actual_coverage,single_sample_risk,conflicting_reports,gap_ids,unproven,impact,implementation_feasibility,blocks_acceptance,can_static_continue_or_runtime,product_alternative_authorization,readiness,minimum_next_work
+FX-01,P9,fixture old-evidence row,old summary fact,原版事实精确到已证子项,C-001,EV-01,"B；源数据已核，非本轮新反汇编",13图,无,,G01,old parts remain,impact,部分实现可行,是,STATIC old work,无,RE-GAP-STATIC,old work
+FX-02,P9,fixture bounded ready row,bounded sub-behavior fact (限界子行为),原版精确（限界子行为）,C-002,EV-02,"A；fixture 指令级（限界子行为）",13图,无,,G02,residual disclosed,impact,本子项可单独实施,否（限界子行为已就绪；阶段整体另见）,STATIC optional,无,RE-READY,子行为已闭合
+"""
+
+REPORT = """# fixture readiness report
+Overall: NOT STAGE-READY。
+坐标写入子行为已取得新的直接静态证据；Foothold 重绑、完整状态重置、Camera 更新及剩余 opcode 绑定仍未完全闭合。
+"""
+
+
 def build_fixture(root):
     """Create the miniature repository at root. Returns nothing."""
     dirs = [
         'research/source-of-truth', 'research/result/atlas',
         'research/result/map', 'research/scripts', 'components',
+        'research/result/stage-readiness',
     ]
     for d in dirs:
         os.makedirs(os.path.join(root, d), exist_ok=True)
@@ -126,9 +140,13 @@ def build_fixture(root):
         with open(os.path.join(root, rel), 'w', encoding='utf-8', newline='') as f:
             f.write(content)
 
+    # full 64-hex dummy hashes (CHECK 16a)
+    ev_content = EVIDENCE
+    for n in (1, 2, 3):
+        ev_content = ev_content.replace(f'FULLHASH{n}', f'{n:02x}' * 32)
     w('research/source-of-truth/claims.csv', CLAIMS)
     w('research/source-of-truth/gaps.csv', GAPS)
-    w('research/source-of-truth/evidence.csv', EVIDENCE)
+    w('research/source-of-truth/evidence.csv', ev_content)
     w('research/source-of-truth/issue-crosswalk.csv', CROSSWALK)
     w('research/source-of-truth/documents.csv', DOCUMENTS)
     w('research/result/REVERSE-ENGINEERING-GAP-REGISTER.md', GAP_REGISTER_MD)
@@ -146,6 +164,9 @@ def build_fixture(root):
     # a plain active md
     w('research/result/map/doc.md', '# doc\nSee [doc2](doc2.md)\n')
     w('research/result/map/doc2.md', '# doc2\n')
+    # t081 CHECK 16 fixtures: requirement matrix + readiness report
+    w('research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv', MATRIX)
+    w('research/result/stage-readiness/P0-P4-READINESS-REPORT.md', REPORT)
     # binary evidence source
     os.makedirs(os.path.join(root, 'bin'), exist_ok=True)
     w('bin/dummy.bin', '\x00\x01')
@@ -396,6 +417,109 @@ class IsolatedValidatorTests(unittest.TestCase):
         out = r.stdout.decode('utf-8', 'replace')
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('RETRACTED-ASSERTIVE', out)
+
+    # ---------------- t081 CHECK 16: evidence-integrity positives/negatives ----------------
+
+    def test_25_fixture_matrix_and_report_pass(self):
+        # positive: bounded RE-READY row + corrected report markers all pass
+        r = self._run()
+        self.assertEqual(r.returncode, 0, r.stdout.decode('utf-8', 'replace'))
+
+    def test_26_ellipsis_sha_fails(self):
+        # 16a: ellipsis-shortened hash in a NEW binary evidence row must fail
+        self._edit('research/source-of-truth/evidence.csv',
+                   'EV-01,bin/dummy.bin,' + '01' * 32,
+                   'EV-01,bin/dummy.bin,d4a67597…31718')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('EVID-SHA', out)
+
+    def test_27_short_hex_sha_fails(self):
+        # 16a: hex-like but non-64 token must fail
+        self._edit('research/source-of-truth/evidence.csv',
+                   'EV-02,bin/dummy.bin,' + '02' * 32,
+                   'EV-02,bin/dummy.bin,' + 'ab' * 20)
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('EVID-SHA', out)
+
+    def test_28_stale_climb_args_resurface_fails(self):
+        # 16b: superseded (move,0,rope,0) reappearing in an ACTIVE store must fail
+        self._edit('research/source-of-truth/evidence.csv',
+                   '"imul","tile key"',
+                   '"imul (exit vtable+0x14(move,0,rope,0))","tile key"')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('STALE-ARGS', out)
+
+    def test_29_stale_climb_args_in_audit_context_passes(self):
+        # 16b negative-control: the same string WITH correction-context markers is
+        # legitimate audit history and must NOT fail (no false positives on archives)
+        self._edit('research/result/stage-readiness/P0-P4-READINESS-REPORT.md',
+                   '坐标写入子行为已取得新的直接静态证据',
+                   '审计记录：此前曾写 (move,0,rope,0)，已纠正为 (move,0,0,0)。坐标写入子行为已取得新的直接静态证据')
+        r = self._run()
+        self.assertEqual(r.returncode, 0, r.stdout.decode('utf-8', 'replace'))
+
+    def test_30_matrix_stale_source_grade_fails(self):
+        # 16c: row citing this-round instruction evidence (EV-33..EV-42) while
+        # describing it as a stale non-fresh summary must fail
+        full_e3 = ('EV-03,bin/dummy.bin,' + '03' * 32 +
+                   ',0x2E2CC,instruction,"dtor","not insert",C-003;C-004,capstone')
+        self._edit('research/source-of-truth/evidence.csv', full_e3,
+                   full_e3 + '\nEV-33,bin/dummy.bin,' + '33' * 32 +
+                   ',0x66A8D5,instruction,"ret 0x24","tiling",C-001,capstone')
+        self._edit('research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv',
+                   'C-001,EV-01,"B', 'C-001,EV-01;EV-33,"B')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('MATRIX-STALE-SOURCE', out)
+
+    def test_31_ready_conflict_fails(self):
+        # 16c: RE-READY + D-grade/stale description + blocks=是 without boundary
+        # disclosure must fail (FX-02 cites only old EV-02, so the grade/stale
+        # legs of the RE-READY check are what fire here)
+        self._edit('research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv',
+                   '"A；fixture 指令级（限界子行为）",13图,无,,G02,residual disclosed,impact,本子项可单独实施,否（限界子行为已就绪；阶段整体另见）',
+                   '"D；原有静态证据摘录非本轮新反汇编",13图,无,,G02,nothing,impact,只能部分编码,是')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('MATRIX-READY-CONFLICT', out)
+
+    def test_32_matrix_unknown_refs_fail(self):
+        # 16c: unknown claim/evidence ids in the matrix must fail
+        self._edit('research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv',
+                   'C-001,EV-01,"B', 'C-999,EV-01,"B')
+        self._edit('research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv',
+                   'C-002,EV-02,"A', 'C-002,EV-99,"A')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('MATRIX-REF', out)
+
+    def test_33_report_stale_p4_conclusion_fails(self):
+        # 16d: readiness report re-asserting the superseded P4 conclusion must fail
+        self._edit('research/result/stage-readiness/P0-P4-READINESS-REPORT.md',
+                   'Overall: NOT STAGE-READY。',
+                   'Overall: NOT STAGE-READY。原版准确到达与同步 reset 仍缺权威 C/EV。')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('REPORT-STALE', out)
+
+    def test_34_report_missing_corrected_marker_fails(self):
+        # 16d: removing the required corrected marker must fail
+        self._edit('research/result/stage-readiness/P0-P4-READINESS-REPORT.md',
+                   '坐标写入子行为已取得新的直接静态证据', '旧文本占位')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('REPORT-MARKER', out)
 
 
 if __name__ == '__main__':

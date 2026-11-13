@@ -25,10 +25,10 @@ tile/obj 实例加载（EXE 0x666C0D/0x6688BE）:
   0x666ea6: cmp [0xBE2788],0 → E_POINTER 守卫
   0x666ebc: mov ecx,[0xBE2788]                 ← CWzGr2DLayer
   0x666ed5: call 0x427eb3(layer, variant, key(edi), 0,0,0, in1, in2, &out[ebp-0x10])
-            = layer->CreateRawCanvas(...)       ← 层方法（其 vtbl+0x64 错误路径用 E576EA33）
+            = layer property PUT (SUPERSEDED: was CreateRawCanvas — R3.1: slot25=property setter)       ← 层方法（其 vtbl+0x64 错误路径用 E576EA33）
   out = CWzRawCanvas 实例（接口 6DC8C7CE，错误路径 0x666f85 用 IID@0xBA0510）
   0x42944a = 智能指针 GET（E_POINTER 守卫 + return [holder]）
-  0x666f7d: call [eax+0xB4]                    ← CWzRawCanvas::vtbl[45] = Insert(key)
+  0x666f7d: call [eax+0xB4]                    ← SUPERSEDED: was Insert(key) — R4: 22 candidates zero insert semantics
   0x666f83: cmp eax,ebx; jge = HRESULT 检查（非比较器）
 ```
 
@@ -61,7 +61,7 @@ tile/obj 实例加载（EXE 0x666C0D/0x6688BE）:
 
 ---
 
-## 附：v1 证据细节（保留存档，2026-11-13 第一轮）
+## 附：v1 证据细节（SUPERSEDED 存档——部分结论已被 R3.1/R4 推翻，2026-11-13 第一轮）
 
 ### 结论一：排序键公式（VERIFIED，EXE 侧）
 

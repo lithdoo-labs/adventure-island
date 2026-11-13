@@ -26,7 +26,7 @@ VM Windows 7 激活失败（C004F009）阻塞登录（ROUND8-S2C-FIX-CAPTURE-DIA
 
 | ID | 项 | 最小验证 | 收窄说明 |
 |---|---|---|---|
-| R-09 | [ebp-0x10] 对象具体虚表（tile 路径 @0x666F7D） | 进图转储在 0x666F7D 前寄存器快照或 [[ebp-0x10] 链] 1 dword | 候选集已收窄至 R13-DISPATCH-RESOLUTION.csv 所列；slot45 在不同实现中语义不同（析构 vs 插入 vs 解码） |
+| R-09 | [ebp-0x10] 对象具体虚表（tile 路径 @0x666F7D） | 进图转储在 0x666F7D 前寄存器快照或 [[ebp-0x10] 链] 1 dword | 候选集已收窄至 R13-DISPATCH-RESOLUTION.csv 所列；slot45 在不同实现中语义不同（已证：析构/解码/属性/getter——插入语义已被 R4 全分类否定） |
 
 （R-01/R-02 的 [0xBE2788] 虚表问题已在 Round-2/3 静态闭合为 0x5042D140/CWzGr2DLayer；容器插入语义移至 R-09。）
 

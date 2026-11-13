@@ -36,7 +36,7 @@ Shape2D.dll
 | 虚表 | 判定 | 依据 |
 |---|---|---|
 | Gr2D 0x2D140 | 具体可实例化（[0xBE2788] 运行时持有）| exe 创建链 + 195 读者 |
-| Gr2D 0x2E2C4 族 | **混合**：读法 A 下 slot3-44 抽象（purecall）→ 若对象用此表则该类在这些槽不可调用；读法 B 下槽 3-44 同样 purecall。**该族任何对象都不能经 slot45 走"插入"** | slot45 ∈ {purecall, dtor}（联合 A 级）|
+| Gr2D 0x2E2C4 族 | **混合**：读法 A 下 slot3-44 抽象（purecall）→ 若对象用此表则该类在这些槽不可调用；读法 B 下槽 3-44 同样 purecall。**该族任何对象都不能经 slot45 走"插入"(SUPERSEDED: 假设已被 R4 全分类否定)** | slot45 ∈ {purecall, dtor}（联合 A 级）|
 | Canvas 0x270E8/0x27364 | 具体类虚表（ATL 库签名出现）| B 级 |
 | 其余 | 无法区分具体/视图（无 COL） | — |
 

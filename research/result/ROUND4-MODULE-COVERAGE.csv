@@ -1,0 +1,10 @@
+module,priority,report,new_this_round,static_status,remaining_status,open_count,minimal_action
+Map/Sort,P0,MAP-R13-FINAL-ROUND4.md,slot45 22/22 classified; Obj channel separation; key formulas A,CLOSED-STATIC(keys+channels),PARTIAL-STATIC(comparator body),1,R-09 vtable dword
+Avatar/Occlusion,P1,avatar/AVATAR-OCCLUSION-ROUND4.md,+0x38 hypothesis; 0x143d8=4comp-transform; Canvas prop +0x8C/+0x90,PARTIAL-STATIC,PARTIAL-STATIC,3,+0x38 writers; face exclusion; dual-entry canvases
+Camera,P2,camera/CAMERA-ROUND4-FORENSICS.md,VR fold A-grade upheld; 0x9C0EC0/0x9BC404 NOT camera fns,CLOSED-STATIC(VR),OPEN-RUNTIME(follow/deadzone),2,[0xBDF54C] runtime dump
+Movement/Physics,P3,movement/MOVEMENT-PHYSICS-ROUND4.md,6-question audit; decrypt-pair triple-proof; +0x3BC decrement absent,"CLOSED-STATIC(pairs,keys,formulas)","OPEN-STATIC(+0x3BC dec, +0x61 owner)",2,computed-displacement hypothesis test
+Combat,P4,combat/COMBAT-ROUND4-FORENSICS.md,R9 upheld; RNG no other callers; attack->alert timer link,CLOSED-STATIC(R9 chain),CLOSED-STATIC,0,
+Audio,P5,audio/AUDIO-ROUND4-FORENSICS.md,WINMM IAT static import (4 ordinals); full pipeline 3-segment A,CLOSED-STATIC(pipeline),OPEN-STATIC(ordinal names),1,era winmm.dll export table
+Protocol,P6,protocol/PROTOCOL-ROUND4-FORENSICS.md,705 methods upheld; 100 opcode values; 367 name-only gap documented,CLOSED-STATIC(formats+crypto),BLOCKED(server opcode values),1,server properties file
+UI/Window,P7,ui/UI-WINDOW-ROUND4.md,240-site property binding layer; 4 core-window links,CLOSED-STATIC(WZ structures),OPEN-STATIC(per-window logic),0,scale problem only
+DLL/COM Runtime,P8,DLL-COM-ROUND4.md,21 real vtables (1 false removed); cross-DLL prop isomorphism; 3rd dispatch channel,CLOSED-STATIC(architecture),PARTIAL-STATIC(per-method semantics),0,

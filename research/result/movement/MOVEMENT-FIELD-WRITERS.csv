@@ -1,0 +1,16 @@
+field,site,operation,detail,grade,structure_attribution
++0x61,0x4f38d2,mov byte write,in FUN_4f2dc9 — dword writes nearby,C,unknown(may be UI/counter)
++0x61,0x60a567,mov byte write,in FUN_60a556 — dword writes nearby,C,unknown
++0x61,0x535941,mov byte write,in FUN_5356ac — dword writes nearby,C,unknown
++0x61,blind-zone x7,cmp imm8,0xa0e07c..0xa31b2f all >0x9d8046 frontier,C,unknown
++0x3BC,0x935526,mov dword 0x1388,attack-dispatcher entry,A,user(alert timer set)
++0x3BC,0x95d870/0x96ba59/0x977cdc/0x97a1ad/0x98e48e/0x98e51c/0x990e48,mov dword 0x1388,7 more uniform writes,A,user
++0x3BC,0x7857b8/0x78e709,mov word,FUN_76f4f8 lens/HP-potion family — clear,A,user(clear)
++0x3BC,0x504501/0x5401f9/0x70e6fe/0x955227/0x97a7c2,cmp dword,readers,A,user
++0x3BC,none-found,NO sub/dec anywhere,negative proof (computed-displacement hypothesis),A,user
+move+0x190,0x9bccfb,mov from [Physics+0xAC],move-object reset/init writer,A,move(cross-obj from Physics)
+move+0x1E,0x9bccfb,push 0x1E,step-length origin in same reset,A,move
+encrypted-pair,0x5be703,decrypt x26,physics main loop — pairs at +0x20/+0x30/+0x68 etc,A,move
+encrypted-pair,0x9bc404,decrypt x4,x/y/vx/vy pairs @ edi+0x20 base,A,move
+encrypted-pair,0x416e36,xor 0xBAADF00D store,{value,key} pair writer w/ xorshift RNG,A,user(+0x354)
+Physics,0xbdd498,global pointer,separate object from move (cross-refs +0xAC),A,physics

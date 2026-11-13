@@ -1,0 +1,25 @@
+opcode_hex,opcode_name,direction,evidence_source,confirmation
+0x20,CHANGE_MAP,c2s,task044-handler-map,client-static
+0x21,CHANGE_MAP,s2c,task044,client-static
+0x22,CHANGE_CHANNEL,both,task044+PROTOCOL-BY-OPCODE,client-static+server-ref
+0x23,ENTER_CASH_SHOP,c2s,task044,client-static
+0x25,CANCEL_CHAIR,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x26,USE_CHAIR,s2c,task044,client-static
+0x28,CLOSE_RANGE_ATTACK,s2c,PROTOCOL-BY-OPCODE,client-static+server-ref
+0x29,RANGED_ATTACK,s2c,PROTOCOL-BY-OPCODE,client-static+server-ref
+0x2A,MAGIC_ATTACK,s2c,PROTOCOL-BY-OPCODE,client-static+server-ref
+0x2B,PASSIVE_ENERGY,s2c,task044,client-static
+0x2C,TAKE_DAMAGE,s2c,task044,client-static
+0x2F,USE_SKILL_BOOK,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x30,USE_ITEMEFFECT,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x36,NPC_TALK,s2c,PROTOCOL-BY-OPCODE,client-static+server-ref
+0x3D,MERCH,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x4F,CANCEL_BUFF,s2c,PROTOCOL-BY-OPCODE,client-static+server-ref
+0x5A,SKILL_EFFECT,s2c,PROTOCOL-BY-OPCODE,client-static+server-ref
+0x59,CANCEL_BUFF,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x6D,SKILL_MACRO,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x75,SHOW_FOREIGN_EFFECT,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x77,PLAYER_INTERACTION,s2c,PROTOCOL-BY-OPCODE,client-static+server-ref
+0x78,PARTY_OPERATION,s2c,PROTOCOL-BY-OPCODE,server-ref
+0x7A,GUILD_OPERATION,s2c,PROTOCOL-BY-OPCODE,server-ref
+note,,,"367 more names lack numeric values (server properties not on disk; client-side task044 covers 100 total)",gap

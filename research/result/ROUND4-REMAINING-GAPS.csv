@@ -1,0 +1,9 @@
+id,module,gap,status,evidence,minimal_action
+R4-01,Map/Sort,[eax+0xB4] object vtable (tile path),OPEN-RUNTIME,A(keys)+A(no-insert-in-22),bp 0x666F77 dump ESI/[ESI]/48B
+R4-02,Map/Sort,comparator body (stack-package targets),OPEN-STATIC,Obj 0x43286E/0x44484B readable,disassemble 4 stack-package callees
+R4-03,Movement,+0x3BC decrement mechanism,OPEN-STATIC,no sub/dec anywhere (A-negative),read FUN_6292f5 family for computed-displacement
+R4-04,Movement,+0x61 field owner,OPEN-STATIC,77 candidates unattributable,structure-attribution by containing-fn families
+R4-05,Avatar,+0x38 variant array hypothesis,OPEN-STATIC,C-grade pattern match,read stance-switch +0x38 writers
+R4-06,Audio,WINMM ordinal->name mapping,OPEN-STATIC,era winmm.dll needed,obtain win2k/xp winmm.dll parse exports
+R4-07,Protocol,367 opcode numeric values,BLOCKED,server properties not on disk,obtain server properties file
+R4-08,Camera,follow/deadzone/smoothing params,OPEN-RUNTIME,static exhausted,in-map [0xBDF54C] dump + 0x66E600 regs

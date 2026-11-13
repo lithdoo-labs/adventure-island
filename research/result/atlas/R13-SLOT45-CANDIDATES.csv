@@ -1,0 +1,23 @@
+dll,vtable_rva,n_slots,slot45_rva,classification,instruction_head,grade
+Canvas.dll,0x270e4,106,0x17517,other,"push ebp ; mov ebp, esp ; mov eax, dword ptr [ebp + 8] ; mov ecx, dword ptr [ebp + 0xc] ; ",C
+Canvas.dll,0x27364,68,0x85f0,other,"push ebp ; mov ebp, esp ; push ecx ; mov dword ptr [ebp - 4], ecx ; mov ecx, dword ptr [eb",C
+Canvas.dll,0x285e0,124,0x2446a,import-thunk,"jmp dword ptr [0x5002705c] ; jmp dword ptr [0x50027060] ; jmp dword ptr [0x50027064] ; int",A
+Gr2D_DX8.dll,0x2d204,47,0x5fc8,other,"push esi ; mov esi, ecx ; call 0x50407399 ; test byte ptr [esp + 8], 1 ; je 0x50405fe2 ; p",C
+Gr2D_DX8.dll,0x2e2c4,152,0x2a610,import-thunk,"jmp dword ptr [0x5042d0a0] ; cmp dword ptr [0x5043a200], -1 ; jne 0x5042a62b ; push dword ",A
+Gr2D_DX8.dll,0x2e8b4,95,0x2a610,import-thunk,"jmp dword ptr [0x5042d0a0] ; cmp dword ptr [0x5043a200], -1 ; jne 0x5042a62b ; push dword ",A
+Gr2D_DX8.dll,0x2f2cc,136,0x1b84d,other,"push ebp ; mov ebp, esp ; mov eax, dword ptr [ecx + 0x1050] ; imul eax, dword ptr [ebp + 8",C
+Gr2D_DX8.dll,0x2f530,120,0x3022c,other,"dec ecx ; outsb dx, byte ptr [esi] ; jbe 0x50430291 ; insb byte ptr es:[edi], dx ; imul es",C
+Gr2D_DX8.dll,0x366d0,55,0x132af,import-thunk,"push ebp ; mov ebp, esp ; push 1 ; call 0x5041dbca ; pop ebp ; jmp dword ptr [0x50436784] ",A
+Gr2D_DX8.dll,0x367b8,57,0x143d8,other,"push ebp ; lea ebp, [esp - 0x5c] ; sub esp, 0xa0 ; push esi ; mov esi, dword ptr [ebp + 0x",C
+NameSpace.dll,0x170f8,69,0x1dc6,other,"push ebp ; mov ebp, esp ; push dword ptr [ebp + 0x18] ; push dword ptr [ebp + 0x14] ; push",C
+NameSpace.dll,0x17258,81,0xf88b,other,"mov eax, 0x50815ba4 ; call 0x5080e090 ; sub esp, 0x10 ; push ebx ; push esi ; push edi ; m",C
+NameSpace.dll,0x173ec,52,0xe0b0,import-thunk,"jmp dword ptr [0x50817050] ; jmp dword ptr [0x50817054] ; push esi ; mov esi, ecx ; call 0",A
+NameSpace.dll,0x17548,125,0x22e7,other,"push ebp ; mov ebp, esp ; push esi ; mov esi, dword ptr [ebp + 0xc] ; test esi, esi ; jne ",C
+NameSpace.dll,0x1775c,58,0x5961,other,"mov eax, 0x50815248 ; call 0x5080e090 ; sub esp, 0x2c ; push ebx ; push esi ; push edi ; x",C
+NameSpace.dll,0x18940,59,0xab1b,other,"mov eax, dword ptr [esp + 8] ; test eax, eax ; jne 0x5080ab2a ; mov eax, 0x80004003 ; jmp ",C
+NameSpace.dll,0x18a54,124,0xc1bf,other,"push ebx ; push esi ; push edi ; mov edi, dword ptr [esp + 0x14] ; test edi, edi ; mov esi",C
+Shape2D.dll,0xc0e0,105,0x847d,other,"mov eax, 0x5140b76e ; call 0x5140ad20 ; sub esp, 0xc ; push ebx ; push esi ; xor ebx, ebx ",C
+Shape2D.dll,0xc2c8,85,0x7eb0,other,"mov eax, 0x5140b71c ; call 0x5140ad20 ; sub esp, 0x10 ; push ebx ; push esi ; push edi ; m",C
+Shape2D.dll,0xc468,67,0x1b36,other,"push esi ; mov esi, dword ptr [esp + 8] ; push edi ; lea eax, [esi + 0x40] ; push eax ; ca",C
+Shape2D.dll,0xc5b8,65,0xad40,import-thunk,"jmp dword ptr [0x5140c028] ; push esi ; mov esi, ecx ; call 0x5140af80 ; test byte ptr [es",A
+Shape2D.dll,0xc6c0,83,0x4245,other,"mov eax, 0x5140b3dc ; call 0x5140ad20 ; push ecx ; and dword ptr [ebp - 0x10], 0 ; push es",C

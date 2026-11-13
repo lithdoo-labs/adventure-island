@@ -1,0 +1,13 @@
+claim_id,claim,grade_evidence,source_doc,rva_va,disasm_or_bytes,reasoning,countercheck,status
+A-1,"0x5042D0A0 = MSVCRT!_purecall IAT entry",A,"MAP-R13-ROUND3-DISPATCH.md §1; R13-PE-IAT-FORENSICS.md","Gr2D RVA 0x2D0A0","desc[3] FT=0x2D03C; IAT[25]=0x2D0A0; name RVA 0x34064 {hint 0x192,_purecall}","IMAGE_IMPORT_DESCRIPTOR walk; hint match","none — loader WILL overwrite at load (IAT semantics); static value is pre-bind",CONFIRMED
+A-2,"Round-3 reasoning '.reloc no-cover proves table static'",D,"MAP-R13-ROUND3-DISPATCH.md §1.1","-","-","IAT written by loader via FirstThunk processing; .reloc irrelevant","R31-A corrected argument",REFUTED_REASONING
+A-3,"0x2A610 = import thunk jmp [__imp__purecall]",A,"round-3","Gr2D RVA 0x2A610","ff25 a0d04250","bytes + A-1","none",CONFIRMED
+A-4,"Gr2D statically imports WINMM waveOut family (ordinals 202/200/11/10)",A,"R13-PE-IAT-FORENSICS.md 附带","IAT 0x2D0B4-0x2D0C0","desc[2] WINMM ordinal imports","descriptor walk","ordinal->name mapping needs winmm export table (era-specific)",NEW_FINDING
+B-1,"vtables carry no RTTI COL; class names = proximity inference",A,"R31-B","all candidate [-4]","no COL; CWz TDs have zero COL xrefs","-","Round-2 'RTTI-verified' label",REFUTES_R2_LABEL
+B-2,"vtable start 0x2E2C4 vs 0x2E2CC ambiguous; both intmap-adjacent",A,"R31-B","0x2E2C4/0x2E2CC","151x4 vs 149x4 both = 0x2E520","max-run scan favors 0x2E2C4 (COM slot0=QI)","round-3 asserted 0x2E2CC unconditionally",AMBIGUITY_EXPOSED
+B-3,"slot45 in 0x2E2C4 family is purecall (A) or deleting-dtor (B); NOT insert",A,"R31-B + R31-D","0x4FB1 / 0x2A610","disasm both","either reading kills insert for THIS family","object may be different class (R-09)",ROBUST_JOINT
+B-4,"'.?AVCWzRawCanvas@@' names the intmap@0x2E520 class",C,"round-2/3","TD 0x36520 vs IID 0x36540","adjacent .data strings","no COL chain","R31-B",DOWNGRADED_C
+C-1,"0x427EB3 has 240 call sites",A,"uncommitted RAWCANVAS-CALLSITE-ANALYSIS.csv; R31-C","exe","E8 scan = 240 exact","-","none",CONFIRMED
+C-2,"slot25 = [arg1+0xCC]=arg2 setter (cdecl arg1=this-object)",A,"R31-C","0x50403FBE","mov eax,[esp+4]; mov [eax+0xCC],ecx","sibling slots 18-28 same convention","round-3 wording '[this+0xCC]' imprecise",CONFIRMED_WITH_FIX
+C-3,"0x427EB3 = property-PUT wrapper not creator",B,"round-3 + R31-C","0x427EB3","marshals 2x16B structs; call [vt+0x64]; err IID E576EA33; *out from arg struct","240 uniform sites = universal property helper","'PUT vs creator' depends on slot25 semantics (A) + out-source (B)",CONFIRMED_B
+D-1,"[ebp-0x10] concrete vtable unresolved (R-09)",R,"round-3 G24","0x666F7D runtime","-","variant-derived object","22 candidates cataloged (R13-SLOT45-CANDIDATES.csv)",OPEN_RUNTIME

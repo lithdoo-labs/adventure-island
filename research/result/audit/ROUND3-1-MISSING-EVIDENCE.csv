@@ -1,0 +1,7 @@
+claim_id,item,missing_evidence,why_needed,minimal_action
+ME-1,"[ebp-0x10] tile-path object concrete vtable","in-game dword at object's vptr (variant content decides class)","selects among 22 candidates; decides if 0x666F7D is insert / dtor / purecall","1-dword runtime read (R-09)"
+ME-2,"WINMM ordinal->function-name mapping (202/200/11/10)","winmm.dll export table from matching OS era (Win2K/XP-era)","confirm waveOutWrite/Open/Close vs other ordinals","obtain era winmm.dll; parse exports (static, no runtime)"
+ME-3,"0x2E2C4 vs 0x2E2CC disambiguation","COL absent; only runtime vptr of a live object of this family settles start","changes slot numbering (45 vs 43) of every method in family","runtime dump of any 6DC8C7CE-object vptr"
+ME-4,"'other'-class slot45 bodies (14 candidates across 5 DLLs)","full disasm + context read of each","candidate insert semantics live there","static: extend r31d classify(); no runtime needed"
+ME-5,"avatar occlusion §11 five items (from prior rounds)","function reads 0x401C74/0x401DE9/0x401FFE/0x402114/0x40219B/0x402442/0x411524/0x4153FB","declared OPEN-STATIC but unattempted","static reading batch"
+ME-6,"uncommitted round-3 deliverables (4 files)","not in git baseline","claims like 240-sites now verified (C-1) but file provenance unclear","commit or re-issue them with audit annotations"

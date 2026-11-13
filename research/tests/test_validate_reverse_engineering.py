@@ -150,6 +150,15 @@ def build_fixture(root):
     os.makedirs(os.path.join(root, 'bin'), exist_ok=True)
     w('bin/dummy.bin', '\x00\x01')
 
+    # generate clean-room deliverables via the real generator (integration)
+    env = dict(os.environ)
+    env['RE_VALIDATE_ROOT'] = root
+    subprocess.run([sys.executable, SCRIPT_GEN], capture_output=True,
+                   timeout=120, env=env, check=True, cwd=root)
+
+
+SCRIPT_GEN = os.path.join(REPO, 'research', 'scripts', 'generate_cleanroom_deliverables.py')
+
 
 def run_validator(root):
     env = dict(os.environ)
@@ -342,6 +351,51 @@ class IsolatedValidatorTests(unittest.TestCase):
         out = r.stdout.decode('utf-8', 'replace')
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('GAP-VIEW-MISSING', out)
+
+    def test_21_assertive_retracted_claim_without_verified_fails(self):
+        # review finding P0-1: prose re-asserts a refuted claim with NO
+        # VERIFIED keyword anywhere (SEC16-style sentence)
+        self._edit('research/result/map/doc.md', '# doc',
+                   '# doc\n结论：+0xB4 = 有序插入，比较器在 DLL 内部。这是终局。')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('RETRACTED-ASSERTIVE', out)
+
+    def test_22_unbalanced_quote_swallowing_lines_fails(self):
+        # review finding P1-1: unterminated quote merges following lines into
+        # one record — width stays constant, so only line-count check catches it
+        p = os.path.join(self.root, 'research/source-of-truth/documents.csv')
+        with open(p, 'a', encoding='utf-8') as f:
+            f.write('second.md,ACTIVE,authority=claims,C-002,0000000,no,-\n')
+        self._edit('research/source-of-truth/documents.csv',
+                   'doc.md,ACTIVE,authority=claims,C-001,0000000,no,-',
+                   'doc.md,ACTIVE,authority=claims,C-001,0000000,no,"-')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('CSV-QUOTE', out)
+
+    def test_23_cleanroom_copy_out_of_sync_fails(self):
+        # clean-room generated CSV must be byte-identical to source-of-truth
+        cc = os.path.join(self.root, 'research/result/clean-room')
+        os.makedirs(cc, exist_ok=True)
+        with open(os.path.join(cc, 'GAP-REGISTER.csv'), 'w', encoding='utf-8') as f:
+            f.write('gap_id\nGXX\n')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('CLEANROOM-SYNC', out)
+
+    def test_24_runtime_patch_placeholder_assertion_fails(self):
+        # review finding P0-2: assertive "runtime patch placeholder" restatement
+        # with address far from keyword (wide gap defeats narrow windows)
+        self._edit('research/result/map/doc.md', '# doc',
+                   '# doc\n委派表 0x2D090-0x2D0AC 的静态值为运行时补丁的占位 RVA（.rdata 尾部，非代码）。')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('RETRACTED-ASSERTIVE', out)
 
 
 if __name__ == '__main__':

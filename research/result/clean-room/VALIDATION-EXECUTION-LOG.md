@@ -1,17 +1,18 @@
 # VALIDATION-EXECUTION-LOG（验证执行日志）
 
 日期：2026-11-13。分支：`audit/clean-room-reverse-engineering`。全部为真实执行捕获（未手工编辑数字）。
+本版为独立复核（FAIL 判定）→ 定向修复后的**最终复验**记录；首轮执行历史见文末。
 
-## 1. 隔离测试
+## 1. 隔离测试（最终）
 
 命令：`python -m unittest discover -s research/tests -v`
 
 ```
-Ran 20 tests in 1.940s
+Ran 24 tests in 3.307s
 OK
 ```
 
-测试清单（1 正面 + 19 负面，每项断言**具体错误代码**而非仅退出码；全部操作临时目录 fixture，不触碰真实仓库）：
+测试清单（1 正面 + 23 负面，每项断言**具体错误代码**；fixture 经真实生成器构建于 tempfile.mkdtemp 临时目录，真实仓库零写入）：
 
 | # | 测试 | 注入缺陷 | 期望错误码 |
 |---|---|---|---|
@@ -35,8 +36,12 @@ OK
 | 18 | crosswalk_dangling | R4-01 从 R4 CSV 消失 | XWALK-DANGLING |
 | 19 | evidence_source_file_missing | bin/dummy.bin 删除 | EVID-FILE |
 | 20 | gap_view_missing_row | 台账视图缺 G03 | GAP-VIEW-MISSING |
+| 21 | assertive_retracted_claim_without_verified | "+0xB4=有序插入，比较器在 DLL 内"（无 VERIFIED，复核 P0-1 场景） | RETRACTED-ASSERTIVE |
+| 22 | unbalanced_quote_swallowing_lines | 未闭合引号吞并后续行（复核 P1-1 场景） | CSV-QUOTE |
+| 23 | cleanroom_copy_out_of_sync | clean-room 副本与权威源不一致 | CLEANROOM-SYNC |
+| 24 | runtime_patch_placeholder_assertion | "运行时补丁的占位 RVA"宽距断言（复核 P0-2 场景） | RETRACTED-ASSERTIVE |
 
-## 2. 全仓验证器
+## 2. 全仓验证器（最终）
 
 命令：`python research/scripts/validate_reverse_engineering.py`
 
@@ -45,7 +50,7 @@ OK
 Repository: C:\Users\lithd\Documents\GitHub\adventure-island
 
 CSV total: 421 (parsed 421, strict 7, legacy-width-issues 100)
-MD scanned: 330
+MD scanned: 331
 Open Issues rows: 9 | Runtime ids: 9
 Claims: 47 | Gaps: 35 | Evidence: 32
 
@@ -57,7 +62,7 @@ RESULT: PASS (0 errors, 0 warnings)
 
 legacy-width-issues=100：task0xx 等历史原始转储的结构性问题，按 LEGACY_CSV_PREFIXES 显式豁免并计数上报（不静默跳过）。
 
-## 3. 生成器
+## 3. 生成器（幂等复验）
 
 命令：`python research/scripts/generate_cleanroom_deliverables.py`
 
@@ -66,6 +71,11 @@ gap stats block regenerated: {'PARTIAL-STATIC': 5, 'CLOSED-STATIC': 14, 'OPEN-ST
 clean-room deliverables written to research/result/clean-room/ (claims=47 gaps=35 evidence=32 retracted=10)
 ```
 
-## 4. 回归顺序
+生成后验证器复跑保持 PASS（统计块与 clean-room 副本与权威源同步，CLEANROOM-SYNC 校验通过）。
 
-生成器 → 验证器 → 测试 → 验证器（复跑）全部 PASS；期间验证器曾捕获本报告数据中的 4 处真实缺陷（CSV 宽度/引号、G09 未映射、归档段落活性措辞 2 处），均已修复后复验。
+## 4. 首轮执行历史（含被复核推翻的状态，如实保留）
+
+- 首轮（提交 ce528d4b 前）：20/20 测试 OK；验证器 PASS（0 错误 / 2 EXEMPT-STALE 警告）。
+- 独立复核判定 **FAIL**：3 P0（SEC16 两处复活措辞、STATIC-CLOSURE L37 补丁表残留、验证器假阴性）+ 3 P1。
+- 定向修复（唯一一轮，见 INDEPENDENT-REVIEW-REPORT.md §二）后：验证器曾在修复过程中真实检出 10 项错误
+  （3 处 Tier-B 存活措辞 + 4 处同步行尾差异 + 引号问题），逐一修复后抵达上述最终全绿状态。

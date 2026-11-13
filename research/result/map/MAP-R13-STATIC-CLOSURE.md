@@ -34,9 +34,9 @@ tile/obj 实例加载（EXE 0x666C0D/0x6688BE）:
 
 ## slot45 = 委派桩（诚实边界）
 
-`0x5042A610: jmp dword ptr [0x5042D0A0]`——委派表 0x2D090-0x2D0AC 的静态值（0x34046-0x34116）为**运行时补丁的占位 RVA**（.rdata 尾部，非代码）。插入/比较的真实函数体在运行时经该表绑定。
+`0x5042A610: jmp dword ptr [0x5042D0A0]`——~~委派表 0x2D090-0x2D0AC 的静态值（0x34046-0x34116）为**运行时补丁的占位 RVA**（.rdata 尾部，非代码）。插入/比较的真实函数体在运行时经该表绑定~~ **已撤销（Claim C-010，见 R13-PE-IAT-FORENSICS.md）**：0x5042D0A0 = MSVCRT!`__imp__purecall` 未绑定 IAT 项，该跳转桩是标准导入桩而非补丁表；"插入/比较经此表绑定"随之不成立。
 - **身份与拓扑：CLOSED-STATIC（本档）**
-- **比较器指令体：OPEN-RUNTIME（需 [0x5042D0A0] 运行时值；1-dword 读取即闭合）**
+- **比较器指令体：OPEN-STATIC（栈封装被调族待读，Gap G07）**
 
 ## 修正记录
 
@@ -80,8 +80,8 @@ key = layer * 30000 + z - 1073739824
 - `lea` disp `D0 07 00 C0` = −1073739824
 - Obj 键与 Tile 键同一量纲空间（−1073739xxx 基线族）
 
-### 键构造者与插入者分离
-键在 EXE 加载时计算 → `push edi(键); push esi(条目); call [eax+0xB4]`（0x666F72 上下文、0x42944A）→ **有序插入 DLL 容器**。比较器在 DLL 内部（二分插入）——与旧文档"函数语义不在本镜像"一致。
+### 键构造者与插入者分离（存档区——本节"有序插入"表述已撤销，Claim C-013）
+键在 EXE 加载时计算 → `push edi(键); push esi(条目); call [eax+0xB4]`（0x666F72 上下文、0x42944A）→ ~~**有序插入 DLL 容器**。比较器在 DLL 内部（二分插入）~~（**SUPERSEDED**：22 候选零插入语义；该调用语义依变体对象运行时类，Gap G24）。
 
 ## 结论二：[0xBE2788] 身份 = Gr2D_DX8 接口（VERIFIED，本轮闭合）
 
@@ -133,7 +133,7 @@ loop: fild byte[eax] * const(0x5042F1D0) → out[0..2]; out[3]=1.0; 16B 步进
 | 层惩罚 | 层差 = 30000/层（两种键一致） | VERIFIED |
 | Background | 独立 `index*1000` 键空间（不与 Tile/Obj 同空间） | VERIFIED（旧文档） |
 | 相同键顺序 | ~~WZ 顺序（Henesys 实测：35→34 同键保持 WZ 序）→ 稳定插入~~ **SUPERSEDED（Claim C-018）**：仅静态 WZ 条目序样本，无绘制顺序证据 | ~~VERIFIED（样本）~~ → RETRACTED |
-| Avatar | zmap.img 149 层用于部件内排序；Avatar vs Obj 的插入 = 同容器运行时路径（进图后） | RUNTIME-REQUIRED |
+| Avatar | zmap.img 149 层用于部件内排序；~~Avatar vs Obj 的插入 = 同容器运行时路径（进图后）~~（**存档区撤销**：同容器前提已随 C-016 撤销，Avatar 插入键与接收者未知，Gap G08/G09） | RUNTIME-REQUIRED |
 | 排序时机 | 加载时插入（`即时（加载时）推入时序容器`，非每帧重排） | VERIFIED |
 
 ## 残留（RUNTIME-REQUIRED）

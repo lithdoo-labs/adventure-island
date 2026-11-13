@@ -1,5 +1,13 @@
 # 静态逆向第二轮总报告（REVERSE-ENGINEERING-STATIC-ROUND-2）
 
+<!--CLEANROOM-ARCHIVE:SUPERSEDED — 本文件为历史轮次存档（基线 ab23b172，2026-11-13）。
+其中已被后续轮次推翻并经 clean-room 审计确认撤销的结论包括（不限于）：
+0x427EB3=CreateRawCanvas（→属性 PUT，Claim C-007/C-008）、vtbl[45] Insert(key)/有序插入
+（→22 候选零插入语义，C-012/C-013）、0x5042D0A0=运行时补丁占位（→__imp__purecall IAT，
+C-009/C-010）、"稳定插入 CLOSED-STATIC"（→未证，C-018）、Tile/Obj 同容器（→通道分离，
+C-016/C-017）。本文件正文不再逐行标注；权威状态以 research/source-of-truth/claims.csv
+与 research/result/clean-room/INDEPENDENT-AUDIT-REPORT.md 为准。-->
+
 日期: 2026-11-13。基线 `ab23b172`。
 
 ## 1. 素材确认

@@ -64,20 +64,32 @@ STRICT_SCHEMAS = {
 }
 
 # Retracted claim patterns: (claim_id, regex, why). Matched case-insensitively
-# against every non-exempt .md under research/ and docs/. A match is an error
-# only when a VERIFIED/CLOSED marker appears nearby WITHOUT a retraction marker.
+# against every non-exempt .md under research/ and docs/.
+# Tier A: pattern + VERIFIED/CLOSED marker nearby without retraction marker.
+# Tier B (strict): assertive restatement of a retracted claim with NO
+#   retraction marker nearby at all — catches prose that re-asserts a refuted
+#   claim without ever saying VERIFIED (review finding P0-1/P0-2).
 RETRACTED_PATTERNS = [
     ('RC-01', r'CreateRawCanvas', '0x427EB3 is a property-PUT wrapper, not a creator'),
     ('RC-02', r'slot45.{0,40}(有序插入|ordered[ _-]?insert)|有序插入.{0,20}slot45', 'slot45 has zero insert semantics across 22 candidates'),
     ('RC-03', r'Tile.{0,20}Obj.{0,30}(同容器|same[ _-]?container)|同容器有序插入', 'Tile/Obj same-container claim refuted by channel separation'),
-    ('RC-04', r'0x5042D0A0.{0,40}(运行时补丁|runtime[ _-]?patch)', '0x5042D0A0 is __imp__purecall IAT entry'),
+    ('RC-04', r'0x5042D0A0.{0,120}(运行时补丁|runtime[ _-]?patch)|(运行时补丁|runtime[ _-]?patch).{0,120}0x5042D0A0', '0x5042D0A0 is __imp__purecall IAT entry'),
     ('RC-05', r'RTTI.{0,30}(验证|双\s*VERIFIED|verified).{0,40}(CWzRawCanvas|CWzGr2DLayer|类身份)|(CWzRawCanvas|CWzGr2DLayer).{0,30}RTTI.{0,20}verif', 'no COL exists; class names are proximity inference'),
     ('RC-10', r'COM\s*比较回调|0x666F7D.{0,40}比较', '[eax+0xB4] result is HRESULT-checked, not a comparator'),
     ('RC-18', r'(稳定插入|stable[ _-]?insert).{0,30}(VERIFIED|已验证|已证)', 'equal-key stability is unproven (WZ-order sample only)'),
 ]
+# Tier B: assertive restatements — flag with NO verified-marker requirement.
+# Only suppressed by a retraction marker within ±300 chars or a whole-file
+# archive banner (<!--CLEANROOM-ARCHIVE-->).
+RETRACTED_ASSERTIVE = [
+    ('RC-02B', r'(\+0xB4|[eax\+0xB4\]]|eax\+0xB4).{0,80}(有序插入|ordered[ _-]?insert)|(有序插入|ordered[ _-]?insert).{0,80}(\+0xB4|比较器在\s*DLL)', 'asserts [eax+0xB4]=ordered-insert (refuted, Claim C-013)'),
+    ('RC-04B', r'0x2D0A0.{0,160}占位|占位.{0,160}0x2D0A0|运行时补丁的占位', 'asserts runtime-patch placeholder for IAT (refuted, Claim C-010)'),
+]
+ARCHIVE_BANNER = re.compile(r'CLEANROOM-ARCHIVE', re.I)
 RETRACTION_MARKERS = re.compile(
-    r'SUPERSEDED|REFUTED|RETRACTED|CONTRADICTED|推翻|撤销|修正|~~|WRONG|CORRECTED|'
-    r'NOT[ _-]?insert|NOT[ _-]?creator|NOT[ _-]?patch|NOT[ _-]?verified|已撤销|非比较|降级',
+    r'SUPERSEDED|REFUTED|RETRACTED|CONTRADICTED|推翻|撤销|~~|WRONG|CORRECTED|❌|✘|'
+    r'NOT[ _-]?insert|NOT[ _-]?creator|NOT[ _-]?patch|NOT[ _-]?verified|已撤销|降级|'
+    r'无一呈现|无插入|零插入|零支撑|无比较器|已否定',
     re.I)
 VERIFIED_MARKERS = re.compile(r'VERIFIED|CLOSED-STATIC', re.I)
 # Docs whose job is to record retractions are exempt from check 12.
@@ -171,6 +183,15 @@ def check_all_csvs():
             err('CSV-READ', f'{rel}: {e}')
             continue
         stats['csv_parsed'] += 1
+
+        # quote-balance guard: physical lines swallowed into multi-line
+        # records indicate an unterminated quote (review finding P1-1)
+        physical = len(read_text(path).splitlines())
+        trailing_blank = sum(1 for ln in read_text(path).splitlines()[physical - 1::-1]
+                             if not ln.strip())
+        if not legacy and len(rows) + 1 < physical - trailing_blank:
+            err('CSV-QUOTE', f'{rel}: {physical - trailing_blank - 1 - len(rows)} '
+                             f'physical line(s) swallowed into quoted records — unbalanced quotes')
 
         if len(header) != len(set(header)):
             dups = sorted({c for c in header if header.count(c) > 1})
@@ -397,10 +418,6 @@ def check_runtime_consistency(sot, gaps):
             err('XFILE-STALE', f'{rid} OPEN-RUNTIME in Open Issues but absent from RUNTIME-REMAINING')
 
     # closed gaps must not be active-open in the other registers under same id
-    all_status = {k: v for k, v in gaps.items()}
-    for rid, st in open_ids.items():
-        if rid in all_status:
-            continue
     for gid, gp in gaps.items():
         if gp['status'].startswith('CLOSED') and gid in open_ids \
                 and open_ids[gid] in ('OPEN-STATIC', 'OPEN-RUNTIME', 'BLOCKED'):
@@ -505,31 +522,44 @@ def check_md_refs():
 
 
 # ------------------------------------------------------------------
-# CHECK 12 — retracted claims must not be active
+# CHECK 12 — retracted claims must not be active (two tiers)
 # ------------------------------------------------------------------
 def check_retracted_active():
     scan_dirs = [RR, os.path.join(REPO, 'docs')]
-    for claim_id, pattern, why in RETRACTED_PATTERNS:
-        pat = re.compile(pattern, re.I)
-        for base in scan_dirs:
-            for root, _d, files in os.walk(base):
-                for f in files:
-                    if not f.endswith('.md'):
-                        continue
-                    p = os.path.join(root, f)
-                    rel = os.path.relpath(p, REPO)
-                    if any(rel.startswith(ex) or ex in rel for ex in RETRACTION_EXEMPT):
-                        continue
-                    try:
-                        text = read_text(p)
-                    except Exception:
-                        err('MD-READ', f'{rel}: unreadable')
-                        continue
+    all_patterns = [(cid, re.compile(p, re.I), why, tier)
+                    for cid, p, why in RETRACTED_PATTERNS for tier in ('A',)]
+    all_patterns += [(cid, re.compile(p, re.I | re.S), why, 'B')
+                     for cid, p, why in RETRACTED_ASSERTIVE]
+    for base in scan_dirs:
+        for root, _d, files in os.walk(base):
+            for f in files:
+                if not f.endswith('.md'):
+                    continue
+                p = os.path.join(root, f)
+                rel = os.path.relpath(p, REPO)
+                if any(rel.startswith(ex) or ex in rel for ex in RETRACTION_EXEMPT):
+                    continue
+                try:
+                    text = read_text(p)
+                except Exception:
+                    err('MD-READ', f'{rel}: unreadable')
+                    continue
+                whole_file_archived = bool(ARCHIVE_BANNER.search(text[:2000]))
+                for claim_id, pat, why, tier in all_patterns:
                     for m in pat.finditer(text):
                         ctx = text[max(0, m.start() - 300):m.end() + 300]
-                        if VERIFIED_MARKERS.search(ctx) and not RETRACTION_MARKERS.search(ctx):
-                            err('RETRACTED-ACTIVE',
-                                f'{claim_id}: pattern "{m.group()}" near VERIFIED without retraction marker in {rel}:'
+                        if RETRACTION_MARKERS.search(ctx):
+                            continue
+                        if whole_file_archived:
+                            continue
+                        if tier == 'A':
+                            if VERIFIED_MARKERS.search(ctx):
+                                err('RETRACTED-ACTIVE',
+                                    f'{claim_id}: pattern "{m.group()}" near VERIFIED without retraction marker in {rel}:'
+                                    f'{text[:m.start()].count(chr(10)) + 1}')
+                        else:  # Tier B: assertive restatement, no marker at all
+                            err('RETRACTED-ASSERTIVE',
+                                f'{claim_id}: assertive restatement "{m.group()}" without retraction marker in {rel}:'
                                 f'{text[:m.start()].count(chr(10)) + 1}')
 
 
@@ -581,6 +611,47 @@ def check_exemptions():
             warn('EXEMPT-STALE', f'legacy prefix "{p}" matches no current CSV — consider removing')
 
 
+# ------------------------------------------------------------------
+# CHECK 15 — clean-room generated copies in sync with source-of-truth
+# ------------------------------------------------------------------
+CLEANROOM_COPIES = {
+    'CLAIM-CONSISTENCY-REGISTER.csv': 'claims.csv',
+    'GAP-REGISTER.csv': 'gaps.csv',
+    'ISSUE-CROSSWALK.csv': 'issue-crosswalk.csv',
+    'EVIDENCE-INDEX.csv': 'evidence.csv',
+}
+
+
+def check_cleanroom_sync(sot):
+    if sot is None:
+        return
+    for cc_name, sot_name in CLEANROOM_COPIES.items():
+        cc_path = os.path.join(CLEANROOM, cc_name)
+        sot_path = os.path.join(SOT, sot_name)
+        if not os.path.exists(cc_path):
+            err('CLEANROOM-SYNC', f'research/result/clean-room/{cc_name} missing (run generator)')
+            continue
+        # semantic comparison (line-ending agnostic, content-exact)
+        try:
+            cc_rows = list(csv.reader(read_text(cc_path).splitlines()))
+            sot_rows = list(csv.reader(read_text(sot_path).splitlines()))
+        except Exception as e:
+            err('CLEANROOM-SYNC', f'{cc_name}: unreadable ({e})')
+            continue
+        if cc_rows != sot_rows:
+            err('CLEANROOM-SYNC', f'{cc_name} differs from source-of-truth/{sot_name} — rerun generator')
+    rc_path = os.path.join(CLEANROOM, 'RETRACTED-CLAIMS.csv')
+    if os.path.exists(rc_path):
+        _h, rows = parse_csv(rc_path)
+        superseded = {c['claim_id'] for c in sot['claims'].values() if c['status'] == 'SUPERSEDED'}
+        listed = {r[1] for r in rows if len(r) > 1}
+        if superseded != listed:
+            missing = superseded - listed
+            extra = listed - superseded
+            err('CLEANROOM-SYNC', f'RETRACTED-CLAIMS.csv out of sync (missing {sorted(missing)}, extra {sorted(extra)})')
+    stats['cleanroom_synced'] = len(CLEANROOM_COPIES) + 1
+
+
 def main():
     print('=== validate_reverse_engineering.py (clean-room, fail-closed) ===')
     print(f'Repository: {REPO}\n')
@@ -597,6 +668,7 @@ def main():
     check_retracted_active()         # 12
     check_frozen_abi()               # 13
     check_exemptions()               # 14
+    check_cleanroom_sync(sot)        # 15
 
     print(f'CSV total: {stats["csv_total"]} (parsed {stats["csv_parsed"]}, strict {stats["csv_strict"]}, '
           f'legacy-width-issues {stats["csv_legacy_width"]})')

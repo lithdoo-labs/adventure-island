@@ -10,15 +10,16 @@ Outputs:
      GAP-REGISTER.csv, ISSUE-CROSSWALK.csv, EVIDENCE-INDEX.csv,
      RETRACTED-CLAIMS.csv} as generated copies of the source of truth.
 
-The validator verifies generated copies are byte-identical to what the
-generator would produce from source-of-truth (fail-closed sync check).
+The validator (check 15 CLEANROOM-SYNC) verifies the four direct copies are
+byte-identical to source-of-truth and that RETRACTED-CLAIMS.csv covers exactly
+the SUPERSEDED claim set (fail-closed sync check).
 """
 import csv, io, os, sys, collections
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8'):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REPO = os.environ.get('RE_VALIDATE_ROOT') or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SOT = os.path.join(REPO, 'research', 'source-of-truth')
 RR = os.path.join(REPO, 'research', 'result')
 OUT = os.path.join(RR, 'clean-room')

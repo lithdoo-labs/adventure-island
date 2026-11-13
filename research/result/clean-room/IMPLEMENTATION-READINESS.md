@@ -11,7 +11,7 @@
 | Tile Registry | A（键公式 C-001、层注册 +0xCC/+0xD0 C-022、通道 C-017） | 可实现键计算与注册；排序策略可替换 | 否 |
 | Obj Registry | A（键公式 C-002、栈封装通道 C-017） | 同上 | 否 |
 | Foothold | A（物理字段表 C-034、R1-R14 逆向文档） | 可按已证实行为实现 | 否 |
-| Movement | A（物理主循环/0x1E 步进/跳跃初速 C-029/030/034/035） | 可精确实现主体；alert 递减与死亡位为行为级等价（G11/G12） | 否 |
+| Movement | A（物理主循环/0x1E 步进/跳跃初速 C-029/030/034） | 可精确实现主体；alert 递减与死亡位为行为级等价（G11/G12） | 否 |
 | Avatar（部件内） | A（zmap 149 层 priority/tag/zIndex C-043） | 可按已证实行为实现 | 否 |
 | Avatar（跨对象排序） | R（G08/G09 OPEN-RUNTIME） | 等价实现：产品规则分层 | 否（有条件） |
 | Render Ordering | 键 A（C-001/002/003）；比较器/容器 OPEN（G01/G07/G33） | 键级精确实现；容器策略可替换（RenderNode ABI v1 不绑定容器） | 否（有条件） |

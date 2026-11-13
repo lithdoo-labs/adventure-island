@@ -87,7 +87,7 @@
 
 ### 2026-11-13 R13 二轮闭合（详见 MAP-R13-STATIC-CLOSURE.md）
 
-[0xBE2788] = Gr2D_DX8 接口（IID E576EA33 唯一归属 Gr2D；创建器 0xa0449b 含 REGDB_E_CLASSNOTREG 0x800401F0；初始化器 0xa00e5E 经字符串表单例 ID 0x819）。0x666F7D 的 `cmp eax,ebx; jge` = HRESULT 检查（非比较）；+0xB4 = 有序插入，比较器在 DLL 内部。
+[0xBE2788] = Gr2D_DX8 接口（IID E576EA33 唯一归属 Gr2D；创建器 0xa0449b 含 REGDB_E_CLASSNOTREG 0x800401F0；初始化器 0xa00e5E 经字符串表单例 ID 0x819）。0x666F7D 的 `cmp eax,ebx; jge` = HRESULT 检查（非比较）；~~+0xB4 = 有序插入，比较器在 DLL 内部~~ **已撤销（Claim C-013）**：22 张候选虚表 slot45 全分类零插入语义，[eax+0xB4] 具体语义依变体对象运行时类（Gap G24/R-09）。
 
 ## 4. R14 镜头
 
@@ -148,7 +148,7 @@
 |---|---|---|---|
 | 1. +0x61 | **未闭合**（77 候选无法归结构） | disp8 扫描完成；多数在盲区 | 需运行时对象 diff |
 | 2. R9 +0x354 | **完全闭合** | {值,键}加密对 + xorshift RNG + variant[rand%count] 闭环 | 无 |
-| 3. R13 | **静态闭合**（2026-11-13 二轮） | IID E576EA33 唯一归属 Gr2D（VA 0x50435120/接口映射 0x2d1e0）；创建器 0xa0449b（REGDB_E_CLASSNOTREG）；初始化器 0xa00e5E（字符串表 ID 0x819）；cmp=HRESULT 检查非比较；+0xB4=有序插入 | [0xBE2788] 真实虚表 dword（进图 1-read 可补） |
+| 3. R13 | **部分闭合**（2026-11-13 二轮；有序插入已撤销） | IID E576EA33 唯一归属 Gr2D（VA 0x50435120/接口映射 0x2d1e0）；创建器 0xa0449b（REGDB_E_CLASSNOTREG）；初始化器 0xa00e5E（字符串表 ID 0x819）；cmp=HRESULT 检查非比较；~~+0xB4=有序插入~~ 已撤销（Claim C-013）——22 候选 slot45 无插入语义 | [ebp-0x10] 变体对象虚表 dword（进图 1-read 可补，R-09）；层虚表已闭（G06） |
 | 4. R14 | **部分闭合**（草案两处修正） | 0xB0CB70=移动对象虚表；+0x190=[Physics+0xAC] 写入者找到；0x1E 出处找到；+0x58/+0x110 在镜像内 | 镜头跟随策略未证实 |
 | 5. +0x3BC | 写入侧闭合，递减侧未证 | 9 处统一 0x1388 写 + 事件场景 + 8 读点；无 sub/dec | 递减机制（需运行时采样） |
 

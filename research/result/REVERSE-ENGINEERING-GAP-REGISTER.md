@@ -70,7 +70,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 |---|---|---|---|---|
 | G25 | Map/Sort | "[eax+0xB4]=有序插入"假设 | SUPERSEDED | 22 候选 slot45 全表无插入语义；备择=属性注册或清理 |
 | G26 | PCOM | VARIANT vt=0xD 语义 | CLOSED-STATIC | =VT_UNKNOWN（0x411FE1 A 级）|
-| G27 | PCOM | 0x427EB3 出参静态矛盾 | OPEN-RUNTIME | 严格映射 [E10]=&V48 → 下游崩溃 |
+| G27 | PCOM | 0x427EB3 出参静态矛盾 | PARTIAL-STATIC | t080 (C-053)：arg1 即 OUT；矛盾仅在静态 Gr2d trivial-setter 绑定下成立；运行时写值待 dump |
 | G28 | Gr2D | slot45 全表分类 | CLOSED-STATIC | R13-SLOT45-CANDIDATES.csv 22 表 |
 
 ## Round 4 更新
@@ -90,6 +90,17 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | G34 | Camera | 0x5A↔0x1E 换算关系 | OPEN-STATIC | 0x1E 已证（C-030）；0x5A 关系无验证站点 |
 | G35 | Map/Sort | Background 键公式复验 | PARTIAL-STATIC | 单一 imul-1000 站点上下文不足（EV-20）|
 
+## 阶段缺口新增（2026-11-13，13 图 P0–P4 范围）
+
+| ID | 模块 | 问题 | 状态 | 证据 |
+|---|---|---|---|---|
+| G36 | Map/Background | 13 图 type1–4 平铺/视差/滚动布置 | PARTIAL-STATIC | 0x669397 分支、0x66A8D5 模式与零步长（历史 MAP-BACKGROUND-REVERSE）；FSDB 278/387 非 type0 |
+| G37 | Map/Obj | 13 图 Obj flow=1/rx 渲染与 flow 动画 | PARTIAL-STATIC | t080: 与背景共用 0x66A8D5（mode=flow, flag=1, this+0x50 注册；flow=0 单实例）C-052；动态绘制目标仍开放 |
+| G38 | Map/Portal | 同图/跨图精确到达与状态转移 | PARTIAL-STATIC | t080: 同图链端到端（C-054 含 0x78/0x258 冷却、Y−10、加密落点）；跨图（C-055 含边界夹取/速度清零）；Foothold 重绑体与 opcode 注册余留 |
+| G39 | Map/Background/Portal | 背景/Portal 精灵帧时序与滚动单位 | PARTIAL-STATIC | t080: 注册链 +0x110、origin +0x6C/+0x74、0x43715C=slot+0x58、相位 VT_I4 传递（C-060）；时间单位运行时绑定 |
+| G40 | Movement | 完整移动子分支与 decrypt 字段归属 | PARTIAL-STATIC | T1/EV-23/26；t080: fh 邻段 +0x4C/+0x50、0xA4F6F1 半宽为调用方参数（C-058）、dt 为调用方供给 |
+| G41 | Movement | 抓绳/爬绳与座位全状态机 | PARTIAL-STATIC | t080: y+=3×键（3.0 常量）+端点夹取（C-056）；座位 user+0x2944 写链与 x±10/y±30（C-057）；抓绳体余留 |
+
 ---
 
 ## 台账统计（由 `research/scripts/generate_cleanroom_deliverables.py` 从 source-of-truth/gaps.csv 自动生成；`<!--GAP-STATS-AUTO-->
@@ -97,10 +108,10 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 |---|---|
 | CLOSED-STATIC | 14 |
 | CLOSED-RUNTIME | 0 |
-| PARTIAL-STATIC | 5 |
+| PARTIAL-STATIC | 12 |
 | OPEN-STATIC | 9 |
-| OPEN-RUNTIME | 5 |
+| OPEN-RUNTIME | 4 |
 | BLOCKED | 1 |
 | SUPERSEDED | 1 |
-| **总计** | **35** |
+| **总计** | **41** |
 <!--/GAP-STATS-AUTO-->

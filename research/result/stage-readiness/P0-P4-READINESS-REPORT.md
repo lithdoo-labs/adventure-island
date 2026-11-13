@@ -1,12 +1,12 @@
 # P0–P4 Stage Readiness Report (13 real maps)
 
-**研究基线**：`design/adventure-field-map-scene` 原 HEAD `0f5ded86722393e7708ad8398ebe1a9a1997161c`，2026-11-13。目标地图列表由 `docs/implementation/2026-11-09-adventure-field-map-scene-design-draft.md` §1.3 指定。本报告为阶段裁决，不取代 `research/source-of-truth/{claims,gaps,evidence}.csv`。详见同目录 **65 行** `P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv`；每行提供原版事实、精度、Claim、Evidence、Gap、样本覆盖、冲突、后续路径、验收与授权。
+**研究基线**：`design/adventure-field-map-scene` 原 HEAD `0f5ded86722393e7708ad8398ebe1a9a1997161c`，2026-11-13；**t080 轮（2026-11-13/14）在 `e676ab0abde6109f3a7bafedac1d542fbdb9a671` 上实际执行定点静态逆向并经独立复核**。目标地图列表由 `docs/implementation/2026-11-09-adventure-field-map-scene-design-draft.md` §1.3 指定。本报告为阶段裁决，不取代 `research/source-of-truth/{claims,gaps,evidence}.csv`。详见同目录 **65 行** `P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv`；每行提供原版事实、精度、Claim、Evidence、Gap、样本覆盖、冲突、后续路径、验收与授权。
 
 ## 0. 结论和证据等级边界
 
 **总体：NOT STAGE-READY。** 不是“不能开工”，而是 **5 个阶段都未满足“全部必要行为有原版证据或正式产品替代且验收边界分开”** 的逐阶段就绪规则。独立的 P0 数据装载、P1 数值键、P2 VR、P3 若干动力子函数、P4 触发和状态提交平台代码可以开工并分别验收。不得因某个阶段总状态为未就绪而阻塞这些模块。
 
-截止本轮，权威台账由 47 Claim / 32 Evidence / 35 Gap 基线更新为 **47 Claim / 32 Evidence / 41 Gap**。G36–G41 是根据当前13图新补的正式缺口；新增 Gap 不等于产生原版机器指令，也不等于旧 Gap 关闭。现分布：CLOSED-STATIC 14 / PARTIAL-STATIC 8 / OPEN-STATIC 12 / OPEN-RUNTIME 5 / BLOCKED 1 / SUPERSEDED 1。本轮没有原始 unpacked EXE/Gr2D DLL，新指令证据为 0 条；原有 EV 的 A/B/R 标签不能自动被提高。**绝不以该统计数量代替工程完成定义**。
+截止本轮，权威台账由 47 Claim / 32 Evidence / 35 Gap 基线更新为 **47→60 Claim / 32→41 Evidence / 41 Gap**（t080 新增 C-048..C-060、EV-33..EV-41，全部来自实际反汇编并经独立复核）。现 Gap 分布：CLOSED-STATIC 14 / PARTIAL-STATIC 12 / OPEN-STATIC 9 / OPEN-RUNTIME 4 / BLOCKED 1 / SUPERSEDED 1。**上一轮"没有原始 EXE/DLL、新指令证据 0 条"的阻塞在本轮解除**——`.work` 内哈希匹配的原始输入被主 Agent 与 Reviewer 双方独立核验并使用。新增 Critical 结论 C-048..C-058、C-060 经 Reviewer ACCEPT（含修正并入）后定 CLOSED-STATIC；C-059 经 REJECT→字节重验后定 CLOSED-STATIC/A。**绝不以该统计数量代替工程完成定义**。
 
 下面三种信息必须独立：
 1. **原版可信事实**：例如 C-001/EV-01 计算 Tile 键、C-026/EV-21 VR±(400,300)、C-034/EV-26 Physics 字段；以及已有反汇编报告中精确到 VA 的局部函数。
@@ -81,7 +81,9 @@
 
 ## 2. 最小验收门与建议实施顺序
 
-1. **先交付 P0 中已闭合源表/Physics/Tile与Obj键的 Reader 和 Builder诊断测试**；同一次构建必须让13图 type/flow unsupported 报确切地图和路径，不能静默“成功”。
+> **t080 插入**：第 2 条的先决条件"若 DLL/EXE 静态输入不可取得"已解除——静态输入本轮取得并核验，G36/G37 静态布置层、G38 落点链、G40/G41 爬绳与座位、G39 注册链已闭合（详见 TARGETED-STATIC-FORENSICS-V2.md / INDEPENDENT-STATIC-REVIEW.md）；矩阵 P4-04 升 RE-READY。G36/G37/G39 的动态子层仍需一次最小运行时捕获（slot25 出参 + view 值 + slot58 双采样）或产品等价授权。
+
+1. **先交付 P0 中已闭合源表/Physics/Tile与Obj键的 Reader 和 Builder诊断测试**；同一次构建必须让13图 type/flow unsupported 报确切地图和路径，不能静默“成功”。（静态语义已证但 v1 ABI 无字段——产品发布路径见 DESIGN-DECISION-BACKLOG D-BACK/D-OBJ-FLOW。）
 2. **对 G36/G37/G39 做定点原版流图补证**。若 DLL/EXE 静态输入不可取得，明确按“待外部合法研究输入”记录；不得拿临时画面称13图完成。产品批准替代绘制规则后才可发布。
 3. **P1 可以先做 type0、Tile/Obj产品顺序与首帧Portal**，并单独验收；人物精确插层别混入该子任务。
 4. **P2 先实现 Frozen world/world−camera、VR/fallback/resize，再批准具体中心跟随产品规则**；不等 G10 全部原版 Camera 才能开工。

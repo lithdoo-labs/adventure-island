@@ -34,3 +34,9 @@ G32,,R13-SLOT45-CANDIDATES.csv,0x2F530 false positive,closed
 G33,,MAP-TILE-OBJ-SORT-REVERSE.md,equal-key policy,split from G01 for clarity
 G34,,design-draft §16.3,0x5A vs 0x1E,new gap from clean-room audit
 G35,,MAP-R13-FINAL-ROUND4.md §3,background key,split from G24 scope
+G36,,MAP-BACKGROUND-REVERSE.md;TARGETED-FORENSICS-RESULT.md,type1-4 tiling/parallax/scroll,new stage gap from 13-map requirement; no runtime item registered
+G37,,MAP-BACKGROUND-REVERSE.md;TARGETED-FORENSICS-RESULT.md,obj flow rendering,new stage gap from 13-map requirement; no runtime item registered
+G38,,docs/implementation/2026-11-09-adventure-field-map-scene-design-draft.md §16 M12/R10,portal arrival/state transfer,design-draft address chains not yet in canonical C/EV; static-first
+G39,,MAP-BACKGROUND-REVERSE.md,animation/scroll clock,new stage gap; frame registration proven but time chain unbound
+G40,,docs/implementation/2026-11-09-adventure-field-map-scene-design-draft.md §6.5,movement subbranches/decrypt ownership,draft address-level traces pending independent byte verification
+G41,,docs/implementation/2026-11-09-adventure-field-map-scene-design-draft.md §6.6,rope/seat state machine,draft address-level traces pending independent byte verification

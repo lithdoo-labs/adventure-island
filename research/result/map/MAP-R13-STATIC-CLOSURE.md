@@ -52,8 +52,8 @@ tile/obj 实例加载（EXE 0x666C0D/0x6688BE）:
 
 | 问题 | 答案 | 等级 |
 |---|---|---|
-| Tile/Obj 同容器？ | 同一 CWzGr2DLayer → 各自 CreateRawCanvas → 同类容器插入 | VERIFIED |
-| 同 this？ | 层同（[0xBE2788]），画布按创建参数区分 | VERIFIED |
+| Tile/Obj 同容器？ | ~~同一 CWzGr2DLayer → 各自 CreateRawCanvas → 同类容器插入~~ **SUPERSEDED by R4**：Obj 用独立栈封装通道（0x43286E 族），非 [eax+0xB4]。见 MAP-R13-FINAL-ROUND4.md | ~~VERIFIED~~ → **CONTRADICTED** |
+| 同 this？ | ~~层同（[0xBE2788]）~~ **SUPERSEDED**：Obj 用 [ebp-0x1C] 根（不同 this）。Tile this = [0xBE2788] 维持 | ~~VERIFIED~~ → **PARTIAL** |
 | 排序方向 | 键升序（小键先画：层 0 垫底） | STRONGLY SUPPORTED |
 | 相等键 | WZ 顺序保持（稳定插入，Henesys 实测） | VERIFIED（样本）|
 | Background | 独立键空间 index×1000 | VERIFIED（旧档）|

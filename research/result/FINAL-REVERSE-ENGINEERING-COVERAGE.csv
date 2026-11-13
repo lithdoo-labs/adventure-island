@@ -1,0 +1,49 @@
+module,claim,current_status,evidence_grade,report,runtime_needed
+Map/Sort,Tile key formula z+10*(layer*3000-zM)-1073721834,CLOSED-STATIC,A,"MAP-R13-STATIC-CLOSURE.md; MAP-R13-FINAL-ROUND4.md",No
+Map/Sort,Obj key formula layer*30000+z-1073739824,CLOSED-STATIC,A,MAP-R13-FINAL-ROUND4.md,No
+Map/Sort,Tile/Obj same key space design,CLOSED-STATIC,A,MAP-R13-FINAL-ROUND4.md,No
+Map/Sort,Tile/Obj DIFFERENT dispatch channels (not shared container),CLOSED-STATIC,A,MAP-R13-FINAL-ROUND4.md,No
+Map/Sort,slot45 = NOT insert in all 22 candidate vtables,CLOSED-STATIC,A,"R13-SLOT45-CANDIDATES.csv; MAP-R13-FINAL-ROUND4.md",No
+Map/Sort,Comparator body location,OPEN-STATIC,-,MAP-R13-FINAL-ROUND4.md,No
+Map/Sort,Background key index*1000,PARTIALLY-STATIC,B,MAP-TILE-OBJ-SORT-REVERSE.md,No
+Map/Sort,[eax+0xB4] object identity (tile path),OPEN-RUNTIME,-,MAP-R13-DISPATCH-COMPLETE.md,Yes(R-09: bp 0x666F77)
+Map/Sort,Avatar insertion key,OPEN-RUNTIME,-,MAP-R13-FINAL-ROUND4.md,Yes(avatar registration path)
+Avatar,zmap 149-layer ordering model,CLOSED-STATIC,A,63-avatar-occlusion.md,No
+Avatar,26 face emotions + 3 anchors brow/navel/muzzle,CLOSED-STATIC,A,"STRING-INTERN-TABLE.md; INTERN-TABLE-STRINGS.csv",No
+Avatar,Avatar anchor synthesizer = Gr2D 0x143d8 (4-component float transform),CLOSED-STATIC,A,avatar/AVATAR-OCCLUSION-ROUND4.md,No
+Avatar,+0x38 VARIANT array hypothesis,PARTIALLY-STATIC,C,avatar/AVATAR-OCCLUSION-ROUND4.md,No
+Avatar,Avatar vs Obj cross-sorting,OPEN-RUNTIME,-,MAP-R13-FINAL-ROUND4.md,Yes
+Camera,VR fold ±400/±300 (viewport half-size),CLOSED-STATIC,A,MAP-CAMERA-REVERSE.md,No
+Camera,Camera follow/deadzone/smoothing,OPEN-RUNTIME,-,camera/CAMERA-ROUND4-FORENSICS.md,Yes([0xBDF54C] dump)
+Movement,Decrypt-pair {value;adjacent-key} structure (14 pairs),CLOSED-STATIC,A,"PHYSICS-MAIN-LOOP.md; SEC16-FORENSICS.md",No
+Movement,RNG xorshift/MT state @0xBDF028 + tempering,CLOSED-STATIC,A,SEC16-FORENSICS.md,No
+Movement,move+0x190 = [Physics+0xAC] + step 0x1E,CLOSED-STATIC,A,SEC16-FORENSICS.md,No
+Movement,Physics and Move are SEPARATE objects,CLOSED-STATIC,A,movement/MOVEMENT-PHYSICS-ROUND4.md,No
+Movement,+0x3BC write side (9 sites 0x1388=5000),CLOSED-STATIC,A,SEC16-FORENSICS.md,No
+Movement,+0x3BC decrement mechanism,OPEN-STATIC,-,movement/MOVEMENT-PHYSICS-ROUND4.md,No
+Movement,+0x61 field structural attribution,OPEN-STATIC,-,SEC16-FORENSICS.md,No
+Combat,Attack variant selection variant[rand%count],CLOSED-STATIC,A,"ATTACK-TABLE-STRUCTURE.md; SEC16-FORENSICS.md",No
+Combat,Attack table 18x{count;variant[3]},CLOSED-STATIC,A,ATTACK-TABLE-STRUCTURE.md,No
+Combat,RNG sole-consumer (no other callers),CLOSED-STATIC,A,combat/COMBAT-ROUND4-FORENSICS.md,No
+Combat,Attack->alert timer linkage (0x935526 dual-write),PARTIALLY-STATIC,B,combat/COMBAT-ROUND4-FORENSICS.md,No
+Audio,WINMM static IAT import (4 waveOut ordinals),CLOSED-STATIC,A,"R13-PE-IAT-FORENSICS.md; audio/AUDIO-ROUND4-FORENSICS.md",No
+Audio,Sound naming Sound/field.img/<map>/<event>,CLOSED-STATIC,A,UI-FULL-MAP.md,No
+Audio,Protocol trigger environmentChange type 3/4/6,CLOSED-STATIC,A,S2C-COMPLETE.md,No
+Audio,WINMM ordinal->function-name mapping,OPEN-STATIC,-,audio/AUDIO-ROUND4-FORENSICS.md,No
+Protocol,705 methods with real sequences,CLOSED-STATIC,A,PROTOCOL-MASTER-S2C.csv + PROTOCOL-MASTER-C2S.csv,No
+Protocol,100 opcode numeric values confirmed,CLOSED-STATIC,A,PROTOCOL-BY-OPCODE.csv,No
+Protocol,367 opcode names without numeric values,BLOCKED,-,protocol/PROTOCOL-ROUND4-FORENSICS.md,No(server properties)
+Protocol,AES-256-ECB + rolling key + FUNNY_BYTES,CLOSED-STATIC,A,"CRYPTO docs; synthetic client verified",No
+UI,58 path-group WZ structure map,CLOSED-STATIC,A,UI-WINDOW-MAP.csv,No
+UI,240-site property binding = uniform data-binding layer,CLOSED-STATIC,B,ui/UI-WINDOW-ROUND4.md,No
+UI,Per-window event logic (26+ windows),OPEN-STATIC,-,ui/UI-WINDOW-ROUND4.md,No
+DLL/COM,ATL tech stack (MFC+ATL+STL+boost; 67 library sigs),CLOSED-STATIC,A,TECH-STACK.md,No
+DLL/COM,32 RTTI class names (5 DLLs),CLOSED-STATIC,A,"RTTI sweep; R13-RTTI-VTABLE-FORENSICS.md",No
+DLL/COM,21 real vtables + 7 ATL intmaps,CLOSED-STATIC,A,"DLL-VTABLES-STATIC.csv; R13-DISPATCH-RESOLUTION.csv",No
+DLL/COM,3 dispatch channels (vtable/prop-PUT/stack-package),CLOSED-STATIC,B,DLL-COM-ROUND4.md,No
+DLL/COM,Cross-DLL property put/get isomorphism (+0xCC/+0xD0 vs +0x8C/+0x90),CLOSED-STATIC,A,DLL-COM-ROUND4.md,No
+DLL/COM,Per-method semantics (remaining methods),OPEN-STATIC,-,DLL-COM-ROUND4.md,No
+PCOM,[0xBE2788] = CWzGr2DLayer (IID E576EA33; vtable 0x2D140),CLOSED-STATIC,A,"MAP-R13-STATIC-CLOSURE.md v2; R13-PE-IAT-FORENSICS.md",No
+PCOM,VT_UNKNOWN(0xD) VARIANT packer 0x411FE1,CLOSED-STATIC,A,MAP-R13-DISPATCH-COMPLETE.md,No
+PCOM,0x427EB3 = property PUT wrapper (240 sites),CLOSED-STATIC,A,"R13-427EB3-FORENSICS.md; MAP-R13-DISPATCH-COMPLETE.md",No
+PCOM,0x427EB3 out-param static contradiction,OPEN-RUNTIME,-,MAP-R13-DISPATCH-COMPLETE.md,Yes(same as R-09)

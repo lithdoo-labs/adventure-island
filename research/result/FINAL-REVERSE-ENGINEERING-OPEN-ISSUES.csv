@@ -1,0 +1,10 @@
+id,module,issue,status,evidence_grade,minimal_verification,blocks_abi_freeze
+R-09,Map/Sort,"[eax+0xB4] object vtable (tile path) — resolves insert/dtor/other + arg-order + G25/G27",OPEN-RUNTIME,-,"bp 0x666F77; dump ESI/[ESI]/[EBP-0x10]/48B",No(keys frozen independently)
+R-03,Avatar,Avatar insertion key construction,OPEN-RUNTIME,-,in-map capture at avatar registration,No
+R-04,Camera,Camera follow/deadzone/smoothing parameters,OPEN-RUNTIME,-,"in-map [0xBDF54C] dump; 0x66E600 regs",No(rendering frozen)
+R4-02,Map/Sort,Comparator body (stack-package callees 0x43286E/0x44484B),OPEN-STATIC,-,disassemble 4 stack-package functions,No
+R4-03,Movement,+0x3BC decrement mechanism,OPEN-STATIC,-,read FUN_6292f5 family for computed-displacement,No
+R4-04,Movement,+0x61 structural attribution,OPEN-STATIC,-,containing-fn family analysis,No
+R4-05,Avatar,+0x38 VARIANT array hypothesis,OPEN-STATIC,-,read stance-switch writers,No
+R4-06,Audio,WINMM ordinal->function-name mapping,OPEN-STATIC,-,obtain era winmm.dll parse exports,No
+R4-07,Protocol,367 opcode numeric values,BLOCKED,-,obtain server properties file,No

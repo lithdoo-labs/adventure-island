@@ -1,0 +1,9 @@
+stage,address,role,evidence_grade,detail
+birth-wz-read,0x411FE1,WZ property read into VARIANT local,A,call at 0x666ea1 with [ebp-0x38]
+register-put,0x427EB3,PutProperty(layer...) - 240 callsites universal helper,A,E8 scan; slot25=0x50403FBE setter [this+0xCC]
+layer-store,+0xCC,layer member slot for registered object,A,0x50403FBE: mov [eax+0xCC] ecx
+use-dispatch,0x666F7D,call [obj_vt+0xB4] semantics depend on concrete class,B,push edi(key); push esi(obj); HRESULT check
+cleanup-variant,0x4029B7,VARIANT/BSTR destructor on [ebp-0x68],A,call at 0x666f9c
+release,vtbl+8,Release on [ebp-0x20] holder,A,0x666fba: call [ecx+8]
+destroy-if-0x2E2CC,0x50404FB1,scalar deleting dtor (slot45): vtable swap to 0x5042E380 + base dtor 0x5040C8AB + conditional delete via 0x5043A088,A,full disasm
+global-clear,0x994B89,shutdown: [0xBE2788]=0,A,decompiled direct

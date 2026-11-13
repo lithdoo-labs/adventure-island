@@ -1,3 +1,10 @@
+
+> **2026-11-13 Round-3 修订**：
+> 1. 键公式（本文档主体）维持 VERIFIED（lea 机器码复核通过）。
+> 2. `[eax+0xB4]` 的"推入共享容器"表述**降级为 B 级待定**：CWzRawCanvas 具体虚表 0x5042E2CC 的 slot45 实测为删除型析构；插入语义依 [ebp-0x10] 对象具体类（variant 运行时值，R-09）。
+> 3. `0x427EB3` = 通用属性 PUT 助手（240 调用点），非容器创建器。
+> 详见 MAP-R13-ROUND3-DISPATCH.md / MAP-RAWCANVAS-CONTAINER-SEMANTICS.md。
+
 # Tile / Obj 排序
 
 地址是解包映像 VA。这份映像里没有 `qsort` 这个字符串。Tile 键算完后只作为单个整数交给虚表 `+0xB4`：`0x666F72` 调用 `0x42944A`，随后 `push edi; push esi; call [eax+0xB4]`。Obj 键走同一类虚调用。调用点没有第二个键，也没有相等时的次序参数。方法体不在本映像，所以比较方向和相同键次序仍然 UNKNOWN。下面是加载时算出来的整数键。

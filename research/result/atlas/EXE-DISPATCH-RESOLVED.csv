@@ -8443,3 +8443,5 @@ raw:*param_5 + 0x1c,0x66efac,7,Shape2D.dll,0xd9c0,0x2b11,True,small
 raw:param_2 + 0x18,0x66fa9b,6,Shape2D.dll,0xd9c0,0x2b11,True,small
 raw:param_1[7] + 8,0x673b6c,2,Shape2D.dll,0xd9c0,0x2b11,True,small
 DAT_00bd7ba8,0x679325,0,Shape2D.dll,0xd9c0,0x2b11,True,small
+
+# CORRECTION 2026-11-13: DAT_00be2788 = CWzGr2DLayer (Gr2D_DX8, IID E576EA33, vtable 0x5042D140); Shape2D attributions superseded (R13-COM-INTERFACE-RESOLUTION.csv)

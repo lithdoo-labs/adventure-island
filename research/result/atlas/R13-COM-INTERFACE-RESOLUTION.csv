@@ -1,10 +1,7 @@
-guid,guid_va_in_exe,location,role,companion_class,evidence_grade,detail
-E576EA33-4F08D465-8DE7B1AA-D9E63EF7,0xBA0570,Gr2D_DX8.dll 0x50435120,intmap@0x5042D1E0 {this IID offset 0},CWzGr2DLayer (RTTI .?AVCWzGr2DLayer@@),A,"creation IID @0xA0449B (factory [0xBE1FB0], REGDB_E_CLASSNOTREG); error tag @0x427EF5; QI-error pair 0x50408BF0/0x50408C17; vtable 0x5042D140"
-6DC8C7CE-44208E81-604BF6B4-DFFCD5B7,0xBA0510,Gr2D_DX8.dll 0x50436540,intmap@0x5042E520 entry[0] {offset 0},CWzRawCanvas (RTTI .?AVCWzRawCanvas@@),A,"error tag @0x666F85 (tile path); concrete vtable 0x5042E2CC; inheritance chain F28BD1ED>4CFB57C7>01110BC6>IUnknown"
-F28BD1ED-4F923DEB-EF10EC9E-B43F1C5A,0xBA0500,Gr2D_DX8.dll 0x50436390,intmap entry (2nd level),base interface of RawCanvas chain,B,intmap@0x5042E520[1]
-4CFB57C7-40B3EAE3-274B98AC-2A64E350,(exe table),Gr2D_DX8.dll 0x50436560,intmap entry (3rd level),interface ancestor,B,intmap@0x5042E520[2]
-01110BC6-4FF1D843-F69C8C91-15FB3246,(exe table),Gr2D_DX8.dll 0x50436550,intmap entry (4th level),interface ancestor,B,intmap@0x5042E520[3]
-312126F0-4111C399-960FAB8E-7C6B0BA3,(exe table),Gr2D_DX8.dll 0x504364D0,intmap@0x5042E600 {offset +4},multi-inheritance object member,B,TRUE MI: 3 vtable ptrs (+0/+4/+8)
-905BE84C-4CDFB183-4FC1C69D-1AE39341,(exe table),Gr2D_DX8.dll 0x504365B0,intmap@0x5042E600 {offset +8},multi-inheritance object member,B,TRUE MI
-DF0B3D60-101B548F-0008658E-19D12B2B,(exe table),Gr2D_DX8.dll 0x504365A0,intmap@0x5042E600 {offset 0},multi-inheritance primary,B,TRUE MI
-00000000-0000-0000-C000-000000000046,(canonical),all,IUnknown terminator (0x50435110 pattern),IUnknown,A,intmap terminators
+dll,class_name,iid,interface_offset,vtable_rva,slot_count,method_index,method_rva,method_semantics,confidence,evidence_source
+Gr2D_DX8.dll,CWzGr2DLayer,E576EA33-4F08D465-8DE7B1AA-D9E63EF7,0,0x2D140,40,25/26,0x3FBE/0x3FD1,put [arg1+0xCC]=arg2 / get [arg1+0xD0]+AddRef (cdecl arg1=object),A,R31-C sibling-convention scan + exe 240-site census + [0xBE2788] creation chain
+Gr2D_DX8.dll,"CWzRawCanvas (proximity, no COL)",6DC8C7CE-44208E81-604BF6B4-DFFCD5B7,0,0x2E2C4|0x2E2CC (ambiguous start),151|149,45,0x2A610|0x4FB1,purecall | deleting-dtor — NOT insert under either reading,A(joint),R31-B start-ambiguity + R31-D max-run scan
+Gr2D_DX8.dll,unknown (3-interface MI object),DF0B3D60-101B548F-0008658E-19D12B2B,0/+4/+8,intmap@0x2E600,-,-,-,true multiple-inheritance (3 vptrs at 0/4/8),B,intmap offset fields
+Shape2D.dll,CWzVector2D family,"(name-based L""Vector2D"")",0,0xC2C8,85,45,0x7EB0,multi-field getter: [edi+0x24] guard; fills 4 out-params from [edi+0x1C/+0x20/+...],A,R31G full disasm
+NameSpace.dll,CWzNameSpace family,(name-based),0,0x17548,125,45,0x22E7,com-check/throw (E_POINTER-class guard),A,R31G classification
+ALL (meta),-,-,-,22 tables,>=46,45,various,"NO candidate shows container/insert semantics (5 purecall, 5 throw, 3 dtor, 1 getter, 1 convert, 7 complex)",A,R13-SLOT45-CANDIDATES.csv + R31G full disasm

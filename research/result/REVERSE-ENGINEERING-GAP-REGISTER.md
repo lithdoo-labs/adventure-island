@@ -61,3 +61,12 @@
 | G22 | Gr2D | RawCanvas 具体虚表 | **CLOSED-STATIC** | =0x5042E2CC（149 槽，衔接 intmap 0x2E520）；slot45=删除型析构（0x50404FB1） |
 | G23 | PCOM | 0x427EB3 身份 | **CLOSED-STATIC** | =属性 PUT 包装（层 slot25 setter +0xCC / getter +0xD0）；推翻"CreateRawCanvas" |
 | G24 | Map/Sort | [eax+0xB4] 最终语义 | **OPEN-RUNTIME**（收窄） | 依 [ebp-0x10] 具体类（variant 运行时值）；候选已列 R13-DISPATCH-RESOLUTION.csv |
+
+## Round 3.1 Task2 更新（2026-11-13）
+
+| ID | 模块 | 问题 | 状态 | 说明 |
+|---|---|---|---|---|
+| G25 | Map/Sort | "[eax+0xB4]=有序插入"假设 | **CONTRADICTED-WEAK** | 22 候选 slot45 全表无插入语义（5 purecall/5 throw/3 dtor/1 getter/1 convert/7 complex）；备择：属性注册或清理调用；终裁待 R-09 |
+| G26 | PCOM | VARIANT vt=0xD 语义 | **CLOSED-STATIC** | = VT_UNKNOWN（0x411FE1: [esi]=0xD, [esi+8]=obj, cond AddRef；与 NameSpace slot7 互证） |
+| G27 | PCOM | 0x427EB3 出参静态自相矛盾 | **OPEN-RUNTIME** | 严格映射 [E10]=&V48 → 下游崩溃；3 种解释待 0x666F77 微捕获（R-09 终版方案） |
+| G28 | Gr2D | slot45 全表分类 | **CLOSED-STATIC** | R13-SLOT45-CANDIDATES.csv + R31G：22 表 5 DLL 全录 |

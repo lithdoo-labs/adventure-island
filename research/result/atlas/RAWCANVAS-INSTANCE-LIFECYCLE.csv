@@ -1,9 +1,13 @@
 stage,address,role,evidence_grade,detail
-birth-wz-read,0x411FE1,WZ property read into VARIANT local,A,call at 0x666ea1 with [ebp-0x38]
-register-put,0x427EB3,PutProperty(layer...) - 240 callsites universal helper,A,E8 scan; slot25=0x50403FBE setter [this+0xCC]
-layer-store,+0xCC,layer member slot for registered object,A,0x50403FBE: mov [eax+0xCC] ecx
-use-dispatch,0x666F7D,call [obj_vt+0xB4] semantics depend on concrete class,B,push edi(key); push esi(obj); HRESULT check
-cleanup-variant,0x4029B7,VARIANT/BSTR destructor on [ebp-0x68],A,call at 0x666f9c
-release,vtbl+8,Release on [ebp-0x20] holder,A,0x666fba: call [ecx+8]
-destroy-if-0x2E2CC,0x50404FB1,scalar deleting dtor (slot45): vtable swap to 0x5042E380 + base dtor 0x5040C8AB + conditional delete via 0x5043A088,A,full disasm
-global-clear,0x994B89,shutdown: [0xBE2788]=0,A,decompiled direct
+sef-frame,0x66677C..0x666B6D,[ebp-0x10] = esp at 8 try-block boundaries,A,disasm R31E2 (mov [ebp-0x10],esp x8)
+ebx-zero,0x666C20,EBX=0 base for HRESULT cmp,A,xor ebx,ebx; cmp eax,ebx; jge @0x666F83 = SUCCEEDED
+wz-read-chain,0x666C61..0x666E6D,five 0x403211 property reads (u,no,x,y,zM sources),A,KEY-annotated R31E2
+variant-pack,0x411FE1,VARIANT{vt=0xD(VT_UNKNOWN),obj=arg1,+cond AddRef},A,R31F disasm: [esi]=0xD; [esi+8]=eax; call [ecx+4]
+variant-fill,0x666EA1,V38 = {0xD, loopvar} via 0x411FE1,A,call site with push 1; push [ebp-0x14]
+canvas-reg,0x427EB3 -> layer slot25,[layer+0xCC] = V20(canvas obj from WZ),A,R31-C: slot25 0x50403FBE [arg1+0xCC]=arg2
+out-write-CONTRADICTION,0x427F01-0x427F09,*arg1 = [ebp+0x24] (=arg8=&V48) => [ebp-0x10]=&V48 literal reading crashes downstream,B,MAP-R13-DISPATCH-COMPLETE section; OPEN-RUNTIME R-09
+key-compute,0x666F5D-0x666F68,edi = z + 10*(layer*3000 - zM) - 1073721834,A,imul 0xBB8; lea x5; lea disp 0x3FFFB1EA (signed; no overflow for layer<=7)
+smartptr-get,0x42944A,eax = [ebp-0x10] (E_POINTER guard),A,R31F full
+slot45-call,0x666F7D,call [obj_vt+0xB4](esi=obj edi=key) — semantics UNRESOLVED across all 22 candidates,R,R-09 micro-capture: bp 0x666F77 dump ESI/[ESI]/[EBP-0x10]/36B
+cleanup,0x666F94..0x666FBD,VARIANT dtors (V68/V20) + [V20] Release + [ebp-0x10] null-check,A,4029b7 calls + [ecx+8] + cmp,ebx
+release-path,0x666FBD+,cmp [ebp-0x10],0 then Release holder,A,disasm tail

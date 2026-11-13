@@ -29,3 +29,14 @@ VM Windows 7 激活失败（C004F009）阻塞登录（ROUND8-S2C-FIX-CAPTURE-DIA
 | R-09 | [ebp-0x10] 对象具体虚表（tile 路径 @0x666F7D） | 进图转储在 0x666F7D 前寄存器快照或 [[ebp-0x10] 链] 1 dword | 候选集已收窄至 R13-DISPATCH-RESOLUTION.csv 所列；slot45 在不同实现中语义不同（析构 vs 插入 vs 解码） |
 
 （R-01/R-02 的 [0xBE2788] 虚表问题已在 Round-2/3 静态闭合为 0x5042D140/CWzGr2DLayer；容器插入语义移至 R-09。）
+
+## Round 3.1 Task2 终版捕获方案（R-09 FINAL）
+
+| 步骤 | 内容 |
+|---|---|
+| 断点 | **0x666F77**（tile 路径 smartptr GET 返回后）/ obj 路径同构点 |
+| 寄存器 | ESI、EAX |
+| 内存 | [ESI]（虚表指针）、[EBP-0x10]、ESI-8..ESI+0x28（48 字节对象头）|
+| 长度 | 4+4+48 字节 |
+| 预期 | [ESI] = 22 候选之一的虚表 VA → slot45 终裁；同时裁决 G27 参数序 |
+| 判据 | 若 [ESI] ∈ Gr2D 0x2E2C4 族 → 插入假设彻底推翻（purecall/dtor）；若 Shape2D 0xC2C8 → 属性 getter；若 7 complex 之一 → 读体定论 |

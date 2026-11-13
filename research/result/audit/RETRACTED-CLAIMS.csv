@@ -1,0 +1,12 @@
+claim_id,original_claim,original_status,original_grade,current_status,current_grade,superseded_by,correction_reason,affected_files
+RC-01,0x427EB3 = CreateRawCanvas,VERIFIED,A,SUPERSEDED,-,R13-427EB3-FORENSICS,"slot25 is a trivial setter [arg1+0xCC]=arg2; not a creator","MAP-R13-STATIC-CLOSURE.md;MAP-R13-ROUND3-DISPATCH.md"
+RC-02,slot45 = ordered insert,VERIFIED,A,SUPERSEDED,-,R13-SLOT45-CANDIDATES.csv,"all 22 candidates classified: 0 insert semantics","MAP-R13-STATIC-CLOSURE.md;MAP-TILE-OBJ-SORT-REVERSE.md"
+RC-03,Tile/Obj same container,VERIFIED,A,SUPERSEDED,-,MAP-R13-FINAL-ROUND4.md,"Obj uses stack-package cdecl 0x43286E family not [eax+0xB4]","MAP-R13-STATIC-CLOSURE.md"
+RC-04,0x5042D0A0 = runtime patch table,INFERRED,C,SUPERSEDED,-,R13-PE-IAT-FORENSICS,"is __imp__purecall IAT entry (IMAGE_IMPORT_DESCRIPTOR walk proof)","MAP-R13-ROUND3-DISPATCH.md"
+RC-05,RTTI verified CWzRawCanvas identity,VERIFIED,A,SUPERSEDED,-,R13-RTTI-VTABLE-FORENSICS,"zero COL pointers; name binding is proximity inference only","MAP-R13-STATIC-CLOSURE.md"
+RC-06,vtable start = 0x2E2CC (definitive),VERIFIED,A,PARTIAL-STATIC,B,R13-RTTI-VTABLE-FORENSICS,"0x2E2C4 vs 0x2E2CC ambiguity (both intmap-adjacent); slot45 differs","MAP-R13-ROUND3-DISPATCH.md"
+RC-07,Concrete vtable = CWzRawCanvas,VERIFIED,A,PARTIAL-STATIC,C,RAWCANVAS-CLASS-HIERARCHY.md,"no COL chain; intmap adjacency proves vtable-intmap link not class name","MAP-R13-STATIC-CLOSURE.md"
+RC-08,SEC16 0x9C0EC0 = +0x58 writer,INFERRED,B,SUPERSEDED,-,R31B forensics,"is 4-IID QueryInterface dispatcher","SEC16-FORENSICS.md"
+RC-09,SEC16 0x9BC401 = +0x110 writer,INFERRED,B,SUPERSEDED,-,R31B forensics,"is move position/state decrypt-serializer","SEC16-FORENSICS.md"
+RC-10,0x666F7D cmp = comparator,INFERRED,B,SUPERSEDED,-,MAP-R13-DISPATCH-COMPLETE.md,"is HRESULT check (EBX=0 proven at 0x666C20)","SEC16-FORENSICS.md;MAP-R13-ROUND3-DISPATCH.md"
+RC-11,Gr2D vtable 0x2F530 = 120 slots,VERIFIED,A,SUPERSEDED,-,AV-R4-4,"slot45 points into ASCII strings; false positive","R13-SLOT45-CANDIDATES.csv;R13-DISPATCH-RESOLUTION.csv"

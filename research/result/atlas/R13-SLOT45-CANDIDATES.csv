@@ -6,7 +6,7 @@ Gr2D_DX8.dll,0x2d204,47,0x5fc8,other,"push esi ; mov esi, ecx ; call 0x50407399 
 Gr2D_DX8.dll,0x2e2c4,152,0x2a610,import-thunk,"jmp dword ptr [0x5042d0a0] ; cmp dword ptr [0x5043a200], -1 ; jne 0x5042a62b ; push dword ",A
 Gr2D_DX8.dll,0x2e8b4,95,0x2a610,import-thunk,"jmp dword ptr [0x5042d0a0] ; cmp dword ptr [0x5043a200], -1 ; jne 0x5042a62b ; push dword ",A
 Gr2D_DX8.dll,0x2f2cc,136,0x1b84d,other,"push ebp ; mov ebp, esp ; mov eax, dword ptr [ecx + 0x1050] ; imul eax, dword ptr [ebp + 8",C
-Gr2D_DX8.dll,0x2f530,120,0x3022c,other,"dec ecx ; outsb dx, byte ptr [esi] ; jbe 0x50430291 ; insb byte ptr es:[edi], dx ; imul es",C
+Gr2D_DX8.dll,0x2f530,120,0x3022c,FALSE_POSITIVE(string-data),"dec ecx ; outsb dx, byte ptr [esi] ; jbe 0x50430291 ; insb byte ptr es:[edi], dx ; imul es",C
 Gr2D_DX8.dll,0x366d0,55,0x132af,import-thunk,"push ebp ; mov ebp, esp ; push 1 ; call 0x5041dbca ; pop ebp ; jmp dword ptr [0x50436784] ",A
 Gr2D_DX8.dll,0x367b8,57,0x143d8,other,"push ebp ; lea ebp, [esp - 0x5c] ; sub esp, 0xa0 ; push esi ; mov esi, dword ptr [ebp + 0x",C
 NameSpace.dll,0x170f8,69,0x1dc6,other,"push ebp ; mov ebp, esp ; push dword ptr [ebp + 0x18] ; push dword ptr [ebp + 0x14] ; push",C

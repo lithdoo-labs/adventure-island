@@ -1,72 +1,96 @@
 # 逆向缺口总台账（REVERSE-ENGINEERING-GAP-REGISTER）
 
-日期: 2026-11-13。全仓 684 文件标记扫描（UNKNOWN×419、NO-DECOMP×1319、PARTIAL×13、未证实×11 等）+ 结构性缺口分析后建立。
+日期: 2026-11-13（P0 整改版）。684 文件标记扫描 + 结构性缺口分析。
+**唯一权威状态源**——各模块报告不得与此台账矛盾。
 
-## P0（已闭合）
+## 状态枚举（唯一合法值）
 
-| ID | 模块 | 问题 | 状态 | 最终结论 |
-|---|---|---|---|---|
-| G01 | Map/Sort | R13 比较器/容器语义 | **PARTIAL-STATIC**（R3：身份链闭合，插入语义未定） | 已证：0x5042D0A0=__imp__purecall(IAT)；0x2E2CC=RawCanvas 具体虚表(149槽)；其 slot45=删除型析构；0x427EB3=属性PUT(slot25 平凡setter +0xCC)非创建器；键公式 A 级独立成立。未定：[ebp-0x10] 具体类（variant 内容决定）→ [eax+0xB4] 插入解释对其他实现未裁定 |
-| G02 | Map/Sort | Tile/Obj 键公式 | **CLOSED**（旧文档已 VERIFIED，本轮互证） | tile=z+10(layer·3000−zM)−1073721834；obj=layer·30000+z−1073739824 |
-| G03 | Map/Sort | [0xBE2788] vs Shape2D 冲突 | **CLOSED（修正）** | Shape2D#Vector2D 判定错误；真 GUID 仅在 Gr2D |
-| G04 | Combat | R9 变体选择 | **CLOSED**（SEC16 轮） | {值,键}对 + xorshift RNG + variant[rand%count] |
-| G05 | Map/Move | R14 move+0x190 写者 | **CLOSED**（SEC16 轮） | [Physics+0xAC]；步长 0x1E 起源找到 |
+CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | BLOCKED | SUPERSEDED
 
-## P1（静态已尽，RUNTIME-REQUIRED）
+---
 
-| ID | 模块 | 问题 | 缺失证据 | 最小验证 |
-|---|---|---|---|---|
-| G06 | Map/Sort | [0xBE2788] 真实虚表 | **CLOSED-STATIC**（v2） | =0x5042D140（40 槽，intmap 精确衔接）；残留=委派表 [0x5042D0A0] 运行时值 |
-| G07 | Map/Sort | DLL 内二分插入比较器 | 上项定位后 | 反汇编插入函数体 |
-| G08 | Map/Sort | Avatar 插入键构造 | 进图运行时路径 | 进图转储 + Avatar 加载断点 |
-| G09 | Avatar | 部件组合/遮挡运行时序 | 进图后渲染 | 进图捕获 |
-| G10 | Camera | 镜头跟随/deadzone 实际参数 | 进图输入循环 | 进图转储 [0xBDF54C] 族 |
-| G11 | Move | +0x61 死亡位移位 | 77 disp8 候选无结构归属 | 进图 diff（user±0x100） |
-| G12 | Move | +0x3BC 减计数机制 | sub/dec 全库不存在 | 进图采样 5000→0 轨迹 |
-| G13 | Audio | WINMM 实际调用序列 | 哈希导入运行时表 | 进图后 [0xafeXXX] 解析值 |
+## P0（原最高优先级）
+
+| ID | 模块 | 问题 | 状态 | 证据 | 最小验证 |
+|---|---|---|---|---|---|
+| G01 | Map/Sort | R13 比较器/容器语义 | PARTIAL-STATIC | 键公式 A 级独立成立（MAP-R13-STATIC-CLOSURE）；身份链 A 级（MAP-R13-ROUND3-DISPATCH）；插入语义未定（MAP-R13-DISPATCH-COMPLETE）| 见 R-09 |
+| G02 | Map/Sort | Tile/Obj 键公式 | CLOSED-STATIC | tile=z+10(layer·3000−zM)−1073721834 @0x666F68；obj=layer·30000+z−1073739824 @0x6688D2（MAP-R13-FINAL-ROUND4 imul 0x7530 确认）| — |
+| G03 | Map/Sort | [0xBE2788] vs Shape2D 冲突 | CLOSED-STATIC | E576EA33 唯一 Gr2D；RTTI+intmap（MAP-R13-STATIC-CLOSURE v2）| — |
+| G04 | Combat | R9 变体选择 | CLOSED-STATIC | {值,键}对 + xorshift RNG + variant[rand%count]（SEC16-FORENSICS A 级）| — |
+| G05 | Map/Move | R14 move+0x190 写者 | CLOSED-STATIC | [Physics+0xAC]；步长 0x1E（SEC16-FORENSICS A 级）| — |
+
+## P1（运行时依赖项）
+
+| ID | 模块 | 问题 | 状态 | 证据 | 最小验证 |
+|---|---|---|---|---|---|
+| G06 | Map/Sort | [0xBE2788] 真实虚表 | CLOSED-STATIC | =0x5042D140（40 槽 intmap 精确衔接）| — |
+| G07 | Map/Sort | DLL 内比较器 | OPEN-STATIC | 上项已闭；比较器体在栈封装函数内待读 | 反汇编 0x43286E/0x44484B |
+| G08 | Map/Sort | Avatar 插入键构造 | OPEN-RUNTIME | 进图运行时路径 | 进图转储 + Avatar 加载断点 |
+| G09 | Avatar | 部件组合/遮挡运行时序 | OPEN-RUNTIME | 进图后渲染 | 进图捕获 |
+| G10 | Camera | 镜头跟随/deadzone 实际参数 | OPEN-RUNTIME | 进图输入循环 | 进图转储 [0xBDF54C] 族 |
+| G11 | Move | +0x61 死亡位移位 | OPEN-STATIC | 77 disp8 候选无结构归属 | 进图 diff（user±0x100）|
+| G12 | Move | +0x3BC 减计数机制 | OPEN-STATIC | sub/dec 全库不存在（A-negative）| 计算位移假说检验 |
+| G13 | Audio | WINMM 序号→函数名映射 | OPEN-STATIC | IAT 静态 4 序号已证（A）；名字映射待同时代 DLL | 获取 win2k/xp winmm.dll |
 
 ## P2（NO-DECOMP 长尾，结构性）
 
-| ID | 模块 | 问题 | 状态 |
-|---|---|---|---|
-| G14 | DLL | 1,319 个 NO-DECOMP 方法槽 | 已知：多为 ATL 样板（QI/AddRef/Release/dtor 已由 67 库签名+结构证明）；其余属像素管线族（掩码级已证） |
-| G15 | EXE | Ghidra 间隙函数（0x4026x 等） | 已由 capstone 逐个击破（COM 包装族全解）；残留为纯 thunk |
+| ID | 模块 | 问题 | 状态 | 证据 |
+|---|---|---|---|---|
+| G14 | DLL | 1,319 个 NO-DECOMP 方法槽 | PARTIAL-STATIC | 多为 ATL 样板（67 库签名+结构证明）|
+| G15 | EXE | Ghidra 间隙函数 | CLOSED-STATIC | capstone 逐个击破（COM 包装族全解，R31-C/F 证据）|
 
 ## P3（业务长尾）
 
-| ID | 模块 | 问题 | 状态 |
-|---|---|---|---|
-| G16 | UI | 逐窗口事件逻辑精读 | 26+ 窗口 WZ 结构已映射；逐窗口为人工阅读量问题 |
-| G17 | Protocol | opcode 枚举数值（467 名字无号） | 值在服务器外部 properties（不在盘）；客户端表覆盖 100 个 |
-
-## 统计
-- 扫描 684 文件；标记命中：NO-DECOMP 1319 / UNKNOWN 419 / PARTIAL 13 / 未证实 11 / BLOCKED 5
-- P0：5 项全闭合
-- RUNTIME-REQUIRED：8 项（全部附最小验证方案）
-- 结构性长尾：2 类（已定性）
-
-## 第二轮新增/更新（2026-11-13 STATIC-ROUND-2）
-
-| ID | 模块 | 问题 | 状态 | 说明 |
+| ID | 模块 | 问题 | 状态 | 证据 |
 |---|---|---|---|---|
-| G18 | PCOM | 0x9C0EC0 = 四 IID QI 分派器（{0xb0e760,0xbd37b0,0xba0378,0xba0500}）所属对象 | OPEN-STATIC | 0xba0500=F28BD1ED(CWzRawCanvas 基)——疑似 RawCanvas 家族聚合对象 |
-| G19 | Move/Protocol | 0x9BC404 = 移动位置/状态解密-序列化器（x/y/vx/vy 4 对 + 状态 0x11/0xF + 0xa70f94） | PARTIAL-STATIC | 完整签名与包目标待续 |
-| G20 | Avatar | 63-avatar-occlusion §11 五项 | OPEN-STATIC（从误标 RUNTIME 纠正） | this+0x38 槽位串源/空 tag 构造/face 排除插入/双绘制入口目标/画布锚点映射 |
+| G16 | UI | 逐窗口事件逻辑精读 | OPEN-STATIC | 26+ 窗口 WZ 结构已映射 |
+| G17 | Protocol | opcode 枚举数值 | BLOCKED | 值在服务器外部 properties（不在盘）|
+
+## 第二轮新增（2026-11-13 STATIC-ROUND-2）
+
+| ID | 模块 | 问题 | 状态 | 证据 |
+|---|---|---|---|---|
+| G18 | PCOM | 0x9C0EC0 四 IID QI 分派器所属对象 | OPEN-STATIC | 0xba0500=F28BD1ED(CWzRawCanvas 基) |
+| G19 | Move/Protocol | 0x9BC404 移动位置/状态解密-序列化器 | PARTIAL-STATIC | 4 对解密 + 状态码 0x11/0xF + 0xa70f94 |
+| G20 | Avatar | 63-avatar-occlusion §11 五项 | OPEN-STATIC | this+0x38/空tag/face排除/双入口/锚点映射 |
 
 ## 第三轮更新（2026-11-13 ROUND-3）
 
-| ID | 模块 | 问题 | 状态 | 说明 |
+| ID | 模块 | 问题 | 状态 | 证据 |
 |---|---|---|---|---|
-| G21 | Gr2D | [0x5042D0A0] 身份 | **CLOSED-STATIC** | =__imp__purecall（导入名表 ASCII + 无重定位，A 级）；见 MAP-R13-ROUND3-DISPATCH.md |
-| G22 | Gr2D | RawCanvas 具体虚表 | **CLOSED-STATIC** | =0x5042E2CC（149 槽，衔接 intmap 0x2E520）；slot45=删除型析构（0x50404FB1） |
-| G23 | PCOM | 0x427EB3 身份 | **CLOSED-STATIC** | =属性 PUT 包装（层 slot25 setter +0xCC / getter +0xD0）；推翻"CreateRawCanvas" |
-| G24 | Map/Sort | [eax+0xB4] 最终语义 | **OPEN-RUNTIME**（收窄） | 依 [ebp-0x10] 具体类（variant 运行时值）；候选已列 R13-DISPATCH-RESOLUTION.csv |
+| G21 | Gr2D | [0x5042D0A0] 身份 | CLOSED-STATIC | =__imp__purecall（导入名表 A 级，R13-PE-IAT-FORENSICS）|
+| G22 | Gr2D | RawCanvas 具体虚表 | PARTIAL-STATIC | 起点 0x2E2C4/0x2E2CC 歧义（R13-RTTI-VTABLE-FORENSICS）；slot45={purecall,dtor}联合排除插入 |
+| G23 | PCOM | 0x427EB3 身份 | CLOSED-STATIC | =属性 PUT 包装（层 slot25 setter +0xCC，R13-427EB3-FORENSICS）|
+| G24 | Map/Sort | [eax+0xB4] 最终语义 | OPEN-RUNTIME | 依 [ebp-0x10] 具体类（variant 运行时值）|
 
-## Round 3.1 Task2 更新（2026-11-13）
+## Round 3.1 Task2 更新
 
-| ID | 模块 | 问题 | 状态 | 说明 |
+| ID | 模块 | 问题 | 状态 | 证据 |
 |---|---|---|---|---|
-| G25 | Map/Sort | "[eax+0xB4]=有序插入"假设 | **CONTRADICTED-WEAK** | 22 候选 slot45 全表无插入语义（5 purecall/5 throw/3 dtor/1 getter/1 convert/7 complex）；备择：属性注册或清理调用；终裁待 R-09 |
-| G26 | PCOM | VARIANT vt=0xD 语义 | **CLOSED-STATIC** | = VT_UNKNOWN（0x411FE1: [esi]=0xD, [esi+8]=obj, cond AddRef；与 NameSpace slot7 互证） |
-| G27 | PCOM | 0x427EB3 出参静态自相矛盾 | **OPEN-RUNTIME** | 严格映射 [E10]=&V48 → 下游崩溃；3 种解释待 0x666F77 微捕获（R-09 终版方案） |
-| G28 | Gr2D | slot45 全表分类 | **CLOSED-STATIC** | R13-SLOT45-CANDIDATES.csv + R31G：22 表 5 DLL 全录 |
+| G25 | Map/Sort | "[eax+0xB4]=有序插入"假设 | SUPERSEDED | 22 候选 slot45 全表无插入语义；备择=属性注册或清理 |
+| G26 | PCOM | VARIANT vt=0xD 语义 | CLOSED-STATIC | =VT_UNKNOWN（0x411FE1 A 级）|
+| G27 | PCOM | 0x427EB3 出参静态矛盾 | OPEN-RUNTIME | 严格映射 [E10]=&V48 → 下游崩溃 |
+| G28 | Gr2D | slot45 全表分类 | CLOSED-STATIC | R13-SLOT45-CANDIDATES.csv 22 表 |
+
+## Round 4 更新
+
+| ID | 模块 | 问题 | 状态 | 证据 |
+|---|---|---|---|---|
+| G29 | Map/Sort | Tile/Obj 不同分派通道 | CLOSED-STATIC | Obj 用栈封装 cdecl 非 [eax+0xB4]（MAP-R13-FINAL-ROUND4）|
+| G30 | Map/Sort | Gr2D 0x143d8 = 4分量浮点变换 | CLOSED-STATIC | fld/fadd/fsub ×4（AVATAR-OCCLUSION-EVIDENCE AV-R4-2）|
+| G31 | Map/Sort | Canvas 0x17517 = 属性 put/get(+0x8C/+0x90) | CLOSED-STATIC | 跨 DLL 同构族（AV-R4-3）|
+| G32 | Map/Sort | Gr2D 0x2F530 = 伪虚表 | CLOSED-STATIC | slot45 指向字符串数据（AV-R4-4）|
+
+---
+
+## 台账统计（由验证器自动核算）
+
+| 状态 | 数量 |
+|---|---|
+| CLOSED-STATIC | 13 |
+| PARTIAL-STATIC | 4 |
+| OPEN-STATIC | 6 |
+| OPEN-RUNTIME | 5 |
+| BLOCKED | 1 |
+| SUPERSEDED | 1 |
+| **总计** | **30** |

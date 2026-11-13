@@ -2,6 +2,10 @@
 
 日期: 2026-11-13。最终验收轮。
 
+> **SUPERSEDED（2026-11-13 clean-room 审计）**：本报告的"验收"角色已被 `research/result/clean-room/INDEPENDENT-AUDIT-REPORT.md` 取代。
+> 原因：(1) §11 校验统计为人工填写且过期（325 MD / 6 CSV / 28 Gap 与实际 402+ MD / 411 CSV / 35 Gap 不符）；(2) 本报告完成时 REVERSE-ENGINEERING-FINAL-REPORT.md 仍传播已推翻的"同容器有序插入"结论。
+> 本文件保留为历史记录；权威状态见 `research/source-of-truth/`。
+
 ## 1. 项目总体结论
 
 CMS079 客户端静态逆向已达到**可实现级文档密度**。核心系统（协议/密码学/服务器/物理公式/战斗变体/音频管线/COM 架构/排序键空间）全部达到 A 级或 B 级静态闭合。**地图场景（loom-realm）可以开始实现**，键公式和通道分离已冻结，容器内部实现允许替换。

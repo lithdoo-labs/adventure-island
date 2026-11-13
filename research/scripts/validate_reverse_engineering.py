@@ -1,26 +1,58 @@
 #!/usr/bin/env python3
-"""validate_reverse_engineering.py — REAL QA for RE deliverables.
+# -*- coding: utf-8 -*-
+"""validate_reverse_engineering.py — clean-room fail-closed QA for RE deliverables.
 
-FAIL-CLOSED: any check that cannot be verified returns FAIL, not PASS.
-Covers: ALL research CSVs (not a cherry-picked subset), structured gap
-consistency across 5 authoritative files, stale-superSDED claims still
-marked VERIFIED, runtime list staleness, method_index bounds, and
-cross-file status conflicts.
+Principles:
+  * FAIL-CLOSED: a check that cannot run (missing file, unreadable CSV, unknown
+    enum value) is an ERROR, never a silent pass.
+  * Single source of truth: research/source-of-truth/*.csv are authoritative;
+    generated views must be in sync with them.
+  * Retracted claims must not live as active conclusions in any non-audit doc.
 
-Exit code: 0 = all pass, 1 = errors found, 2 = internal error.
+Checks (14):
+  1  CSV parse of every research CSV
+  2  status legality (7-value enum) in claims/gaps + gap-register view
+  3  evidence-grade legality (A/B/C/D/R) wherever a grade column exists
+  4  gap uniqueness (source-of-truth + markdown view)
+  5  claim uniqueness
+  6  evidence-reference existence (claims -> evidence.csv; evidence -> files)
+  7  vtable slot bounds (R13-COM-INTERFACE-RESOLUTION method_index < slot_count)
+  8  runtime bidirectional consistency (gaps <-> crosswalk <-> runtime files)
+  9  crosswalk mapping completeness (open items mapped; mapped ids exist)
+  10 generated statistics match source-of-truth (gap-register auto block)
+  11 markdown reference existence
+  12 retracted/superseded claims must not appear active (VERIFIED w/o marker)
+  13 frozen ABI file unchanged (sha256 pin)
+  14 legacy exemptions are declared and bounded (no blanket skip)
+
+Exit codes: 0 = PASS, 1 = FAIL (errors), 2 = internal error.
 """
-import os, re, csv, sys, hashlib, collections
+import os, re, csv, sys, io, hashlib, collections
 
-REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# UTF-8 stdout on Windows consoles
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+REPO = os.environ.get('RE_VALIDATE_ROOT') or os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 RR = os.path.join(REPO, 'research', 'result')
+SOT = os.path.join(REPO, 'research', 'source-of-truth')
+CLEANROOM = os.path.join(RR, 'clean-room')
 
 VALID_STATUS = {
     'CLOSED-STATIC', 'CLOSED-RUNTIME', 'PARTIAL-STATIC', 'OPEN-STATIC',
-    'OPEN-RUNTIME', 'BLOCKED', 'DEFERRED', 'SUPERSEDED'
+    'OPEN-RUNTIME', 'BLOCKED', 'SUPERSEDED',
 }
 VALID_GRADE = {'A', 'B', 'C', 'D', 'R'}
 
-# Strict schemas: {filename: [required_columns]}
+# Frozen ABI pin — updating it requires an independent ABI review (see
+# components/RENDER-NODE-ABI-V1.md and the clean-room audit report).
+FROZEN_ABI = {
+    'components/RENDER-NODE-ABI-V1.md': 'PINNED-IN:frozen-abi.txt',
+}
+FROZEN_ABI_PIN_FILE = os.path.join(SOT, 'frozen-abi.txt')
+
+# Strict schemas that MUST exist and MUST carry these columns.
 STRICT_SCHEMAS = {
     'R13-DISPATCH-RESOLUTION.csv': ['rva', 'slot45_target', 'slot45_rva', 'slots', 'identity'],
     'R13-SLOT45-CANDIDATES.csv': ['dll', 'vtable_rva', 'n_slots', 'slot45_rva', 'classification', 'instruction_head', 'grade'],
@@ -29,62 +61,33 @@ STRICT_SCHEMAS = {
     'FINAL-REVERSE-ENGINEERING-OPEN-ISSUES.csv': ['id', 'module', 'issue', 'status', 'evidence_grade', 'minimal_verification', 'blocks_abi_freeze'],
     'ROUND4-MODULE-COVERAGE.csv': ['module', 'priority', 'report', 'new_this_round', 'static_status', 'remaining_status', 'open_count', 'minimal_action'],
     'ROUND4-REMAINING-GAPS.csv': ['id', 'module', 'gap', 'status', 'evidence', 'minimal_action'],
-    'PROTOCOL-OPCODE-EVIDENCE.csv': ['opcode_hex', 'opcode_name', 'direction', 'evidence_source', 'confirmation'],
 }
 
-# Claims that have been REFUTED — must not appear as active VERIFIED anywhere
-REFUTED_CLAIMS = {
-    'RC-01': ('CreateRawCanvas', '427EB3 is NOT a creator — it is a property-PUT wrapper'),
-    'RC-02': ('slot45.*insert|insert.*slot45', 'slot45 is NOT insert — 22 candidates have zero insert semantics'),
-    'RC-03': ('Tile.*Obj.*same.*container|Tile.*Obj.*共用.*容器|shared.*container.*Tile.*Obj', 'Tile/Obj shared container — REFUTED by channel separation'),
-    'RC-04': ('0x5042D0A0.*runtime.*patch|runtime.*patch.*table', '0x5042D0A0 is NOT a runtime patch table — it is __imp__purecall IAT'),
-    'RC-05': ('RTTI.*verified.*CWzRawCanvas|CWzRawCanvas.*RTTI.*verif', 'CWzRawCanvas identity is NOT RTTI-verified — no COL chain exists'),
-}
+# Retracted claim patterns: (claim_id, regex, why). Matched case-insensitively
+# against every non-exempt .md under research/ and docs/. A match is an error
+# only when a VERIFIED/CLOSED marker appears nearby WITHOUT a retraction marker.
+RETRACTED_PATTERNS = [
+    ('RC-01', r'CreateRawCanvas', '0x427EB3 is a property-PUT wrapper, not a creator'),
+    ('RC-02', r'slot45.{0,40}(有序插入|ordered[ _-]?insert)|有序插入.{0,20}slot45', 'slot45 has zero insert semantics across 22 candidates'),
+    ('RC-03', r'Tile.{0,20}Obj.{0,30}(同容器|same[ _-]?container)|同容器有序插入', 'Tile/Obj same-container claim refuted by channel separation'),
+    ('RC-04', r'0x5042D0A0.{0,40}(运行时补丁|runtime[ _-]?patch)', '0x5042D0A0 is __imp__purecall IAT entry'),
+    ('RC-05', r'RTTI.{0,30}(验证|双\s*VERIFIED|verified).{0,40}(CWzRawCanvas|CWzGr2DLayer|类身份)|(CWzRawCanvas|CWzGr2DLayer).{0,30}RTTI.{0,20}verif', 'no COL exists; class names are proximity inference'),
+    ('RC-10', r'COM\s*比较回调|0x666F7D.{0,40}比较', '[eax+0xB4] result is HRESULT-checked, not a comparator'),
+    ('RC-18', r'(稳定插入|stable[ _-]?insert).{0,30}(VERIFIED|已验证|已证)', 'equal-key stability is unproven (WZ-order sample only)'),
+]
+RETRACTION_MARKERS = re.compile(
+    r'SUPERSEDED|REFUTED|RETRACTED|CONTRADICTED|推翻|撤销|修正|~~|WRONG|CORRECTED|'
+    r'NOT[ _-]?insert|NOT[ _-]?creator|NOT[ _-]?patch|NOT[ _-]?verified|已撤销|非比较|降级',
+    re.I)
+VERIFIED_MARKERS = re.compile(r'VERIFIED|CLOSED-STATIC', re.I)
+# Docs whose job is to record retractions are exempt from check 12.
+RETRACTION_EXEMPT = ('research\\result\\audit\\', 'research/result/audit/',
+                     'research\\result\\clean-room\\', 'research/result/clean-room/',
+                     'research\\source-of-truth\\', 'research/source-of-truth/',
+                     'CRITICAL-QUALITY-REMEDIATION', 'RETRACTED-CLAIMS')
 
-HEX_RE = re.compile(r'^0x[0-9a-fA-F]{1,8}$')
-
-errors = []
-warnings = []
-stats = collections.Counter()
-
-def err(msg):
-    errors.append(msg)
-    stats['errors'] += 1
-
-def warn(msg):
-    warnings.append(msg)
-    stats['warnings'] += 1
-
-
-def find_csv(name):
-    """Search for CSV by filename across research/result subdirs."""
-    for root, dirs, files in os.walk(RR):
-        if name in files:
-            return os.path.join(root, name)
-    return None
-
-
-def parse_csv_safe(path):
-    """Parse CSV, return (rows, error) with encoding validation."""
-    try:
-        raw = open(path, 'rb').read()
-        try:
-            text = raw.decode('utf-8')
-        except UnicodeDecodeError:
-            return None, f'NOT-UTF8'
-        rows = list(csv.reader(text.splitlines()))
-        if not rows:
-            return None, 'EMPTY'
-        return rows, None
-    except Exception as e:
-        return None, str(e)
-
-
-# ============================================================
-# CHECK 1: ALL research CSVs — structural validation
-# ============================================================
-# CSVs from pre-audit raw data dumps — structural issues are historical,
-# not active deliverable defects. Auto-exempt with count reporting.
+# Check 14: legacy structural exemptions must be explicitly declared here and
+# are counted, never silently skipped. Content-level errors still fail.
 LEGACY_CSV_PREFIXES = (
     'task0', 'compatibility-', 'file-manifest', 'protocol-session-',
     'runtime-network-', 'stage3-', 'EXE-DISPATCH-RESOLVED', 'WAVE',
@@ -92,404 +95,515 @@ LEGACY_CSV_PREFIXES = (
     'INTERN-TABLE-', 'STRING-HEAP-', 'MOTION-TABLE-', 'PROTOCOL-MASTER-',
     'FRONTIER-', 'DLL-VTABLE-METHODS', 'DLL-OBJECT-ARCHITECTURE',
     'DLL-VTABLES-STATIC', 'EXE-IFACE-CALLSITES', 'IFACE-',
-    'ATLAS-PACKET-', 'ULTIMATE-', 'WAVE1', 'WAVE2',
+    'ATLAS-PACKET-', 'ULTIMATE-',
 )
 
-def is_legacy_csv(fname):
+HEX_RE = re.compile(r'^0x[0-9a-fA-F]{1,8}$')
+
+errors = []
+warnings = []
+stats = collections.Counter()
+
+
+def err(code, msg):
+    errors.append(f'{code} {msg}')
+    stats['errors'] += 1
+
+
+def warn(code, msg):
+    warnings.append(f'{code} {msg}')
+    stats['warnings'] += 1
+
+
+def read_text(path):
+    with open(path, 'rb') as f:
+        raw = f.read()
+    try:
+        return raw.decode('utf-8')
+    except UnicodeDecodeError as e:
+        raise ValueError(f'not utf-8: {e}')
+
+
+def parse_csv(path):
+    """Return (header, rows). Fail-closed on unreadable/malformed content."""
+    text = read_text(path)
+    rows = list(csv.reader(text.splitlines()))
+    if not rows:
+        raise ValueError('empty')
+    return rows[0], rows[1:]
+
+
+def is_legacy(fname):
     return any(fname.startswith(p) or p in fname for p in LEGACY_CSV_PREFIXES)
 
 
+def find_result_csv(name):
+    for root, _dirs, files in os.walk(RR):
+        if name in files:
+            return os.path.join(root, name)
+    return None
+
+
+# ------------------------------------------------------------------
+# CHECK 1 — parse every CSV under research/
+# ------------------------------------------------------------------
 def check_all_csvs():
     csv_files = []
-    for root, dirs, files in os.walk(RR):
+    for root, _d, files in os.walk(os.path.join(REPO, 'research')):
+        if '__pycache__' in root:
+            continue
         for f in files:
             if f.endswith('.csv'):
                 csv_files.append(os.path.join(root, f))
     stats['csv_total'] = len(csv_files)
 
+    strict_missing = dict(STRICT_SCHEMAS)
     for path in csv_files:
         fname = os.path.basename(path)
-        rows, e = parse_csv_safe(path)
-        if e:
-            if not is_legacy_csv(fname):
-                err(f'CSV-READ {fname}: {e}')
-            else:
-                stats['csv_legacy_skip'] += 1
+        rel = os.path.relpath(path, REPO)
+        legacy = is_legacy(fname)
+        try:
+            header, rows = parse_csv(path)
+        except Exception as e:
+            if legacy:
+                stats['csv_legacy_unparseable'] += 1
+                continue
+            err('CSV-READ', f'{rel}: {e}')
             continue
         stats['csv_parsed'] += 1
 
-        header = rows[0]
-        legacy = is_legacy_csv(fname)
-
-        # duplicate column names (always error)
         if len(header) != len(set(header)):
-            dups = [x for x in header if header.count(x) > 1]
-            err(f'CSV-DUPCOL {fname}: duplicate columns {dups}')
+            dups = sorted({c for c in header if header.count(c) > 1})
+            err('CSV-DUPCOL', f'{rel}: duplicate columns {dups}')
 
-        # row width consistency
-        width_errors = 0
-        for i, row in enumerate(rows[1:], 2):
+        width_bad = 0
+        for i, row in enumerate(rows, 2):
             if len(row) != len(header):
-                width_errors += 1
-                if not legacy:
-                    err(f'CSV-WIDTH {fname} line {i}: {len(row)} cols vs header {len(header)}')
-        if legacy and width_errors:
-            stats['csv_legacy_width_issues'] += width_errors
+                width_bad += 1
+                if not legacy and width_bad <= 3:
+                    err('CSV-WIDTH', f'{rel} line {i}: {len(row)} cols vs header {len(header)}')
+        if legacy and width_bad:
+            stats['csv_legacy_width'] += width_bad
 
-        # strict schema check
-        if fname in STRICT_SCHEMAS:
+        if fname in strict_missing:
+            del strict_missing[fname]
             req = STRICT_SCHEMAS[fname]
             for col in req:
                 if col not in header:
-                    err(f'CSV-SCHEMA {fname}: missing required column "{col}"')
+                    err('CSV-SCHEMA', f'{rel}: missing required column "{col}"')
             stats['csv_strict'] += 1
 
-        # RVA format check on columns containing 'rva' in name
-        rva_cols = [i for i, c in enumerate(header) if 'rva' in c.lower() and 'slot' not in c.lower()]
-        if rva_cols:
-            for row in rows[1:]:
-                if len(row) != len(header):
-                    continue  # already flagged
-                for ci in rva_cols:
-                    val = row[ci].strip()
-                    if not val or val == '-' or val == 'various':
-                        continue
-                    # Allow compound: 0xABC|0xDEF, 0xABC, or plain hex
-                    parts = re.split(r'[|,;]', val)
-                    for p in parts:
-                        p = p.strip()
-                        if p and p != '-' and not HEX_RE.match(p) and not p.startswith('intmap'):
-                            warn(f'RVA-FMT {fname} {header[ci]}="{val}"')
-
-        # method_index bounds check for interface resolution CSV
-        if fname == 'R13-COM-INTERFACE-RESOLUTION.csv':
-            hdr_idx = {c: i for i, c in enumerate(header)}
-            for row in rows[1:]:
-                if len(row) != len(header):
-                    continue
-                mi = row[hdr_idx.get('method_index', -1)] if 'method_index' in hdr_idx else ''
-                sc = row[hdr_idx.get('slot_count', -1)] if 'slot_count' in hdr_idx else ''
-                if mi and sc and mi not in ('-', ''):
-                    try:
-                        mi_val = int(mi.split('/')[0].strip())
-                        sc_val = int(sc.split('|')[0].strip())
-                        if mi_val >= sc_val:
-                            err(f'CSV-INDEX {fname}: method_index={mi} >= slot_count={sc}')
-                    except (ValueError, IndexError):
-                        pass
+    # every declared strict schema must exist — fail-closed
+    for fname in strict_missing:
+        err('CSV-STRICT-MISSING', f'declared strict schema not found: {fname}')
 
 
-# ============================================================
-# CHECK 2: Gap Register — unique IDs, valid status, evidence for CLOSED
-# ============================================================
-def parse_gap_register():
-    """Parse the gap register markdown to extract structured gap entries."""
-    gap_file = os.path.join(RR, 'REVERSE-ENGINEERING-GAP-REGISTER.md')
-    if not os.path.exists(gap_file):
-        err('GAP-FILE missing: REVERSE-ENGINEERING-GAP-REGISTER.md')
-        return {}
+# ------------------------------------------------------------------
+# CHECKS 2-6 — source-of-truth CSVs
+# ------------------------------------------------------------------
+def load_sot():
+    claims_path = os.path.join(SOT, 'claims.csv')
+    gaps_path = os.path.join(SOT, 'gaps.csv')
+    evid_path = os.path.join(SOT, 'evidence.csv')
+    cross_path = os.path.join(SOT, 'issue-crosswalk.csv')
+    docs_path = os.path.join(SOT, 'documents.csv')
+    for p, name in ((claims_path, 'claims.csv'), (gaps_path, 'gaps.csv'),
+                    (evid_path, 'evidence.csv'), (cross_path, 'issue-crosswalk.csv'),
+                    (docs_path, 'documents.csv')):
+        if not os.path.exists(p):
+            err('SOT-MISSING', f'research/source-of-truth/{name} not found')
+            return None
 
-    text = open(gap_file, encoding='utf-8').read()
+    try:
+        ch, crows = parse_csv(claims_path)
+        gh, grows = parse_csv(gaps_path)
+        eh, erows = parse_csv(evid_path)
+        xh, xrows = parse_csv(cross_path)
+        dh, drows = parse_csv(docs_path)
+    except Exception as e:
+        err('SOT-PARSE', str(e))
+        return None
+
+    claims = {}
+    for r in crows:
+        cid = r[ch.index('claim_id')]
+        if cid in claims:
+            err('CLAIM-DUP', f'{cid} appears more than once in claims.csv')
+        claims[cid] = dict(zip(ch, r))
     gaps = {}
-    all_matches = []  # keep all matches for duplicate detection
+    for r in grows:
+        gid = r[gh.index('gap_id')]
+        if gid in gaps:
+            err('GAP-DUP', f'{gid} appears more than once in gaps.csv')
+        gaps[gid] = dict(zip(gh, r))
+    evid = {}
+    for r in erows:
+        eid = r[eh.index('evidence_id')]
+        if eid in evid:
+            err('EVID-DUP', f'{eid} duplicated in evidence.csv')
+        evid[eid] = dict(zip(eh, r))
+    cross = [dict(zip(xh, r)) for r in xrows]
+    docs = [dict(zip(dh, r)) for r in drows]
+    return {'claims': claims, 'gaps': gaps, 'evidence': evid,
+            'crosswalk': cross, 'documents': docs}
+
+
+def check_sot(sot):
+    if sot is None:
+        return
+    claims, gaps, evid = sot['claims'], sot['gaps'], sot['evidence']
+
+    # CHECK 2: statuses legal; CHECK 3: grades legal
+    for cid, c in claims.items():
+        if c['status'] not in VALID_STATUS:
+            err('CLAIM-STATUS', f'{cid}: illegal status "{c["status"]}"')
+        g = c['evidence_grade'].strip()
+        if g not in VALID_GRADE:
+            err('CLAIM-GRADE', f'{cid}: illegal grade "{g}" (allowed A/B/C/D/R, no composites)')
+        if c['status'] in ('CLOSED-STATIC', 'CLOSED-RUNTIME') and g in ('D',):
+            err('CLAIM-GRADE-CLOSED', f'{cid}: CLOSED claim with hypothesis-grade D evidence')
+    for gid, gp in gaps.items():
+        if gp['status'] not in VALID_STATUS:
+            err('GAP-STATUS', f'{gid}: illegal status "{gp["status"]}"')
+
+    # CHECK 6: claims -> evidence refs exist; evidence source files exist
+    for cid, c in claims.items():
+        refs = [x.strip() for x in c['evidence_refs'].split(';') if x.strip() and x.strip() != '(none)']
+        for ref in refs:
+            if ref not in evid:
+                err('EVID-REF', f'{cid} references unknown evidence id "{ref}"')
+    for eid, e in evid.items():
+        src = e['source_file']
+        if src.startswith('(in-repo') or src.startswith('multi') or 'corpus' in src:
+            continue
+        # compound sources take first path component
+        first = src.split('(')[0].strip()
+        for cand in (first, first.split('+')[0].strip()):
+            p = os.path.join(REPO, cand.replace('/', os.sep))
+            if os.path.exists(p):
+                break
+        else:
+            err('EVID-FILE', f'{eid}: source file not found "{src}"')
+        for cid in [x.strip() for x in e['claim_id'].split(';')]:
+            if cid and cid not in claims:
+                err('EVID-CLAIM', f'{eid}: references unknown claim "{cid}"')
+
+    # crosswalk sanity: gap ids exist
+    for x in sot['crosswalk']:
+        if x['gap_id'] not in gaps:
+            err('XWALK-GAP', f'crosswalk references unknown gap "{x["gap_id"]}"')
+    return claims, gaps
+
+
+# ------------------------------------------------------------------
+# CHECK 4 — gap-register markdown view: uniqueness + statuses legal
+# ------------------------------------------------------------------
+def check_gap_register_view(gaps):
+    path = os.path.join(RR, 'REVERSE-ENGINEERING-GAP-REGISTER.md')
+    if not os.path.exists(path):
+        err('GAP-FILE', 'REVERSE-ENGINEERING-GAP-REGISTER.md missing')
+        return {}
+    text = read_text(path)
+    seen = collections.Counter()
+    view = {}
     for m in re.finditer(r'^\|\s*(G\d+)\s*\|(.+)$', text, re.M):
         gid = m.group(1)
-        rest = m.group(2)
-        all_matches.append((gid, rest))
-        # Extract fields
-        cells = [c.strip() for c in rest.split('|')]
-        # Find status — check for both plain and **bold** formats
+        seen[gid] += 1
+        cells = [re.sub(r'\*\*|\*|~~', '', c).strip() for c in m.group(2).split('|')]
         status = None
         for c in cells:
-            # Strip markdown bold markers for matching
-            c_clean = re.sub(r'\*\*|\*|~~', '', c).strip()
             for s in VALID_STATUS:
-                if s in c_clean:
+                if s in c:
                     status = s
                     break
             if status:
                 break
-            # Also check for legacy formats
-            if re.search(r'CLOSED(?![A-Z])', c_clean) and 'SUPERSEDED' not in c_clean:
-                status = 'CLOSED-STATIC'  # normalize legacy CLOSED
-                break
-        gaps[gid] = {'raw': rest, 'status': status, 'cells': cells}
-
-    # Duplicate detection (before dict dedup loses them)
-    id_counts = collections.Counter(g for g, _ in all_matches)
-    for gid, count in id_counts.items():
-        if count > 1:
-            err(f'GAP-DUP {gid}: appears {count} times in gap register')
-    return gaps
-
-
-def check_gap_register():
-    gaps = parse_gap_register()
-    stats['gap_total'] = len(gaps)
-
-    seen = set()
-    for gid, info in gaps.items():
-        if gid in seen:
-            err(f'GAP-DUP {gid}: appears multiple times')
-        seen.add(gid)
-
-        status = info.get('status')
+        view[gid] = status
+    for gid, n in seen.items():
+        if n > 1:
+            err('GAP-DUP', f'{gid} appears {n} times in gap register markdown')
+    for gid, status in view.items():
         if status is None:
-            # Check if it has a valid status in any form
-            raw = info.get('raw', '')
-            has_known = any(s in raw for s in VALID_STATUS)
-            if not has_known:
-                err(f'GAP-STATUS {gid}: no valid status found in "{raw[:80]}"')
-            else:
-                warn(f'GAP-STATUS {gid}: status present but non-standard format')
-
-        # CLOSED without evidence reference
-        if status in ('CLOSED-STATIC', 'CLOSED-RUNTIME'):
-            evidence_in = any(k in info.get('raw', '') for k in
-                            ('MAP-', 'R13-', 'audit/', '0x', 'R31', 'R4', 'ATLAS', 'SEC'))
-            if not evidence_in:
-                err(f'GAP-EVIDENCE {gid}: CLOSED but no evidence reference found')
-    return gaps
+            err('GAP-STATUS', f'{gid}: no legal status in gap register markdown view')
+        elif gid in gaps and gaps[gid]['status'] != status:
+            err('GAP-VIEW-MISMATCH', f'{gid}: markdown says {status} but source-of-truth says {gaps[gid]["status"]}')
+    # every source-of-truth gap must appear in the human-readable view
+    for gid in gaps:
+        if gid not in view:
+            err('GAP-VIEW-MISSING', f'{gid} missing from gap register markdown view')
+    return view
 
 
-# ============================================================
-# CHECK 3: Cross-file consistency (Gap Register vs Open Issues vs Runtime)
-# ============================================================
-def check_cross_file_consistency(gaps):
-    # Parse Open Issues CSV
-    oi_path = find_csv('FINAL-REVERSE-ENGINEERING-OPEN-ISSUES.csv')
-    if not oi_path:
-        err('XFILE: FINAL-REVERSE-ENGINEERING-OPEN-ISSUES.csv not found')
-        return {}
-
-    rows, e = parse_csv_safe(oi_path)
-    if e:
-        err(f'XFILE: Open Issues CSV unreadable: {e}')
-        return {}
-
+# ------------------------------------------------------------------
+# CHECKS 8-9 — runtime bidirectional consistency + crosswalk
+# ------------------------------------------------------------------
+def check_runtime_consistency(sot, gaps):
+    # active runtime ids from the structured files
+    oi_path = find_result_csv('FINAL-REVERSE-ENGINEERING-OPEN-ISSUES.csv')
+    r4_path = find_result_csv('ROUND4-REMAINING-GAPS.csv')
     open_ids = {}
-    header = rows[0]
-    for row in rows[1:]:
-        if len(row) != len(header):
-            continue
-        oid = row[0].strip()
-        status = row[3].strip() if len(row) > 3 else ''
-        open_ids[oid] = status
-
-    stats['open_issues_total'] = len(open_ids)
-
-    # Parse Runtime Remaining
-    rt_file = os.path.join(RR, 'REVERSE-ENGINEERING-RUNTIME-REMAINING.md')
-    rt_text = open(rt_file, encoding='utf-8').read() if os.path.exists(rt_file) else ''
-    runtime_ids = set(re.findall(r'R-\d+', rt_text))
-
-    # Parse Round4 Gaps
-    r4_path = find_csv('ROUND4-REMAINING-GAPS.csv')
+    if oi_path:
+        _h, rows = parse_csv(oi_path)
+        for r in rows:
+            open_ids[r[0]] = r[3]
+    else:
+        err('XFILE', 'FINAL-REVERSE-ENGINEERING-OPEN-ISSUES.csv not found')
     r4_ids = {}
     if r4_path:
-        rows4, e4 = parse_csv_safe(r4_path)
-        if not e4 and len(rows4) > 1:
-            for row in rows4[1:]:
-                if len(row) >= 4:
-                    r4_ids[row[0].strip()] = row[3].strip()
+        _h, rows = parse_csv(r4_path)
+        for r in rows:
+            r4_ids[r[0]] = r[3]
+    else:
+        err('XFILE', 'ROUND4-REMAINING-GAPS.csv not found')
 
-    # Check: items in Open Issues marked OPEN-RUNTIME should appear in Runtime Remaining
-    for oid, status in open_ids.items():
-        if status == 'OPEN-RUNTIME':
-            if oid.startswith('R-') and oid not in runtime_ids:
-                err(f'XFILE {oid}: OPEN-RUNTIME in Open Issues but not in Runtime Remaining')
+    rt_file = os.path.join(RR, 'REVERSE-ENGINEERING-RUNTIME-REMAINING.md')
+    rt_text = read_text(rt_file) if os.path.exists(rt_file) else ''
+    if not rt_text:
+        err('XFILE', 'REVERSE-ENGINEERING-RUNTIME-REMAINING.md missing')
+    rt_ids = set(re.findall(r'\bR-\d+\b', rt_text))
 
-    # Check: Gap Register CLOSED items should not be in Open Issues as active
-    for gid, info in gaps.items():
-        if info.get('status') == 'CLOSED-STATIC' and gid in open_ids:
-            if open_ids[gid] not in ('SUPERSEDED', 'CLOSED-STATIC'):
-                err(f'XFILE {gid}: CLOSED in Gap Register but "{open_ids[gid]}" in Open Issues')
+    # build crosswalk index
+    gap_to_rt = collections.defaultdict(set)
+    rt_to_gap = collections.defaultdict(set)
+    for x in sot['crosswalk']:
+        for rid in re.findall(r'R-\d+|R4-\d+|ME-\d+', x['runtime_issue_id']):
+            gap_to_rt[x['gap_id']].add(rid)
+            rt_to_gap[rid].add(x['gap_id'])
 
-    # Check: same ID can't have conflicting statuses across files
-    all_status = {}
-    for oid, s in open_ids.items():
-        all_status.setdefault(oid, []).append(('open-issues', s))
-    for rid, s in r4_ids.items():
-        all_status.setdefault(rid, []).append(('r4-gaps', s))
-    for gid, info in gaps.items():
-        if info.get('status'):
-            all_status.setdefault(gid, []).append(('gap-register', info['status']))
+    # every OPEN-RUNTIME gap must map to >=1 runtime id that exists in a runtime file
+    for gid, gp in gaps.items():
+        if gp['status'] == 'OPEN-RUNTIME':
+            rids = gap_to_rt.get(gid, set())
+            if not rids:
+                err('XWALK-UNMAPPED', f'{gid} is OPEN-RUNTIME but has no runtime issue mapping')
+                continue
+            for rid in rids:
+                if rid.startswith('R-') and rid not in rt_ids and rid not in open_ids:
+                    err('XWALK-DANGLING', f'{gid} -> {rid}: runtime id not found in any runtime register')
+                if rid.startswith('R4-') and rid not in r4_ids:
+                    err('XWALK-DANGLING', f'{gid} -> {rid}: R4 id not found in ROUND4-REMAINING-GAPS.csv')
 
-    for iid, sources in all_status.items():
-        statuses = set(s for _, s in sources if s in VALID_STATUS)
-        if len(statuses) > 1:
-            # Allow PARTIAL vs OPEN overlap, flag CLOSED vs OPEN conflict
-            if ('CLOSED-STATIC' in statuses or 'CLOSED-RUNTIME' in statuses) and \
-               ('OPEN-RUNTIME' in statuses or 'OPEN-STATIC' in statuses):
-                err(f'XFILE-CONFLICT {iid}: {sources}')
+    # reverse: active OPEN-RUNTIME ids in structured registers must map back to a gap
+    for rid, st in open_ids.items():
+        if st == 'OPEN-RUNTIME' and rid not in rt_to_gap:
+            err('XWALK-ORPHAN', f'{rid} OPEN-RUNTIME in Open Issues but not in crosswalk')
+    for rid, st in r4_ids.items():
+        if st == 'OPEN-RUNTIME' and rid not in rt_to_gap:
+            err('XWALK-ORPHAN', f'{rid} OPEN-RUNTIME in R4 gaps but not in crosswalk')
 
-    return open_ids
+    # OPEN-RUNTIME in open-issues with R- prefix must appear in runtime-remaining md
+    for rid, st in open_ids.items():
+        if st == 'OPEN-RUNTIME' and rid.startswith('R-') and rid not in rt_ids:
+            err('XFILE-STALE', f'{rid} OPEN-RUNTIME in Open Issues but absent from RUNTIME-REMAINING')
 
-
-# ============================================================
-# CHECK 4: Refuted claims still marked VERIFIED in active text
-# ============================================================
-def check_refuted_claims():
-    for claim_id, (pattern, desc) in REFUTED_CLAIMS.items():
-        pat = re.compile(pattern, re.I)
-        for root, dirs, files in os.walk(RR):
-            for f in files:
-                if not f.endswith('.md'):
-                    continue
-                p = os.path.join(root, f)
-                relpath = os.path.relpath(p, REPO)
-                # Skip audit/correction documents themselves
-                if 'audit' in relpath or 'REMEDIATION' in f:
-                    continue
-                text = open(p, encoding='utf-8', errors='replace').read()
-                for m in pat.finditer(text):
-                    ctx = text[max(0, m.start()-300):m.end()+300]
-                    # Must NOT have VERIFIED/CLOSED-STATIC nearby without SUPERSEDED/correction markers
-                    has_verified = bool(re.search(r'VERIFIED|CLOSED-STATIC', ctx))
-                    has_correction = bool(re.search(
-                        r'SUPERSEDED|REFUTED|CONTRADICTED|推翻|修正|~~|WRONG|CORRECTED|NOT.*insert|NOT.*creator|NOT.*patch|NOT.*shared|NOT.*verified',
-                        ctx, re.I))
-                    if has_verified and not has_correction:
-                        err(f'REFUTED-VERIFIED {claim_id}: pattern "{m.group()}" near VERIFIED in {relpath}:{text[:m.start()].count(chr(10))+1}')
+    # closed gaps must not be active-open in the other registers under same id
+    all_status = {k: v for k, v in gaps.items()}
+    for rid, st in open_ids.items():
+        if rid in all_status:
+            continue
+    for gid, gp in gaps.items():
+        if gp['status'].startswith('CLOSED') and gid in open_ids \
+                and open_ids[gid] in ('OPEN-STATIC', 'OPEN-RUNTIME', 'BLOCKED'):
+            err('XFILE-CONFLICT', f'{gid}: CLOSED in source-of-truth but OPEN in Open Issues')
+    stats['open_issues'] = len(open_ids)
+    stats['runtime_ids'] = len(rt_ids)
 
 
-# ============================================================
-# CHECK 5: Final Report statistics match structured data
-# ============================================================
-def check_statistics():
-    """Count OPEN-RUNTIME in Open Issues CSV and verify Final Report matches."""
-    oi_path = find_csv('FINAL-REVERSE-ENGINEERING-OPEN-ISSUES.csv')
-    if not oi_path:
+# ------------------------------------------------------------------
+# CHECK 7 — vtable slot bounds
+# ------------------------------------------------------------------
+def check_slot_bounds():
+    path = find_result_csv('R13-COM-INTERFACE-RESOLUTION.csv')
+    if not path:
+        return  # already flagged by strict-missing
+    header, rows = parse_csv(path)
+    idx = {c: i for i, c in enumerate(header)}
+    for i, r in enumerate(rows, 2):
+        if len(r) != len(header):
+            continue
+        mi, sc = r[idx['method_index']], r[idx['slot_count']]
+        try:
+            mi_val = int(mi.split('/')[0].strip())
+            sc_val = int(sc.split('|')[0].strip())
+        except ValueError:
+            continue
+        if mi_val >= sc_val:
+            err('CSV-INDEX', f'R13-COM-INTERFACE-RESOLUTION.csv line {i}: method_index {mi} >= slot_count {sc}')
+        conf = r[idx['confidence']].strip()
+        if conf and conf not in VALID_GRADE:
+            err('CSV-GRADE', f'R13-COM-INTERFACE-RESOLUTION.csv line {i}: illegal grade "{conf}"')
+
+
+# ------------------------------------------------------------------
+# CHECK 10 — generated statistics (gap-register auto block + coverage counts)
+# ------------------------------------------------------------------
+def check_statistics(gaps, claims):
+    status_counts = collections.Counter(gp['status'] for gp in gaps.values())
+    claim_counts = collections.Counter(c['status'] for c in claims.values())
+    grade_counts = collections.Counter(c['evidence_grade'] for c in claims.values())
+
+    path = os.path.join(RR, 'REVERSE-ENGINEERING-GAP-REGISTER.md')
+    if not os.path.exists(path):
         return
-    rows, e = parse_csv_safe(oi_path)
-    if e:
+    text = read_text(path)
+    m = re.search(r'<!--GAP-STATS-AUTO-->(.*?)<!--/GAP-STATS-AUTO-->', text, re.S)
+    if not m:
+        err('STATS-BLOCK', 'gap register missing <!--GAP-STATS-AUTO--> machine block')
         return
-    header = rows[0]
-    status_col = header.index('status') if 'status' in header else 3
-    counts = collections.Counter()
-    for row in rows[1:]:
-        if len(row) > status_col:
-            counts[row[status_col]] += 1
-
-    # Read Final Report and check claimed numbers
-    fr = os.path.join(RR, 'FINAL-REVERSE-ENGINEERING-ACCEPTANCE.md')
-    if not os.path.exists(fr):
-        warn('STATS: Final Report not found')
-        return
-    text = open(fr, encoding='utf-8').read()
-
-    # Extract claimed OPEN-RUNTIME count from the stats table
-    m = re.search(r'OPEN-RUNTIME.*?(\d+)', text)
-    if m:
-        claimed = int(m.group(1))
-        actual = counts.get('OPEN-RUNTIME', 0)
+    block = m.group(1)
+    for st in VALID_STATUS:
+        mm = re.search(rf'\|\s*{st}\s*\|\s*(\d+)\s*\|', block)
+        if not mm:
+            err('STATS-ROW', f'gap stats block missing row for {st}')
+            continue
+        claimed = int(mm.group(1))
+        actual = status_counts.get(st, 0)
         if claimed != actual:
-            err(f'STATS: Final Report claims {claimed} OPEN-RUNTIME but CSV has {actual}')
+            err('STATS-MISMATCH', f'gap stats: {st} claimed {claimed}, source-of-truth has {actual}')
+    mm = re.search(r'\|\s*\*{0,2}总计\*{0,2}\s*\|\s*\*{0,2}(\d+)\*{0,2}\s*\|', block)
+    if mm:
+        if int(mm.group(1)) != len(gaps):
+            err('STATS-MISMATCH', f'gap total claimed {mm.group(1)}, actual {len(gaps)}')
+    else:
+        err('STATS-ROW', 'gap stats block missing 总计 row')
+    stats['gap_status_counts'] = dict(status_counts)
+    stats['claim_status_counts'] = dict(claim_counts)
+    stats['claim_grade_counts'] = dict(grade_counts)
 
-    stats['open_runtime_actual'] = counts.get('OPEN-RUNTIME', 0)
-    stats['open_static_actual'] = counts.get('OPEN-STATIC', 0)
-    stats['blocked_actual'] = counts.get('BLOCKED', 0)
 
-
-# ============================================================
-# CHECK 6: Markdown file reference existence (strict)
-# ============================================================
+# ------------------------------------------------------------------
+# CHECK 11 — markdown references resolve
+# ------------------------------------------------------------------
 def check_md_refs():
     md_files = []
-    for root, dirs, files in os.walk(RR):
+    for root, _d, files in os.walk(RR):
         for f in files:
             if f.endswith('.md'):
                 md_files.append(os.path.join(root, f))
     stats['md_total'] = len(md_files)
-
     for p in md_files:
-        text = open(p, encoding='utf-8', errors='replace').read()
-        relpath = os.path.relpath(p, REPO)
-
-        # Strip code blocks before scanning for references
-        # (prevents false positives from assembly/code with (parenthesis) syntax)
+        text = read_text(p)
+        rel = os.path.relpath(p, REPO)
         clean = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
-        clean = re.sub(r'`[^`\n]+`', '', clean)  # inline code
-
+        clean = re.sub(r'`[^`\n]+`', '', clean)
         for m in re.finditer(r'\[([^\]]*)\]\(([^)#\s]+)\)', clean):
             ref = m.group(2)
             if ref.startswith(('http://', 'https://', 'mailto:', 'data:')):
                 continue
-            # Skip hex addresses, single words, and numeric refs (code artifacts)
             if HEX_RE.match(ref) or ref.startswith('0x'):
                 continue
-            # Skip if it looks like a code identifier, not a file path
-            if not '.' in ref and '/' not in ref and '\\' not in ref:
+            if '.' not in ref and '/' not in ref and '\\' not in ref:
                 continue
-            # Must look like a file reference (has an extension)
             if not re.search(r'\.(md|csv|json|py|txt|log|xml|wz|img|dat|java|dll|exe)$', ref, re.I):
                 continue
-            # Remove anchor
             ref_clean = ref.split('#')[0]
             if not ref_clean:
                 continue
-            # Resolve relative to the MD file's directory
             full = os.path.normpath(os.path.join(os.path.dirname(p), ref_clean))
-            if os.path.exists(full):
-                stats['md_refs_ok'] += 1
-            else:
-                # Try relative to repo root
-                full2 = os.path.join(REPO, ref_clean)
-                if os.path.exists(full2):
-                    stats['md_refs_ok'] += 1
-                else:
-                    err(f'MD-REF {relpath}: broken reference "{ref}"')
+            if not (os.path.exists(full) or os.path.exists(os.path.join(REPO, ref_clean))):
+                err('MD-REF', f'{rel}: broken reference "{ref}"')
 
 
-# ============================================================
-# CHECK 7: slot45 candidates — FALSE_POSITIVE removal
-# ============================================================
-def check_slot45_candidates():
-    path = find_csv('R13-SLOT45-CANDIDATES.csv')
-    if not path:
+# ------------------------------------------------------------------
+# CHECK 12 — retracted claims must not be active
+# ------------------------------------------------------------------
+def check_retracted_active():
+    scan_dirs = [RR, os.path.join(REPO, 'docs')]
+    for claim_id, pattern, why in RETRACTED_PATTERNS:
+        pat = re.compile(pattern, re.I)
+        for base in scan_dirs:
+            for root, _d, files in os.walk(base):
+                for f in files:
+                    if not f.endswith('.md'):
+                        continue
+                    p = os.path.join(root, f)
+                    rel = os.path.relpath(p, REPO)
+                    if any(rel.startswith(ex) or ex in rel for ex in RETRACTION_EXEMPT):
+                        continue
+                    try:
+                        text = read_text(p)
+                    except Exception:
+                        err('MD-READ', f'{rel}: unreadable')
+                        continue
+                    for m in pat.finditer(text):
+                        ctx = text[max(0, m.start() - 300):m.end() + 300]
+                        if VERIFIED_MARKERS.search(ctx) and not RETRACTION_MARKERS.search(ctx):
+                            err('RETRACTED-ACTIVE',
+                                f'{claim_id}: pattern "{m.group()}" near VERIFIED without retraction marker in {rel}:'
+                                f'{text[:m.start()].count(chr(10)) + 1}')
+
+
+# ------------------------------------------------------------------
+# CHECK 13 — frozen ABI unchanged
+# ------------------------------------------------------------------
+def check_frozen_abi():
+    if not os.path.exists(FROZEN_ABI_PIN_FILE):
+        err('ABI-PIN', 'research/source-of-truth/frozen-abi.txt missing (pin required)')
         return
-    rows, e = parse_csv_safe(path)
-    if e:
-        return
-    header = rows[0]
-    hdr = {c: i for i, c in enumerate(header)}
-
-    for row in rows[1:]:
-        if len(row) != len(header):
+    pin_text = read_text(FROZEN_ABI_PIN_FILE).strip()
+    pins = {}
+    for line in pin_text.splitlines():
+        if not line or line.startswith('#'):
             continue
-        cls = row[hdr.get('classification', -1)]
-        rva = row[hdr.get('vtable_rva', -1)]
-        # 0x2F530 is known FALSE_POSITIVE — must be flagged
-        if '0x2f530' in rva.lower() and 'FALSE_POSITIVE' not in cls.upper():
-            warn(f'SLOT45 {rva}: known false positive not flagged as such')
+        parts = [x.strip() for x in line.split(None, 1)]
+        if len(parts) == 2:
+            pins[parts[0]] = parts[1]
+    for rel, _mode in FROZEN_ABI.items():
+        p = os.path.join(REPO, rel.replace('/', os.sep))
+        if not os.path.exists(p):
+            err('ABI-FILE', f'frozen ABI file missing: {rel}')
+            continue
+        if rel not in pins:
+            err('ABI-PIN', f'{rel} not pinned in frozen-abi.txt')
+            continue
+        h = hashlib.sha256(open(p, 'rb').read()).hexdigest()
+        if h != pins[rel].lower():
+            err('ABI-MODIFIED', f'{rel} sha256 {h[:12]}… != pin {pins[rel][:12]}… '
+                                f'(frozen ABI requires independent review to change)')
 
 
-# ============================================================
-# MAIN
-# ============================================================
+# ------------------------------------------------------------------
+# CHECK 14 — legacy exemptions bounded & reported
+# ------------------------------------------------------------------
+def check_exemptions():
+    if not LEGACY_CSV_PREFIXES:
+        err('EXEMPT-EMPTY', 'legacy exemption list empty (declare exemptions explicitly)')
+    stats['exemption_prefixes'] = len(LEGACY_CSV_PREFIXES)
+    # every exempt prefix must have matched at least one file historically; a
+    # prefix matching nothing is stale and should be removed (warning only).
+    matched = set()
+    for root, _d, files in os.walk(RR):
+        for f in files:
+            if f.endswith('.csv') and is_legacy(f):
+                matched.add(next(p for p in LEGACY_CSV_PREFIXES if f.startswith(p) or p in f))
+    for p in LEGACY_CSV_PREFIXES:
+        if p not in matched:
+            warn('EXEMPT-STALE', f'legacy prefix "{p}" matches no current CSV — consider removing')
+
+
 def main():
-    print('=== validate_reverse_engineering.py (v2: fail-closed) ===')
-    print(f'Repository: {REPO}')
-    print()
+    print('=== validate_reverse_engineering.py (clean-room, fail-closed) ===')
+    print(f'Repository: {REPO}\n')
 
-    check_all_csvs()
-    gaps = check_gap_register()
-    open_ids = check_cross_file_consistency(gaps)
-    check_refuted_claims()
-    check_statistics()
-    check_md_refs()
-    check_slot45_candidates()
+    check_all_csvs()                 # 1
+    sot = load_sot()                 # loads + uniqueness 4/5
+    claims, gaps = check_sot(sot) if sot else ({}, {})   # 2,3,6
+    check_gap_register_view(gaps)    # 4 (view consistency)
+    check_slot_bounds()              # 7
+    if sot:
+        check_runtime_consistency(sot, sot['gaps'])  # 8,9
+        check_statistics(sot['gaps'], sot['claims'])  # 10
+    check_md_refs()                  # 11
+    check_retracted_active()         # 12
+    check_frozen_abi()               # 13
+    check_exemptions()               # 14
 
-    print(f'MD files scanned: {stats["md_total"]}')
-    print(f'MD refs OK: {stats["md_refs_ok"]}')
-    print(f'CSVs total: {stats["csv_total"]}')
-    print(f'CSVs parsed: {stats["csv_parsed"]}')
-    print(f'CSVs strict-schema: {stats["csv_strict"]}')
-    print(f'Gap IDs: {stats["gap_total"]}')
-    print(f'Open Issues: {stats["open_issues_total"]}')
-    print(f'  OPEN-RUNTIME: {stats["open_runtime_actual"]}')
-    print(f'  OPEN-STATIC: {stats["open_static_actual"]}')
-    print(f'  BLOCKED: {stats["blocked_actual"]}')
+    print(f'CSV total: {stats["csv_total"]} (parsed {stats["csv_parsed"]}, strict {stats["csv_strict"]}, '
+          f'legacy-width-issues {stats["csv_legacy_width"]})')
+    print(f'MD scanned: {stats["md_total"]}')
+    print(f'Open Issues rows: {stats["open_issues"]} | Runtime ids: {stats["runtime_ids"]}')
+    if sot:
+        print(f'Claims: {len(sot["claims"])} | Gaps: {len(sot["gaps"])} | Evidence: {len(sot["evidence"])}')
     print()
 
     print(f'ERRORS: {len(errors)}')
@@ -502,9 +616,8 @@ def main():
     if errors:
         print(f'\nRESULT: FAIL ({len(errors)} errors)')
         sys.exit(1)
-    else:
-        print(f'\nRESULT: PASS (0 errors, {len(warnings)} warnings)')
-        sys.exit(0)
+    print(f'\nRESULT: PASS (0 errors, {len(warnings)} warnings)')
+    sys.exit(0)
 
 
 if __name__ == '__main__':

@@ -2,13 +2,13 @@
 
 日期: 2026-11-13。v2 = 第二轮静态深化（RTTI/接口映射/委派桩证据链）。
 
-## ⭐ 终极身份表（RTTI + ATL 接口映射双 VERIFIED）
+## ⭐ 终极身份表（**2026-11-13 clean-room 复核后降级**：结构证据 A 级维持；"RTTI 双 VERIFIED"撤销 → 无 COL，类名绑定 = 邻近推断 C 级，见 Claim C-006 / R13-RTTI-VTABLE-FORENSICS）
 
-| 类名 | 证据 | vtable | 接口映射 | IID |
+| 类名（**邻近推断 C 级，未经 RTTI 证明**） | 证据 | vtable | 接口映射 | IID |
 |---|---|---|---|---|
-| **CWzGr2DLayer** | RTTI `.?AVCWzGr2DLayer@@`（Gr2D .data）| **0x5042D140（40 槽）** | 0x5042D1E0（紧接虚表尾 0x2D140+40×4=0x2D1E0 ✓）| E576EA33（主，offset 0）|
-| **CWzRawCanvas** | RTTI `.?AVCWzRawCanvas@@`（Gr2D .data）| **0x5042E2C4（151 槽）** | 0x5042E520（精确衔接 ✓）| 6DC8C7CE（主）> F28BD1ED > 4CFB57C7 > 01110BC6 > IUnknown（五级继承链）|
-| 多继承对象 | intmap@0x5042E600 | — | {312126F0@+4, 905BE84C@+8, DF0B3D60@+0} | 真·三重虚表 |
+| **CWzGr2DLayer?** | TD `.?AVCWzGr2DLayer@@` 在 Gr2D .data（零 COL 交叉引用）| **0x5042D140（40 槽）——结构与衔接 A 级** | 0x5042D1E0（紧接虚表尾 0x2D140+40×4=0x2D1E0 ✓，A 级）| E576EA33（主，offset 0，A 级）|
+| **CWzRawCanvas?** | TD `.?AVCWzRawCanvas@@` 在 Gr2D .data（零 COL 交叉引用）| **起点歧义 0x5042E2C4（151 槽）/0x5042E2CC（149 槽），两读法均与 intmap 精确衔接（Gap G22 PARTIAL-STATIC）** | 0x5042E520（精确衔接 ✓，A 级）| 6DC8C7CE（主）> F28BD1ED > 4CFB57C7 > 01110BC6 > IUnknown（结构证据 B 级）|
+| 多继承对象 | intmap@0x5042E600 | — | {312126F0@+4, 905BE84C@+8, DF0B3D60@+0} | 真·三重虚表（B 级）|
 
 全 DLL RTTI 类名表（32 类）：CWzCanvas/CWzClipToken/CWzDIBRawCanvas/CWzFont/CWzStream(Canvas) · CVectorAux/CWzVector2D(Shape2D) · CArchiveSource/CWzArchive/CWzFileSystem/CWzNameSpace/CWzNameSpaceProperty/CWzPackage/CWzRawArchive/NameSpace · CWzGr2DLayer/CWzRawCanvas(Gr2D)
 
@@ -55,9 +55,9 @@ tile/obj 实例加载（EXE 0x666C0D/0x6688BE）:
 | Tile/Obj 同容器？ | ~~同一 CWzGr2DLayer → 各自 CreateRawCanvas → 同类容器插入~~ **SUPERSEDED by R4**：Obj 用独立栈封装通道（0x43286E 族），非 [eax+0xB4]。见 MAP-R13-FINAL-ROUND4.md | ~~VERIFIED~~ → **CONTRADICTED** |
 | 同 this？ | ~~层同（[0xBE2788]）~~ **SUPERSEDED**：Obj 用 [ebp-0x1C] 根（不同 this）。Tile this = [0xBE2788] 维持 | ~~VERIFIED~~ → **PARTIAL** |
 | 排序方向 | 键升序（小键先画：层 0 垫底） | STRONGLY SUPPORTED |
-| 相等键 | WZ 顺序保持（稳定插入，Henesys 实测） | VERIFIED（样本）|
+| 相等键 | ~~WZ 顺序保持（稳定插入，Henesys 实测）~~ **已撤销（Claim C-018）**：仅观测到 WZ 静态条目序，绘制顺序未观测，无指令证明稳定性（Gap G33 OPEN-STATIC） | ~~VERIFIED（样本）~~ → RETRACTED |
 | Background | 独立键空间 index×1000 | VERIFIED（旧档）|
-| Avatar | 同容器（运行时注册路径） | INFERRED |
+| Avatar | 注册路径未证（Gap G08/R-03）；"同容器"表述随 Tile/Obj 同容器结论一并撤销——Avatar 插入键与接收者均未知 | UNKNOWN（原 INFERRED 撤销） |
 
 ---
 
@@ -127,12 +127,12 @@ loop: fild byte[eax] * const(0x5042F1D0) → out[0..2]; out[3]=1.0; 16B 步进
 
 | 问题 | 答案 | 证据级 |
 |---|---|---|
-| Tile 与 Obj 同容器？ | 是（同一 `[eax+0xB4]` 插入路径，0x666F72/0x42944A） | VERIFIED |
+| Tile 与 Obj 同容器？ | ~~是（同一 `[eax+0xB4]` 插入路径，0x666F72/0x42944A）~~ **SUPERSEDED**：同通道结论已被 R4 通道分离推翻（见上表与 MAP-R13-FINAL-ROUND4.md） | ~~VERIFIED~~ → REFUTED |
 | 同一比较器？ | 是（DLL 内二分插入，键空间同族） | STRONG |
 | 键空间 | Tile 与 Obj 同一 −1073739xxx 基线族，Obj(zM=0) 比 Tile 小 17990 → **Tile 先画（垫底）** | STRONG |
 | 层惩罚 | 层差 = 30000/层（两种键一致） | VERIFIED |
 | Background | 独立 `index*1000` 键空间（不与 Tile/Obj 同空间） | VERIFIED（旧文档） |
-| 相同键顺序 | WZ 顺序（Henesys 实测：35→34 同键保持 WZ 序）→ **稳定插入** | VERIFIED（样本） |
+| 相同键顺序 | ~~WZ 顺序（Henesys 实测：35→34 同键保持 WZ 序）→ 稳定插入~~ **SUPERSEDED（Claim C-018）**：仅静态 WZ 条目序样本，无绘制顺序证据 | ~~VERIFIED（样本）~~ → RETRACTED |
 | Avatar | zmap.img 149 层用于部件内排序；Avatar vs Obj 的插入 = 同容器运行时路径（进图后） | RUNTIME-REQUIRED |
 | 排序时机 | 加载时插入（`即时（加载时）推入时序容器`，非每帧重排） | VERIFIED |
 

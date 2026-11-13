@@ -1,0 +1,3 @@
+﻿# Frozen ABI pin — rendered node contract. Changing a pinned file requires independent ABI review.
+# path sha256
+components/RENDER-NODE-ABI-V1.md a690cd231ad5797de4dc2fdfc4ad20d7b3278700ac8289197dc2f256c5b1c8cc

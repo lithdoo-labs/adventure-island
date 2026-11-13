@@ -1,6 +1,6 @@
 dll,class_name,iid,interface_offset,vtable_rva,slot_count,method_index,method_rva,method_semantics,confidence,evidence_source
 Gr2D_DX8.dll,CWzGr2DLayer,E576EA33-4F08D465-8DE7B1AA-D9E63EF7,0,0x2D140,40,25/26,0x3FBE/0x3FD1,put [arg1+0xCC]=arg2 / get [arg1+0xD0]+AddRef (cdecl arg1=object),A,R31-C sibling-convention scan + exe 240-site census + [0xBE2788] creation chain
-Gr2D_DX8.dll,"CWzRawCanvas (proximity, no COL)",6DC8C7CE-44208E81-604BF6B4-DFFCD5B7,0,0x2E2C4|0x2E2CC (ambiguous start),151|149,45,0x2A610|0x4FB1,purecall | deleting-dtor — NOT insert under either reading,A(joint),R31-B start-ambiguity + R31-D max-run scan
+Gr2D_DX8.dll,"CWzRawCanvas (proximity, no COL)",6DC8C7CE-44208E81-604BF6B4-DFFCD5B7,0,0x2E2C4|0x2E2CC (ambiguous start),151|149,45,0x2A610|0x4FB1,purecall | deleting-dtor — NOT insert under either reading,A,R31-B start-ambiguity + R31-D max-run scan (joint conclusion robust under both readings; see claims C-011/C-020)
 Gr2D_DX8.dll,unknown (3-interface MI object),DF0B3D60-101B548F-0008658E-19D12B2B,0/+4/+8,intmap@0x2E600,-,-,-,true multiple-inheritance (3 vptrs at 0/4/8),B,intmap offset fields
 Shape2D.dll,CWzVector2D family,"(name-based L""Vector2D"")",0,0xC2C8,85,45,0x7EB0,multi-field getter: [edi+0x24] guard; fills 4 out-params from [edi+0x1C/+0x20/+...],A,R31G full disasm
 NameSpace.dll,CWzNameSpace family,(name-based),0,0x17548,125,45,0x22E7,com-check/throw (E_POINTER-class guard),A,R31G classification

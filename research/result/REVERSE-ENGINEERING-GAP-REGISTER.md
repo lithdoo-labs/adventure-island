@@ -1,7 +1,8 @@
 # 逆向缺口总台账（REVERSE-ENGINEERING-GAP-REGISTER）
 
-日期: 2026-11-13（P0 整改版）。684 文件标记扫描 + 结构性缺口分析。
-**唯一权威状态源**——各模块报告不得与此台账矛盾。
+日期: 2026-11-13（P0 整改版；2026-11-13 clean-room 审计版）。
+**唯一权威数据源 = `research/source-of-truth/gaps.csv`**——本文件是其人读视图；统计表由 `research/scripts/generate_cleanroom_deliverables.py` 自动生成，验证器校验一致性。
+各模块报告不得与此台账矛盾。
 
 ## 状态枚举（唯一合法值）
 
@@ -81,16 +82,25 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | G31 | Map/Sort | Canvas 0x17517 = 属性 put/get(+0x8C/+0x90) | CLOSED-STATIC | 跨 DLL 同构族（AV-R4-3）|
 | G32 | Map/Sort | Gr2D 0x2F530 = 伪虚表 | CLOSED-STATIC | slot45 指向字符串数据（AV-R4-4）|
 
+## Clean-room 审计新增（2026-11-13）
+
+| ID | 模块 | 问题 | 状态 | 证据 |
+|---|---|---|---|---|
+| G33 | Map/Sort | 相等键次序策略（稳定性） | OPEN-STATIC | 仅 WZ 静态条目序样本；无绘制顺序证据（Claim C-018 撤销后拆分）|
+| G34 | Camera | 0x5A↔0x1E 换算关系 | OPEN-STATIC | 0x1E 已证（C-030）；0x5A 关系无验证站点 |
+| G35 | Map/Sort | Background 键公式复验 | PARTIAL-STATIC | 单一 imul-1000 站点上下文不足（EV-20）|
+
 ---
 
-## 台账统计（由验证器自动核算）
-
+## 台账统计（由 `research/scripts/generate_cleanroom_deliverables.py` 从 source-of-truth/gaps.csv 自动生成；`<!--GAP-STATS-AUTO-->
 | 状态 | 数量 |
 |---|---|
-| CLOSED-STATIC | 13 |
-| PARTIAL-STATIC | 4 |
-| OPEN-STATIC | 6 |
+| CLOSED-STATIC | 14 |
+| CLOSED-RUNTIME | 0 |
+| PARTIAL-STATIC | 5 |
+| OPEN-STATIC | 9 |
 | OPEN-RUNTIME | 5 |
 | BLOCKED | 1 |
 | SUPERSEDED | 1 |
-| **总计** | **30** |
+| **总计** | **35** |
+<!--/GAP-STATS-AUTO-->

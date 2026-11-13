@@ -38,9 +38,9 @@
 |---|---|
 | Critical A（背景 type1–4 / G36/G39） | **静态布置层闭合**（C-048..C-051、C-059/C-060，Reviewer ACCEPT）：mode/跨度/零步长/循环/五属性。剩余为运行时绑定（+0x90/+0x98 体、view 值、时钟单位）——单次 dump 可决。387 条 Back 实测无 type5/6/7、全部走零步长回退；新增 type4 rate==0 的 idiv 隐患（13 图不可达，转为数据校验规则）。 |
 | Critical B（Obj.flow / G37） | **静态层闭合**（C-049/C-052）：flow=mode、55 条全水平、资源宽回退、flow=0 单实例；rx 不入平铺调用（动态层遗留）。P0 静态拒绝 flow 的理由消失，但 v1 ABI 无字段——产品发布仍需 ABI v2 或预烘焙评审。 |
-| Critical C（P4 落点 / G38） | **同图+跨图落点链闭合**（C-054/C-055，ACCEPT-WITH-CORRECTIONS 已并入）：Y−10、0x78/0x258 冷却、加密写槽 move+0x20/+0x38、边界夹取、速度清零、状态换表门控。剩余：Foothold 重绑三体、0x953FA5 清单、opcode 注册表。 |
-| Critical D（P3 / G40/G41） | 爬绳/座位/竖线半宽/tick 结构闭合（C-056..C-058）；鞋默认、换段完整体、抓绳体余留。 |
+| Critical C（P4 落点 / G38） | **同图+跨图落点链闭合**（C-054/C-055，ACCEPT-WITH-CORRECTIONS 已并入）：Y−10、0x78/0x258 冷却、加密写槽 move+0x20/+0x38、边界夹取、速度清零、状态换表门控。**t082 重绑三体闭合**（C-061..C-064，盲审+对抗审 ACCEPT）：同图=清段+通知、物理循环 0x9BE703 重建；跨图=新 move 对象+arg7=0 无立即重绑、0x9BC89F/0x9BC992 精确投影吸附；0x953FA5=外观复位（负结论）；**0xCF dispatch 指令级绑定**（C-066）。剩余：Camera 顺序、0x81 注册机制、0x9BE703 完整体。 |
+| Critical D（P3 / G40/G41） | 爬绳/座位/竖线半宽/tick 结构闭合（C-056..C-058）。**t082**：0x9BF1FA 完整换段链（含跨越插值/无邻接掉落/出口一致性，C-067）、fh 布局统一+[M+0x110] 单 ctx（C-068）、抓绳键位判定+命中框（C-069/C-071）、0x9BFB52 设段安装器（C-070）、端点槽名修正（C-072）、halfWidth 逐调用点终审（C-073）、M 双虚表家族（C-076）。余留：鞋默认、fh loader 写侧、绳记录 hint 张力（运行时）、ladder/rope 分叉、座位起身。 |
 | Critical E（时钟量纲 / G34） | 维持：dt 为调用方供给、0x1E 非全局证明；[move+0x248] 递减模式为 alert 候选结构（未绑定）。 |
-| High（G27/G24） | G27 矛盾**重构完成**（C-053）：0x427EB3 arg1=OUT；剩余为运行时 slot25 写出参（单 dword dump 决 G24+G27）。 |
+| High（G27/G24） | G27 矛盾**重构完成**（C-053）：0x427EB3 arg1=OUT；剩余为运行时 slot25 写出参（单 dword dump 决 G24+G27）。**t082**：[ebp-0x20] 裁定（C-074）、slot45 带 key 参数+HRESULT 门（C-075）、0x5042D204 虚表组+构造器绑定（C-077，"47 项单表"已更正）——运行时捕获缩至单 vptr 读。 |
 
-优先级更新：静态可继续且值得优先的下一批 = 0x53E95D/0x9BC89F/0x9BC992（Foothold 重绑）、0x9BF1FA 完整体、0xA4FC6F、0xA4F6F1 调用点参数审计、Gr2D 0x5042D204 虚表族（Reviewer 线索：层对象槽体或可静态绑定）。运行时最小捕获 = bp 0x666F77 单值（G24+G27）+ [0xBE2788] 两 slot 值与 slot25 出参（G36 首帧）+ slot58 双采样（G39 单位）。
+优先级更新（t082 后）：静态下一批 = 0x9BE703 完整体（首帧 ctx 重建）、fh loader 写侧（WZ→对象字段直证）、0x517DA8/0x9BCC9A（ladder/rope 分叉）、0x43286E stack-package 家族（G01/G07）。运行时最小捕获 = bp 0x666F77 单值（G24+G27，规格已固化于 T082-R13 §4）+ 绳抓时 dump [M+0x130/0x134]（G41 张力）+ [0xBE2788] 两 slot 值与 slot25 出参（G36 首帧）+ slot58 双采样（G39 单位）。

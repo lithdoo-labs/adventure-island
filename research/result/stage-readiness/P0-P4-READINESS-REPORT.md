@@ -1,12 +1,12 @@
 # P0–P4 Stage Readiness Report (13 real maps)
 
-**研究基线**：`design/adventure-field-map-scene` 原 HEAD `0f5ded86722393e7708ad8398ebe1a9a1997161c`，2026-11-13；**t080 轮（2026-11-13/14）在 `e676ab0abde6109f3a7bafedac1d542fbdb9a671` 上实际执行定点静态逆向并经独立复核**。目标地图列表由 `docs/implementation/2026-11-09-adventure-field-map-scene-design-draft.md` §1.3 指定。本报告为阶段裁决，不取代 `research/source-of-truth/{claims,gaps,evidence}.csv`。详见同目录 **65 行** `P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv`；每行提供原版事实、精度、Claim、Evidence、Gap、样本覆盖、冲突、后续路径、验收与授权。
+**研究基线**：`design/adventure-field-map-scene` 原 HEAD `0f5ded86722393e7708ad8398ebe1a9a1997161c`，2026-11-13；**t080 轮（2026-11-13/14）在 `e676ab0abde6109f3a7bafedac1d542fbdb9a671` 上实际执行定点静态逆向并经独立复核**；**t082 轮（2026-11-14）在 `e137fc1919c32f455287627852a7785ae2c3f8e0` 上继续 G38/G40/G41/R13/Gr2D 定点静态逆向并经独立盲审+对抗审**（成果见 `forensics/T082-*` 六份报告）。目标地图列表由 `docs/implementation/2026-11-09-adventure-field-map-scene-design-draft.md` §1.3 指定。本报告为阶段裁决，不取代 `research/source-of-truth/{claims,gaps,evidence}.csv`。详见同目录 **65 行** `P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv`；每行提供原版事实、精度、Claim、Evidence、Gap、样本覆盖、冲突、后续路径、验收与授权。
 
 ## 0. 结论和证据等级边界
 
 **总体：NOT STAGE-READY。** 不是“不能开工”，而是 **5 个阶段都未满足“全部必要行为有原版证据或正式产品替代且验收边界分开”** 的逐阶段就绪规则。独立的 P0 数据装载、P1 数值键、P2 VR、P3 若干动力子函数、P4 触发和状态提交平台代码可以开工并分别验收。不得因某个阶段总状态为未就绪而阻塞这些模块。
 
-截至本轮，权威台账分三个阶段：早期 Clean-Room 基线为 47 Claim / 32 Evidence / **35 Gap**；阶段缺口登记（G36–G41）后 t080 **开始**时为 47 Claim / 32 Evidence / **41 Gap**；t080 **完成**后为 **60 Claim / 41 Evidence / 41 Gap**（新增 C-048..C-060、EV-33..EV-41，全部来自实际反汇编并经独立复核）。现 Gap 分布：CLOSED-STATIC 14 / PARTIAL-STATIC 12 / OPEN-STATIC 9 / OPEN-RUNTIME 4 / BLOCKED 1 / SUPERSEDED 1。**上一轮"没有原始 EXE/DLL、新指令证据 0 条"的阻塞在 t080 解除**——`.work` 内哈希匹配的原始输入被主 Agent 与 Reviewer 双方独立核验并使用。新增 Critical 结论 C-048..C-058、C-060 经 Reviewer ACCEPT（含修正并入）后定 CLOSED-STATIC；C-059 经 REJECT→字节重验后定 CLOSED-STATIC/A。**绝不以该统计数量代替工程完成定义**。
+截至本轮，权威台账分四个阶段：早期 Clean-Room 基线为 47 Claim / 32 Evidence / **35 Gap**；阶段缺口登记（G36–G41）后 t080 **开始**时为 47 Claim / 32 Evidence / **41 Gap**；t080 **完成**后为 **60 Claim / 42 Evidence / 41 Gap**；t082 完成后为 **77 Claim / 63 Evidence / 41 Gap**（新增 C-061..C-077、EV-43..EV-63，全部来自实际反汇编并经独立盲审+对抗审；G38/G40/G41/G01/G24/G27 六个 Gap 的 verified/unresolved 范围重划，无 Gap 关闭——各自仍有明确静态或运行时残项）。现 Gap 分布：CLOSED-STATIC 14 / PARTIAL-STATIC 12 / OPEN-STATIC 9 / OPEN-RUNTIME 4 / BLOCKED 1 / SUPERSEDED 1。**上一轮"没有原始 EXE/DLL、新指令证据 0 条"的阻塞在 t080 解除**——`.work` 内哈希匹配的原始输入被主 Agent 与 Reviewer 双方独立核验并使用（t082 再次双重核验）。新增 Critical 结论 C-048..C-058、C-060 经 Reviewer ACCEPT（含修正并入）后定 CLOSED-STATIC；C-059 经 REJECT→字节重验后定 CLOSED-STATIC/A；**t082 的 C-061..C-077 经盲审互证与对抗审修正（两处 ACCEPT-WITH-CORRECTIONS：0x404BA3 写者归属、虚表组结构）后定 CLOSED-STATIC**。**绝不以该统计数量代替工程完成定义**。
 
 下面三种信息必须独立：
 1. **原版可信事实**：例如 C-001/EV-01 计算 Tile 键、C-026/EV-21 VR±(400,300)、C-034/EV-26 Physics 字段；以及已有反汇编报告中精确到 VA 的局部函数。
@@ -27,7 +27,7 @@
 
 ### P0 — 内容阶段清单
 
-**RE-READY**：Tile 的 `u/no/zM`、Obj 的 `oS/l0/l1/l2/z/f/zM`（基础字段；flow 子集另列 P0-05）、Foothold 连接、19 Physics doubles（各有权威 EV 支撑）。TileFrame 目标三包 `folkvillige` (27)、`greensandySeaFloor` (26)、`sandySeaFloor` (28) 均有 `z`。注意各 layer 可能引用不同 TileSet；不可把三包合成一个全局键索引。**t081 边界修订**：13 图 map.info allowlist（P0-01）与 Rope/Seat 坐标（P0-09）的数据存在性已清点但尚无权威 EV 登记——按"RE-READY 需证据支撑"规则暂列 RE-GAP-STATIC，登记 FSDB 数据 EV 后回升。
+**RE-READY**：Tile 的 `u/no/zM`、Obj 的 `oS/l0/l1/l2/z/f/zM`（基础字段；flow 子集另列 P0-05）、Foothold 连接、19 Physics doubles（各有权威 EV 支撑）。TileFrame 目标三包 `folkvillige` (27)、`greensandySeaFloor` (26)、`sandySeaFloor` (28) 均有 `z`。注意各 layer 可能引用不同 TileSet；不可把三包合成一个全局键索引。**t081 边界修订**：13 图 map.info allowlist（P0-01）与 Rope/Seat 坐标（P0-09）的数据存在性已清点但尚无权威 EV 登记——**t082 已登记 FSDB 数据 EV（EV-63：13 图 Foothold/Rope/Seat 全量清点，2154 条 fh 全带 prev/next、ladder 14/rope 2/seat 12、退化段 NOT PRESENT），P0-09 据此回升 RE-READY**；P0-01 的 allowlist 数据 EV 仍待登记（保持 RE-GAP-STATIC）。
 
 **PRODUCT-READY**：完整 VR 源可按 C-026 原版收缩；无 VR 的 `minimap→foothold bbox` 是正式产品回退；`info/link` 本次 13 图没有，但允许的泛化解析规则需单独夹具。不是“所有 CMS 地图都无 link”。
 
@@ -52,16 +52,16 @@
 | 行为 | 当前最可信证据 | 可编码程度/主要缺口 |
 |---|---|---|
 | 平地行走 | `0x9BD757` 最新 T1 指令记录；`+0xE0` 梯形积分，`0x9BC992` 世界坐标投影 | **已证局部单步可编码**；不得用 `walkSpeed*dt` |
-| 斜坡与换段 | 设计稿 §6.5 列 `0x9BF1FA` 边界、邻段 `+0x4C/+0x50` 的详细静态结论 | t080 已证 0x9BF1FA 头部对 fh 邻段 `+0x4C/+0x50` 的消费（EV-39 关联）；**换段完整体与分支反证未读**，按 G40 |
+| 斜坡与换段 | **t082：0x9BF1FA 完整链（C-067）**：双向邻接 + `[N+0x30]>0` 转移门 + 自环守卫 + 跨越插值 + 无邻接掉落（vt+0x14(M,NULL)）+ 每 tick 坡面重投影；0x9BF9D3=地图边界钳制；fh 布局统一（C-068）+ FSDB prev/next 全量 | **换段/吸附算法已闭合可编码**（P3-03 RE-READY）；余留 fh loader 写侧直证与 slot3 变体（不阻塞） |
 | 空中 vx 与重力 | 19 Physics 字段和值；R2/T2/设计稿有数值，`0x9BDF18` | 主公式可写；技能例外/输入资格及单位不能冒称全路径 |
 | 陆地跳 | `0x9BD20E`、默认目标倍率取1；`jumpSpeed=555` | **初速子式 `-jumpSpeed` 可实现**；资格和后续碰撞另列 |
 | 水中跳 | `0x9BD42D`、目标 `swimSpeed=140`，倍率1 | **初速子式 `-(swimSpeed×5)` 可实现**；泳态切换资格另列 |
 | 游泳四方向 | `0x70DF65` 与 T2、R2、设计稿原版路径说明 | 针对8水图有公式/数值；跨图泳态同步还需单测 |
-| 落地/向上穿台/竖线 | `0xA4F6F1`、`0x9CC207`；R12旧版与设计稿最新版边界文字不完全一致 | t080 已裁决：0xA4F6F1 竖线查询**半宽为调用方参数**（portal 站点=1 已证，C-058）——R12 之争按调用点裁断，余留为其余站点参数审计；不把竖线当墙 |
+| 落地/向上穿台/竖线 | `0xA4F6F1`、`0x9CC207`；**t082：24 调用点半宽审计（C-073）** | 半宽逐调用点终审（17×1、1×2、4×动态、1×不可解码，P3-06 RE-READY）；不把竖线当墙；0x964074 单点 PARTIAL 不阻塞 |
 | 下跳 | `0x95308C`、mpRecovery bit17为0、`K=-0.35355339` | 初速门有精确式，**穿台至下一fh状态**需串联验证 |
 | 蹲下/站起 | `prone` 槽33，`0x93D238` 动作字条件 | 映射可做；输入释放及时序需单测 |
-| 抓绳/爬绳/离绳 | 最新设计稿 §6.6：`0xA4FC6F` 抓取 x±10；`0x9D80EC` 的 `y += 3*verticalKey`；`0x9BFB52` 清挂绳 | t080 已证爬绳积分（`y += 3.0×键`，常量 3.0 字节直读）与端点夹取 bottom−5/top+1（C-056）；**抓绳 0xA4FC6F 体与离绳完整体未读**，姿态 `climb→rope` 为产品替代 |
-| 坐下/站起 | `0x54634C` seat x±10/y±30；`0x9658CC` 收到0xCF后写 `user+0x2944`（设计稿新增链） | t080 已证座位状态写链（`0x6131B9(0/1,&user+0x2944)`、矩形 x±10/y±30、坐点 `0x9D35F2`、到达复用 0x963C7D 触发族，C-057）；**站起/取消条件与 0xCF 注册未证**，非网络单人授权另批 |
+| 抓绳/爬绳/离绳 | **t082**：0xA4FC6F 全函数（C-069：x 跨度±10、y 框内含、stride 0x1C）；抓绳键位判定（C-071：DOWN 盒 [X±10]×[Y−20,Y]、UP 盒 [X±10]×[Y,Y+10]+顶可达门、命中写 X←rope.x/Y←顶或min、双速度清零、ctx 替换）；0x9BFB52 设段/设绳安装器全函数（C-070）；端点槽名修正（C-072） | **抓绳/离绳/端点已闭合可编码**（P3-14 RE-READY）；余留 ladder/rope 类型分叉与紧凑绳记录 hint 张力（运行时 dump）；姿态 `climb→rope` 仍为产品替代 |
+| 坐下/站起 | `0x54634C` seat x±10/y±30；`0x9658CC` 收到0xCF后写 `user+0x2944`（设计稿新增链） | t080 已证座位状态写链（C-057）；**t082 已证 0xCF dispatch 指令级绑定（C-066：switch@0x9571BF case0→0x9658CC）**；**站起/取消链 0x6A0ADF 仍未读**，非网络单人授权另批 |
 | 攻击动作 | C-035/C-039/EV-27：weapon variant表 `decryptedRand%count` | 表级/一次 `action` Render Event可做；PRNG逐位和命中矩形非现阶段功能 |
 | Alert | C-036/EV-29 九次写5000，计时递减 G12未知 | 产品 5000ms行为等价候选存在，但 Frozen actor 无alert attrs |
 | 死亡/受击 | G11 `user+0x61` owner未归属 | 无伤害/死亡结算为本期非目标；**不应阻塞**上述模块 |
@@ -75,13 +75,15 @@
 
 **必须核对的新旧取证范围（t080 后状态）**：
 - 较早 `MAP-R1-R14-REVERSE.md` 的 R10 结论仅是 **在"上键命中/发送路径及一层"没有写玩家 +0x20/+0x38**——与接收侧落点链不矛盾，t080 已按字节澄清（发送路径确实不写；写入发生在接收/应用侧）。
-- 设计稿 §16 M12/R10 的地址链**已在 t080 独立核验并登记为权威 Claim/Evidence**：同图 `0x95533D→[move-vt+0x40]→0x9C1113`（C-054/EV-35：pending `user+0x28F8/+0x28FC`、冷却门与 `0x78/0x258` 双窗、Y−10、加密落点 move+0x20/+0x38）；跨图 `0x81`→`0x9507F0`（C-055/EV-36：记录 `+0xC/+0x10`、Y−10、边界夹取、速度清零、FH 提示拷贝）。opcode `0x0081=WARP_TO_MAP` 为语料库 A 级；**客户端分发表字节绑定（0x81→0x97EBC9 注册）仍未逐字节追证**。
-- 即便坐标链已证，也**不能自动证明**着地 Foothold snap（0x53E95D/0x9BC89F/0x9BC992 体未读）、vx/vy/rope/seat/姿态完整清理（0x953FA5 体未读）与 Camera 刷新时机。这些子规则单独列在矩阵 P4-05/06/07 并保持开放。
+- 设计稿 §16 M12/R10 的地址链**已在 t080 独立核验并登记为权威 Claim/Evidence**：同图 `0x95533D→[move-vt+0x40]→0x9C1113`（C-054/EV-35：pending `user+0x28F8/+0x28FC`、冷却门与 `0x78/0x258` 双窗、Y−10、加密落点 move+0x20/+0x38）；跨图 `0x81`→`0x9507F0`（C-055/EV-36：记录 `+0xC/+0x10`、Y−10、边界夹取、速度清零；**t082 修正：跨图调用 arg7=0，"FH 提示拷贝"分支恒不执行、hint 被清零——立即重绑只存在于 arg7≠0 的其它调用路径，见 C-062**）。opcode `0x0081=WARP_TO_MAP` 为语料库 A 级；**客户端分发表字节绑定（0x81→0x97EBC9 注册）仍未逐字节追证（t082 已闭合同型的 0xCF 绑定并刻画 0x81 的缺失环节：handler vtable 族无静态注册可见）**。
+- 即便坐标链已证，也**不能自动证明**着地 Foothold snap 与状态复位——**t082 已闭合**：同图重绑 = 清段+通知、物理循环 0x9BE703 扫掠盒重建（C-061）；跨图 = 新 move 对象 + arg7=0 无立即重绑 + 0x9BC89F/0x9BC992 精确投影吸附（C-062/C-063）；0x953FA5 = 外观复位负结论、移动复位 = 新对象机制（C-065）；**opcode 0xCF dispatch 已指令级绑定（C-066），0x81→0x97EBC9 的 handler-vtable 注册机制仍 OPEN-STATIC**。Camera 刷新时机（P4-07/G10）与 0x9BE703 完整体仍未闭合，P4-06 保持 RE-GAP-STATIC（Camera 残项）、P4-05 升 RE-READY。
 - 目标数据内部互反门远多于四条：旧 `MapScenePlanV1` §7 只启四门，阶段草案 §1.4 要求13图走廊所有已指定内门。是**设计选择冲突而非原版证据缺失**，需要在 P4 发布前解决。
 
 ## 2. 最小验收门与建议实施顺序
 
 > **t080 备忘（历史注记，正文已就地同步）**：静态输入在 t080 取得并核验；G36/G37 静态布置层、G38 落点链、G40/G41 爬绳与座位、G39 注册链闭合的细节见 TARGETED-STATIC-FORENSICS-V2.md / INDEPENDENT-STATIC-REVIEW.md；矩阵 P4-04 以限界子行为升 RE-READY（边界见该行）。G36/G37/G39 的动态子层仍需一次最小运行时捕获或产品等价授权。
+
+> **t082 备忘**：G38 重绑三体/状态复位/0xCF 绑定、G40 换段完整体、G41 抓绳/设段安装器、R13 [ebp-0x20]/slot45、Gr2D 虚表组的取证细节见 `forensics/T082-*` 六份报告（含盲审与对抗审）。矩阵 P0-09/P3-03/P3-06/P3-14/P4-05 升 RE-READY；P4-04 的 RE-READY（跨图坐标提交限界子行为）不受本轮影响、维持原判。G38/G40/G41 整体仍为 PARTIAL-STATIC（Camera、fh loader、ladder/rope 分叉、绳 hint 张力等残项明确登记）；阶段整体维持 NOT STAGE-READY。
 
 1. **先交付 P0 中已闭合源表/Physics/Tile与Obj键的 Reader 和 Builder诊断测试**；同一次构建必须让13图 type/flow unsupported 报确切地图和路径，不能静默“成功”。（静态语义已证但 v1 ABI 无字段——产品发布路径见 DESIGN-DECISION-BACKLOG D-BACK/D-OBJ-FLOW。）
 2. **对 G36/G37/G39 做动态层补证**：静态布置/注册链已闭合，剩余一次最小运行时捕获（slot25 出参 + view slot 值 + slot58 双采样）或产品等价批准；不得拿临时画面称13图完成。

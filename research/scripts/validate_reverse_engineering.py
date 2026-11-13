@@ -38,6 +38,12 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8'):
 
 REPO = os.environ.get('RE_VALIDATE_ROOT') or os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Deliverable-presence strictness (t082): when validating the REAL repository the
+# stage-readiness matrix and readiness report are required deliverables and their
+# absence must FAIL. Fixture-based tests (RE_VALIDATE_ROOT set) stay lenient for
+# miniature repos, but can opt into the strict rule via the explicit flag below.
+REQUIRE_DELIVERABLES = (os.environ.get('RE_VALIDATE_ROOT') is None
+                        or os.environ.get('RE_VALIDATE_STRICT_DELIVERABLES') == '1')
 RR = os.path.join(REPO, 'research', 'result')
 SOT = os.path.join(REPO, 'research', 'source-of-truth')
 CLEANROOM = os.path.join(RR, 'clean-room')
@@ -665,6 +671,9 @@ def check_args_regression(sot):
 
 def check_matrix_integrity(sot):
     if not os.path.exists(MATRIX_PATH):
+        if REQUIRE_DELIVERABLES:
+            err('MATRIX-MISSING', 'P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv absent from '
+                                  'stage-readiness deliverables (required in the real repository)')
         return  # miniature fixtures may omit the matrix; absence is not an error
     try:
         header, rows = parse_csv(MATRIX_PATH)
@@ -731,6 +740,9 @@ REPORT_REQUIRED_MARKERS = (
 
 def check_report_regression():
     if not os.path.exists(REPORT_PATH):
+        if REQUIRE_DELIVERABLES:
+            err('REPORT-MISSING', 'P0-P4-READINESS-REPORT.md absent from '
+                                  'stage-readiness deliverables (required in the real repository)')
         return
     text = read_text(REPORT_PATH)
     for pat in REPORT_STALE_PATTERNS:

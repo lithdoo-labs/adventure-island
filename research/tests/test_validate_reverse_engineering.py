@@ -521,6 +521,43 @@ class IsolatedValidatorTests(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('REPORT-MARKER', out)
 
+    # ------- t082: deliverable-presence strictness (real-repository rule) -------
+
+    def test_35_strict_mode_matrix_absent_fails(self):
+        # deliverable matrix absent + strict deliverables flag -> MATRIX-MISSING
+        os.remove(os.path.join(self.root,
+                               'research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv'))
+        env = dict(os.environ)
+        env['RE_VALIDATE_ROOT'] = self.root
+        env['RE_VALIDATE_STRICT_DELIVERABLES'] = '1'
+        env['PYTHONIOENCODING'] = 'utf-8'
+        r = subprocess.run([sys.executable, SCRIPT], capture_output=True,
+                           timeout=180, env=env, cwd=self.root)
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('MATRIX-MISSING', out)
+
+    def test_36_strict_mode_report_absent_fails(self):
+        # readiness report absent + strict deliverables flag -> REPORT-MISSING
+        os.remove(os.path.join(self.root,
+                               'research/result/stage-readiness/P0-P4-READINESS-REPORT.md'))
+        env = dict(os.environ)
+        env['RE_VALIDATE_ROOT'] = self.root
+        env['RE_VALIDATE_STRICT_DELIVERABLES'] = '1'
+        env['PYTHONIOENCODING'] = 'utf-8'
+        r = subprocess.run([sys.executable, SCRIPT], capture_output=True,
+                           timeout=180, env=env, cwd=self.root)
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('REPORT-MISSING', out)
+
+    def test_37_lenient_fixture_without_matrix_still_passes(self):
+        # miniature fixture without the matrix stays lenient (no strict flag set)
+        os.remove(os.path.join(self.root,
+                               'research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv'))
+        r = self._run()
+        self.assertEqual(r.returncode, 0, r.stdout.decode('utf-8', 'replace'))
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)

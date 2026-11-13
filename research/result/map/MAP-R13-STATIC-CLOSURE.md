@@ -1,8 +1,69 @@
-# R13 排序静态闭合（MAP-R13-STATIC-CLOSURE）
+# R13 排序静态闭合（MAP-R13-STATIC-CLOSURE）v2
 
-日期: 2026-11-13。全链路静态闭合，含对旧结论的两处修正。
+日期: 2026-11-13。v2 = 第二轮静态深化（RTTI/接口映射/委派桩证据链）。
 
-## 结论一：排序键公式（VERIFIED，EXE 侧）
+## ⭐ 终极身份表（RTTI + ATL 接口映射双 VERIFIED）
+
+| 类名 | 证据 | vtable | 接口映射 | IID |
+|---|---|---|---|---|
+| **CWzGr2DLayer** | RTTI `.?AVCWzGr2DLayer@@`（Gr2D .data）| **0x5042D140（40 槽）** | 0x5042D1E0（紧接虚表尾 0x2D140+40×4=0x2D1E0 ✓）| E576EA33（主，offset 0）|
+| **CWzRawCanvas** | RTTI `.?AVCWzRawCanvas@@`（Gr2D .data）| **0x5042E2C4（151 槽）** | 0x5042E520（精确衔接 ✓）| 6DC8C7CE（主）> F28BD1ED > 4CFB57C7 > 01110BC6 > IUnknown（五级继承链）|
+| 多继承对象 | intmap@0x5042E600 | — | {312126F0@+4, 905BE84C@+8, DF0B3D60@+0} | 真·三重虚表 |
+
+全 DLL RTTI 类名表（32 类）：CWzCanvas/CWzClipToken/CWzDIBRawCanvas/CWzFont/CWzStream(Canvas) · CVectorAux/CWzVector2D(Shape2D) · CArchiveSource/CWzArchive/CWzFileSystem/CWzNameSpace/CWzNameSpaceProperty/CWzPackage/CWzRawArchive/NameSpace · CWzGr2DLayer/CWzRawCanvas(Gr2D)
+
+## 完整调用链（VERIFIED，每环指令级）
+
+```
+[0xBE2788] = CWzGr2DLayer 实例
+  创建：初始化器 0xa00e5E → CoCreate(0xa0449b, IID=E576EA33@0xBA0570) 经工厂[0xBE1FB0]
+  （REGDB_E_CLASSNOTREG 铁证；根上下文 [0xBDD494]+0x14 → 字符串表单例(0x7a48d0) → GetById(0x819)）
+
+tile/obj 实例加载（EXE 0x666C0D/0x6688BE）:
+  key = z + 10*(layer*3000 - zM) - 1073721834  (tile)
+      = layer*30000 + z - 1073739824           (obj)
+  0x666ea6: cmp [0xBE2788],0 → E_POINTER 守卫
+  0x666ebc: mov ecx,[0xBE2788]                 ← CWzGr2DLayer
+  0x666ed5: call 0x427eb3(layer, variant, key(edi), 0,0,0, in1, in2, &out[ebp-0x10])
+            = layer->CreateRawCanvas(...)       ← 层方法（其 vtbl+0x64 错误路径用 E576EA33）
+  out = CWzRawCanvas 实例（接口 6DC8C7CE，错误路径 0x666f85 用 IID@0xBA0510）
+  0x42944a = 智能指针 GET（E_POINTER 守卫 + return [holder]）
+  0x666f7d: call [eax+0xB4]                    ← CWzRawCanvas::vtbl[45] = Insert(key)
+  0x666f83: cmp eax,ebx; jge = HRESULT 检查（非比较器）
+```
+
+## slot45 = 委派桩（诚实边界）
+
+`0x5042A610: jmp dword ptr [0x5042D0A0]`——委派表 0x2D090-0x2D0AC 的静态值（0x34046-0x34116）为**运行时补丁的占位 RVA**（.rdata 尾部，非代码）。插入/比较的真实函数体在运行时经该表绑定。
+- **身份与拓扑：CLOSED-STATIC（本档）**
+- **比较器指令体：OPEN-RUNTIME（需 [0x5042D0A0] 运行时值；1-dword 读取即闭合）**
+
+## 修正记录
+
+| 旧结论 | 新结论 | 依据 |
+|---|---|---|
+| [0xBE2788]=Shape2D#Vector2D（MAP-CAMERA 旧） | CWzGr2DLayer | E576EA33 唯一 Gr2D + RTTI + 接口映射 |
+| v1 报告把 E576EA33 与 6DC8C7CE 混为同接口 | **两个接口**：层(E576EA33) vs 画布容器(6DC8C7CE) | 错误路径用不同 IID（0xBA0570 vs 0xBA0510）|
+| SEC16 "0x666F7D cmp = 比较" | HRESULT 检查 | 完整指令流（0xa6ef0f 错误包装在后）|
+| SEC16 "0x9C0EC0 = +0x58 写者" | **四 IID QI 分派器** | memcmp 链 + E_NOINTERFACE + adjustor |
+| SEC16 "0x9BC401 = +0x110 写者" | **移动位置/状态解密-序列化器**（0x9BC404 实体）| 4 对解密(x/y/vx/vy) + 状态码 0x11/0xF + 0xa70f94 浮点转换 → 包字段 |
+
+## 排序关系终表
+
+| 问题 | 答案 | 等级 |
+|---|---|---|
+| Tile/Obj 同容器？ | 同一 CWzGr2DLayer → 各自 CreateRawCanvas → 同类容器插入 | VERIFIED |
+| 同 this？ | 层同（[0xBE2788]），画布按创建参数区分 | VERIFIED |
+| 排序方向 | 键升序（小键先画：层 0 垫底） | STRONGLY SUPPORTED |
+| 相等键 | WZ 顺序保持（稳定插入，Henesys 实测） | VERIFIED（样本）|
+| Background | 独立键空间 index×1000 | VERIFIED（旧档）|
+| Avatar | 同容器（运行时注册路径） | INFERRED |
+
+---
+
+## 附：v1 证据细节（保留存档，2026-11-13 第一轮）
+
+### 结论一：排序键公式（VERIFIED，EXE 侧）
 
 ### Tile 键（构造点 0x666E44，函数 0x666C0D）
 ```

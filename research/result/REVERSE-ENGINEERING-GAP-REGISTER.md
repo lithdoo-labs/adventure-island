@@ -6,7 +6,7 @@
 
 | ID | 模块 | 问题 | 状态 | 最终结论 |
 |---|---|---|---|---|
-| G01 | Map/Sort | R13 比较器身份 | **CLOSED** | [0xBE2788]=Gr2D 接口（IID E576EA33 唯一归属 Gr2D_DX8.dll）；0x666F7D 的 cmp=HRESULT 检查非比较；+0xB4=有序插入，比较器在 DLL 内（MAP-R13-STATIC-CLOSURE.md） |
+| G01 | Map/Sort | R13 比较器身份 | **CLOSED-STATIC**（v2：RTTI+intmap） | [0xBE2788]=CWzGr2DLayer(vt 0x5042D140, IID E576EA33)；容器=CWzRawCanvas(vt 0x5042E2C4, IID 6DC8C7CE，五级继承链)；slot45=委派桩→OPEN-RUNTIME(比较器体) |
 | G02 | Map/Sort | Tile/Obj 键公式 | **CLOSED**（旧文档已 VERIFIED，本轮互证） | tile=z+10(layer·3000−zM)−1073721834；obj=layer·30000+z−1073739824 |
 | G03 | Map/Sort | [0xBE2788] vs Shape2D 冲突 | **CLOSED（修正）** | Shape2D#Vector2D 判定错误；真 GUID 仅在 Gr2D |
 | G04 | Combat | R9 变体选择 | **CLOSED**（SEC16 轮） | {值,键}对 + xorshift RNG + variant[rand%count] |
@@ -16,7 +16,7 @@
 
 | ID | 模块 | 问题 | 缺失证据 | 最小验证 |
 |---|---|---|---|---|
-| G06 | Map/Sort | [0xBE2788] 真实虚表 dword | 进图后对象指针 | 转储读 [[0xBE2788]]（1 dword） |
+| G06 | Map/Sort | [0xBE2788] 真实虚表 | **CLOSED-STATIC**（v2） | =0x5042D140（40 槽，intmap 精确衔接）；残留=委派表 [0x5042D0A0] 运行时值 |
 | G07 | Map/Sort | DLL 内二分插入比较器 | 上项定位后 | 反汇编插入函数体 |
 | G08 | Map/Sort | Avatar 插入键构造 | 进图运行时路径 | 进图转储 + Avatar 加载断点 |
 | G09 | Avatar | 部件组合/遮挡运行时序 | 进图后渲染 | 进图捕获 |
@@ -44,3 +44,11 @@
 - P0：5 项全闭合
 - RUNTIME-REQUIRED：8 项（全部附最小验证方案）
 - 结构性长尾：2 类（已定性）
+
+## 第二轮新增/更新（2026-11-13 STATIC-ROUND-2）
+
+| ID | 模块 | 问题 | 状态 | 说明 |
+|---|---|---|---|---|
+| G18 | PCOM | 0x9C0EC0 = 四 IID QI 分派器（{0xb0e760,0xbd37b0,0xba0378,0xba0500}）所属对象 | OPEN-STATIC | 0xba0500=F28BD1ED(CWzRawCanvas 基)——疑似 RawCanvas 家族聚合对象 |
+| G19 | Move/Protocol | 0x9BC404 = 移动位置/状态解密-序列化器（x/y/vx/vy 4 对 + 状态 0x11/0xF + 0xa70f94） | PARTIAL-STATIC | 完整签名与包目标待续 |
+| G20 | Avatar | 63-avatar-occlusion §11 五项 | OPEN-STATIC（从误标 RUNTIME 纠正） | this+0x38 槽位串源/空 tag 构造/face 排除插入/双绘制入口目标/画布锚点映射 |

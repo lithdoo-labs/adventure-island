@@ -151,3 +151,9 @@
 | 3. R13 | **静态闭合**（2026-11-13 二轮） | IID E576EA33 唯一归属 Gr2D（VA 0x50435120/接口映射 0x2d1e0）；创建器 0xa0449b（REGDB_E_CLASSNOTREG）；初始化器 0xa00e5E（字符串表 ID 0x819）；cmp=HRESULT 检查非比较；+0xB4=有序插入 | [0xBE2788] 真实虚表 dword（进图 1-read 可补） |
 | 4. R14 | **部分闭合**（草案两处修正） | 0xB0CB70=移动对象虚表；+0x190=[Physics+0xAC] 写入者找到；0x1E 出处找到；+0x58/+0x110 在镜像内 | 镜头跟随策略未证实 |
 | 5. +0x3BC | 写入侧闭合，递减侧未证 | 9 处统一 0x1388 写 + 事件场景 + 8 读点；无 sub/dec | 递减机制（需运行时采样） |
+
+### 2026-11-13 STATIC-ROUND-2 修正
+
+- 0x9C0EC0 不是 +0x58 写者：实测为四 IID QueryInterface 分派器（memcmp {0xb0e760,0xbd37b0,0xba0378,0xba0500} + E_NOINTERFACE + adjustor AddRef）。
+- 0x9BC401(+4) 不是 +0x110 写者：实测为移动位置/状态解密-序列化器（4 对解密 x/y/vx/vy + 状态 0x11/0xF + 0xa70f94 浮点转包）。
+- R13 v2：RTTI+intmap 闭合（CWzGr2DLayer@0x2D140 / CWzRawCanvas@0x2E2C4），slot45=委派桩。详见 MAP-R13-STATIC-CLOSURE.md v2。

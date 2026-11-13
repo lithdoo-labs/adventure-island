@@ -1,0 +1,11 @@
+rva,slot45_target,slot45_rva,slots,identity
+0x2A610,0x5042A610,0x2A610,stub,jmp [__imp__purecall]  (IAT entry 0x2D0A0; name "_purecall" @0x50434064)
+0x2D100,0x5040404B,0x404B,10,vtable (intmap-adjacent family)
+0x2D140,0x5040155E,0x155E,40,CWzGr2DLayer primary vtable; slot25=0x50403FBE property-put setter (+0xCC); slot26=0x50403FD1 getter (+0xD0 AddRef)
+0x2D204,0x50405FC8,0x5FC8,47,vtable; slot45=deleting dtor family (dtor+cond-delete)
+0x2E2C4,0x5042A610,0x2A610,151,ABSTRACT view (slots 3-44 purecall); 8-byte RTTI COL prefix at 0x2E2C4
+0x2E2CC,0x50404FB1,0x4FB1,149,CWzRawCanvas concrete vtable (adj intmap 0x2E520); slot45=scalar deleting destructor (vt swap->0x2E380 + base dtor + cond delete)
+0x2E2D4,0x50405FC8,0x5FC8,145,inheritance view
+0x2E380,0x5040F2E6,0xF2E6,102,base vtable (dtor swap target of 0x2E2CC class)
+0x2E8B4,0x5042A610,0x2A610,95,abstract (slots 44-46 purecall)
+0x2F2CC,0x5041B84D,0x1B84D,132,vtable; slot45=byte->RGBA decode loop (pixel engine; Round2 proven)

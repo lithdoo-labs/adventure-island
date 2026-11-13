@@ -157,3 +157,11 @@
 - 0x9C0EC0 不是 +0x58 写者：实测为四 IID QueryInterface 分派器（memcmp {0xb0e760,0xbd37b0,0xba0378,0xba0500} + E_NOINTERFACE + adjustor AddRef）。
 - 0x9BC401(+4) 不是 +0x110 写者：实测为移动位置/状态解密-序列化器（4 对解密 x/y/vx/vy + 状态 0x11/0xF + 0xa70f94 浮点转包）。
 - R13 v2：RTTI+intmap 闭合（CWzGr2DLayer@0x2D140 / CWzRawCanvas@0x2E2C4），slot45=委派桩。详见 MAP-R13-STATIC-CLOSURE.md v2。
+
+### 2026-11-13 ROUND-3 修正
+
+- 0x5042D0A0 = __imp__purecall（CRT 导入表，非运行时补丁表）：0x50434046-0x50434116 为导入按名表（wcscmp/_purecall/__CxxFrameHandler ASCII 实证），.reloc 无覆盖。
+- RawCanvas 具体虚表 = 0x5042E2CC（149 槽，非 0x2E2C4——前 8 字节为 RTTI COL 头）；槽 3-44 = purecall 抽象槽。
+- slot45@0x2E2CC = 删除型析构函数（0x50404FB1：vtable 换基 0x2E380 + 基类析构 + 条件 operator delete）——插入解释对其不成立。
+- 0x427EB3 = 属性 PUT 包装（层 slot25 = 平凡 setter [this+0xCC]=val @0x50403FBE；slot26 = getter +0xD0 AddRef）——推翻 CreateRawCanvas 叙事。
+- 详见 MAP-R13-ROUND3-DISPATCH.md。

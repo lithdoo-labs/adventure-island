@@ -6,7 +6,7 @@
 
 | ID | 模块 | 问题 | 状态 | 最终结论 |
 |---|---|---|---|---|
-| G01 | Map/Sort | R13 比较器身份 | **CLOSED-STATIC**（v2：RTTI+intmap） | [0xBE2788]=CWzGr2DLayer(vt 0x5042D140, IID E576EA33)；容器=CWzRawCanvas(vt 0x5042E2C4, IID 6DC8C7CE，五级继承链)；slot45=委派桩→OPEN-RUNTIME(比较器体) |
+| G01 | Map/Sort | R13 比较器/容器语义 | **PARTIAL-STATIC**（R3：身份链闭合，插入语义未定） | 已证：0x5042D0A0=__imp__purecall(IAT)；0x2E2CC=RawCanvas 具体虚表(149槽)；其 slot45=删除型析构；0x427EB3=属性PUT(slot25 平凡setter +0xCC)非创建器；键公式 A 级独立成立。未定：[ebp-0x10] 具体类（variant 内容决定）→ [eax+0xB4] 插入解释对其他实现未裁定 |
 | G02 | Map/Sort | Tile/Obj 键公式 | **CLOSED**（旧文档已 VERIFIED，本轮互证） | tile=z+10(layer·3000−zM)−1073721834；obj=layer·30000+z−1073739824 |
 | G03 | Map/Sort | [0xBE2788] vs Shape2D 冲突 | **CLOSED（修正）** | Shape2D#Vector2D 判定错误；真 GUID 仅在 Gr2D |
 | G04 | Combat | R9 变体选择 | **CLOSED**（SEC16 轮） | {值,键}对 + xorshift RNG + variant[rand%count] |
@@ -52,3 +52,12 @@
 | G18 | PCOM | 0x9C0EC0 = 四 IID QI 分派器（{0xb0e760,0xbd37b0,0xba0378,0xba0500}）所属对象 | OPEN-STATIC | 0xba0500=F28BD1ED(CWzRawCanvas 基)——疑似 RawCanvas 家族聚合对象 |
 | G19 | Move/Protocol | 0x9BC404 = 移动位置/状态解密-序列化器（x/y/vx/vy 4 对 + 状态 0x11/0xF + 0xa70f94） | PARTIAL-STATIC | 完整签名与包目标待续 |
 | G20 | Avatar | 63-avatar-occlusion §11 五项 | OPEN-STATIC（从误标 RUNTIME 纠正） | this+0x38 槽位串源/空 tag 构造/face 排除插入/双绘制入口目标/画布锚点映射 |
+
+## 第三轮更新（2026-11-13 ROUND-3）
+
+| ID | 模块 | 问题 | 状态 | 说明 |
+|---|---|---|---|---|
+| G21 | Gr2D | [0x5042D0A0] 身份 | **CLOSED-STATIC** | =__imp__purecall（导入名表 ASCII + 无重定位，A 级）；见 MAP-R13-ROUND3-DISPATCH.md |
+| G22 | Gr2D | RawCanvas 具体虚表 | **CLOSED-STATIC** | =0x5042E2CC（149 槽，衔接 intmap 0x2E520）；slot45=删除型析构（0x50404FB1） |
+| G23 | PCOM | 0x427EB3 身份 | **CLOSED-STATIC** | =属性 PUT 包装（层 slot25 setter +0xCC / getter +0xD0）；推翻"CreateRawCanvas" |
+| G24 | Map/Sort | [eax+0xB4] 最终语义 | **OPEN-RUNTIME**（收窄） | 依 [ebp-0x10] 具体类（variant 运行时值）；候选已列 R13-DISPATCH-RESOLUTION.csv |

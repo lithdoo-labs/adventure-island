@@ -43,6 +43,8 @@
 | 地图边界源：0x9BC602 复制 [0xBDD498]+0x24 → M+0x138..0x144 | 0x9BC602–0x9BC621 | **VERIFIED**（与 Reviewer 的 0x9BF9D3 边界消费端互证） |
 | C-056 端点槽名/方向修正（top−5/bottom+1） | 0x9D817F–0x9D81F6 + 0xA4FC6F 窗口条件 + FSDB y1<y2 | **VERIFIED（数值）/ DERIVED（槽名，loader 侧未直读）**——Reviewer 复确认了数值与 3.0 常量，未对槽名表态；按 loader 未直读降级为 DERIVED |
 | FSDB 13 图覆盖清点（fh 2154 全带 prev/next；ladder 14/rope 2/seat 12；degenerate NOT PRESENT） | content/[FSDB]adventure/[group]map.* | **DIRECT-DATA** |
+
+> **t083 correction footnote (F1/F3)**: two numbers in this historical review record were corrected after t082 acceptance — (1) the fh census is **2283** records, not 2154 (t083 machine recount, `research/scripts/t083_fsdb_manifest.py` + `T083-FSDB-MANIFEST.txt`); the ladder/rope/seat/degenerate counts were re-confirmed unchanged; (2) the halfWidth census below (§1 row "halfWidth 逐调用点") was superseded by the t083 full re-audit: 23×1 + 1×2, 0 dynamic, 0 undecodable (`T083-A4F6F1-CALLSITE-AUDIT.txt` / EV-57). This archive records what was agreed AT t082 and is retained as audit history.
 | 0x81→0x97EBC9 最后一环 OPEN-STATIC 的缺失项刻画（handler vtable×15 无 imm 引用） | 0xB01414 等 dword 普查 | **OPEN-STATIC（如实登记）** |
 
 ## 4. Reviewer 独有贡献（主 Agent 未覆盖，已并入报告）

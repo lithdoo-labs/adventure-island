@@ -53,7 +53,7 @@ DLL 侧用 `--image dll --va 0x5042D204`。脚本先核哈希再映射再反汇�
 |---|---|
 | 0x53E95D | 27 |
 | 0x9BC992 | 18 |
-| 0xA4F6F1 | 24 |
+| 0xA4F6F1 | 24 | **[t083 note: total 24 confirmed by exhaustive re-scan; the t082 per-site classification summed to 23 (7 sites unlisted, 0x964074 misjudged undecodable, 4 "dynamic" sites carry constant 1) — corrected census 23×1 + 1×2 in `T083-A4F6F1-CALLSITE-AUDIT.txt` / EV-57]** |
 | 0xA4FC6F | 6 |
 | 0x9BF1FA | 2 |
 | 0x9BC622 | 4（另有 ≥2 间接 [edx+4]：0x95096D、0x98D06B） |
@@ -65,7 +65,7 @@ DLL 侧用 `--image dll --va 0x5042D204`。脚本先核哈希再映射再反汇�
 
 读取 `content/[FSDB]adventure/[group]map.Foothold/map.<id>.jsonl`、`map.Rope`、`map.Seat`（路径含 `[]` 字面量：Python `os.path` 直接拼接即可，glob 需 escape）。本轮清点：
 
-- fh：222000000=376 … 230000003=130（合计 2154），全部含 `prev/next` 字段；v-dominant 段（|dy|>|dx|）最多 248（230020200）；degenerate=0（13 图全部）。
+- fh：222000000=376 … 230000003=130（合计 2154），全部含 `prev/next` 字段；v-dominant 段（|dy|>|dx|）最多 248（230020200）；degenerate=0（13 图全部）。**[t083 CORRECTION (F1)：本行合计 2154 为 t082 清点错误——t083 机器复核（`research/scripts/t083_fsdb_manifest.py`）13 文件全量 JSON 解析得 2283 条（376+18+240+40+184+130+45+188+355+144+172+144+247），全部含 9 字段；v-dominant/degenerate 结论不变。权威数字以 EV-63 与 `T083-FSDB-MANIFEST.txt` 为准。]**
 - rope：ladder 14 / rope 2；字段 `x,y1,y2,l,uf,page,id`；样本 uf=1 存在（222000000）。
 - seat：12（230000001×3、230000002×6、230000003×3）。
 

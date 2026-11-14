@@ -155,6 +155,8 @@ Walk-state sibling (function ending 0x9BCC97): input>0 → ctx via `0x517DA8`; i
 Canonical non-movement shape: `(x, yTop, 0, 0x7FFFFFFF, 1)` — plumb-line to map bottom. Full windows in `C3_A4F6F1_callsites.txt`.
 **R12 resolution stands** (C-058): width is a per-call-site argument; observed static values are 1 (dominant), 2 (one movement site), and register-dynamic (4 sites).
 
+> **t083 correction footnote (F3)**: the "dynamic (register)" and "window undecodable" rows above were superseded by the t083 full re-audit (`T083-A4F6F1-CALLSITE-AUDIT.txt` / EV-57): 0x70D024/0x9364D4/0x9364FF carry **constant edi=1** (push 1; pop edi immediately before), 0x93652A (unlisted above) likewise edi=1, 0x955498's halfWidth is the leftover constant **1** from the abs() helper argument slot (esi was abs()'s argument, not the width), and 0x964074 decodes cleanly as **push 1** @0x964068 (the t082 window was mis-aligned). Corrected census: **23×1 + 1×2, 0 dynamic, 0 undecodable**. This archive records the t082 blind-review state and is retained as audit history.
+
 ---
 
 ## Task D — R13 disputed call sites

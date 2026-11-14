@@ -27,6 +27,10 @@ Checks (14):
   16 t081 evidence integrity: sha normalization, corrected-args regression,
      requirement-matrix consistency (refs/stale-source/RE-READY boundary),
      readiness-report stale-conclusion regression
+  17 t083 evidence reconciliation: source-sha/file match, corrected-label
+      regression (F1/F2/F3/F6), matrix stale minimum_next_work (F4),
+      call-site census total-vs-sum (F3), correction-chain linkage
+      (C-056->C-072, C-055->C-062, EV-63<->manifest)
 
 Exit codes: 0 = PASS, 1 = FAIL (errors), 2 = internal error.
 """
@@ -763,6 +767,204 @@ def check_t081_integrity(sot):
 
 
 # ------------------------------------------------------------------
+# CHECK 17 — t083 evidence reconciliation
+# ------------------------------------------------------------------
+# Rule groups added after the t082 independent acceptance (t083 fixes F1-F6):
+#   17a EVID-SHA-MATCH: an evidence row whose source_sha256 is a single
+#       64-hex token AND whose source_file resolves to an existing regular
+#       file in the repo must carry the actual sha256 of that file. Catches
+#       the F1 failure mode (data-directory source carrying the EXE hash).
+#   17b LABEL-REGRESSION: strings superseded by the t082/t083 corrections
+#       must not appear as ACTIVE conclusions in the authoritative stores
+#       (source-of-truth CSVs, requirement matrix, readiness report) unless a
+#       correction-context marker is nearby (audit-history quotes are legal).
+#   17c MATRIX-STALE-TASK: RE-READY rows must not carry minimum_next_work
+#       describing work already completed by C-061..C-077/EV-43..EV-63.
+#   17d CALLSITE-SUM: the 0xA4F6F1 census total must equal the sum of its
+#       per-class counts, and C-073/EV-57 must agree on the total.
+#   17e CORRECTION-CHAIN: corrected claims must keep their correction linkage
+#       (C-056->C-072, C-055->C-062) and EV-63 must bind the FSDB manifest
+#       hash that the manifest file actually carries.
+
+STALE_T083 = [
+    # (id, pattern, why) — assertive stale forms; suppressed by correction markers
+    ('F1-COUNT', r'\b2154\b', 't082 fh census was 2154; machine recount is 2283 (t083 F1)'),
+    ('F2-LABEL', r'bottom-5 / top\+1|bottom−5 / top\+1', 'C-056 t080 endpoint labels swapped; corrected by C-072 (top-5 / bottom+1)'),
+    ('F2-SLOT', r'\[rope\+0x10\] bottom|\[rope\+0x14\] top', 't080 slot labels swapped; rope+0x10=top(y-min), rope+0x14=bottom(y-max)'),
+    ('F3-CENSUS', r'push 1 x17|17 sites push 1|17×1、1×2、4×动态|17x1/1x2/4 dynamic', 't082 halfWidth census miscounted (23 classified of 24); corrected to 23x1+1x2 (t083 F3)'),
+    ('F3-DYNAMIC', r'register dynamic x4|register-dynamic width|4 sites pass register-dynamic', 'the 4 "dynamic" sites carry constant edi=1 (t083 F3)'),
+    ('F3-UNDEC', r'undecodable x1 \(0x964074\)|window undecodable \| 0x964074', '0x964074 decodes as push 1 (t083 F3)'),
+    ('F6-HINT', r'foothold hint move\+0x130/\+0x134|fh hint \+0x130/\+0x134 from \[userfield', 'cross-map arg7=0: no hint copy (t082 C-062 correction of C-055)'),
+]
+T083_ACTIVE_FILES = [
+    os.path.join(SOT, 'claims.csv'), os.path.join(SOT, 'evidence.csv'),
+    os.path.join(SOT, 'gaps.csv'),
+    MATRIX_PATH, REPORT_PATH,
+]
+T083_CORRECTION_MARKERS = re.compile(
+    r'corrected|correction|修正|纠正|原计|miscounted|was wrong', re.I)
+
+# work already completed by t082 (C-061..C-077 / EV-43..EV-63) — must not
+# appear as pending minimum_next_work on RE-READY rows
+COMPLETED_TASK_MARKERS = (
+    '0x9BFB52端点', '0x9BFB52 端点',          # body recovered t082 (C-070)
+    '0x9BF1FA分支', '0x9BF1FA 分支', '扩0x9BF1FA',  # full chain recovered (C-067)
+    'halfWidth 审计', 'halfWidth审计',        # 24-site audit complete (C-073, t083)
+    '0xCF opcode 注册', '0xCF注册',           # dispatch bound (C-066)
+    'FSDB 数据 EV 登记', '登记 DATA 类 EV',    # EV-63 registered + t083 manifest
+    '读 0x53E95D/0x9BC89F/0x9BC992',          # bodies recovered (EV-43/46/47)
+)
+
+MANIFEST_PATH = os.path.join(RR, 'stage-readiness', 'forensics', 'T083-FSDB-MANIFEST.txt')
+MANIFEST_ID_RE = re.compile(r'^MANIFEST-SHA256 ([0-9a-fA-F]{64})$', re.M)
+
+
+def check_evidence_sha_match(evid):
+    for eid, e in sorted(evid.items()):
+        sha = e['source_sha256'].strip()
+        src = e['source_file']
+        if src.startswith('(in-repo') or src.startswith('multi') or 'corpus' in src:
+            continue
+        toks = [t.strip() for t in re.split(r'[;,/|]| (?:and|;|\+) ', sha) if t.strip()]
+        hex64 = [t for t in toks if HEX64_RE.match(t)]
+        first = src.split('(')[0].strip()
+        path = None
+        for cand in (first, first.split('+')[0].strip()):
+            p = os.path.join(REPO, cand.replace('/', os.sep))
+            if os.path.isfile(p):
+                path = (p, cand)
+                break
+        if path is None:
+            continue  # missing regular file is flagged by check 6; dirs skip
+        if len(hex64) != 1 or len(toks) != 1:
+            continue  # compound rows: file->hash 1:1 already covered by 16a
+        actual = hashlib.sha256(open(path[0], 'rb').read()).hexdigest()
+        if actual != hex64[0].lower():
+            err('EVID-SHA-MATCH',
+                f'{eid}: source_sha256 does not match the actual file: claimed '
+                f'{hex64[0][:16]}… but sha256({path[1]}) = {actual[:16]}…')
+
+
+def check_label_regression():
+    for p in T083_ACTIVE_FILES:
+        if not os.path.exists(p):
+            continue
+        text = read_text(p)
+        rel = os.path.relpath(p, REPO)
+        for cid, pat, why in STALE_T083:
+            rx = re.compile(pat, re.I)
+            for m in rx.finditer(text):
+                ctx = text[max(0, m.start() - 250):m.end() + 250]
+                if T083_CORRECTION_MARKERS.search(ctx):
+                    continue
+                err('LABEL-REGRESSION',
+                    f'{rel}: stale {cid} assertion "{m.group()}" as ACTIVE conclusion '
+                    f'without correction marker ({why})')
+                break  # one report per file/pattern is enough
+
+
+def check_matrix_stale_tasks():
+    if not os.path.exists(MATRIX_PATH):
+        return
+    try:
+        header, rows = parse_csv(MATRIX_PATH)
+    except Exception:
+        return  # parse errors flagged by 16c/1
+    idx = {c: i for i, c in enumerate(header)}
+    for r in rows:
+        if len(r) != len(header):
+            continue
+        if r[idx['readiness']].strip() != 'RE-READY':
+            continue
+        work = r[idx['minimum_next_work']]
+        for marker in COMPLETED_TASK_MARKERS:
+            if marker in work:
+                err('MATRIX-STALE-TASK',
+                    f'{r[idx["requirement_id"]]}: RE-READY but minimum_next_work still '
+                    f'lists completed work "{marker}" (done by t082/t083; see C-061..C-077)')
+
+
+def check_callsite_sum(sot):
+    e57 = sot['evidence'].get('EV-57')
+    c73 = sot['claims'].get('C-073')
+    if e57 is None or c73 is None:
+        return
+    text = e57['instruction_or_data']
+    mt = re.search(r'(\d+) direct E8 sites total', text)
+    if not mt:
+        err('CALLSITE-SUM', 'EV-57 census does not state "N direct E8 sites total"')
+        return
+    total = int(mt.group(1))
+    counts = [int(m.group(1)) for m in re.finditer(
+        r'(\d+) (?:direct push 1|register-carried edi=1|site push 2)', text)]
+    if not counts:
+        err('CALLSITE-SUM', 'EV-57 census carries no machine-readable per-class counts')
+        return
+    if sum(counts) != total:
+        err('CALLSITE-SUM',
+            f'EV-57 census total {total} != sum of class counts {sum(counts)} ({counts})')
+    claim_total = re.search(r'(\d+) direct E8 sites', c73['claim'])
+    if not claim_total or int(claim_total.group(1)) != total:
+        err('CALLSITE-SUM', 'C-073 total disagrees with EV-57 total')
+    if '0 dynamic, 0 undecodable' not in text:
+        err('CALLSITE-SUM', 'EV-57 census missing the explicit zero-dynamic/undecodable line')
+
+
+def check_correction_chain(sot):
+    claims, evid = sot['claims'], sot['evidence']
+    # C-056 must keep its correction linkage to C-072
+    if 'C-056' in claims and 'C-072' in claims:
+        c56 = claims['C-056']['claim']
+        if 'C-072' not in c56:
+            err('CORRECTION-CHAIN', 'C-056 no longer references its label correction C-072')
+        if 'top-5' not in c56 or 'bottom+1' not in c56:
+            err('CORRECTION-CHAIN', 'C-056 no longer carries the corrected endpoint '
+                                    'labels (top-5 / bottom+1 per C-072)')
+    # C-055 must keep its arg7 correction linkage to C-062
+    if 'C-055' in claims and 'C-062' in claims:
+        if 'C-062' not in claims['C-055']['claim']:
+            err('CORRECTION-CHAIN', 'C-055 no longer references the arg7 semantics '
+                                    'authority C-062')
+    # EV-63 must bind the FSDB manifest, and the manifest must be internally
+    # self-consistent (its MANIFEST-SHA256 identity must reproduce from its
+    # own body). EV-63's source_sha256 (full-file hash) is verified against
+    # the actual file by check 17a.
+    e63 = evid.get('EV-63')
+    if e63 is not None:
+        if 'T083-FSDB-MANIFEST.txt' not in e63['source_file']:
+            err('CORRECTION-CHAIN', 'EV-63 source_file no longer binds '
+                                    'T083-FSDB-MANIFEST.txt (F1 regression)')
+        else:
+            sha = e63['source_sha256'].strip()
+            if not HEX64_RE.match(sha):
+                err('CORRECTION-CHAIN', f'EV-63 source_sha256 not a full 64-hex token: "{sha[:40]}"')
+            elif os.path.exists(MANIFEST_PATH):
+                body = read_text(MANIFEST_PATH)
+                mm = MANIFEST_ID_RE.search(body)
+                if not mm:
+                    err('CORRECTION-CHAIN', 'manifest file missing MANIFEST-SHA256 identity line')
+                else:
+                    stripped = body[:body.rindex('MANIFEST-SHA256 ')]
+                    actual = hashlib.sha256(stripped.encode('utf-8')).hexdigest()
+                    if actual != mm.group(1).lower():
+                        err('CORRECTION-CHAIN',
+                            f'manifest self-identity broken: body hash {actual[:16]}… != '
+                            f'declared {mm.group(1)[:16]}… (regenerate manifest)')
+            else:
+                err('CORRECTION-CHAIN', 'EV-63 source manifest file not found')
+
+
+def check_t083_integrity(sot):
+    if sot is None:
+        return
+    check_evidence_sha_match(sot['evidence'])   # 17a
+    check_label_regression()                    # 17b
+    check_matrix_stale_tasks()                  # 17c
+    check_callsite_sum(sot)                     # 17d
+    check_correction_chain(sot)                 # 17e
+
+
+# ------------------------------------------------------------------
 # CHECK 13 — frozen ABI unchanged
 # ------------------------------------------------------------------
 def check_frozen_abi():
@@ -869,6 +1071,7 @@ def main():
     check_exemptions()               # 14
     check_cleanroom_sync(sot)        # 15
     check_t081_integrity(sot)        # 16 (sha / args regression / matrix / report)
+    check_t083_integrity(sot)        # 17 (sha-match / label regression / stale tasks / census sum)
 
     print(f'CSV total: {stats["csv_total"]} (parsed {stats["csv_parsed"]}, strict {stats["csv_strict"]}, '
           f'legacy-width-issues {stats["csv_legacy_width"]})')

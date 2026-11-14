@@ -90,20 +90,19 @@ else:
 ```
 槽语义（0xA4FC6F 窗口条件 + FSDB y1<y2 交叉）：**rope+0x10 = y 小端（绳顶）、rope+0x14 = y 大端（绳底）**。据此 C-056 的标签应为 "top−5 / bottom+1"（数值与指令事实不变，仅槽名/方向词修正）。**等级 DERIVED**：loader 侧 y1→+0x10 的写入映射未直读（由命中窗口条件与端点行为间接支撑）。t080 文本的 "downward/upward" 方向词同样对调（key>0 与 y 大端比较）。
 
-## 5. 0xA4F6F1 竖线碰撞调用点审计（24 个直接 E8）
+## 5. 0xA4F6F1 竖线碰撞调用点审计（24 个直接 E8；t083 全面复核修正）
 
-`0xA4F6F1(this=[0xBDD498], x, yTop, out, yBottom, halfWidth)`（5 参）。22 个可解码窗口的参数分布：
+`0xA4F6F1(this=[0xBDD498], x, yTop, out, yBottom, halfWidth)`（5 参）。
 
-| halfWidth | 调用点 | 场景分类 |
+> **t083 CORRECTION（F3）**：本节 t082 原表只列出 15 个站点、分类合计 17×1 + 1×2 + 4×动态 + 1×不可解码 = 23，与声称的 24 不符。t083 用穷举 rel32 扫描 + 对齐校正窗口 + 栈模拟重新审计全部 24 站点（见 `T083-A4F6F1-CALLSITE-AUDIT.txt`）：**23 站点 halfWidth=1、1 站点=2（0x9C6B68）、0 动态、0 不可解码**。原"4 动态"实为常量 1（push 1;pop edi 后 push edi）；原"不可解码 0x964074"是对齐伪影，实为 push 1 @0x964068；0x955498 的 esi 是 abs() 助手 0xa70b13 的实参，halfWidth 是残留的常量 1 槽位。下表为 t083 全量清单。
+
+| halfWidth | 调用点（24 个直接 E8，按地址排序） | 传值方式 |
 |---|---|---|
-| 1 | 0x546803, 0x54709b, 0x5bfeda | 地图/背景侧（yBottom=0x7FFFFFFF 无限深） |
-| 1 | 0x953236, 0x964074, 0x9640e7, 0x9641b9, 0x977f52, 0x97a32e, 0x9cc207 | 移动/传送/角色（yBottom=0x7FFFFFFF 或 +0x50；yTop 常见 −5） |
-| 1 | 0x963d72（t080 已证 portal 触发） | Portal |
-| 2 | 0x9c6b68 | 移动族（唯一 push 2） |
-| 寄存器（可变） | 0x9364d4（edi） | 角色侧（yTop=−0x14/−20） |
-| 窗口错位 | 0x5ce496, 0x963d72 前窗 | 待补 |
+| 1（19 个直接 push 1） | 0x546803, 0x54709b, 0x5bfeda, 0x5cdc9c, 0x5ce033, 0x5ce496, 0x7c3f5c, 0x7c439e, 0x7c484c, 0x953236, 0x955498, 0x963d72, 0x964074, 0x9640e7, 0x9641b9, 0x977f52, 0x97a2b9, 0x97a32e, 0x9cc207 | 直接 `push 1`（0x955498 的字面 1 是 abs() 实参槽位复用） |
+| 1（4 个寄存器携带 edi=1） | 0x70d024, 0x9364d4, 0x9364ff, 0x93652a | `push 1; pop edi` 后 `push edi`（edi=常量 1；0x70D024 的 edi 经被调方保存恢复跨 0x70D1D9 不变） |
+| 2（1 个） | 0x9c6b68 | 直接 `push 2`（唯一 width=2 站点） |
 
-**R12 终裁（取代"全局统一身体半宽"的任何表述）**：halfWidth 是**逐调用点参数**：主流=1（含 Portal），存在 2 与寄存器传值；地图背景侧与角色移动侧共用该函数但传不同常量。P3-06 实现应按调用语境取值，不存在单一全局身体半宽。
+**R12 终裁（取代"全局统一身体半宽"的任何表述）**：halfWidth 是**逐调用点常量**：23/24 站点=1（含 Portal 触发 0x963D72、同图传送应用 0x955498、移动落地 0x9CC207），唯一例外 0x9C6B68=2；不存在动态宽度调用点，不存在全局身体半宽。P3-06 实现按调用语境取值。
 
 ## 6. 座位取消链（预算内未展开）
 
@@ -128,7 +127,7 @@ else:
 | 0x9BFB52 设段/设绳/清除三路径与字段写入清单（slot5、7 表统一） | VERIFIED | DIRECT-INSTRUCTION |
 | 离绳 = (M,0,0,0) 清段清绳、无吸附、状态层接管重力 | VERIFIED | DIRECT-INSTRUCTION |
 | rope 端点槽名/方向修正（top−5/bottom+1） | VERIFIED（数值）/ DERIVED（槽名，loader 侧未直读） | DIRECT + DERIVED |
-| halfWidth 逐调用点审计（17×1、1×2、4×动态、1×不可解码） | VERIFIED | DIRECT-INSTRUCTION |
+| halfWidth 逐调用点审计（t083 全面复核修正：23×1、1×2、0 动态、0 不可解码；t082 原表 17×1、1×2、4×动态、1×不可解码=23 系漏列/错读） | VERIFIED | DIRECT-INSTRUCTION |
 | 紧凑绳记录 vs slot5 hint 读取张力 | OPEN-RUNTIME（dump [M+0x130/0x134] @绳抓） | — |
 | rope/ladder 类型区分旗标 | OPEN（未在查询/抓绳路径发现） | — |
 | 座位起身链 0x6A0ADF/0x9658CC 新取证 | 未开始（预算） | — |

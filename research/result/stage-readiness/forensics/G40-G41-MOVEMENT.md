@@ -12,11 +12,11 @@ Function 0x9D80EC (fresh SEH prologue, this=move-object esi):
 - rope/decrypt: `0x4B6ABE(&move+0x124, move+0x12C)` → rope object (null → exit);
 - `y_cur = 0x548806(&move+0x38)` (decrypt the encrypted double at **move+0x38 — same slot as portal Y**);
 - `0x9D814F: fild [move+0x154]` (verticalKey int) `; 0x9D8158: fmul qword [0xB00D68]` — **double at 0xB00D68 = 3.0 (byte-read this session)** `; faddp; 0x9D8163: 0x6131F4(move+0x38, y+3·k)`; `[move+0x48] = ret` (encrypted y mirror).
-- **Endpoint adjudication**:
-  - downward (`[move+0x154] < 0`): if `y < [rope+0x10]` (bottom): `[rope+8]≠0` → `y = bottom − 5`; else `y = [0x4B6ABE-decrypt(rope)+0x10]`;
-  - upward (`> 0`): if `y > [rope+0x14]` (top) → `y = top + 1`;
+- **Endpoint adjudication** (labels corrected t082 by C-072/EV-58 — t080 read swapped them; numeric facts unchanged, window re-verified t083):
+  - `[move+0x154] < 0` branch (y-decreasing end): if `y < [rope+0x10]` (y-min = **top**, per 0xA4FC6F containment + FSDB y1<y2): `[rope+8]≠0` → `y = top − 5`; else `y = [0x4B6ABE-decrypt(rope)+0x10]` (re-read top);
+  - `[move+0x154] > 0` branch (y-increasing end): if `y > [rope+0x14]` (y-max = **bottom**) → `y = bottom + 1`;
   - exit: `call [move.vtable+0x14](move, 0, 0, 0)` — **args (move,0,0,0)** (pushes ebx,ebx,ebx @0x9D8206/07/0D — corrected after adversarial review; earlier draft text said "(move,0,rope,0)").
-- ⇒ **`y += 3 * verticalKey` VERIFIED**; unit = the encrypted-double y position (game units), per physics tick of this state; `[rope+0x10]/[rope+0x14]` = bottom/top y.
+- ⇒ **`y += 3 * verticalKey` VERIFIED**; unit = the encrypted-double y position (game units), per physics tick of this state; `[rope+0x10]/[rope+0x14]` = top/bottom y (t080's "bottom/top" labels and downward/upward direction words were swapped — see T082-G41 §4 / EV-58).
 
 ## 2. Rope grab rectangle — VERIFIED via seat-sibling pattern; rope `0xA4FC6F` not re-dumped this round
 
@@ -74,7 +74,7 @@ Function 0x9D80EC (fresh SEH prologue, this=move-object esi):
 | sub-behavior | verdict | grade |
 |---|---|---|
 | climb `y += 3·verticalKey`, constant 3.0 @0xB00D68, slot move+0x38 | VERIFIED | DIRECT-INSTRUCTION + DIRECT-DATA |
-| climb endpoint clamps (bottom−5 / top+1 / rope-y fallback); exit vcall args (move,0,0,0) | VERIFIED | DIRECT-INSTRUCTION |
+| climb endpoint clamps (top−5 with uf / bottom+1 / rope-y fallback — labels corrected t082 by C-072/EV-58; t080 said bottom−5 / top+1); exit vcall args (move,0,0,0) | VERIFIED | DIRECT-INSTRUCTION |
 | seat rect x±10/y±30 (stride-8 table at field+0x16C) | VERIFIED | DIRECT-INSTRUCTION |
 | seat state write user+0x2944 base / +0x294C via 0x6131B9(0/1) | VERIFIED | DIRECT-INSTRUCTION |
 | seat arrival reuses 0x963C7D teleport trigger family | VERIFIED | DIRECT-INSTRUCTION |

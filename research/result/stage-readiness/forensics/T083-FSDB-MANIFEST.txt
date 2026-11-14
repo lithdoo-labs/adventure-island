@@ -1,0 +1,38 @@
+# T083 FSDB MANIFEST — 13-map Foothold/Rope/Seat dataset (EV-63 source)
+# generator: research/scripts/t083_fsdb_manifest.py
+# sorting: (group Foothold<Rope<Seat, map_id ascending); encoding UTF-8; LF; trailing newline
+# per-file record: relpath,bytes,sha256,records
+
+content/[FSDB]adventure/[group]map.Foothold/map.222000000.jsonl,35467,9d8f700dce8788e3589f93bc3a9516fc3c4d3001f7046f33f70d7bd1db439a44,376
+content/[FSDB]adventure/[group]map.Foothold/map.222000001.jsonl,1570,49dbf45293192a5f706fbb55415d8054c70d5e44d189c11eeebfeb8a2e479eeb,18
+content/[FSDB]adventure/[group]map.Foothold/map.230000000.jsonl,22124,77ea8a03ef4f7fb6de01254158c3cbe57ed9e99bbeaa586d91a7d92597090b53,240
+content/[FSDB]adventure/[group]map.Foothold/map.230000001.jsonl,3547,3ff1e8b107a30bc63a2b74be81a6ce2d485c2655b297e812c7d3da0683d05ea5,40
+content/[FSDB]adventure/[group]map.Foothold/map.230000002.jsonl,16989,8b8040e10d661ef833bbed32947b88d7ca98c203c38e41e6b93a2887cc278430,184
+content/[FSDB]adventure/[group]map.Foothold/map.230000003.jsonl,11888,6b1f02fd55412d30524d33aeae4e0149f1634d2cf276985f7ac136af9ce08270,130
+content/[FSDB]adventure/[group]map.Foothold/map.230020000.jsonl,4083,3d3624e9cdd9a119359be33ffbc019937aa1bff06715894c2f99b50179790bdc,45
+content/[FSDB]adventure/[group]map.Foothold/map.230020100.jsonl,17345,2d160d9a4e379d2e60a96b9cc8668947ceeb790ff978d5a7bb470e6e28168240,188
+content/[FSDB]adventure/[group]map.Foothold/map.230020200.jsonl,33064,df0897e30d9c900d010be5c3fd90c6947e0e1f9d85771597bc955d188543c57d,355
+content/[FSDB]adventure/[group]map.Foothold/map.230020300.jsonl,13392,d92ed4b009fde46366ed6dd5794137d578efd08d46124baa149432ac6203ecd5,144
+content/[FSDB]adventure/[group]map.Foothold/map.230030000.jsonl,15947,445036adffbc739ce44a88507c1aea5efe47746d6d189f482696f30914a811eb,172
+content/[FSDB]adventure/[group]map.Foothold/map.230030100.jsonl,13439,159659fc5a4a6b34fe369d9436601b15cf517c2f0c8e0dc6ae521fce1f428974,144
+content/[FSDB]adventure/[group]map.Foothold/map.230030200.jsonl,22964,f1b40753a980eb479965be164d185fd8e6419e022db7b5a488a46c9b094c10b7,247
+content/[FSDB]adventure/[group]map.Rope/map.222000000.jsonl,59,b15dcc82efdf363b08681e13645669aa19e54f7f38c71f7cb5b9250f0188cd1e,1
+content/[FSDB]adventure/[group]map.Rope/map.222000001.jsonl,58,af1fbb8283fa35d785b32d28085ec858fddd12312db5979b4ff22f11985e5e84,1
+content/[FSDB]adventure/[group]map.Rope/map.230000001.jsonl,58,b3a06b0bddc78f2846c6e37c3ebdf651b592a06b963d44cb7a1d86fa37d58b1d,1
+content/[FSDB]adventure/[group]map.Rope/map.230000002.jsonl,352,887b4fc1f8533f6f0d90ace4e808e47f77bae742dbcbe69fc9824a5be2b04c2c,6
+content/[FSDB]adventure/[group]map.Rope/map.230000003.jsonl,295,9fbb2d1c60f43c0c8e74dd78b73c85c990d3bd2bdd4d2bf9ae6d8ee800a0ee51,5
+content/[FSDB]adventure/[group]map.Rope/map.230020200.jsonl,60,59e4c965b124e79c0cdb882c5f3a27ae1d53d4bf0344c1a2b99d417e85007065,1
+content/[FSDB]adventure/[group]map.Rope/map.230030100.jsonl,60,fcadd4057b88442519939f8927688ff94317e61088ea5493e0a4f246d21a6932,1
+content/[FSDB]adventure/[group]map.Seat/map.230000001.jsonl,87,d19da7986f7f9fd2d08848b45ce28cf3bc42774378aa44d848f95a0162beda6d,3
+content/[FSDB]adventure/[group]map.Seat/map.230000002.jsonl,174,512989120aeba09cdfd3377c6df8e0f0487b298c7f7619688a694ba47b14cd91,6
+content/[FSDB]adventure/[group]map.Seat/map.230000003.jsonl,78,10fe5dd49eeba43cf0dfacd43cd00d0708e11da81b21135124fa2e04fd1f14a6,3
+
+# type-level census
+Foothold files=13 records=2283 maps=222000000,222000001,230000000,230000001,230000002,230000003,230020000,230020100,230020200,230020300,230030000,230030100,230030200
+Rope files=7 records=16 ladder(l=1)=14 rope(l=0)=2 maps=222000000,222000001,230000001,230000002,230000003,230020200,230030100
+Seat files=3 records=12 maps=230000001,230000002,230000003
+TOTAL files=23 records=2311
+# dataset identity: FSDB content/[FSDB]adventure groups as committed on the
+# design/adventure-field-map-scene branch (source of EV-63; EXE/DLL hashes do NOT
+# certify this dataset).
+MANIFEST-SHA256 ac7926436eeb56dd872700cff298d1d241ea5a2bd2fcb72400426928c5c1dc4a

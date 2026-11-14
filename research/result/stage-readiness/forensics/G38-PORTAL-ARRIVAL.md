@@ -68,15 +68,15 @@
   - alternate path (bit7 set): `0xA49808(index)` with 0x3B9AC9FF sentinels → field singleton `0x4376F2`/`0x54765B` fallback, else `[ebp-0x48/0x44]`;
   - `0x9D359D` → new move state; `0x971BC8(user+0xF28, &obj)` attach;
   - **position write** `0x950951–0x95096D`: `call [vtable+4]` (slot m1 = **0x9BC622**) with `(1, X, Y−10, 0, 0, user+0x3C0, 0)` — **Y−10 VERIFIED**;
-  - `0x9BC622` body: X clamped to `[move+0x138..0x140]`, Y to `[move+0x13C..0x144]` (**map-bounds clamp before write**); `fild` + encrypted setters at **move+0x20 (X)**, **move+0x38 (Y)**, zeros at +0x50/+0x68 (**velocity reset**); `[move+0x18]=1`; foothold hint `[userfield+0x1C/+0x20] → move+0x130/+0x134` when `[move+0x110]≠0`; rebind helpers `0x9BC89F/0x9BC992` (move+0xE0 collection);
+  - `0x9BC622` body: X clamped to `[move+0x138..0x140]`, Y to `[move+0x13C..0x144]` (**map-bounds clamp before write**); `fild` + encrypted setters at **move+0x20 (X)**, **move+0x38 (Y)**, zeros at +0x50/+0x68 (**velocity reset**); `[move+0x18]=1`; foothold hint `[userfield+0x1C/+0x20] → move+0x130/+0x134` when `[move+0x110]≠0`; rebind helpers `0x9BC89F/0x9BC992` (move+0xE0 collection). **[t082 CORRECTION (C-062/EV-45): the hint-copy and rebind branches inside the body require arg7≠0 and read `[arg7+0x1C/+0x20]` — NOT userfield; the cross-map 0x9507F0 call passes arg7=0, so on THIS path the hint copy never executes and hints are zeroed. t080's wording above is retained as history and must not be read as cross-map behavior — see T082-G38-FOOTHOLD-REBIND.md §2.]**
   - downstream resets: `0x953FA5(user)` state reset, `0x934C06`, `0x948AA2`, `0x948B66`, copies `[0xBD9028]+0x3568/0x356C/0x3570 → user+0x2860/0x2864/0x2868` (position mirror);
   - cross-map pending mirror at `0x95B8B0–0x95B8E7`: `[user+0x28F8/+0x28FC] = x/y`; `[user+0x2900]=V; [user+0x2904]=V+1` (near-immediate re-arm, V from packet context).
 
 ## 3. Foothold re-attach ordering (partially resolved)
 
-- Same-map: 0x9C1113 does NOT itself call a foothold resolver in the disassembled window; trailing `0x53E95D(move,3)` is the rebind/notification candidate (body unread this round).
-- Cross-map: explicit hint copy `move+0x130/+0x134 ← [userfield+0x1C/+0x20]` + `0x9BC89F/0x9BC992` rebind chain (bodies unread this round).
-- Ordering (coordinate-write vs snap): coordinate setters run inside 0x9C1113/0x9BC622 BEFORE the rebind helpers → **write-then-rebind** order established statically at the call-sequence level.
+- Same-map: 0x9C1113 does NOT itself call a foothold resolver in the disassembled window; trailing `0x53E95D(move,3)` is the rebind/notification candidate (body unread this round). **[t082 resolution: 0x53E95D = generic notifier (this=M), no query inside; rebind = clear-ctx + notify, rebuilt next tick by the 0x9BE703 physics loop — C-061.]**
+- Cross-map: explicit hint copy `move+0x130/+0x134 ← [userfield+0x1C/+0x20]` + `0x9BC89F/0x9BC992` rebind chain (bodies unread this round). **[t082 CORRECTION: this sentence describes the arg7≠0 path of 0x9BC622, NOT the cross-map 0x9507F0 call — that call passes arg7=0 (EV-48), so there is NO immediate hint copy / rebind on the cross-map path; a fresh move object is created and the first tick's collision query rebuilds the context (C-062/C-063/C-065). Historical wording retained above.]**
+- Ordering (coordinate-write vs snap): coordinate setters run inside 0x9C1113/0x9BC622 BEFORE the rebind helpers → **write-then-rebind** order established statically at the call-sequence level. **[t082 修正：该 write-then-rebind 顺序仅适用于 arg7≠0 的调用路径；跨图 arg7=0 路径无立即重绑。]**
 
 ## 4. Verdict table
 

@@ -35,6 +35,11 @@ C-001,Map/Sort,"tile key formula",CLOSED-STATIC,A,EV-01,bin,0x666F5D,"verified",
 C-002,Map/Sort,"obj key formula",CLOSED-STATIC,A,EV-02,bin,0x6688C4,"verified","none",(none),doc.md
 C-003,Gr2D,"slot45 = ordered insert",SUPERSEDED,D,EV-03,bin,0x2E2CC,"refuted","covered","RC-02",doc.md
 C-004,Map/Sort,"[eax+0xB4] semantics",OPEN-RUNTIME,R,EV-03,bin,0x666F7D,"runtime needed","dump",(none),"doc.md"
+C-055,Portal,"cross-map arrival write via m1 (arg7=0 so no hint copy; immediate rebind only for arg7!=0 callers — t082 C-062 correction of the earlier hint-copy wording)",CLOSED-STATIC,A,EV-01,bin,0x9507F0,"verified","none",(none),doc.md
+C-056,Movement,"rope climb endpoint clamps (slot naming corrected by C-072: top-5 when uf!=0 / bottom+1 / rope-y fallback)",CLOSED-STATIC,A,EV-01,bin,0x9D80EC,"verified","none",(none),doc.md
+C-062,Portal,"arg table: arg6 flag; arg7 geometry source; cross-map passes arg7=0",CLOSED-STATIC,A,EV-01,bin,0x9BC622,"verified","none",(none),doc.md
+C-072,Rope,"CORRECTION of C-056 endpoint naming: rope+0x10=top(y-min); rope+0x14=bottom(y-max)",CLOSED-STATIC,B,EV-01,bin,0x9D8165,"verified","none",(none),doc.md
+C-073,Collision,"0xA4F6F1 halfWidth audit (24 direct E8 sites, arg order (x,yTop,out,yBottom,halfWidth)): 23 sites pass halfWidth=1 and 1 site pushes 2 (0x9C6B68)",CLOSED-STATIC,A,EV-57,bin,0xA4F6F1,"verified","none",(none),doc.md
 """
 
 GAPS = """gap_id,module,question,status,verified_scope,unresolved_scope,blocker,next_action,implementation_impact,claim_refs
@@ -44,12 +49,14 @@ G03,Map/Sort,"[eax+0xB4] target class",OPEN-RUNTIME,"census","variant class","ru
 """
 
 EVIDENCE = """evidence_id,source_file,source_sha256,address,evidence_type,instruction_or_data,interpretation,claim_id,reproducibility
-EV-01,bin/dummy.bin,FULLHASH1,0x666F5D,instruction,"imul","tile key",C-001,capstone
-EV-02,bin/dummy.bin,FULLHASH2,0x6688C4,instruction,"imul","obj key",C-002,capstone
-EV-03,bin/dummy.bin,FULLHASH3,0x2E2CC,instruction,"dtor","not insert",C-003;C-004,capstone
+EV-01,bin/dummy.bin,DUMMYHASH,0x666F5D,instruction,"imul","tile key",C-001;C-055;C-056;C-062;C-072,capstone
+EV-02,bin/dummy.bin,DUMMYHASH,0x6688C4,instruction,"imul","obj key",C-002,capstone
+EV-03,bin/dummy.bin,DUMMYHASH,0x2E2CC,instruction,"dtor","not insert",C-003;C-004,capstone
+EV-57,bin/dummy.bin,DUMMYHASH,0xA4F6F1,instruction,"site census: 24 direct E8 sites total; 23 sites pass halfWidth=1 — 19 direct push 1 (0x546803 0x963d72) and 4 register-carried edi=1 via push 1;pop edi (0x70d024) — and 1 site push 2 (0x9C6B68); 0 dynamic, 0 undecodable","halfWidth is a per-call-site constant",C-073,fixture audit
+EV-63,research/result/stage-readiness/forensics/T083-FSDB-MANIFEST.txt,MANIFESTHASH,map.Foothold jsonl,data,"fixture dataset census: 2283 records (t083 recount; t082 census said 2154 — corrected in t083 F1)","FSDB coverage vectors",C-001,fixture manifest
 """
-# FULLHASHn markers are replaced with generated 64-hex dummies in build_fixture
-# (CHECK 16a requires full-length sha tokens).
+# DUMMYHASH/MANIFESTHASH markers are replaced with real computed sha256
+# values in build_fixture (CHECK 17a verifies evidence hashes against files).
 
 CROSSWALK = """gap_id,runtime_issue_id,report_id,mapping_basis,notes
 G01,R4-02,report.md,"comparator","same"
@@ -131,7 +138,7 @@ def build_fixture(root):
     dirs = [
         'research/source-of-truth', 'research/result/atlas',
         'research/result/map', 'research/scripts', 'components',
-        'research/result/stage-readiness',
+        'research/result/stage-readiness', 'research/result/stage-readiness/forensics',
     ]
     for d in dirs:
         os.makedirs(os.path.join(root, d), exist_ok=True)
@@ -140,10 +147,19 @@ def build_fixture(root):
         with open(os.path.join(root, rel), 'w', encoding='utf-8', newline='') as f:
             f.write(content)
 
-    # full 64-hex dummy hashes (CHECK 16a)
-    ev_content = EVIDENCE
-    for n in (1, 2, 3):
-        ev_content = ev_content.replace(f'FULLHASH{n}', f'{n:02x}' * 32)
+    import hashlib
+    # binary evidence source (its REAL hash fills the evidence rows — check 17a)
+    bin_bytes = b'\x00\x01'
+    dummy_hash = hashlib.sha256(bin_bytes).hexdigest()
+    # fixture FSDB manifest with a self-consistent identity line (check 17e)
+    manifest_body = ('# fixture manifest\n'
+                     'content/F.csv,4,{}\n'.format(hashlib.sha256(b'abcd').hexdigest()))
+    manifest_identity = hashlib.sha256(manifest_body.encode('utf-8')).hexdigest()
+    manifest_text = manifest_body + f'MANIFEST-SHA256 {manifest_identity}\n'
+    manifest_hash = hashlib.sha256(manifest_text.encode('utf-8')).hexdigest()
+    w('research/result/stage-readiness/forensics/T083-FSDB-MANIFEST.txt', manifest_text)
+
+    ev_content = EVIDENCE.replace('DUMMYHASH', dummy_hash).replace('MANIFESTHASH', manifest_hash)
     w('research/source-of-truth/claims.csv', CLAIMS)
     w('research/source-of-truth/gaps.csv', GAPS)
     w('research/source-of-truth/evidence.csv', ev_content)
@@ -187,6 +203,12 @@ def run_validator(root):
     env['PYTHONIOENCODING'] = 'utf-8'
     return subprocess.run([sys.executable, SCRIPT], capture_output=True,
                           timeout=180, env=env, cwd=root)
+
+
+def _dummy_hash():
+    """The real sha256 of the fixture bin/dummy.bin content (check 17a binds it)."""
+    import hashlib
+    return hashlib.sha256(b'\x00\x01').hexdigest()
 
 
 class IsolatedValidatorTests(unittest.TestCase):
@@ -428,7 +450,7 @@ class IsolatedValidatorTests(unittest.TestCase):
     def test_26_ellipsis_sha_fails(self):
         # 16a: ellipsis-shortened hash in a NEW binary evidence row must fail
         self._edit('research/source-of-truth/evidence.csv',
-                   'EV-01,bin/dummy.bin,' + '01' * 32,
+                   'EV-01,bin/dummy.bin,' + _dummy_hash(),
                    'EV-01,bin/dummy.bin,d4a67597…31718')
         r = self._run()
         out = r.stdout.decode('utf-8', 'replace')
@@ -438,7 +460,7 @@ class IsolatedValidatorTests(unittest.TestCase):
     def test_27_short_hex_sha_fails(self):
         # 16a: hex-like but non-64 token must fail
         self._edit('research/source-of-truth/evidence.csv',
-                   'EV-02,bin/dummy.bin,' + '02' * 32,
+                   'EV-02,bin/dummy.bin,' + _dummy_hash(),
                    'EV-02,bin/dummy.bin,' + 'ab' * 20)
         r = self._run()
         out = r.stdout.decode('utf-8', 'replace')
@@ -467,7 +489,7 @@ class IsolatedValidatorTests(unittest.TestCase):
     def test_30_matrix_stale_source_grade_fails(self):
         # 16c: row citing this-round instruction evidence (EV-33..EV-42) while
         # describing it as a stale non-fresh summary must fail
-        full_e3 = ('EV-03,bin/dummy.bin,' + '03' * 32 +
+        full_e3 = ('EV-03,bin/dummy.bin,' + _dummy_hash() +
                    ',0x2E2CC,instruction,"dtor","not insert",C-003;C-004,capstone')
         self._edit('research/source-of-truth/evidence.csv', full_e3,
                    full_e3 + '\nEV-33,bin/dummy.bin,' + '33' * 32 +
@@ -557,6 +579,81 @@ class IsolatedValidatorTests(unittest.TestCase):
                                'research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv'))
         r = self._run()
         self.assertEqual(r.returncode, 0, r.stdout.decode('utf-8', 'replace'))
+
+    # ------- t083 CHECK 17: evidence reconciliation (F1-F6) -------
+
+    def test_38_manifest_hash_mismatch_fails(self):
+        # 17a: evidence row whose sha does not match the actual source file
+        # (the F1 failure mode: right-looking 64-hex bound to the wrong bytes)
+        self._edit('research/source-of-truth/evidence.csv',
+                   'EV-01,bin/dummy.bin,' + _dummy_hash(),
+                   'EV-01,bin/dummy.bin,' + 'de' * 32)
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('EVID-SHA-MATCH', out)
+
+    def test_39_wrong_source_binding_fails(self):
+        # 17a: source file swapped while keeping the old hash (source/hash
+        # inconsistency — the other half of the F1 failure mode)
+        self._edit('research/source-of-truth/evidence.csv',
+                   'EV-63,research/result/stage-readiness/forensics/T083-FSDB-MANIFEST.txt,',
+                   'EV-63,bin/dummy.bin,')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('EVID-SHA-MATCH', out)
+
+    def test_40_broken_correction_chain_fails(self):
+        # 17e: C-056 losing its correction linkage to C-072 must fail
+        self._edit('research/source-of-truth/claims.csv',
+                   '"rope climb endpoint clamps (slot naming corrected by C-072: top-5 when uf!=0 / bottom+1 / rope-y fallback)"',
+                   '"rope climb endpoint clamps bottom-5 / top+1 / rope-y fallback"')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('CORRECTION-CHAIN', out)
+
+    def test_41_matrix_stale_minimum_next_work_fails(self):
+        # 17c: RE-READY row still listing work completed by t082/t083
+        self._edit('research/result/stage-readiness/P0-P4-REQUIREMENT-EVIDENCE-MATRIX.csv',
+                   ',RE-READY,子行为已闭合',
+                   ',RE-READY,STATIC 扩0x9BF1FA分支和目标图相邻线验算')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('MATRIX-STALE-TASK', out)
+
+    def test_42_callsite_census_sum_mismatch_fails(self):
+        # 17d: census total must equal the sum of per-class counts
+        self._edit('research/source-of-truth/evidence.csv',
+                   '19 direct push 1 (0x546803 0x963d72)',
+                   '17 direct push 1 (0x546803 0x963d72)')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('CALLSITE-SUM', out)
+
+    def test_43_stale_count_regression_fails(self):
+        # 17b: the corrected t082 fh count re-asserted without a correction marker
+        self._edit('research/result/stage-readiness/P0-P4-READINESS-REPORT.md',
+                   '# fixture readiness report',
+                   '# fixture readiness report\nFSDB census: 2154 records with prev/next across 13 maps.')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('LABEL-REGRESSION', out)
+
+    def test_44_stale_endpoint_label_regression_fails(self):
+        # 17b: t080 endpoint labels resurfacing as an ACTIVE claim conclusion
+        # (placed in a claim row without nearby correction markers)
+        self._edit('research/source-of-truth/claims.csv',
+                   'C-001,Map/Sort,"tile key formula"',
+                   'C-001,Map/Sort,"tile key formula plus climb endpoint clamps (bottom-5 / top+1)"')
+        r = self._run()
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('LABEL-REGRESSION', out)
 
 
 if __name__ == '__main__':

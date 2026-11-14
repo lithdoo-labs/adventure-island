@@ -1,0 +1,55 @@
+# T084.1 Clean-room & Binary Identity Verification Log (FINAL, post round-3)
+# Round: t084.1 (2026-11-15) — executed on branch research/t084-1-slot25-scope-reconciliation
+# Generator: research/scripts/generate_cleanroom_deliverables.py (official, unmodified)
+# Reviewer independently re-ran the validator and the generator-sync check (round 2/3).
+
+$ python research/scripts/generate_cleanroom_deliverables.py
+gap stats block regenerated: {'PARTIAL-STATIC': 12, 'CLOSED-STATIC': 15, 'OPEN-RUNTIME': 4, 'OPEN-STATIC': 8, 'BLOCKED': 1, 'SUPERSEDED': 1} total=41
+clean-room deliverables written to research/result/clean-room/ (claims=87 gaps=41 evidence=76 retracted=10)
+
+$ python research/scripts/validate_reverse_engineering.py
+CSV total: 422 (parsed 422, strict 7, legacy-width-issues 100)
+MD scanned: 365
+Open Issues rows: 9 | Runtime ids: 9
+Claims: 87 | Gaps: 41 | Evidence: 76
+ERRORS: 0
+WARNINGS: 0
+RESULT: PASS (0 errors, 0 warnings)
+(includes CHECK 15 CLEANROOM-SYNC: claims/gaps/evidence/crosswalk copies byte-identical
+ to source-of-truth; RETRACTED-CLAIMS.csv covers exactly the SUPERSEDED set; gap-stats
+ auto block in sync — total counts 87/41/76 match)
+
+$ python -m unittest research.tests.test_validate_reverse_engineering
+............................................
+----------------------------------------------------------------------
+Ran 44 tests in 6.2s
+OK   (exit code 0 verified directly)
+
+## Clean-room file-by-file verification (post final regeneration)
+
+CLAIM-CONSISTENCY-REGISTER.csv / GAP-REGISTER.csv / ISSUE-CROSSWALK.csv /
+EVIDENCE-INDEX.csv — byte-identical to source-of-truth (validator CHECK 15). SYNC
+RETRACTED-CLAIMS.csv — covers SUPERSEDED set exactly (10 rows). SYNC
+REVERSE-ENGINEERING-GAP-REGISTER.md <!--GAP-STATS-AUTO--> block. SYNC
+
+## Evidence-file hash bindings (reviewer-verified rounds 2/3)
+
+EV-74 T0841-EV74-SLOT25-5040418C-FULL.txt
+  sha256 = 66262a3fad938383ea9e0a426729c02a2a8237abeb629343b72f8577bfbecc1c  MATCH
+EV-75 T0841-EV75-IID-IDENTITY-CHAIN.txt
+  sha256 = aed558d0014c271cb00767bdef1bb32aacb60990faf820964d7fddc393489baf  MATCH
+  (36-entry correction applied round 3; hash updated in evidence.csv in the same change)
+EV-76 T0841-EV76-SLOT25-CANDIDATE-COMPARISON.txt
+  sha256 = f35b11594d5bd5165184148e9c21e7c897a87492f6cece28f88f48de4257cd1f  MATCH
+
+## Binary identity re-verification (post-analysis; originals untouched)
+
+.work/task-036/game-image-unpacked.bin
+  sha256 = d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718  MATCH
+.work/task-001/extracted/冒险岛online/Gr2D_DX8.dll
+  sha256 = ad67b9a08a0a360e9a31f0274d29b8cb9839d95d691762961454c806ef6a25d1  MATCH
+.work/task-001/extracted/冒险岛online/PCOM.dll
+  sha256 = cf3807f3107152d3b305bfc84be36d58b62306c94f60133c8e80fd17f9d9e54b  MATCH
+
+git status (porcelain): modifications ONLY under research/ — no components/,
+no frozen-abi.txt change, no LoomRealm submodule change, no content/, no .work/ writes.

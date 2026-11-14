@@ -51,3 +51,16 @@ Ordering consequence (static instruction order): **new-map collision/bounds/VR d
 - NEW C-083 (0x97EBC9 body/order + sole caller + 0x81 collision at 0x77E6F3) — EV-70, grade A for the chain; the byte-binding part stays inside C-066's open clause.
 - G38 unresolved_scope updated: "0x81→0x97EBC9 vtable→opcode registration mechanism" now annotated with the collision finding (registration is context-dependent; static byte binding does not exist).
 - P4-04 optional-next-work updated accordingly.
+
+---
+
+## 6. t084.1 WORDING TIGHTENING (2026-11-15, round `research/t084-1-slot25-scope-reconciliation`)
+
+> Appended, not retro-edited; see `T084-1-SLOT25-SCOPE-RECONCILIATION.md` §C-083.
+
+Two §1/§3 phrasings overstated what the collision proves, and the C-083 row has been tightened accordingly:
+
+1. **"opcode numbers are context-dependent (per-handler-object registration)"** — the parenthetical mechanism claim is WITHDRAWN. The `0x77E6F3` collision demonstrates only that the *number* `0x81` is reused across disjoint dispatch contexts (channel 0x81/0x82/0x83 vs the game-server handler family); it says nothing about by which mechanism (dynamic registration, load-time table, or an unexamined static structure) the map-transition context binds its handlers.
+2. **"the game-server 0x81→map-transition binding is established by runtime registration data"** — downgraded to: no byte-level binding was found **in the examined static patterns** (sub/cmp imm `0x81` census: only `0x77E6F3`; cmp sites `0x5414A1`/`0x75A0AB` unrelated; the 33 handler-family dword dumps carry no registration references); the actual binding/registration mechanism remains **UNVERIFIED** — not proven dynamic. C-066's open clause stands unchanged.
+
+The confirmed part of §2 (handler chain: alloc → full new-map load `0x94FDB4` → attach `0x980A8C` → arrival write `0x9507F0`, sole caller `0x533FF1` in handler slot0) is unaffected by this tightening.

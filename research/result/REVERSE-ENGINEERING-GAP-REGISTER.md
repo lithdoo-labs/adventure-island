@@ -62,7 +62,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | G21 | Gr2D | [0x5042D0A0] 身份 | CLOSED-STATIC | =__imp__purecall（导入名表 A 级，R13-PE-IAT-FORENSICS）|
 | G22 | Gr2D | RawCanvas 具体虚表 | PARTIAL-STATIC | 起点 0x2E2C4/0x2E2CC 歧义（R13-RTTI-VTABLE-FORENSICS）；slot45={purecall,dtor}联合排除插入 |
 | G23 | PCOM | 0x427EB3 身份 | CLOSED-STATIC | =属性 PUT 包装（层 slot25 setter +0xCC，R13-427EB3-FORENSICS）|
-| G24 | Map/Sort | [eax+0xB4] 最终语义 | OPEN-RUNTIME | 依 [ebp-0x10] 具体类（variant 运行时值）|
+| G24 | Map/Sort | [eax+0xB4] 最终语义 | OPEN-RUNTIME | t084.1 (C-086/C-087)：接收者=slot25 返回对象（0x42944A 取 [ebp-0x10]），[0xBE2788] 静态推导=inner（0x5042D224）；dump 现为确认命名预测+取返回对象 vtable |
 
 ## Round 3.1 Task2 更新
 
@@ -70,7 +70,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 |---|---|---|---|---|
 | G25 | Map/Sort | "[eax+0xB4]=有序插入"假设 | SUPERSEDED | 22 候选 slot45 全表无插入语义；备择=属性注册或清理 |
 | G26 | PCOM | VARIANT vt=0xD 语义 | CLOSED-STATIC | =VT_UNKNOWN（0x411FE1 A 级）|
-| G27 | PCOM | 0x427EB3 出参静态矛盾 | PARTIAL-STATIC | t080 (C-053)：arg1 即 OUT；矛盾仅在静态 Gr2d trivial-setter 绑定下成立；运行时写值待 dump |
+| G27 | PCOM | 0x427EB3 出参静态矛盾 | CLOSED-STATIC | t084.1 (C-086)：第三候选 0x5040418C（inner slot25, ret 0x3C）与 0x427EB3 栈布局精确匹配并在 0x504045CB 写出参对象指针——矛盾仅在假设不写出参的候选下成立，已消解；运行时佐证并入 G24 |
 | G28 | Gr2D | slot45 全表分类 | CLOSED-STATIC | R13-SLOT45-CANDIDATES.csv 22 表 |
 
 ## Round 4 更新
@@ -106,9 +106,9 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 ## 台账统计（由 `research/scripts/generate_cleanroom_deliverables.py` 从 source-of-truth/gaps.csv 自动生成；`<!--GAP-STATS-AUTO-->
 | 状态 | 数量 |
 |---|---|
-| CLOSED-STATIC | 14 |
+| CLOSED-STATIC | 15 |
 | CLOSED-RUNTIME | 0 |
-| PARTIAL-STATIC | 13 |
+| PARTIAL-STATIC | 12 |
 | OPEN-STATIC | 8 |
 | OPEN-RUNTIME | 4 |
 | BLOCKED | 1 |

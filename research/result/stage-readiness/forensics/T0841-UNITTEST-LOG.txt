@@ -1,0 +1,12 @@
+﻿python : ............................................
+所在位置 行:1 字符: 233
++ ... R-LOG.txt"; python -m unittest research.tests.test_validate_reverse_e ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (.................................:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+----------------------------------------------------------------------
+Ran 44 tests in 6.133s
+
+OK
+

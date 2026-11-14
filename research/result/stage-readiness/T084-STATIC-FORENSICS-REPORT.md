@@ -75,6 +75,8 @@ Reviewer 报告原文：`forensics/T084-REVIEWER-REPORT.md`。未观察到任何
 - 65 行不变；RE-READY 16→**17**（P3-13 抓绳/ladder 判定：分叉+l/uf 消费闭合，C-069/C-071/C-078/C-079）；RE-GAP-STATIC 27→26。
 - 更新行：P1-09、P1-10、P3-03、P3-13、P3-14、P3-15、P4-04、P4-06、P4-07（minimum_next_work 全部去除已完成项并带 t084 修正标记；P3-15 的 0x6A0ADF 指针以 correction 标记移除）。
 
+本报告为 t084 轮的原始交付物；**t084.1 轮（2026-11-15，`research/t084-1-slot25-scope-reconciliation`）已对本报告的 P3 slot25 结论作出修正**：§2 表格 P3 行的“静态候选集穷尽/两者均不满足/运行时绑定必为静态表外”结论已被撤回（第三候选 inner slot25=0x5040418C 恰好满足生产路径，C-086/C-087，EV-74/75/76）；G27 已关闭、G24 重定义为运行时确认；§4 的 slot45 归属表述已更正（调用落在 slot25 返回对象上）。详见 `T084-1-SLOT25-SCOPE-RECONCILIATION.md` 与 `T084-GR2D-SLOT25-ANALYSIS.md` §6 修正章节。其余工作包（P0/P1/P2/P4/P6）结论经 t084.1 复核维持不变（P5 措辞收紧见 `T084-OPCODE-0081-REGISTRATION.md` §6）。
+
 ## 8. 最终阶段判断
 
 Camera 每帧跟随（G10）与 slot25 运行时身份（G24/G27）仍未解决，0x81 的运行时注册与 0x9BE703 完整体未闭合。

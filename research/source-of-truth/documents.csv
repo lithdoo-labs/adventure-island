@@ -41,3 +41,5 @@ research/result/stage-readiness/T084-FOOTHOLD-LOADER-WRITE-PATH.md,ACTIVE,round-
 research/result/stage-readiness/T084-OPCODE-0081-REGISTRATION.md,ACTIVE,round-report,C-083,(t084 commit),,P5 opcode 0x81
 research/result/stage-readiness/T084-STACK-PACKAGE-REMAINING.md,ACTIVE,round-report,C-085,(t084 commit),,P6 stack-package
 research/result/stage-readiness/forensics/T084-REVIEWER-REPORT.md,ACTIVE,review,,(t084 commit),,independent reviewer verbatim
+research/result/stage-readiness/T084-1-SLOT25-SCOPE-RECONCILIATION.md,ACTIVE,round-report,C-082;C-083;C-086;C-087,(t084.1 commit),,t084.1 slot25 scope reconciliation round report
+research/result/stage-readiness/forensics/T0841-REVIEWER-REPORT.md,ACTIVE,review,,(t084.1 commit),,t084.1 independent reviewer verbatim

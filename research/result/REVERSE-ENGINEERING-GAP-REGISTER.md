@@ -25,7 +25,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | ID | 模块 | 问题 | 状态 | 证据 | 最小验证 |
 |---|---|---|---|---|---|
 | G06 | Map/Sort | [0xBE2788] 真实虚表 | CLOSED-STATIC | =0x5042D140（40 槽 intmap 精确衔接）| — |
-| G07 | Map/Sort | DLL 内比较器 | OPEN-STATIC | 上项已闭；比较器体在栈封装函数内待读 | 反汇编 0x43286E/0x44484B |
+| G07 | Map/Sort | DLL 内比较器 | PARTIAL-STATIC | 上项已闭；比较器体在栈封装函数内待读；t084 四个 stack-package callee（0x43286E/0x44484B/0x429411/0x43E3A6）读尽且无比较逻辑（C-085/EV-71） | 最终接收者=运行时 slot25 端点（随 G24/G27 dump） |
 | G08 | Map/Sort | Avatar 插入键构造 | OPEN-RUNTIME | 进图运行时路径 | 进图转储 + Avatar 加载断点 |
 | G09 | Avatar | 部件组合/遮挡运行时序 | OPEN-RUNTIME | 进图后渲染 | 进图捕获 |
 | G10 | Camera | 镜头跟随/deadzone 实际参数 | OPEN-RUNTIME | 进图输入循环 | 进图转储 [0xBDF54C] 族 |
@@ -108,8 +108,8 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 |---|---|
 | CLOSED-STATIC | 14 |
 | CLOSED-RUNTIME | 0 |
-| PARTIAL-STATIC | 12 |
-| OPEN-STATIC | 9 |
+| PARTIAL-STATIC | 13 |
+| OPEN-STATIC | 8 |
 | OPEN-RUNTIME | 4 |
 | BLOCKED | 1 |
 | SUPERSEDED | 1 |

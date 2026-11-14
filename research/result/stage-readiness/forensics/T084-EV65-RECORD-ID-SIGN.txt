@@ -1,0 +1,132 @@
+# binary=.work/task-036/game-image-unpacked.bin
+# sha256=d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718
+# image=exe base=0x400000 (fileOffset = VA - 0x400000)
+# generator=research/scripts/t084_dump_evidence.py (uses t084_harness.capstone)
+
+
+===== 0x6B87D1 record setter head (id derivation: [fh+0x48] or neg word) =====
+006B87D1  55                     push ebp
+006B87D2  8bec                   mov ebp, esp
+006B87D4  8b452c                 mov eax, dword ptr [ebp + 0x2c]
+006B87D7  014158                 add dword ptr [ecx + 0x58], eax
+006B87DA  8b450c                 mov eax, dword ptr [ebp + 0xc]
+006B87DD  53                     push ebx
+006B87DE  33db                   xor ebx, ebx
+006B87E0  3bc3                   cmp eax, ebx
+006B87E2  56                     push esi
+006B87E3  57                     push edi
+006B87E4  7405                   je 0x6b87eb
+006B87E6  8b7848                 mov edi, dword ptr [eax + 0x48]
+006B87E9  eb11                   jmp 0x6b87fc
+006B87EB  8b4514                 mov eax, dword ptr [ebp + 0x14]
+006B87EE  3bc3                   cmp eax, ebx
+006B87F0  7408                   je 0x6b87fa
+006B87F2  668b38                 mov di, word ptr [eax]
+006B87F5  66f7df                 neg di
+006B87F8  eb02                   jmp 0x6b87fc
+006B87FA  33ff                   xor edi, edi
+006B87FC  8b4510                 mov eax, dword ptr [ebp + 0x10]
+006B87FF  3bc3                   cmp eax, ebx
+006B8801  897d0c                 mov dword ptr [ebp + 0xc], edi
+006B8804  7408                   je 0x6b880e
+006B8806  8b4048                 mov eax, dword ptr [eax + 0x48]
+006B8809  894514                 mov dword ptr [ebp + 0x14], eax
+006B880C  eb03                   jmp 0x6b8811
+006B880E  895d14                 mov dword ptr [ebp + 0x14], ebx
+006B8811  395918                 cmp dword ptr [ecx + 0x18], ebx
+006B8814  7504                   jne 0x6b881a
+006B8816  33f6                   xor esi, esi
+006B8818  eb03                   jmp 0x6b881d
+006B881A  8b7120                 mov esi, dword ptr [ecx + 0x20]
+006B881D  8b4508                 mov eax, dword ptr [ebp + 8]
+006B8820  3bc3                   cmp eax, ebx
+006B8822  7437                   je 0x6b885b
+006B8824  83f811                 cmp eax, 0x11
+006B8827  7432                   je 0x6b885b
+006B8829  83f80f                 cmp eax, 0xf
+006B882C  742d                   je 0x6b885b
+006B882E  3bf3                   cmp esi, ebx
+006B8830  740e                   je 0x6b8840
+006B8832  66395e10               cmp word ptr [esi + 0x10], bx
+006B8836  7508                   jne 0x6b8840
+006B8838  381e                   cmp byte ptr [esi], bl
+006B883A  0f84cb000000           je 0x6b890b
+006B8840  83c110                 add ecx, 0x10
+006B8843  e89b090000             call 0x6b91e3
+006B8848  6a14                   push 0x14
+006B884A  8bf0                   mov esi, eax
+006B884C  53                     push ebx
+006B884D  56                     push esi
+006B884E  e8cd783b00             call 0xa70120
+006B8853  83c40c                 add esp, 0xc
+006B8856  e9b0000000             jmp 0x6b890b
+006B885B  3bf3                   cmp esi, ebx
+006B885D  0f8487000000           je 0x6b88ea
+006B8863  8a16                   mov dl, byte ptr [esi]
+006B8865  0fb6fa                 movzx edi, dl
+006B8868  3bf8                   cmp edi, eax
+006B886A  7574                   jne 0x6b88e0
+006B886C  668b460c               mov ax, word ptr [esi + 0xc]
+006B8870  663b450c               cmp ax, word ptr [ebp + 0xc]
+006B8874  756a                   jne 0x6b88e0
+
+===== 0x6B8A18 record getter head (RNG-walk, id/flags outs) =====
+006B8A18  55                     push ebp
+006B8A19  8bec                   mov ebp, esp
+006B8A1B  83ec2c                 sub esp, 0x2c
+006B8A1E  56                     push esi
+006B8A1F  8bf1                   mov esi, ecx
+006B8A21  837e1800               cmp dword ptr [esi + 0x18], 0
+006B8A25  7507                   jne 0x6b8a2e
+006B8A27  33c0                   xor eax, eax
+006B8A29  e91b030000             jmp 0x6b8d49
+006B8A2E  53                     push ebx
+006B8A2F  57                     push edi
+006B8A30  ffb688000000           push dword ptr [esi + 0x88]
+006B8A36  8dbe80000000           lea edi, [esi + 0x80]
+006B8A3C  57                     push edi
+006B8A3D  e8a6e3d5ff             call 0x416de8
+006B8A42  ff767c                 push dword ptr [esi + 0x7c]
+006B8A45  8bd8                   mov ebx, eax
+006B8A47  8d4674                 lea eax, [esi + 0x74]
+006B8A4A  50                     push eax
+006B8A4B  e898e3d5ff             call 0x416de8
+006B8A50  03c3                   add eax, ebx
+006B8A52  83c410                 add esp, 0x10
+006B8A55  8bd7                   mov edx, edi
+006B8A57  8bc8                   mov ecx, eax
+006B8A59  e8d8e3d5ff             call 0x416e36
+006B8A5E  8b5d14                 mov ebx, dword ptr [ebp + 0x14]
+006B8A61  898688000000           mov dword ptr [esi + 0x88], eax
+006B8A67  837e1800               cmp dword ptr [esi + 0x18], 0
+006B8A6B  0f84ff000000           je 0x6b8b70
+006B8A71  8b7e1c                 mov edi, dword ptr [esi + 0x1c]
+006B8A74  8a0f                   mov cl, byte ptr [edi]
+006B8A76  80f90a                 cmp cl, 0xa
+006B8A79  0f84dc000000           je 0x6b8b5b
+006B8A7F  8b4520                 mov eax, dword ptr [ebp + 0x20]
+006B8A82  6a01                   push 1
+006B8A84  5a                     pop edx
+006B8A85  d3e2                   shl edx, cl
+006B8A87  0910                   or dword ptr [eax], edx
+006B8A89  ffb688000000           push dword ptr [esi + 0x88]
+006B8A8F  8d8680000000           lea eax, [esi + 0x80]
+006B8A95  50                     push eax
+006B8A96  e84de3d5ff             call 0x416de8
+006B8A9B  59                     pop ecx
+006B8A9C  59                     pop ecx
+006B8A9D  0fbf4f10               movsx ecx, word ptr [edi + 0x10]
+006B8AA1  3bc1                   cmp eax, ecx
+006B8AA3  0f8cc7000000           jl 0x6b8b70
+006B8AA9  ffb688000000           push dword ptr [esi + 0x88]
+006B8AAF  8d8680000000           lea eax, [esi + 0x80]
+006B8AB5  50                     push eax
+
+===== 0x6B8A18 id/flag out writes (record+0xC -> id out, record+0xA -> byte out) =====
+006B8B4B  668b470c               mov ax, word ptr [edi + 0xc]
+006B8B4F  668901                 mov word ptr [ecx], ax
+006B8B52  0fb6470a               movzx eax, byte ptr [edi + 0xa]
+006B8B56  8b4d1c                 mov ecx, dword ptr [ebp + 0x1c]
+006B8B59  8901                   mov dword ptr [ecx], eax
+006B8B5B  ff761c                 push dword ptr [esi + 0x1c]
+

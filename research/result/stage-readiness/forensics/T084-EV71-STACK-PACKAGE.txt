@@ -1,0 +1,116 @@
+# binary=.work/task-036/game-image-unpacked.bin
+# sha256=d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718
+# image=exe base=0x400000 (fileOffset = VA - 0x400000)
+# generator=research/scripts/t084_dump_evidence.py (uses t084_harness.capstone)
+
+
+===== 0x43286E null-assert ctor (no compare logic) =====
+0043286E  56                     push esi
+0043286F  8bf1                   mov esi, ecx
+00432871  832600                 and dword ptr [esi], 0
+00432874  837c240800             cmp dword ptr [esp + 8], 0
+00432879  740a                   je 0x432885
+0043287B  6803400080             push 0x80004003
+00432880  e87cc66300             call 0xa6ef01
+00432885  8bc6                   mov eax, esi
+00432887  5e                     pop esi
+
+===== 0x44484B attach+AddRef smartptr (no compare logic) =====
+0044484B  8b442404               mov eax, dword ptr [esp + 4]
+0044484F  8b00                   mov eax, dword ptr [eax]
+00444851  85c0                   test eax, eax
+00444853  56                     push esi
+00444854  8bf1                   mov esi, ecx
+00444856  8906                   mov dword ptr [esi], eax
+00444858  7406                   je 0x444860
+0044485A  8b08                   mov ecx, dword ptr [eax]
+0044485C  50                     push eax
+0044485D  ff5104                 call dword ptr [ecx + 4]
+00444860  8bc6                   mov eax, esi
+00444862  5e                     pop esi
+00444863  c20400                 ret 4
+
+===== 0x429411 attach+AddRef smartptr twin (no compare logic) =====
+00429411  8b442404               mov eax, dword ptr [esp + 4]
+00429415  8b00                   mov eax, dword ptr [eax]
+00429417  85c0                   test eax, eax
+00429419  56                     push esi
+0042941A  8bf1                   mov esi, ecx
+0042941C  8906                   mov dword ptr [esi], eax
+0042941E  7406                   je 0x429426
+00429420  8b08                   mov ecx, dword ptr [eax]
+00429422  50                     push eax
+00429423  ff5104                 call dword ptr [ecx + 4]
+00429426  8bc6                   mov eax, esi
+00429428  5e                     pop esi
+00429429  c20400                 ret 4
+
+===== 0x43E3A6 property-PUT wrapper over 0x427EB3 (VARIANT init/cleanup; no compare logic) =====
+0043E3A6  b82fa5a800             mov eax, 0xa8a52f
+0043E3AB  e8cc186300             call 0xa6fc7c
+0043E3B0  83ec4c                 sub esp, 0x4c
+0043E3B3  53                     push ebx
+0043E3B4  56                     push esi
+0043E3B5  33db                   xor ebx, ebx
+0043E3B7  57                     push edi
+0043E3B8  895dec                 mov dword ptr [ebp - 0x14], ebx
+0043E3BB  6a03                   push 3
+0043E3BD  5e                     pop esi
+0043E3BE  683073be00             push 0xbe7330
+0043E3C3  8d4db8                 lea ecx, [ebp - 0x48]
+0043E3C6  8975fc                 mov dword ptr [ebp - 4], esi
+0043E3C9  e8c14dfcff             call 0x40318f
+0043E3CE  56                     push esi
+0043E3CF  53                     push ebx
+0043E3D0  8d4dc8                 lea ecx, [ebp - 0x38]
+0043E3D3  c645fc04               mov byte ptr [ebp - 4], 4
+0043E3D7  e8d94dfcff             call 0x4031b5
+0043E3DC  391d8827be00           cmp dword ptr [0xbe2788], ebx
+0043E3E2  c645fc05               mov byte ptr [ebp - 4], 5
+0043E3E6  750a                   jne 0x43e3f2
+0043E3E8  6803400080             push 0x80004003
+0043E3ED  e80f0b6300             call 0xa6ef01
+0043E3F2  8b0d8827be00           mov ecx, dword ptr [0xbe2788]
+0043E3F8  8d45b8                 lea eax, [ebp - 0x48]
+0043E3FB  50                     push eax
+0043E3FC  8d45c8                 lea eax, [ebp - 0x38]
+0043E3FF  50                     push eax
+0043E400  53                     push ebx
+0043E401  53                     push ebx
+0043E402  53                     push ebx
+0043E403  53                     push ebx
+0043E404  53                     push ebx
+0043E405  8d45f0                 lea eax, [ebp - 0x10]
+0043E408  50                     push eax
+0043E409  e8a59afeff             call 0x427eb3
+0043E40E  8d45c8                 lea eax, [ebp - 0x38]
+0043E411  50                     push eax
+0043E412  c645fc08               mov byte ptr [ebp - 4], 8
+0043E416  e89c45fcff             call 0x4029b7
+0043E41B  3bc3                   cmp eax, ebx
+0043E41D  59                     pop ecx
+0043E41E  7d06                   jge 0x43e426
+0043E420  50                     push eax
+0043E421  e8db0a6300             call 0xa6ef01
+0043E426  8d45b8                 lea eax, [ebp - 0x48]
+0043E429  50                     push eax
+0043E42A  c645fc07               mov byte ptr [ebp - 4], 7
+0043E42E  e88445fcff             call 0x4029b7
+0043E433  3bc3                   cmp eax, ebx
+0043E435  59                     pop ecx
+0043E436  7d06                   jge 0x43e43e
+0043E438  50                     push eax
+0043E439  e8c30a6300             call 0xa6ef01
+0043E43E  53                     push ebx
+0043E43F  8d4d14                 lea ecx, [ebp + 0x14]
+0043E442  e8d665fdff             call 0x414a1d
+0043E447  84c0                   test al, al
+0043E449  755f                   jne 0x43e4aa
+0043E44B  6a01                   push 1
+0043E44D  ff7514                 push dword ptr [ebp + 0x14]
+0043E450  8d4dd8                 lea ecx, [ebp - 0x28]
+0043E453  e8893bfdff             call 0x411fe1
+0043E458  395df0                 cmp dword ptr [ebp - 0x10], ebx
+0043E45B  c645fc09               mov byte ptr [ebp - 4], 9
+0043E45F  750a                   jne 0x43e46b
+

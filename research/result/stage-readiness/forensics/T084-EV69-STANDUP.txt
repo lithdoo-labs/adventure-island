@@ -1,0 +1,150 @@
+# binary=.work/task-036/game-image-unpacked.bin
+# sha256=d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718
+# image=exe base=0x400000 (fileOffset = VA - 0x400000)
+# generator=research/scripts/t084_dump_evidence.py (uses t084_harness.capstone)
+
+
+===== 0x6A0ADF encrypted-pair integrity decryptor (NOT a stand-up function) =====
+006A0ADF  55                     push ebp
+006A0AE0  8bec                   mov ebp, esp
+006A0AE2  8b4508                 mov eax, dword ptr [ebp + 8]
+006A0AE5  53                     push ebx
+006A0AE6  8b5804                 mov ebx, dword ptr [eax + 4]
+006A0AE9  56                     push esi
+006A0AEA  8b30                   mov esi, dword ptr [eax]
+006A0AEC  57                     push edi
+006A0AED  6a05                   push 5
+006A0AEF  53                     push ebx
+006A0AF0  e806fb3c00             call 0xa705fb
+006A0AF5  8bf8                   mov edi, eax
+006A0AF7  33fe                   xor edi, esi
+006A0AF9  6a05                   push 5
+006A0AFB  81f60df0adba           xor esi, 0xbaadf00d
+006A0B01  56                     push esi
+006A0B02  e8edf53c00             call 0xa700f4
+006A0B07  03c3                   add eax, ebx
+006A0B09  83c410                 add esp, 0x10
+006A0B0C  3b450c                 cmp eax, dword ptr [ebp + 0xc]
+006A0B0F  7415                   je 0x6a0b26
+006A0B11  685026b100             push 0xb12650
+006A0B16  8d4508                 lea eax, [ebp + 8]
+006A0B19  50                     push eax
+006A0B1A  c7450805000000         mov dword ptr [ebp + 8], 5
+006A0B21  e875f13c00             call 0xa6fc9b
+006A0B26  8bc7                   mov eax, edi
+006A0B28  5f                     pop edi
+006A0B29  5e                     pop esi
+006A0B2A  5b                     pop ebx
+006A0B2B  5d                     pop ebp
+006A0B2C  c3                     ret 
+
+===== 0x965A09 user vt slot14 stand-up/seat reset (seat->0, chair-stance map 0x965A8F, notify 0x53E95D(M,0xB) gated by arg) =====
+00965A09  56                     push esi
+00965A0A  8bf1                   mov esi, ecx
+00965A0C  57                     push edi
+00965A0D  8d9644290000           lea edx, [esi + 0x2944]
+00965A13  33c9                   xor ecx, ecx
+00965A15  e89fd7caff             call 0x6131b9
+00965A1A  8dbe902e0000           lea edi, [esi + 0x2e90]
+00965A20  8bd7                   mov edx, edi
+00965A22  33c9                   xor ecx, ecx
+00965A24  89864c290000           mov dword ptr [esi + 0x294c], eax
+00965A2A  e80714abff             call 0x416e36
+00965A2F  50                     push eax
+00965A30  57                     push edi
+00965A31  8986982e0000           mov dword ptr [esi + 0x2e98], eax
+00965A37  e8ac13abff             call 0x416de8
+00965A3C  50                     push eax
+00965A3D  e84d000000             call 0x965a8f
+00965A42  83c40c                 add esp, 0xc
+00965A45  8d969c2e0000           lea edx, [esi + 0x2e9c]
+00965A4B  33c9                   xor ecx, ecx
+00965A4D  8986040f0000           mov dword ptr [esi + 0xf04], eax
+00965A53  e8de13abff             call 0x416e36
+00965A58  33ff                   xor edi, edi
+00965A5A  57                     push edi
+00965A5B  8bce                   mov ecx, esi
+00965A5D  8986a42e0000           mov dword ptr [esi + 0x2ea4], eax
+00965A63  89beb42e0000           mov dword ptr [esi + 0x2eb4], edi
+00965A69  e802d6fdff             call 0x943070
+00965A6E  397c240c               cmp dword ptr [esp + 0xc], edi
+00965A72  7516                   jne 0x965a8a
+00965A74  8b8e280f0000           mov ecx, dword ptr [esi + 0xf28]
+00965A7A  8d41f4                 lea eax, [ecx - 0xc]
+00965A7D  f7d9                   neg ecx
+00965A7F  1bc9                   sbb ecx, ecx
+00965A81  6a0b                   push 0xb
+00965A83  23c8                   and ecx, eax
+00965A85  e8d38ebdff             call 0x53e95d
+00965A8A  5f                     pop edi
+00965A8B  5e                     pop esi
+
+===== 0x965A8F chair item-id -> stance code map (0x2DED00-FF..0x2DEE2D) =====
+00965A8F  8b442404               mov eax, dword ptr [esp + 4]
+00965A93  3deded2d00             cmp eax, 0x2deded
+00965A98  7c0b                   jl 0x965aa5
+00965A9A  3defed2d00             cmp eax, 0x2dedef
+00965A9F  7f04                   jg 0x965aa5
+00965AA1  6a01                   push 1
+00965AA3  58                     pop eax
+00965AA4  c3                     ret 
+00965AA5  3d15ee2d00             cmp eax, 0x2dee15
+00965AAA  741d                   je 0x965ac9
+00965AAC  3d19ee2d00             cmp eax, 0x2dee19
+00965AB1  7504                   jne 0x965ab7
+00965AB3  6a03                   push 3
+00965AB5  58                     pop eax
+00965AB6  c3                     ret 
+00965AB7  3d16ee2d00             cmp eax, 0x2dee16
+00965ABC  7504                   jne 0x965ac2
+00965ABE  6a04                   push 4
+00965AC0  58                     pop eax
+00965AC1  c3                     ret 
+00965AC2  3d1bee2d00             cmp eax, 0x2dee1b
+00965AC7  7504                   jne 0x965acd
+00965AC9  6a02                   push 2
+00965ACB  58                     pop eax
+00965ACC  c3                     ret 
+00965ACD  3d2dee2d00             cmp eax, 0x2dee2d
+00965AD2  7504                   jne 0x965ad8
+00965AD4  6a05                   push 5
+00965AD6  58                     pop eax
+00965AD7  c3                     ret 
+00965AD8  33c0                   xor eax, eax
+00965ADA  c3                     ret 
+
+===== user vtable 0xB0BD28 (slot14 = 0x965A09) =====
+00B0BD28  7014                   jo 0xb0bd3e
+00B0BD2A  95                     xchg ebp, eax
+00B0BD2B  00e3                   add bl, ah
+00B0BD2D  0d9500200e             or eax, 0xe200095
+00B0BD32  95                     xchg ebp, eax
+00B0BD33  00e4                   add ah, ah
+00B0BD35  039500e80395           add edx, dword ptr [ebp - 0x6afc1800]
+00B0BD3B  00eb                   add bl, ch
+00B0BD3D  039500ee0395           add edx, dword ptr [ebp - 0x6afc1200]
+00B0BD43  0026                   add byte ptr [esi], ah
+00B0BD45  6e                     outsb dx, byte ptr [esi]
+00B0BD46  4b                     dec ebx
+00B0BD47  001a                   add byte ptr [edx], bl
+00B0BD49  b696                   mov dh, 0x96
+00B0BD4B  00e4                   add ah, ah
+00B0BD4D  6a96                   push -0x6a
+00B0BD4F  00b76e96008f           add byte ptr [edi - 0x70ff6992], dh
+00B0BD55  6f                     outsd dx, dword ptr [esi]
+00B0BD56  96                     xchg esi, eax
+00B0BD57  00f1                   add cl, dh
+00B0BD59  7096                   jo 0xb0bcf1
+00B0BD5B  00d3                   add bl, dl
+00B0BD5D  7196                   jno 0xb0bcf5
+00B0BD5F  0009                   add byte ptr [ecx], cl
+00B0BD61  5a                     pop edx
+00B0BD62  96                     xchg esi, eax
+00B0BD63  00e7                   add bh, ah
+
+===== reset-ctor call site 0x9500A3 (arg=1 suppresses move notify) =====
+00950095  6a01                   push 1
+00950097  8bce                   mov ecx, esi
+00950099  c78688000000ecbcb000   mov dword ptr [esi + 0x88], 0xb0bcec
+009500A3  e861590100             call 0x965a09
+

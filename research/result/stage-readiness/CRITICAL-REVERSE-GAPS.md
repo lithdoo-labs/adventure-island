@@ -43,4 +43,4 @@
 | Critical E（时钟量纲 / G34） | 维持：dt 为调用方供给、0x1E 非全局证明；[move+0x248] 递减模式为 alert 候选结构（未绑定）。 |
 | High（G27/G24） | G27 矛盾**重构完成**（C-053）：0x427EB3 arg1=OUT；剩余为运行时 slot25 写出参（单 dword dump 决 G24+G27）。**t082**：[ebp-0x20] 裁定（C-074）、slot45 带 key 参数+HRESULT 门（C-075）、0x5042D204 虚表组+构造器绑定（C-077，"47 项单表"已更正）——运行时捕获缩至单 vptr 读。 |
 
-优先级更新（t082 后）：静态下一批 = 0x9BE703 完整体（首帧 ctx 重建）、fh loader 写侧（WZ→对象字段直证）、0x517DA8/0x9BCC9A（ladder/rope 分叉）、0x43286E stack-package 家族（G01/G07）。运行时最小捕获 = bp 0x666F77 单值（G24+G27，规格已固化于 T082-R13 §4）+ 绳抓时 dump [M+0x130/0x134]（G41 张力）+ [0xBE2788] 两 slot 值与 slot25 出参（G36 首帧）+ slot58 双采样（G39 单位）。
+优先级更新（t084 修正：t082 所列静态批中 fh loader 写侧、0x517DA8/0x9BCC9A 分叉判定、0x43286E stack-package 家族已由 t084 闭合——C-078/C-079/C-080/C-085，见 T084-STATIC-FORENSICS-REPORT.md）：静态下一批 = 0x9BE703 完整体（首帧 ctx 重建）、slot3 变体 0x9C5B8A/0x9CCAA8 差异、user vt slot14 起身触发枚举（C-081）。运行时最小捕获 = bp 0x666F77 单值（G24+G27，三候选判定 C-082，规格固化于 T082-R13 §4）+ 绳抓时刻可选 corroboration（G41 静态已闭合，降级为可选）+ [0xBE2788] slot 值与 slot25 身份（G36 首帧）+ slot58 双采样（G39 单位）。

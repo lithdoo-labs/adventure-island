@@ -1,0 +1,124 @@
+# binary=.work/task-001/extracted/冒险岛online/Gr2D_DX8.dll
+
+# sha256=ad67b9a08a0a360e9a31f0274d29b8cb9839d95d691762961454c806ef6a25d1
+
+# image=dll ImageBase=0x50400000 (PE section mapping)
+
+
+===== outer 0x5042D204 vtable slots 0-27 (slot25 = +0x64 = 0x50404E85) =====
+[5042D204] slot 0 (+0x00) = 504014A5
+[5042D208] slot 1 (+0x04) = 50410720
+[5042D20C] slot 2 (+0x08) = 50401472
+[5042D210] slot 3 (+0x0c) = 5040184E
+[5042D214] slot 4 (+0x10) = 50401858
+[5042D218] slot 5 (+0x14) = 50401862
+[5042D21C] slot 6 (+0x18) = 50404860
+[5042D220] slot 7 (+0x1c) = 50404CB2
+[5042D224] slot 8 (+0x20) = 50401522
+[5042D228] slot 9 (+0x24) = 50401502
+[5042D22C] slot10 (+0x28) = 50401512
+[5042D230] slot11 (+0x2c) = 504030D3
+[5042D234] slot12 (+0x30) = 504035B6
+[5042D238] slot13 (+0x34) = 50403B4D
+[5042D23C] slot14 (+0x38) = 50403C99
+[5042D240] slot15 (+0x3c) = 50403CCE
+[5042D244] slot16 (+0x40) = 50403F3F
+[5042D248] slot17 (+0x44) = 50403F57
+[5042D24C] slot18 (+0x48) = 50403F6E
+[5042D250] slot19 (+0x4c) = 50403E90
+[5042D254] slot20 (+0x50) = 50403EAD
+[5042D258] slot21 (+0x54) = 50403ECA
+[5042D25C] slot22 (+0x58) = 50403EFC
+[5042D260] slot23 (+0x5c) = 50403F19
+[5042D264] slot24 (+0x60) = 50403F7E
+[5042D268] slot25 (+0x64) = 50404E85
+[5042D26C] slot26 (+0x68) = 50404EA7
+[5042D270] slot27 (+0x6c) = 50403F9E
+
+===== inner 0x5042D224 vtable slots 0-27 (slot25 = 0x5040418C) =====
+[5042D224] slot 0 (+0x00) = 50401522
+[5042D228] slot 1 (+0x04) = 50401502
+[5042D22C] slot 2 (+0x08) = 50401512
+[5042D230] slot 3 (+0x0c) = 504030D3
+[5042D234] slot 4 (+0x10) = 504035B6
+[5042D238] slot 5 (+0x14) = 50403B4D
+[5042D23C] slot 6 (+0x18) = 50403C99
+[5042D240] slot 7 (+0x1c) = 50403CCE
+[5042D244] slot 8 (+0x20) = 50403F3F
+[5042D248] slot 9 (+0x24) = 50403F57
+[5042D24C] slot10 (+0x28) = 50403F6E
+[5042D250] slot11 (+0x2c) = 50403E90
+[5042D254] slot12 (+0x30) = 50403EAD
+[5042D258] slot13 (+0x34) = 50403ECA
+[5042D25C] slot14 (+0x38) = 50403EFC
+[5042D260] slot15 (+0x3c) = 50403F19
+[5042D264] slot16 (+0x40) = 50403F7E
+[5042D268] slot17 (+0x44) = 50404E85
+[5042D26C] slot18 (+0x48) = 50404EA7
+[5042D270] slot19 (+0x4c) = 50403F9E
+[5042D274] slot20 (+0x50) = 50403FBE
+[5042D278] slot21 (+0x54) = 50403FD1
+[5042D27C] slot22 (+0x58) = 50403FFB
+[5042D280] slot23 (+0x5c) = 50404025
+[5042D284] slot24 (+0x60) = 5040404B
+[5042D288] slot25 (+0x64) = 5040418C
+[5042D28C] slot26 (+0x68) = 50404ECA
+[5042D290] slot27 (+0x6c) = 50404EE9
+
+===== mid 0x5042D210 vtable slots 0-27 (slot25 = 0x50403FBE) =====
+[5042D210] slot 0 (+0x00) = 5040184E
+[5042D214] slot 1 (+0x04) = 50401858
+[5042D218] slot 2 (+0x08) = 50401862
+[5042D21C] slot 3 (+0x0c) = 50404860
+[5042D220] slot 4 (+0x10) = 50404CB2
+[5042D224] slot 5 (+0x14) = 50401522
+[5042D228] slot 6 (+0x18) = 50401502
+[5042D22C] slot 7 (+0x1c) = 50401512
+[5042D230] slot 8 (+0x20) = 504030D3
+[5042D234] slot 9 (+0x24) = 504035B6
+[5042D238] slot10 (+0x28) = 50403B4D
+[5042D23C] slot11 (+0x2c) = 50403C99
+[5042D240] slot12 (+0x30) = 50403CCE
+[5042D244] slot13 (+0x34) = 50403F3F
+[5042D248] slot14 (+0x38) = 50403F57
+[5042D24C] slot15 (+0x3c) = 50403F6E
+[5042D250] slot16 (+0x40) = 50403E90
+[5042D254] slot17 (+0x44) = 50403EAD
+[5042D258] slot18 (+0x48) = 50403ECA
+[5042D25C] slot19 (+0x4c) = 50403EFC
+[5042D260] slot20 (+0x50) = 50403F19
+[5042D264] slot21 (+0x54) = 50403F7E
+[5042D268] slot22 (+0x58) = 50404E85
+[5042D26C] slot23 (+0x5c) = 50404EA7
+[5042D270] slot24 (+0x60) = 50403F9E
+[5042D274] slot25 (+0x64) = 50403FBE
+[5042D278] slot26 (+0x68) = 50403FD1
+[5042D27C] slot27 (+0x6c) = 50403FFB
+
+===== slot25 candidate body 0x50404E85 (boolean out getter) =====
+50404E85  8b442408             mov eax, dword ptr [esp + 8]
+50404E89  85c0                 test eax, eax
+50404E8B  7507                 jne 0x50404e94
+50404E8D  b803400080           mov eax, 0x80004003
+50404E92  eb10                 jmp 0x50404ea4
+50404E94  8b542404             mov edx, dword ptr [esp + 4]
+50404E98  33c9                 xor ecx, ecx
+50404E9A  394a78               cmp dword ptr [edx + 0x78], ecx
+50404E9D  0f95c1               setne cl
+50404EA0  8908                 mov dword ptr [eax], ecx
+50404EA2  33c0                 xor eax, eax
+50404EA4  c20800               ret 8
+
+===== 0x50404EA7 companion =====
+50404EA7  8b4c2404             mov ecx, dword ptr [esp + 4]
+50404EAB  33c0                 xor eax, eax
+50404EAD  394178               cmp dword ptr [ecx + 0x78], eax
+50404EB0  0f95c0               setne al
+50404EB3  33d2                 xor edx, edx
+50404EB5  39542408             cmp dword ptr [esp + 8], edx
+50404EB9  0f95c2               setne dl
+50404EBC  3bd0                 cmp edx, eax
+50404EBE  7405                 je 0x50404ec5
+50404EC0  e860eeffff           call 0x50403d25
+50404EC5  33c0                 xor eax, eax
+

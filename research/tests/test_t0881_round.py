@@ -277,7 +277,10 @@ class HistoricalConclusionRegressions(unittest.TestCase):
 
     def test_g10_status_and_residuals_kept(self):
         self.assertEqual(self.gaps["G10"]["status"], "PARTIAL-STATIC")
-        self.assertIn("[[user+0xF28]+0x14]", self.gaps["G10"]["unresolved_scope"])
+        # t089 wording refinement (C-115): the census item now names both the
+        # historical [[user+0xF28]] framing and the corrected [[arg3]+0x14] form
+        self.assertIn("[[arg3]+0x14]", self.gaps["G10"]["unresolved_scope"])
+        self.assertIn("[[user+0xF28]", self.gaps["G10"]["unresolved_scope"])
         self.assertIn("INCONCLUSIVE", self.gaps["G10"]["unresolved_scope"])
 
     def test_c028_worldspace_reading_marked_historical(self):
@@ -349,8 +352,9 @@ class EvidenceHashChain(unittest.TestCase):
                              b.replace(b"\r\n", b"\n"), f"{cc} out of sync")
 
     def test_ledger_counts_unchanged(self):
-        self.assertEqual(len(_read(REPO / "research/source-of-truth/claims.csv")), 109)
-        self.assertEqual(len(_read(REPO / "research/source-of-truth/evidence.csv")), 97)
+        # t089 migration: 109->115 claims, 97->103 evidence (C-110..C-115/EV-98..EV-103)
+        self.assertEqual(len(_read(REPO / "research/source-of-truth/claims.csv")), 115)
+        self.assertEqual(len(_read(REPO / "research/source-of-truth/evidence.csv")), 103)
         self.assertEqual(len(_read(REPO / "research/source-of-truth/gaps.csv")), 41)
 
 

@@ -1,0 +1,60 @@
+# T089 namespace id -> decrypted name (CMS079 EXE, cipher per C-103)
+# source sha256=d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718
+# table=0xBA7B04 key=0xB07640
+
+0x0543  rec=0x00BC967C type=119  bS
+0x0544  rec=0x00BC9670 type=120  Map/Back/
+0x054B  rec=0x00BC964C type=127  front
+0x0331  rec=0x00BCC0DC type=101  x
+0x0332  rec=0x00BCC0D8 type=102  y
+0x0545  rec=0x00BC966C type=121  rx
+0x0546  rec=0x00BC9668 type=122  ry
+0x0547  rec=0x00BC9664 type=123  cx
+0x0548  rec=0x00BC9660 type=124  cy
+0x0549  rec=0x00BC9658 type=125  ani
+0x054A  rec=0x00BC9654 type=126  a
+0x054D  rec=0x00BC9638 type=129  back/%d
+0x0532  rec=0x00BC9718 type=102  no
+0x053A  rec=0x00BC96D8 type=110  blend
+0x1581  rec=0x00BAD6E8 type=180  type
+0x0BF0  rec=0x00BBF738 type= 36  flow
+0x054F  rec=0x00BC9624 type=131  moveType
+0x0550  rec=0x00BC961C type=132  moveR
+0x0551  rec=0x00BC9614 type=133  moveW
+0x0552  rec=0x00BC960C type=134  moveH
+0x0553  rec=0x00BC9604 type=135  moveP
+0x155D  rec=0x00BAD83C type=144  delay
+0x1550  rec=0x00BAD8B0 type=131  a0
+0x1551  rec=0x00BAD8AC type=132  a1
+0x031D  rec=0x00BCC18C type= 81  Shape2D#Vector2D
+0x0819  rec=0x00BC5C20 type= 77  Gr2D_DX8
+0x15F8  <no record>
+0x1122  rec=0x00BB56F8 type= 86  b'\xc7\xeb\xd1\xa1\xd4\xf1\xcf\xa3\xcd\xfb\xd7\xe9\xb3\xc9\xd7\xe9\xb6\xd3\xb5\xc4\xd6\xb0\xd2\xb5\xa1\xa3'
+0x1123  rec=0x00BB56E0 type= 87  b'\xb1\xd8\xd0\xeb\xca\xe4\xc8\xeb\xca\xfd\xd7\xd6%d\xce\xbb\xd2\xd4\xc9\xcf\xa1\xa3'
+0x06B0  rec=0x00BC7CF8 type=228  UI/UIWindow.img/Quest/icon5
+0x05C1  rec=0x00BC8E74 type=245  range
+0x06B1  rec=0x00BC7CD8 type=229  UI/UIWindow.img/Quest/icon6
+0x06AF  rec=0x00BC7D18 type=227  UI/UIWindow.img/Quest/icon4
+0x03C0  rec=0x00BCBB70 type=244  fireburner
+0x15BA  rec=0x00BAD220 type=237  b'\xd5\xbd\xca\xbf'
+0x0884  rec=0x00BC52B8 type=184  icon/%d
+0x05CE  rec=0x00BC8DA8 type=  2  Mob/%07d.img/%s/info/ball
+0x05CF  rec=0x00BC8D84 type=  3  Mob/%07d.img/%s/info/areaWarning
+0x0EBA  rec=0x00BBA3E0 type=238  UI/UIWindow.img/Wedding/Invitation/premium
+0x054C  rec=0x00BC9644 type=128  back%d
+0x054E  rec=0x00BC9630 type=130  ani/%d
+0x0533  rec=0x00BC9714 type=103  zM
+0x0534  rec=0x00BC970C type=104  obj
+0x0535  rec=0x00BC96F0 type=105  Map/Obj/%s.img/%s/%s/%s
+0x0536  rec=0x00BC96EC type=106  oS
+0x0537  rec=0x00BC96E8 type=107  l0
+0x0538  rec=0x00BC96E4 type=108  l1
+0x0539  rec=0x00BC96E0 type=109  l2
+0x053B  rec=0x00BC96D0 type=111  once
+0x053C  rec=0x00BC96C4 type=112  obstacle
+0x053D  rec=0x00BC96BC type=113  damage
+0x053E  rec=0x00BC96B0 type=114  mobdamage
+0x053F  rec=0x00BC96A0 type=115  targetField
+0x0540  rec=0x00BC9690 type=116  targetPortal
+0x0541  rec=0x00BC9688 type=117  dir
+0x0542  rec=0x00BC9680 type=118  back

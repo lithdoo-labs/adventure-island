@@ -225,8 +225,9 @@ class MatrixAndLedgerT088(unittest.TestCase):
         self.assertIn("直接", r["unproven"])
 
     def test_counts(self):
-        self.assertEqual(len(self.claims), 109)
-        self.assertEqual(len(self.evidence), 97)
+        # t089 migration: +C-110..C-115, +EV-98..EV-103 (reviewed T089 round)
+        self.assertEqual(len(self.claims), 115)
+        self.assertEqual(len(self.evidence), 103)
         self.assertEqual(len(self.gaps), 41)
 
     def test_new_claims_and_evidence(self):
@@ -238,7 +239,10 @@ class MatrixAndLedgerT088(unittest.TestCase):
     def test_g10_still_partial_with_bounded_residuals(self):
         g = next(x for x in self.gaps if x["gap_id"] == "G10")
         self.assertEqual(g["status"], "PARTIAL-STATIC")
-        self.assertIn("[[user+0xF28]+0x14]", g["unresolved_scope"])
+        # t089 wording refinement (C-115): corrected arg3 form, historical
+        # [user+0xF28] framing retained alongside it
+        self.assertIn("[[arg3]+0x14]", g["unresolved_scope"])
+        self.assertIn("[[user+0xF28]", g["unresolved_scope"])
         self.assertIn("INCONCLUSIVE", g["unresolved_scope"])
         for c in ("C-106", "C-107", "C-108", "C-109"):
             self.assertIn(c, g["claim_refs"])

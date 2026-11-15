@@ -1,0 +1,38 @@
+# T089 G35 FSDB 13-map background census + key test vectors
+
+## per-map Back record census (records = index domain 0..n-1)
+  map.222000000: 16 records, front=1 x0
+  map.222000001: 1 records, front=1 x0
+  map.230000000: 36 records, front=1 x1
+  map.230000001: 16 records, front=1 x6
+  map.230000002: 22 records, front=1 x10
+  map.230000003: 21 records, front=1 x9
+  map.230020000: 45 records, front=1 x0
+  map.230020100: 47 records, front=1 x0
+  map.230020200: 45 records, front=1 x0
+  map.230020300: 45 records, front=1 x0
+  map.230030000: 31 records, front=1 x0
+  map.230030100: 31 records, front=1 x0
+  map.230030200: 31 records, front=1 x0
+  TOTAL: 387 records, front=1 x26
+
+## signed 32-bit key test vectors (CMS079 byte-proven formulas)
+  back  index 0                                                  key = -1073869824 (0xBFFE0C00)
+  back  index 1                                                  key = -1073868824 (0xBFFE0FE8)
+  back  index 17                                                 key = -1073852824 (0xBFFE4E68)
+  front index 0                                                  key = -1073470624 (0xC0042360)
+  front index 1                                                  key = -1073469624 (0xC0042748)
+  front index 17                                                 key = -1073453624 (0xC00465C8)
+  back  negative index -1 (unsigned-enum-impossible; signed-arithmetic check) key = -1073870824 (0xBFFE0818)
+  front negative index -1 (signed-arithmetic check)              key = -1073471624 (0xC0041F78)
+
+## cross-version contrast (OpenMS GMS083 candidate, NOT CMS079):
+  GMS083 front const = B + 272000 = -1073469824
+  CMS079 front const = B + 271200 = -1073470624  (delta = 800)
+  back constants IDENTICAL: B - 128000 = -1073869824
+
+## ordering check: back(index N) < tile(B+19990) < obj(B+2000) < front(index 0)?
+  back0  = -1073869824
+  tile base = -1073721834  obj base = -1073739824
+  front0 = -1073470624
+  => back layers sort strictly below every tile/obj; front layers strictly above (index*1000 spacing never crosses the gap in either direction for 0<=index<128)

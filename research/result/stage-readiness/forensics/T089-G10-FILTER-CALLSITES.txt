@@ -1,0 +1,92 @@
+# T089 G10 filter-slot call-site census (EXE)
+# source sha256=d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718
+
+## call [reg+0xa4] sites: 0
+## call [reg+0xa8] sites: 3
+### 0x43787d
+0043783D  e875b1fcff           call 0x4029b7
+00437842  85c0                 test eax, eax
+00437844  59                   pop ecx
+00437845  7d06                 jge 0x43784d
+00437847  50                   push eax
+00437848  e8b4766300           call 0xa6ef01
+0043784D  8d45cc               lea eax, [ebp - 0x34]
+00437850  50                   push eax
+00437851  c645fc01             mov byte ptr [ebp - 4], 1
+00437855  e85db1fcff           call 0x4029b7
+0043785A  85c0                 test eax, eax
+0043785C  59                   pop ecx
+0043785D  7d06                 jge 0x437865
+0043785F  50                   push eax
+00437860  e89c766300           call 0xa6ef01
+00437865  837df000             cmp dword ptr [ebp - 0x10], 0
+00437869  750a                 jne 0x437875
+0043786B  6803400080           push 0x80004003
+00437870  e88c766300           call 0xa6ef01
+00437875  8b75f0               mov esi, dword ptr [ebp - 0x10]
+00437878  8b06                 mov eax, dword ptr [esi]
+0043787A  6a64                 push 0x64
+0043787C  56                   push esi
+0043787D  ff90a8000000         call dword ptr [eax + 0xa8]
+00437883  85c0                 test eax, eax
+00437885  7d0c                 jge 0x437893
+00437887  680005ba00           push 0xba0500
+0043788C  56                   push esi
+
+### 0x942df7
+00942DB7  008d855cffff         add byte ptr [ebp - 0xa37b], cl
+00942DBD  ff50c6               call dword ptr [eax - 0x3a]
+00942DC0  45                   inc ebp
+00942DC1  fc                   cld 
+00942DC2  0e                   push cs
+00942DC3  e8effbabff           call 0x4029b7
+00942DC8  3bc3                 cmp eax, ebx
+00942DCA  59                   pop ecx
+00942DCB  7d06                 jge 0x942dd3
+00942DCD  50                   push eax
+00942DCE  e82ec11200           call 0xa6ef01
+00942DD3  8d4dcc               lea ecx, [ebp - 0x34]
+00942DD6  c645fc0c             mov byte ptr [ebp - 4], 0xc
+00942DDA  e8e52eadff           call 0x415cc4
+00942DDF  395dec               cmp dword ptr [ebp - 0x14], ebx
+00942DE2  750a                 jne 0x942dee
+00942DE4  6803400080           push 0x80004003
+00942DE9  e813c11200           call 0xa6ef01
+00942DEE  8b75ec               mov esi, dword ptr [ebp - 0x14]
+00942DF1  ff75e8               push dword ptr [ebp - 0x18]
+00942DF4  8b06                 mov eax, dword ptr [esi]
+00942DF6  56                   push esi
+00942DF7  ff90a8000000         call dword ptr [eax + 0xa8]
+00942DFD  3bc3                 cmp eax, ebx
+00942DFF  7d0c                 jge 0x942e0d
+00942E01  680005ba00           push 0xba0500
+00942E06  56                   push esi
+
+### 0x94a796
+0094A756  5d                   pop ebp
+0094A757  82abff3bc3597d       sub byte ptr [ebx + 0x59c33bff], 0x7d
+0094A75E  06                   push es
+0094A75F  50                   push eax
+0094A760  e89c471200           call 0xa6ef01
+0094A765  8b45b4               mov eax, dword ptr [ebp - 0x4c]
+0094A768  3bc3                 cmp eax, ebx
+0094A76A  c645fc10             mov byte ptr [ebp - 4], 0x10
+0094A76E  7406                 je 0x94a776
+0094A770  8b08                 mov ecx, dword ptr [eax]
+0094A772  50                   push eax
+0094A773  ff5108               call dword ptr [ecx + 8]
+0094A776  395dec               cmp dword ptr [ebp - 0x14], ebx
+0094A779  750a                 jne 0x94a785
+0094A77B  6803400080           push 0x80004003
+0094A780  e87c471200           call 0xa6ef01
+0094A785  8b45dc               mov eax, dword ptr [ebp - 0x24]
+0094A788  8b848548ffffff       mov eax, dword ptr [ebp + eax*4 - 0xb8]
+0094A78F  8b75ec               mov esi, dword ptr [ebp - 0x14]
+0094A792  8b0e                 mov ecx, dword ptr [esi]
+0094A794  50                   push eax
+0094A795  56                   push esi
+0094A796  ff91a8000000         call dword ptr [ecx + 0xa8]
+0094A79C  3bc3                 cmp eax, ebx
+0094A79E  7d0c                 jge 0x94a7ac
+0094A7A0  680005ba00           push 0xba0500
+0094A7A5  56                   push esi

@@ -88,7 +88,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 |---|---|---|---|---|
 | G33 | Map/Sort | 相等键次序策略（稳定性） | CLOSED-STATIC | WZ-order sample observed only (EV-28); t086 (C-097): equal-key policy = comparator 0x50403A42 tie-break comparing payload slot0 keys (deterministic secondary order); product stable-sort remains a safe superset |
 | G34 | Camera | 0x5A↔0x1E 换算关系 | CLOSED-STATIC | 0x1E 已证（C-030）；t085: H1 换算假说被两轮独立立即数普查否决——90/30 仅有两个相遇点且均非换算（T3 slot9 0x9C3D1D 覆盖返回 90；T4 slot9 0x9C9CF7 步长累加器阈值 90），其余域完全分离（C-094/EV-81） |
-| G35 | Map/Sort | Background 键公式复验 | PARTIAL-STATIC | 单一 imul-1000 站点上下文不足（EV-20）|
+| G35 | Map/Sort | Background 键公式复验 | CLOSED-STATIC | t089 (C-110/EV-98)：back = B−128000+index·1000 / front = B+271200+index·1000（0x669923/0x669930；GMS083 B+272000 被字节反证）；front=id 0x54B 布尔化；index=Back 枚举序；双分支消费（0x669BD6 slot25 / 0x669FE6→0x43E3A6）；61 站点普查（EV-20 撤回）；13 图 387 记录/26 front；有符号边界向量 |
 
 ## 阶段缺口新增（2026-11-13，13 图 P0–P4 范围）
 
@@ -106,9 +106,9 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 ## 台账统计（由 `research/scripts/generate_cleanroom_deliverables.py` 从 source-of-truth/gaps.csv 自动生成；`<!--GAP-STATS-AUTO-->
 | 状态 | 数量 |
 |---|---|
-| CLOSED-STATIC | 25 |
+| CLOSED-STATIC | 26 |
 | CLOSED-RUNTIME | 0 |
-| PARTIAL-STATIC | 9 |
+| PARTIAL-STATIC | 8 |
 | OPEN-STATIC | 6 |
 | OPEN-RUNTIME | 0 |
 | BLOCKED | 0 |

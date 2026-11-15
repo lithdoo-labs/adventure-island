@@ -118,8 +118,9 @@ class LedgerRegressionT087(unittest.TestCase):
 
     def test_counts(self):
         # t088 update: +C-106..C-109, +EV-93..EV-97 (EV-92 fixed in place)
-        self.assertEqual(len(self.claims), 109)
-        self.assertEqual(len(self.evidence), 97)
+        # t089 migration: +C-110..C-115, +EV-98..EV-103 (reviewed T089 round)
+        self.assertEqual(len(self.claims), 115)
+        self.assertEqual(len(self.evidence), 103)
         self.assertEqual(len(self.gaps), 41)
 
     def test_new_claims_present(self):

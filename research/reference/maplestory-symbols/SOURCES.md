@@ -73,3 +73,11 @@ No client binaries are mirrored here.
 ## Verification rule
 
 A source page that merely says an artifact exists is provenance evidence, not symbol correctness evidence. Symbols imported into CMS079 notes should be independently checked against CMS079-local behavior, strings, RTTI/vtables, protocol constants, WZ use, or call-graph structure.
+
+## 2026-11-15 扩充：079/083 来源与 T085-A
+
+- [26 条资料机器索引](CMS079-083-REFERENCE-CATALOG.csv)：包含 CMS079 IDB 发布页、GMS083 原版反编译研究/社区 IDB、地址帖、第三方重制和调试工具。逐条保留版本、可访问性及证据边界。
+- [G08/G09/G10/G24 跨版本研究说明](CMS079-083-CROSS-VERSION-BRIEF.md)：EXE/DLL 哈希隔离、排序/Camera/Avatar/COM 的候选与反证。
+- [下一阶段 T085-A 任务书](../../task/085-targeted-cross-version-reference-matching.md)：主 Agent 负责，独立 Review 在 sub-agent 内完成。
+
+已有 v83 IDB 与 v95 符号条目不重复下载。论坛发布记录并不证明附件完整、可用或准确；不得镜像不明来源客户端、IDB、PDB 或 WZ。

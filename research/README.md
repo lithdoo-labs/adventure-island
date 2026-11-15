@@ -15,6 +15,14 @@
 | 5 | [RESEARCH-TOOLS.md](RESEARCH-TOOLS.md) | 工具：Ghidra/VM/服务端的用法 |
 | 6 | [RESEARCH-DATABASE.md](RESEARCH-DATABASE.md) | 数据资产：所有语料的路径 |
 
+## T085-A：079/083 跨版本资料（2026-11-15）
+
+- [079/083 参考资料与证据边界](reference/maplestory-symbols/CMS079-083-CROSS-VERSION-BRIEF.md)
+- [26 条带核验状态的外部来源索引](reference/maplestory-symbols/CMS079-083-REFERENCE-CATALOG.csv)
+- [T085-A 定向逆向任务与独立 sub-agent Review](task/085-targeted-cross-version-reference-matching.md)
+
+> 外部 v83 反编译、社区 IDB、第三方重制仅是候选线索，不能作为 CMS079 原版权威 Claim；不镜像不明来源二进制或有许可约束的代码。
+
 ## 一句话总结
 
 > CMS079 (MapleStory v079 中文私服) 客户端的完整逆向：协议栈（365 opcodes 全解、合成客户端已验证）、密码学（AES-256-OFB 密钥已知 + 自定义滚动密码）、函数语义（52K 函数 95.3% 覆盖）、游戏数据（25K 装备 / 22K 字符串 / 4K 地图）、移动物理（20 个 Physics.img 字段名全部提取 + 跳跃公式 + 加密速度读写链）。

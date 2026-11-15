@@ -43,3 +43,10 @@ research/result/stage-readiness/T084-STACK-PACKAGE-REMAINING.md,ACTIVE,round-rep
 research/result/stage-readiness/forensics/T084-REVIEWER-REPORT.md,ACTIVE,review,,(t084 commit),,independent reviewer verbatim
 research/result/stage-readiness/T084-1-SLOT25-SCOPE-RECONCILIATION.md,ACTIVE,round-report,C-082;C-083;C-086;C-087,(t084.1 commit),,t084.1 slot25 scope reconciliation round report
 research/result/stage-readiness/forensics/T0841-REVIEWER-REPORT.md,ACTIVE,review,,(t084.1 commit),,t084.1 independent reviewer verbatim
+research/result/stage-readiness/T085-STATIC-FORENSICS-REPORT.md,ACTIVE,round-report,C-088;C-089;C-090;C-091;C-092;C-093;C-094,(t085 commit),,t085 main round report
+research/result/stage-readiness/T085-G38-FIRST-TICK-CONTEXT.md,ACTIVE,round-report,C-088;C-089;C-093,(t085 commit),,WP1 G38 first-tick context
+research/result/stage-readiness/T085-G41-STANDUP-TRIGGERS.md,ACTIVE,round-report,C-090;C-091,(t085 commit),,WP2 G41 stand-up triggers
+research/result/stage-readiness/T085-G40-MOVEMENT-SLOT3-VARIANTS.md,ACTIVE,round-report,C-089;C-092;C-093,(t085 commit),,WP3 G40 slot variants
+research/result/stage-readiness/T085-G34-CONSTANT-RELATION.md,ACTIVE,round-report,C-094,(t085 commit),,WP4 G34 constants
+research/result/stage-readiness/T085-STATIC-RESIDUAL-TRIAGE.md,ACTIVE,round-report,C-091,(t085 commit),,WP5 residual triage
+research/result/stage-readiness/forensics/T085-REVIEWER-BLIND.md,ACTIVE,review,,(t085 commit),,t085 independent blind reviewer verbatim

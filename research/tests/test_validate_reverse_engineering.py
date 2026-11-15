@@ -656,5 +656,76 @@ class IsolatedValidatorTests(unittest.TestCase):
         self.assertIn('LABEL-REGRESSION', out)
 
 
+class T085ScriptTests(unittest.TestCase):
+    """t085 round guards: evidence-dumper sha-pinning (positive+negative) and
+    ledger-updater idempotence; plus the CRLF-on-checkout evidence-hash defect
+    class found and fixed in t085 (EV-74/75/76)."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix='t085tests-')
+        build_fixture(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _run_script(self, script_name):
+        env = dict(os.environ)
+        env['RE_VALIDATE_ROOT'] = self.root
+        env['PYTHONIOENCODING'] = 'utf-8'
+        script = os.path.join(REPO, 'research', 'scripts', script_name)
+        return subprocess.run([sys.executable, script], capture_output=True,
+                              timeout=300, env=env, cwd=self.root)
+
+    def test_45_dumper_wrong_sha_fails(self):
+        # negative: a tampered EXE (sha mismatch) must abort with NO files written
+        os.makedirs(os.path.join(self.root, '.work', 'task-036'), exist_ok=True)
+        with open(os.path.join(self.root, '.work', 'task-036',
+                               'game-image-unpacked.bin'), 'wb') as f:
+            f.write(b'\x90' * 64)
+        forensics = os.path.join(self.root, 'research', 'result', 'stage-readiness',
+                                 'forensics')
+        before = set(os.listdir(forensics))
+        r = self._run_script('t085_dump_evidence.py')
+        self.assertNotEqual(r.returncode, 0)
+        out = (r.stdout + r.stderr).decode('utf-8', 'replace')
+        self.assertIn('ERROR', out.upper())
+        self.assertEqual(before, set(os.listdir(forensics)))
+
+    def test_46_dumper_missing_binary_fails(self):
+        # negative: absent EXE must abort cleanly (no traceback-free success)
+        r = self._run_script('t085_dump_evidence.py')
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_47_crlf_evidence_hash_mismatch_fails(self):
+        # the exact t085 defect class: file on disk CRLF (autocrlf checkout)
+        # while evidence.csv carries the LF-normalized sha256 -> must FAIL
+        ev_path = os.path.join(self.root, 'research', 'source-of-truth', 'evidence.csv')
+        ev = open(ev_path, encoding='utf-8').read()
+        body = '# fixture t085 evidence\nline2\n'
+        import hashlib
+        lf_hash = hashlib.sha256(body.encode('utf-8')).hexdigest()
+        ev += (f'EV-77,research/result/stage-readiness/forensics/T085-X.txt,'
+               f'{lf_hash},0x1,instruction,"x","y",C-001,fixture\n')
+        open(ev_path, 'w', encoding='utf-8', newline='').write(ev)
+        tgt = os.path.join(self.root, 'research', 'result', 'stage-readiness',
+                           'forensics', 'T085-X.txt')
+        with open(tgt, 'wb') as f:  # CRLF on disk
+            f.write(body.replace('\n', '\r\n').encode('utf-8'))
+        r = run_validator(self.root)
+        out = r.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn('EVID-SHA-MATCH', out)
+
+    def test_48_ledger_updater_double_apply_fails(self):
+        # negative: re-applying the t085 ledger delta must be refused
+        # (idempotence guard fires on the already-present C-088)
+        r1 = self._run_script('t085_update_ledgers.py')
+        self.assertEqual(r1.returncode, 0, r1.stderr.decode('utf-8', 'replace'))
+        r2 = self._run_script('t085_update_ledgers.py')
+        self.assertNotEqual(r2.returncode, 0)
+        err = r2.stderr.decode('utf-8', 'replace')
+        self.assertIn('AssertionError', err)
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

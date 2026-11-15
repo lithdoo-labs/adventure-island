@@ -1,0 +1,177 @@
+# T085 EV-81: G34 0x5A vs 0x1E immediate census, domains, single accumulator link
+# binary=C:\Users\lithd\Documents\GitHub\adventure-island\.work\task-036\game-image-unpacked.bin
+# sha256=d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718
+# model=linear fileOffset=VA-0x400000; disassembler=capstone x86-32
+
+## immediate census (imm8/imm32 instruction encodings, window 0x401000-0xA80000; bound declared per t085.1 D2)
+# 0x5A (90): 82 sites in the census window. Movement/scene-relevant:
+#   009C9D18 cmp eax,0x5A + 0x9C9D27 add eax,-0x5A (T4 slot9 accumulator threshold/wrap)
+#   009C3D22 push 0x5A (T3 slot9 0x9C3D1D override, discards the 0x9BCCFB return)
+#   009C4BF3 009C4DB6 009C4EAD 009C51BD 009C52E5 (T3 swim family push 0x5A RNG divisors)
+#   0095B9F1..0095C235 (14 sites, UI builder family, paired with push 0x1E at 0095BAFF..0095C141)
+#   0090355E-family, 00977D8A, 009E1849, 00A01446, 00A11952, 00A141A6, 0x903203..0x94951C (UI/field-ctx)
+#   009CC640 and edi,0x5A (inside T5 tick 0x9CBE89 window) - INERT co-occurrence with 0x9CC0CF
+#   (add dword [ebx+0x23C],0x1E) in the same function: the two constants do not interact there (no arithmetic links)
+# 0x1E (30): 223 sites in the census window. Movement/scene-relevant:
+#   00965965 sub eax,0x1E / 00965976 add eax,0x1E (seat occupancy box y half-extent, 0x9658CC)
+#   009B4AAF 009B4B2B 009B4F16 009B4F92 sub edx,0x1E (hit-test box expansions)
+#   009D06B9 sub edx,0x1E (T6 slot4 0x9D06D4 body)
+#   00958624 sub eax,0x1E / 00958635 add eax,0x1E (0x9586xx query family)
+#   0099F453 0099F4E3 sub edi,0x1E; 0095DB5B add eax,0x1E; 00938C3B/74; 0091652D 00919EA5 00939014 0095268A ...
+#   cmp eax,0x1E: 0093B8C4 00942880 00955473 0096D444 0096DC7F 00974D24 00974E1D 00975D91 0097A40E
+#   push 0x1E: 009BCA4C(slot13 commit) 009BCD5D(T1 tick) 009C3F53 009C9A35 009CCA0D(T5 tick) 009D4969 00A0CAB5 00A0EAB1 00A0EAE0 00A105BE 00A1CA76
+# step 0x1E: [Physics+0xAC] step-table value (EV-23/G05, 0x9BCCFB reader; NOT an instruction immediate)
+
+## the single numeric-conversion site: T4 slot9 0x9C9CF7
+009C9CF7  56                       push esi
+009C9CF8  8bf1                     mov esi, ecx
+009C9CFA  e8fc2fffff               call 0x9bccfb
+009C9CFF  85c0                     test eax, eax
+009C9D01  7420                     je 0x9c9d23
+009C9D03  83be3802000000           cmp dword ptr [esi + 0x238], 0
+009C9D0A  7417                     je 0x9c9d23
+009C9D0C  018644020000             add dword ptr [esi + 0x244], eax
+009C9D12  8b8644020000             mov eax, dword ptr [esi + 0x244]
+009C9D18  83f85a                   cmp eax, 0x5a
+009C9D1B  8d8e44020000             lea ecx, [esi + 0x244]
+009C9D21  7d04                     jge 0x9c9d27
+009C9D23  33c0                     xor eax, eax
+009C9D25  5e                       pop esi
+009C9D26  c3                       ret 
+009C9D27  83c0a6                   add eax, -0x5a
+009C9D2A  6a5a                     push 0x5a
+009C9D2C  8901                     mov dword ptr [ecx], eax
+009C9D2E  58                       pop eax
+009C9D2F  5e                       pop esi
+009C9D30  c3                       ret 
+
+## T3 slot9 0x9C3D1D (reviewer blind-pass find, verified): call 0x9BCCFB then DISCARD ret, return 0x5A
+009C3D1D  e8d98fffff               call 0x9bccfb
+009C3D22  6a5a                     push 0x5a
+009C3D24  58                       pop eax
+009C3D25  c3                       ret 
+009C3D26  56                       push esi
+009C3D27  8bf1                     mov esi, ecx
+009C3D29  e818000000               call 0x9c3d46
+
+## 0x9571BF router thunk 0x97FCBA (reviewer find, verified): [ecx+8] dispatch
+0097FCBA  8b4908                   mov ecx, dword ptr [ecx + 8]
+0097FCBD  85c9                     test ecx, ecx
+0097FCBF  740d                     je 0x97fcce
+0097FCC1  ff742408                 push dword ptr [esp + 8]
+0097FCC5  ff742408                 push dword ptr [esp + 8]
+0097FCC9  e8f174fdff               call 0x9571bf
+
+## step reader 0x9BCCFB (T1/T2/T5 slot9; reads [M+0x190] step table installed from [0xBDD498]+0xAC)
+009BCCFB  b8342caf00               mov eax, 0xaf2c34
+009BCD00  e8772f0b00               call 0xa6fc7c
+009BCD05  51                       push ecx
+009BCD06  51                       push ecx
+009BCD07  53                       push ebx
+009BCD08  56                       push esi
+009BCD09  57                       push edi
+009BCD0A  8bd9                     mov ebx, ecx
+009BCD0C  6a18                     push 0x18
+009BCD0E  59                       pop ecx
+009BCD0F  8d7320                   lea esi, [ebx + 0x20]
+009BCD12  8dbb80000000             lea edi, [ebx + 0x80]
+009BCD18  f3a5                     rep movsd dword ptr es:[edi], dword ptr [esi]
+009BCD1A  a198d4bd00               mov eax, dword ptr [0xbdd498]
+009BCD1F  8b80ac000000             mov eax, dword ptr [eax + 0xac]
+009BCD25  8b4b14                   mov ecx, dword ptr [ebx + 0x14]
+009BCD28  8d55ec                   lea edx, [ebp - 0x14]
+009BCD2B  898390010000             mov dword ptr [ebx + 0x190], eax
+009BCD31  8b01                     mov eax, dword ptr [ecx]
+009BCD33  52                       push edx
+009BCD34  ff500c                   call dword ptr [eax + 0xc]
+009BCD37  33f6                     xor esi, esi
+009BCD39  50                       push eax
+009BCD3A  8d8b94010000             lea ecx, [ebx + 0x194]
+009BCD40  8975fc                   mov dword ptr [ebp - 4], esi
+009BCD43  e804300000               call 0x9bfd4c
+009BCD48  834dfcff                 or dword ptr [ebp - 4], 0xffffffff
+009BCD4C  3975f0                   cmp dword ptr [ebp - 0x10], esi
+009BCD4F  7409                     je 0x9bcd5a
+009BCD51  56                       push esi
+009BCD52  8d4dec                   lea ecx, [ebp - 0x14]
+009BCD55  e8f3b6b5ff               call 0x51844d
+009BCD5A  8b4df4                   mov ecx, dword ptr [ebp - 0xc]
+009BCD5D  6a1e                     push 0x1e
+009BCD5F  58                       pop eax
+009BCD60  5f                       pop edi
+009BCD61  5e                       pop esi
+009BCD62  5b                       pop ebx
+009BCD63  64890d00000000           mov dword ptr fs:[0], ecx
+009BCD6A  c9                       leave 
+009BCD6B  c3                       ret 
+
+## seat-box 0x1E window (0x9658CC sit path)
+0096595A  8b06                     mov eax, dword ptr [esi]
+0096595C  83e80a                   sub eax, 0xa
+0096595F  8945e4                   mov dword ptr [ebp - 0x1c], eax
+00965962  8b4604                   mov eax, dword ptr [esi + 4]
+00965965  83e81e                   sub eax, 0x1e
+00965968  8945e8                   mov dword ptr [ebp - 0x18], eax
+0096596B  8b06                     mov eax, dword ptr [esi]
+0096596D  83c00a                   add eax, 0xa
+00965970  8945ec                   mov dword ptr [ebp - 0x14], eax
+00965973  8b4604                   mov eax, dword ptr [esi + 4]
+00965976  83c01e                   add eax, 0x1e
+00965979  8d4f04                   lea ecx, [edi + 4]
+0096597C  8945f0                   mov dword ptr [ebp - 0x10], eax
+0096597F  8b01                     mov eax, dword ptr [ecx]
+00965981  ff5010                   call dword ptr [eax + 0x10]
+00965984  ff7004                   push dword ptr [eax + 4]
+00965987  ff30                     push dword ptr [eax]
+00965989  8d45e4                   lea eax, [ebp - 0x1c]
+0096598C  50                       push eax
+0096598D  ff153417be00             call dword ptr [0xbe1734]
+00965993  85c0                     test eax, eax
+
+## UI 0x5A/0x1E paired window (0x95B9E0 family)
+0095B9E0  0859f7                   or byte ptr [ecx - 9], bl
+0095B9E3  f9                       stc 
+0095B9E4  50                       push eax
+0095B9E5  e829511100               call 0xa70b13
+0095B9EA  59                       pop ecx
+0095B9EB  8985e8e7ffff             mov dword ptr [ebp - 0x1818], eax
+0095B9F1  6a5a                     push 0x5a
+0095B9F3  ffb5e8e7ffff             push dword ptr [ebp - 0x1818]
+0095B9F9  6a00                     push 0
+0095B9FB  8b8df4e8ffff             mov ecx, dword ptr [ebp - 0x170c]
+0095BA01  e8a6090000               call 0x95c3ac
+0095BA06  83bd2cf3ffff00           cmp dword ptr [ebp - 0xcd4], 0
+0095BA0D  742f                     je 0x95ba3e
+0095BA0F  ff750c                   push dword ptr [ebp + 0xc]
+0095BA12  8b4d08                   mov ecx, dword ptr [ebp + 8]
+0095BA15  e8e028e1ff               call 0x76e2fa
+0095BA1A  8bc8                     mov ecx, eax
+0095BA1C  81c16c010000             add ecx, 0x16c
+0095BA22  e88f0a0000               call 0x95c4b6
+0095BA27  99                       cdq 
+0095BA28  6a08                     push 8
+0095BA2A  59                       pop ecx
+0095BA2B  f7f9                     idiv ecx
+0095BA2D  50                       push eax
+
+## H1/H2 verdict anchors
+# H1 (real 90<->30 conversion): REJECTED. No x3//3 chain exists anywhere in the census window.
+# Exactly TWO sites where the constants INTERACT, neither is a conversion:
+#   (a) 0x9C3D1D (T3 slot9, vtable dword 0xB0C784): calls the standard step writer 0x9BCCFB
+#       (whose per-tick value comes from the map step table [field+0xAC], canonical entry 0x1E
+#       per EV-23) and DISCARDS its return; pushes 0x5A into eax and returns -> per-state STEP
+#       OVERRIDE (swim tick consumes 90 instead of the table value; the 30 never reaches the caller).
+#   (b) 0x9C9CF7 (T4 slot9, vtable dword 0xB0C894 = 0xB0C870+0x24): accumulator [M+0x244] +=
+#       0x9BCCFB(); fires when sum >= 0x5A then wraps -0x5A. With table step 0x1E this is a 3-tick
+#       cycle; the /3 is data coincidence (step table is per-map data), not a hardcoded multiplier.
+# INERT co-occurrence (no interaction, t085.1 D2 correction): T5 tick 0x9CBE89 contains BOTH
+#   0x9CC0CF (add dword [ebx+0x23C],0x1E) and 0x9CC640 (and edi,0x5A) - unrelated instructions in the same function.
+# H2 (disjoint domains): holds for every other site - 0x5A = UI metrics, swim-family RNG
+#   divisors ((rand%400+800)/90, (rand%2000+1000)/90 -> [M+0x4D4]/[M+0x4D8] family), ASCII 'Z';
+#   0x1E = geometry half-extents (seat box y, hit-test expansions), step-table value, bound
+#   compares, argument pushes.
+# Falsifiers: (a) any instruction multiplying/dividing by 3 between a 0x5A and 0x1E load - none;
+#   (b) a third interaction site - none found by two independent censuses (lead + blind reviewer),
+#       both bounded to the 0x401000-0xA80000 instruction window;
+#   (c) FSDB maps with step != 0x1E decouple the 3-tick accumulator cycle (per-map data).
+

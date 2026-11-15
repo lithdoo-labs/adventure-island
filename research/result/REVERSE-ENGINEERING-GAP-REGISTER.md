@@ -87,7 +87,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | ID | 模块 | 问题 | 状态 | 证据 |
 |---|---|---|---|---|
 | G33 | Map/Sort | 相等键次序策略（稳定性） | OPEN-STATIC | 仅 WZ 静态条目序样本；无绘制顺序证据（Claim C-018 撤销后拆分）|
-| G34 | Camera | 0x5A↔0x1E 换算关系 | OPEN-STATIC | 0x1E 已证（C-030）；0x5A 关系无验证站点 |
+| G34 | Camera | 0x5A↔0x1E 换算关系 | CLOSED-STATIC | 0x1E 已证（C-030）；t085: H1 换算假说被两轮独立立即数普查否决——90/30 仅有两个相遇点且均非换算（T3 slot9 0x9C3D1D 覆盖返回 90；T4 slot9 0x9C9CF7 步长累加器阈值 90），其余域完全分离（C-094/EV-81） |
 | G35 | Map/Sort | Background 键公式复验 | PARTIAL-STATIC | 单一 imul-1000 站点上下文不足（EV-20）|
 
 ## 阶段缺口新增（2026-11-13，13 图 P0–P4 范围）
@@ -96,20 +96,20 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 |---|---|---|---|---|
 | G36 | Map/Background | 13 图 type1–4 平铺/视差/滚动布置 | PARTIAL-STATIC | 0x669397 分支、0x66A8D5 模式与零步长（历史 MAP-BACKGROUND-REVERSE）；FSDB 278/387 非 type0 |
 | G37 | Map/Obj | 13 图 Obj flow=1/rx 渲染与 flow 动画 | PARTIAL-STATIC | t080: 与背景共用 0x66A8D5（mode=flow, flag=1, this+0x50 注册；flow=0 单实例）C-052；动态绘制目标仍开放 |
-| G38 | Map/Portal | 同图/跨图精确到达与状态转移 | PARTIAL-STATIC | t080: 同图链端到端（C-054 含 0x78/0x258 冷却、Y−10、加密落点）；跨图（C-055 含边界夹取/速度清零）；Foothold 重绑体与 opcode 注册余留 |
+| G38 | Map/Portal | 同图/跨图精确到达与状态转移 | CLOSED-STATIC | t080/t082/t084 链（C-054/055/061..066/083）；t085: 首帧重建闭合——0x9BE703 全函数体+首 tick 链（同图 T1 无 ctx 路径 mode=1、跨图新鲜 T7 委托 T1）、[M+0x120] 仅清零域→钉扎分支死、FSDB x1>x2=0→m1>0 落地路径覆盖全部非垂直段（C-088/C-089/EV-77/78）；Camera 时机归 G10、0x81 注册归 C-066 条款 |
 | G39 | Map/Background/Portal | 背景/Portal 精灵帧时序与滚动单位 | PARTIAL-STATIC | t080: 注册链 +0x110、origin +0x6C/+0x74、0x43715C=slot+0x58、相位 VT_I4 传递（C-060）；时间单位运行时绑定 |
-| G40 | Movement | 完整移动子分支与 decrypt 字段归属 | PARTIAL-STATIC | T1/EV-23/26；t080: fh 邻段 +0x4C/+0x50、0xA4F6F1 半宽为调用方参数（C-058）、dt 为调用方供给 |
-| G41 | Movement | 抓绳/爬绳与座位全状态机 | PARTIAL-STATIC | t080: y+=3×键（3.0 常量）+端点夹取（C-056）；座位 user+0x2944 写链与 x±10/y±30（C-057）；抓绳体余留 |
+| G40 | Movement | 完整移动子分支与 decrypt 字段归属 | PARTIAL-STATIC | T1/EV-23/26；C-058/067/068/076/078/080；t085: 8 表槽位变体全图（slot4 变体 T3/T6、slot9 变体 T3/T4、T7 slot5/6 覆盖 C-089）、slot3 变体全差分（T3 游泳预处理器/T5 平台边界 rand%2 跳过，均委托 0x9BF1FA C-092）、[M+0x190] 步长表安装已证、[M+0x198] 鞋对象有界无置位普查（C-093）；余留=T3/T6 slot4 体、walk/swim/land 全序、鞋安装者 |
+| G41 | Movement | 抓绳/爬绳与座位全状态机 | CLOSED-STATIC | t080..t084 全链（C-056/057/069..073/078/079/080/081）；t085: slot14 调用点枚举闭合——flag=0 恰两处（0x965937=opcode 0xCF STAND 子命令 RNG 门控；0x948AB4=到达/包生成 0x948AA2 RNG 门控）、SIT 子命令含座位盒 x±0xA/y±0x1E 与 0x9D35F2 座位传送、上下键轴仲裁=DOWN−UP 同按抵消为零（C-090/C-091/EV-79）；运行时佐证可选 |
 
 ---
 
 ## 台账统计（由 `research/scripts/generate_cleanroom_deliverables.py` 从 source-of-truth/gaps.csv 自动生成；`<!--GAP-STATS-AUTO-->
 | 状态 | 数量 |
 |---|---|
-| CLOSED-STATIC | 15 |
+| CLOSED-STATIC | 18 |
 | CLOSED-RUNTIME | 0 |
-| PARTIAL-STATIC | 12 |
-| OPEN-STATIC | 8 |
+| PARTIAL-STATIC | 10 |
+| OPEN-STATIC | 7 |
 | OPEN-RUNTIME | 4 |
 | BLOCKED | 1 |
 | SUPERSEDED | 1 |

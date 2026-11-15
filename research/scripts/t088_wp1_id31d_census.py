@@ -21,6 +21,17 @@ Method (all byte-level, sha-pinned):
      construction idiom (0x40318F from data 0xBE7330 = VT_ERROR/missing
      defaults vs. any other builder).
 
+T088.1 CORRECTION (VA double-BASE bug): `decode_attach` disassembles with the
+capstone base `resolve_off + BASE`, so every capstone `ins.address` is ALREADY
+a VA. The T088 release formatted the census column as
+`f"{call_off + BASE:#010x}"`, adding BASE a SECOND time (every non-empty
+create_call_va was 0x400000 too high; 76/80 rows affected). The fix formats
+the returned VA directly, and the generator now self-verifies every emitted
+call address at byte level (E8 rel32 -> 0x447891, VA within the image code
+band) before writing the CSV. Rows without an in-window create call record a
+byte-derived reason (imm32 0x31D consumed as an arithmetic/compare operand is
+NOT a namespace resolve) instead of a bare "none-within-0x90".
+
 Binary identity:
   EXE .work/task-036/game-image-unpacked.bin (linear, VA-0x400000)
   sha256 d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718
@@ -87,11 +98,13 @@ def scan_resolves(img):
 
 
 def decode_attach(img, resolve_off):
-    """Decode the window after a resolve and return (call_off, attach_expr).
+    """Decode the window after a resolve and return (call_va, attach_expr).
 
-    t088-reviewer C2: capstone addresses are already VAs (disasm base is
-    resolve_off+BASE) — do NOT add BASE again. C3: when the 2nd push is a
-    bare register, resolve the `lea reg, [...]` that fed it.
+    The returned call address is a VA (capstone disasm base is
+    resolve_off+BASE) — callers must NOT add BASE again (t088.1 fix of the
+    t088-reviewer C2 double-BASE defect).
+    t088-reviewer C3: when the 2nd push is a bare register, resolve the
+    `lea reg, [...]` that fed it.
     """
     blob = img[resolve_off:resolve_off + 0x90]
     insns = list(md.disasm(blob, resolve_off + BASE))
@@ -230,6 +243,39 @@ CURATED = {
 }
 
 
+def verify_create_call(img, call_va):
+    """Byte-verify that `call_va` (a VA) is an `E8 rel32` to 0x447891."""
+    off = call_va - BASE
+    if not (BASE + CODE_START <= call_va < BASE + CODE_END):
+        raise AssertionError(f"create call VA {call_va:#x} outside code band")
+    if img[off] != 0xE8:
+        raise AssertionError(f"no E8 opcode at {call_va:#x}")
+    rel = struct.unpack("<i", img[off + 1:off + 5])[0]
+    tgt = call_va + 5 + rel
+    if tgt != 0x447891:
+        raise AssertionError(f"E8 at {call_va:#x} targets {tgt:#x}, not 0x447891")
+    return True
+
+
+def no_call_reason(img, resolve_off):
+    """Byte-derived reason for a resolve site with no 0x447891 call in window."""
+    blob = img[resolve_off:resolve_off + 0x90]
+    insns = list(md.disasm(blob, resolve_off + BASE))
+    has_call = any(i.mnemonic == "call" for i in insns[:12])
+    # how is the 0x31D immediate consumed right after the site?
+    tail = [i.mnemonic for i in insns[1:4]]
+    arith = [m for m in tail if m in ("sub", "add", "cmp", "xor", "imul", "and", "or", "shl", "shr")]
+    if arith:
+        return (f"no-0x447891-create-call-in-window; imm32 consumed as "
+                f"arithmetic/compare operand ({'/'.join(arith)}) — not a namespace resolve")
+    if any(j in tail for j in ("jg", "jl", "je", "jne", "jmp")):
+        return ("no-0x447891-create-call-in-window; imm32 flows into a compare/"
+                "dispatch chain — not a namespace resolve")
+    if has_call:
+        return "no-0x447891-create-call-in-window (other calls present; no create)"
+    return "no-call-in-window"
+
+
 def main():
     img = load()
     funcs, containing = function_census(img)
@@ -238,20 +284,40 @@ def main():
 
     # ---- census CSV: every resolve site with attach target + function ----
     rows = []
+    verified_calls = 0
     for off in push_sites + mov_sites:
         form = "push imm32" if off in push_sites else "mov r32, imm32"
-        call_off, attach = decode_attach(img, off)
+        call_va, attach = decode_attach(img, off)
+        if call_va is None:
+            # byte-derived reason (t088.1): never fabricate a call site
+            attach = no_call_reason(img, off)
+        else:
+            verify_create_call(img, call_va)   # t088.1: E8->0x447891 byte proof
+            verified_calls += 1
         fn = containing(off)
+        # t088.1: bracketed field attachments ([edi + 0xE34] family) are
+        # PERSISTENT-FIELD aliases, not "register" — the T088 regex
+        # r"\w+ \+ 0x" never matched the bracketed form, leaving EV-93's
+        # "12 persistent-field aliases" uncheckable from the column
+        if call_va is None:
+            alias_kind = "imm32-operand (not a resolve)"
+        elif attach and "ebp" in attach:
+            alias_kind = "stack-slot/arg"
+        elif attach and re.match(r"\[\w+ [+-] 0x", attach):
+            alias_kind = "persistent-field"
+        elif attach and attach != "unknown":
+            alias_kind = "register"
+        else:
+            alias_kind = attach or "unknown"
         rows.append({
             "resolve_va": f"{off + BASE:#010x}",
             "form": form,
             "function_start": f"{fn + BASE:#010x}" if fn else "",
-            "create_call_va": f"{call_off + BASE:#010x}" if call_off else "",
+            # t088.1 fix: call_va is ALREADY a VA (capstone base resolve_off+BASE);
+            # the T088 release added BASE again here (+0x400000 on all 76 rows)
+            "create_call_va": f"{call_va:#010x}" if call_va else "",
             "attach_target_expr": attach,
-            "alias_kind": ("persistent-field" if re.match(r"\w+ \+ 0x", attach or "")
-                           else ("stack-slot/arg" if attach and "ebp" in attach
-                                 else ("register" if attach and attach not in ("none-within-0x90", "unknown")
-                                       else attach or "unknown"))),
+            "alias_kind": alias_kind,
         })
     rows.sort(key=lambda r: int(r["resolve_va"], 16))
     census_path = os.path.join(OUT_DIR, "T088-VECTOR2D-ID31D-RESOLVE-CENSUS.csv")
@@ -259,6 +325,7 @@ def main():
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()), lineterminator="\n")
         w.writeheader()
         w.writerows(rows)
+    print(f"create calls byte-verified against 0x447891: {verified_calls}")
 
     # ---- candidate join: slot90 call sites in the same census-function as a resolve ----
     cands = []

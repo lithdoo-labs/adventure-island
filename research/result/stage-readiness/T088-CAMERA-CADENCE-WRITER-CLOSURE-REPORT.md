@@ -22,11 +22,11 @@ STATIC-UNDERDETERMINED 等）不进入权威 CSV status。
 | WP | 对象 | 结论 |
 |---|---|---|
 | WP0 | T087 遗留台账 | **三项全部修复**：EV-92 路由与 C-105/G17/取证对齐（新增回归测试）；P2-01 readiness 恢复 PRODUCT-READY（报告级标签保留于说明列）；P4-07 移除过期任务、重写剩余项；P2-01/05/06 写入者措辞改为「7 漏斗调用点 + 直接家族」 |
-| WP1 | 0x31D 解析点 + 直接写入者普查 | **单例闭包（ORIGINAL-STATIC-PROVEN）**：EXE `0x447891` 不是 AddRef 附加而是 `PcCreateObject(名称记录, IID{F28BD1ED…}, &slot, extra)`；PCOM 注册表解析名称 → 类条目 slot3；Shape2D 工厂 `0x51402FB6` 的注册表记录在 record+0x10 **惰性创建一次后永远复用**（+QI）→ **全部 80 个解析点（63 push + 17 mov）混叠同一 CWzVector2D**（主虚表 0x5140C2F0，x/y 整型 +0x1C/+0x20）；39 个 slot+0x90 候选逐项分类：2 CONFIRMED-CAMERA-WRITER、12 CONFIRMED-SHARED-WRITE-CONTEXT-UI、0 RECEIVER-OTHER、25 INCONCLUSIVE（39 行=38 唯一站点，0x6BE6F4 经解析与 getter 两路并入；reviewer C1 将 0x4B3BC5/0x4B3DAD 重分类为共享写） |
+| WP1 | 0x31D 解析点 + 直接写入者普查 | **单例闭包（ORIGINAL-STATIC-PROVEN）**：EXE `0x447891` 不是 AddRef 附加而是 `PcCreateObject(名称记录, IID{F28BD1ED…}, &slot, extra)`；PCOM 注册表解析名称 → 类条目 slot3；Shape2D 工厂 `0x51402FB6` 的注册表记录在 record+0x10 **惰性创建一次后永远复用**（+QI）→ **全部 80 个解析点（63 push + 17 mov）混叠同一 CWzVector2D**（主虚表 0x5140C2F0，x/y 整型 +0x1C/+0x20；t088.1 精确注记：80 个正则站点中 4 个 mov 形态为 imm32 操作数非解析点——3 个 id 区间端点 + 1 个分发链数据——别名闭包适用于实际调用 0x447891 的 76 个站点）；39 个 slot+0x90 候选逐项分类：2 CONFIRMED-CAMERA-WRITER、12 CONFIRMED-SHARED-WRITE-CONTEXT-UI、0 RECEIVER-OTHER、25 INCONCLUSIVE（39 行=38 唯一站点，0x6BE6F4 经解析与 getter 两路并入；reviewer C1 将 0x4B3BC5/0x4B3DAD 重分类为共享写） |
 | WP1-C/WP3 | Shape2D Set 语义 | **立即/插值双分支定案**：V3（第3参 VARIANT）∈{VT_EMPTY,VT_ERROR} → 立即整型存储；否则 VT_I4=时长（全局 tick）+ V4&0x10000000 标志 → 插值记录入 [this+0x30] 待处理列表；**相机相关站点全部传默认参（39/39 统一默认 V{VT_ERROR,missing}；reviewer C4：两处清槽后从 0xBE7330 重模板化——如 fieldctx ctor 0x9EC5C3-0x9EC5D2）→ 相机写从不武装插值**；0x5CA91A 公式由此成为端到端无条件立即写 |
 | WP2 | Field 写入者触发链 | **#6/#7 定性推翻（T087 勘误）**：#6 0x9E6D18 位于回调 0x9E6CA4（由表面呈现函数 0x9E649A 经 [0xBE1554] 注册），记录 +0x38/+0x3C 由**单例基础读取（屏幕光标）** 0x5CABE1 播种，写门=PtInRect（五重合取门）——**光标跟随模式**；#7 0x9F1ADF 位于窗口过程 0x9F1784 **鼠标消息带**（0x200..0x206/0x20A）：lParam 16:16 客户区鼠标坐标解包，门=[singleton+0xC]==0——同为光标模式；**新发现直接焦点写入者 0x93CB27**（Set@0x93CC9B）：共享对象直建 + Set(X(src),Y(src))，src=[[this+0xF28]+0x14]，**10 个 E8 调用者**（传送触发族 0x964E16、包生成族 0x98DC43、座位、输入、用户区；统一 0x769B51 脚本记录惯用法，N∈{500,800,1000}）——事件/脚本驱动的跟随候选 |
 | WP3 | 节奏/deadzone | 十问矩阵：**已解码集合内无每 Tick 相机写入者**（全部事件/消息驱动）；**已解码门内无任何距离阈值常量**（有界负结论）；Shape2D 插值引擎存在但相机从不使用；Portal 到达栈内同步焦点写入（E1 边）；[F28+0x14] 目标语义为剩余半边 |
-| WP4 | 边界/Scene/Portal | 相机侧地图边界 clamp：已解码写入者内**负**（边界在消费侧 slot15 裁剪窗 + 加载侧 VR fold）；[scene+0x1CC]：9 个直接写者均非 slot15 家族（有界负成立；reviewer C7：基础表 0xB01278 实有安装点 0x52F1CF/0xA0B39E/0xA0BB2A，"无 imm32 引用"草稿说法撤回）→ 派生表与 +0x1CC 安装者仍 UNLOCATED；Portal→相机时序边类型化（E1 同步/E2E3 消息驱动） |
+| WP4 | 边界/Scene/Portal | 相机侧地图边界 clamp：已解码写入者内**负**（边界在消费侧 slot15 裁剪窗 + 加载侧 VR fold）；[scene+0x1CC]：10 个直接写者均非 slot15 家族（有界负成立；t088.1 勘误：T088 版为 9——探针缺陷漏 0x952ECE；reviewer C7：基础表 0xB01278 实有 4 个 imm32 安装点 0x52F1BC/0x52F1CF/0xA0B39E/0xA0BB2A + 2 个寄存器装载间接安装，"无 imm32 引用"草稿说法撤回）→ 派生表与 +0x1CC 安装者仍 UNLOCATED；Portal→相机时序边类型化（E1 同步/E2E3 消息驱动） |
 
 **G10 维持 PARTIAL-STATIC**（身份/公式/Set 语义/触发/节奏有界闭合；焦点写入者目标语义 + 25 个 INCONCLUSIVE 站点为残项）。项目维持 **NOT STAGE-READY**。
 
@@ -71,12 +71,16 @@ T087-reviewer「≥4 直写站点」的正确解释：它们全部写同一共�
 | 分类 | 数量 | 说明 |
 |---|---|---|
 | CONFIRMED-CAMERA-WRITER | 2 | 0x9EC62A（fieldctx ctor 初始 Set(−400,−300)；EV-89 再证）；0x93CC9B（焦点写入者，§3） |
-| CONFIRMED-SHARED-WRITE-CONTEXT-UI | 10 | 共享对象上的 UI/表面偏移写：Set(0,−0x32)@0x43781F、Set(−0xFF,0)@0x692280/0x7AA848、Set(0x190,var)@0x6BE6F4、Set(0x97,0x8D)@0x6ED7CC、Set(0,−0x1E−f())@0x93C37C、清零@0x4505B0/0x450709/0x741EC8 等 |
-| RECEIVER-OTHER | 2 | 0x4B3BC5/0x4B3DAD（接收者非共享对象；T087-reviewer 判定复核确认） |
+| CONFIRMED-SHARED-WRITE-CONTEXT-UI | 12 | 共享对象上的 UI/表面偏移写：Set(0,−0x32)@0x43781F、Set(−0xFF,0)@0x692280/0x7AA848、Set(0x190,var)@0x6BE6F4、Set(0x97,0x8D)@0x6ED7CC、Set(0,−0x1E−f())@0x93C37C、清零@0x4505B0/0x450709/0x741EC8 等；含 t088-reviewer C1 重分类的 0x4B3BC5/0x4B3DAD（接收者=函数内 0x31D 解析+0x447891 直建共享对象，out-slot [ebp−0x1C]@0x4B3764 / [ebp−0x14]@0x4B3824；t088.1：本表 T088 版本误保留 10/2 旧数，已按 C1 裁定统一为 12/0） |
+| RECEIVER-OTHER | 0 | 该类别经 C-106 单例闭包 + reviewer C1 字节复核后取消（原 0x4B3BC5/0x4B3DAD 两行并入上行） |
 | INCONCLUSIVE | 25 | 接收者/参数已机器解码但包含函数体未全读本轮（接收者世系未逐一证明） |
 
 39/39 站点为默认 V{VT_ERROR,missing}（扫描锚点：`push 0xBE7330`/`mov r32,0xBE7330`/`call 0x40318F`；fieldctx ctor 的 V3 在 0x9EC57B 清空后于 0x9EC5C3-0x9EC5D2 重模板化）
-（VT_ERROR/missing）；两个 CONFIRMED-CAMERA-WRITER 均为默认参。
+（VT_ERROR/missing）；两个 CONFIRMED-CAMERA-WRITER 均为默认参。**语义分层（t088.1 注记）**：
+"39/39 默认 VARIANT" 只声明第 3/4 参的构造类；Shape2D Set 的立即性由 C-108 被调体证明；
+接收者=共享对象由 C-106 证明；而 25 个 INCONCLUSIVE 的**包含函数业务语义未闭合**——
+默认参不自动升级其分类。T088 版本 EV-93/Readiness 残留的「33 默认 + 2 清空槽 VT_EMPTY」
+「35/39 立即类」分桶已被 reviewer C4 与 t088.1 全量撤销（39/39 统一默认类）。
 
 ## 3. WP2 — 触发链（细节见 forensics/T088-FIELD-9E6CA4-CFG.txt 与 T088-PACKED-COORD-WRITER-CALLGRAPH.txt）
 
@@ -129,11 +133,17 @@ INCONCLUSIVE 站点与 [F28+0x14] 写入者。
   与 VR fold（加载侧）进入渲染。等价性：裁剪窗随相机 X0/Y0 平移与
   screen=world−camera 的平移一致——超界相机裁掉的同为屏外 tile（已解码
   路径上的静态证明）。
-- **[scene+0x1CC]**：+0x1CC 全带探针普查（mov/lea 31 处、直接写 9 处）；
-  9 个写者所在函数均不安装 slot15 家族虚表（有界负成立）；reviewer C7：基础家族表
-  0xB01278 实有安装点 0x52F1CF/0xA0B39E/0xA0BB2A（安装后共用初始化 0x52F37F）——
-  本报告草稿"33 张家族表无 imm32 代码引用"撤回；派生表与场景 +0x1CC 成员安装者保持
-  UNLOCATED（0x52429B/0xB002C0 属另一类族的既有结论不变）。
+- **[scene+0x1CC]**：+0x1CC 全带探针普查（mov/lea 31 处、直接写 **10** 处——t088.1 勘误：T088
+  版探针存在 VA/文件偏移混比与 "0x1cc" 子串误匹配缺陷，漏掉字段拷贝写入者 0x952ECE
+  （`mov [ebx+0x1CC],eax`，+0x1C8..+0x1DC 对拷环）；指令边界核验口径：21 lea + 10 写 mov
+  （读排除）=31，T088 版取证文件的 30 为漏计）；10 个写者所在 census 函数窗内均无
+  slot15 家族虚表 imm32 安装（**有界负成立**，t088.1 扫描器以基础表 4 个安装点
+  0x52F1BC/0x52F1CF/0xA0B39E/0xA0BB2A 为阳性对照后复验）；reviewer C7：基础家族表
+  0xB01278 实有安装点（含 thunk 0x52F1BC 安装后尾跳 0x52F37F、0x52F1CF/0xA0BB2A 安装后
+  call 0x52F37F、另有 0x52EEF1/0x8DC052 寄存器装载+栈别名间接安装）——
+  T088 草稿"33 张家族表无 imm32 代码引用"撤回（t088.1 核验：其余 32 张派生表在代码带
+  **零字节出现**）；派生表与场景 +0x1CC 成员安装者保持 UNLOCATED
+  （0x52429B/0xB002C0 属另一类族的既有结论不变）。
 - **Portal→相机时序**：E1 同步（到达处理栈内的焦点写，位置写之后、
   程序序在前）；E2/E3 消息驱动（与 Tick 相位交错静态不可判定，
   产品契约范围）；slot12/14 只读相机（相位分离保证 E1 的写先于绘）。

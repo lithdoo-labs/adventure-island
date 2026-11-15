@@ -1,0 +1,4 @@
+gap stats block regenerated: {'CLOSED-STATIC': 25, 'PARTIAL-STATIC': 9, 'OPEN-STATIC': 6, 'SUPERSEDED': 1} total=41
+clean-room deliverables written to research/result/clean-room/ (claims=109 gaps=41 evidence=97 retracted=10)
+
+exit code: 0

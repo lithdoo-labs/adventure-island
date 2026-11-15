@@ -1,0 +1,14 @@
+=== validate_reverse_engineering.py (clean-room, fail-closed) ===
+Repository: C:\Users\lithd\Documents\GitHub\adventure-island
+
+CSV total: 431 (parsed 431, strict 7, legacy-width-issues 100)
+MD scanned: 390
+Open Issues rows: 9 | Runtime ids: 9
+Claims: 109 | Gaps: 41 | Evidence: 97
+
+ERRORS: 0
+WARNINGS: 0
+
+RESULT: PASS (0 errors, 0 warnings)
+
+exit code: 0

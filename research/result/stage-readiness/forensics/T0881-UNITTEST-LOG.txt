@@ -1,0 +1,51 @@
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t087_round.py:112: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\research\\source-of-truth\\claims.csv' mode='r' encoding='utf-8'>
+  cls.claims = list(csv.DictReader(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t087_round.py:114: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\research\\source-of-truth\\evidence.csv' mode='r' encoding='utf-8'>
+  cls.evidence = list(csv.DictReader(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t087_round.py:116: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\research\\source-of-truth\\gaps.csv' mode='r' encoding='utf-8'>
+  cls.gaps = list(csv.DictReader(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\scripts\t087_wp1_fieldctx_d4.py:42: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-036\\game-image-unpacked.bin'>
+  data = open(EXE, 'rb').read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t088_round.py:152: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-036\\game-image-unpacked.bin'>
+  hashlib.sha256(open(EXE, "rb").read()).hexdigest(), EXE_SHA)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t088_round.py:174: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-036\\game-image-unpacked.bin'>
+  data = open(EXE, "rb").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t088_round.py:164: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-036\\game-image-unpacked.bin'>
+  data = open(EXE, "rb").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t088_round.py:155: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-036\\game-image-unpacked.bin'>
+  data = open(EXE, "rb").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t088_round.py:112: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-001\\extracted\\ð�յ�online\\Shape2D.dll'>
+  hashlib.sha256(open(S2D, "rb").read()).hexdigest(), S2D_SHA)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t088_round.py:117: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-001\\extracted\\ð�յ�online\\Shape2D.dll'>
+  data = open(S2D, "rb").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_t088_round.py:132: ResourceWarning: unclosed file <_io.BufferedReader name='C:\\Users\\lithd\\Documents\\GitHub\\adventure-island\\.work\\task-001\\extracted\\ð�յ�online\\Shape2D.dll'>
+  data = open(S2D, "rb").read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:705: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-2_amj6ki\\research\\source-of-truth\\evidence.csv' mode='r' encoding='utf-8'>
+  ev = open(ev_path, encoding='utf-8').read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:708: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-2_amj6ki\\research\\result\\clean-room\\EVIDENCE-INDEX.csv' mode='r' encoding='utf-8'>
+  ev_cc = open(cc_path, encoding='utf-8').read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:714: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-2_amj6ki\\research\\source-of-truth\\evidence.csv' mode='w' encoding='utf-8'>
+  open(ev_path, 'w', encoding='utf-8', newline='').write(ev + row)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:715: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-2_amj6ki\\research\\result\\clean-room\\EVIDENCE-INDEX.csv' mode='w' encoding='utf-8'>
+  open(cc_path, 'w', encoding='utf-8', newline='').write(ev_cc + row)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 146 tests in 8.028s
+
+OK
+
+exit code: 0

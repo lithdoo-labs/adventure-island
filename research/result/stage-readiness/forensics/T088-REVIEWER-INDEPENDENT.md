@@ -244,3 +244,43 @@ negatives.
 Post-fix gates: Validator PASS (0 errors / 0 warnings); unit tests 107/107 OK;
 clean-room regenerated in sync. Reviewer verdict stands at
 **ACCEPT-WITH-CORRECTIONS -> corrections applied; final state ACCEPT**.
+
+---
+
+## T088.1 postscript (2026-11-16, lead-authored audit note)
+
+An evidence-integrity audit round (T088.1) re-verified the closure record
+above against the committed tree and found it **overstated**: several
+corrections it declares "applied" were only partially applied in the final
+T088 commit. Disposition (details and byte evidence in
+`T0881-EVIDENCE-INTEGRITY-CORRECTIONS-REPORT.md` and
+`forensics/T0881-CORRECTION-REGISTER.csv`):
+
+1. **C1** — applied to the classification CSV + EV-93 + matrix P2-05, but the
+   T088 report §2.2 table and the readiness report's t088 paragraph kept
+   `2/10/2/25`. Applied everywhere by T088.1.
+2. **C2** — **NOT applied at all**: the census CSV kept the double-BASE
+   `create_call_va` column (all 76 non-empty rows +0x400000) and the
+   generator kept the `call_off + BASE` bug. Fixed at the generator by
+   T088.1; all 76 call VAs re-derived and byte-verified (E8 -> 0x447891);
+   80-row verification artifact `T0881-VA-CALLSITE-VERIFICATION.csv`.
+3. **C3** — applied (row 0x69213A reads `[ebp - 0x10]`).
+4. **C4** — applied to the classification CSV's variant column, but EV-93's
+   interpretation kept a dangling `= 35/39 immediate-class` and the readiness
+   report kept `35/39: 33 default + 2 VT_EMPTY`. Both revoked by T088.1
+   (39/39 uniform default, with an explicit semantic-layering note).
+5. **C5 / C6** — applied (C-107/EV-94 text).
+6. **C7** — applied to EV-97's interpretation and the report §5 wording, but
+   G10 `unresolved_scope` kept "33 family vtables have no imm32 code ref" and
+   the closure record's install-site list (0x52F1CF/0xA0B39E/0xA0BB2A)
+   omitted 0x52F1BC. Corrected by T088.1 (four imm32 installs + two
+   register-mediated installs; 32 derived tables have zero imm32 occurrence).
+7. **T088.1 new finding** — the T088 WP4 writer census itself was defective
+   (VA/file-offset mix + `"0x1cc"` substring matching): the direct
+   +0x1CC writer count is **10**, not 9 (missed `mov [ebx+0x1CC], eax` at
+   0x952ECE); the mov/lea (reads-excluded) total is 31 (the forensics' 30
+   missed the same site). The per-writer bounded negative was re-executed
+   with a positive-controlled scanner and holds for all ten census windows.
+
+The independent T088.1 reviewer re-audit (blind phase first) is recorded in
+`forensics/T0881-REVIEWER-INDEPENDENT.md`.

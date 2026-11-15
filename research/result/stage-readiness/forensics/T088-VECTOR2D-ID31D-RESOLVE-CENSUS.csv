@@ -1,81 +1,81 @@
 resolve_va,form,function_start,create_call_va,attach_target_expr,alias_kind
-0x00437732,push imm32,0x00437717,0x00837754,[ebp - 0x10],stack-slot/arg
-0x00438986,push imm32,0x0043882a,0x008389a8,[ebp - 0x18],stack-slot/arg
-0x00438d04,push imm32,0x00438b63,0x00838d26,[ebp - 0x20],stack-slot/arg
-0x0043f06a,push imm32,0x0043f026,0x0083f095,[ebp - 0x10],stack-slot/arg
-0x004400e9,push imm32,0x0043ffca,0x00840114,[ebp - 0x10],stack-slot/arg
-0x00443c62,push imm32,0x00443c1c,0x00843c8d,[ebp + 8],stack-slot/arg
-0x00443fb3,push imm32,0x00443ee1,0x00843fdf,[ebp - 0x20],stack-slot/arg
-0x00450339,push imm32,0x00450307,0x0085035b,[ebp - 0x14],stack-slot/arg
-0x004504ab,push imm32,0x00450307,0x008504cc,esi,register
-0x004505fb,push imm32,0x00450307,0x0085061f,[edi + 0xe34],register
-0x00450754,push imm32,0x00450307,0x00850778,[edi + 0xe30],register
-0x00450806,push imm32,0x00450307,0x0085082a,[edi + 0xe38],register
-0x004b3744,"mov r32, imm32",0x004b2c8e,0x008b376d,[ebp - 0x1c],stack-slot/arg
-0x004edd58,push imm32,0x004edd3a,0x008edd7a,[ebx + 0x18],register
-0x0050e901,push imm32,0x0050e6f4,0x0090e923,[ebp - 0x24],stack-slot/arg
-0x0055911d,push imm32,0x00558f4b,0x0095913b,[ebx + 0x38],register
-0x00564c82,push imm32,0x0056499d,0x00964ca0,[esi + 0x44],register
-0x0057024f,push imm32,0x0057023b,0x00970271,esi,register
-0x0059843e,push imm32,0x005983e9,0x0099845b,[esi + 0x30],register
-0x005a571d,"mov r32, imm32",0x005a5699,0x009a5742,[ebp + 8],stack-slot/arg
-0x005a581c,push imm32,0x005a5699,0x009a583e,[ebp - 0x10],stack-slot/arg
-0x005ca68e,push imm32,0x005ca5a9,0x009ca6b1,[ebx + 0x9b0],register
-0x0066887f,push imm32,0x0066885b,0x00a688a1,[ebp - 0x10],stack-slot/arg
-0x00669976,push imm32,0x00669397,0x00a69998,[ebp - 0x14],stack-slot/arg
-0x0066b96e,push imm32,0x0066b544,0x00a6b98c,[ebp + 0xc],stack-slot/arg
-0x0066c04d,push imm32,0x0066bd27,0x00a6c06f,[ebp - 0x10],stack-slot/arg
-0x0066d2f4,"mov r32, imm32",0x0066d1e7,0x00a6d31d,[ebp - 0x24],stack-slot/arg
-0x00688e21,push imm32,0x00688d18,0x00a88e43,[ebp - 0x10],stack-slot/arg
-0x0069103f,push imm32,0x00691027,0x00a91063,[ebx + 0x120],register
-0x0069213a,push imm32,0x00691f21,0x00a9215f,[ebp - 0x10],stack-slot/arg
-0x00694f15,push imm32,0x00694bf6,0x00a94f3a,[ebp - 0x10],stack-slot/arg
-0x0069567a,push imm32,0x00694bf6,0x00a9569f,[ebp - 0x10],stack-slot/arg
-0x00697bfe,push imm32,0x00697a2d,0x00a97c1c,[ebp - 0x14],stack-slot/arg
-0x006be5e8,push imm32,0x006be562,0x00abe603,esi,register
-0x006c19b9,"mov r32, imm32",0x006c1858,0x00ac19df,[ebp - 0x28],stack-slot/arg
-0x006e9a9d,push imm32,0x006e993b,0x00ae9ac3,[ebp - 0x10],stack-slot/arg
-0x006ed6c2,push imm32,0x006ed6a7,0x00aed6e3,[ebp - 0x10],stack-slot/arg
-0x006ed885,push imm32,0x006ed6a7,0x00aed8b2,[ebx - 0x30],register
-0x0073e40a,"mov r32, imm32",0x0073d83c,,none-within-0x90,none-within-0x90
-0x00741dd8,push imm32,0x00741d39,0x00b41dfa,[ebp - 0x10],stack-slot/arg
-0x007aa090,push imm32,0x007a9f90,0x00baa0b5,[ebp - 0x10],stack-slot/arg
-0x007aa718,push imm32,0x007a9f90,0x00baa73d,[ebp - 0x2c],stack-slot/arg
-0x007ad0bf,push imm32,0x007aced0,0x00bad0e6,[ebp + 8],stack-slot/arg
-0x0093656f,"mov r32, imm32",0x0093641d,0x00d36595,[ebp - 0x24],stack-slot/arg
-0x00936b98,push imm32,0x0093641d,0x00d36bba,[ebp + 8],stack-slot/arg
-0x00936ef9,push imm32,0x0093641d,0x00d36f1b,[ebp + 8],stack-slot/arg
-0x0093a0a1,"mov r32, imm32",0x0093a008,,none-within-0x90,none-within-0x90
-0x0093c25e,push imm32,0x0093b90d,0x00d3c280,[ebp + 8],stack-slot/arg
-0x0093cbbe,push imm32,0x0093cb27,0x00d3cbdd,[ebp + 8],stack-slot/arg
-0x00940933,push imm32,0x00940667,0x00d40955,[ebp - 0x28],stack-slot/arg
-0x009409fc,push imm32,0x00940667,0x00d40a1e,[ebp + 8],stack-slot/arg
-0x00940aa5,push imm32,0x00940667,0x00d40ac7,[ebp - 0x1c],stack-slot/arg
-0x00940bbf,push imm32,0x00940667,0x00d40be2,[ebp - 0x20],stack-slot/arg
-0x009413a7,push imm32,0x00941224,0x00d413c9,[ebp - 0x24],stack-slot/arg
-0x00941480,push imm32,0x00941224,0x00d414a2,[ebp + 8],stack-slot/arg
-0x00941526,"mov r32, imm32",0x00941224,0x00d4154c,[ebp - 0x14],stack-slot/arg
-0x00941b65,push imm32,0x00941b4a,0x00d41b86,[ebp - 0x10],stack-slot/arg
-0x00942d0a,push imm32,0x00942ac5,0x00d42d2c,[ebp - 0x14],stack-slot/arg
-0x009435f3,push imm32,0x00943565,0x00d43614,[ebp - 0x1c],stack-slot/arg
-0x009436a5,push imm32,0x00943565,0x00d436c7,[ebp - 0x28],stack-slot/arg
-0x00943d4b,"mov r32, imm32",0x00943565,0x00d43d74,[ebp - 0x50],stack-slot/arg
-0x009450f4,"mov r32, imm32",0x00945059,0x00d45119,[ebp - 0x14],stack-slot/arg
-0x009451f3,push imm32,0x00945059,0x00d45215,[ebp - 0x1c],stack-slot/arg
-0x00945aeb,"mov r32, imm32",0x00945a40,0x00d45b10,[ebp - 0x10],stack-slot/arg
-0x00945bea,push imm32,0x00945a40,0x00d45c0c,[ebp - 0x18],stack-slot/arg
-0x00946490,"mov r32, imm32",0x009463f7,0x00d464b5,[ebp + 8],stack-slot/arg
-0x0094658f,push imm32,0x009463f7,0x00d465b1,[ebp - 0x10],stack-slot/arg
-0x009468fe,"mov r32, imm32",0x009468af,0x00d46924,[ebp - 0x10],stack-slot/arg
-0x009469ff,push imm32,0x009468af,0x00d46a21,[ebp - 0x1c],stack-slot/arg
-0x0094700f,"mov r32, imm32",0x00946fa8,0x00d47034,[ebp - 0x10],stack-slot/arg
-0x0094710e,push imm32,0x00946fa8,0x00d47130,[ebp - 0x14],stack-slot/arg
-0x0094a6a2,push imm32,0x0094a2ae,0x00d4a6c4,[ebp - 0x14],stack-slot/arg
-0x0096d4ad,"mov r32, imm32",0x0096d3fd,0x00d6d4d9,[ecx + 0x3004],register
-0x00985fe4,push imm32,0x00985fbe,0x00d86004,[esi + 0x28d0],register
-0x00986875,push imm32,0x00986649,0x00d868b4,[ebp - 0x10],stack-slot/arg
-0x00986bfd,push imm32,0x00986bc9,0x00d86c1e,[ebp - 0x14],stack-slot/arg
-0x009daae0,push imm32,0x009daac3,0x00ddab02,[ebp - 0x10],stack-slot/arg
-0x009ec4d3,push imm32,0x009ec3d7,0x00dec4ee,edi,register
-0x00a197dd,"mov r32, imm32",0x00a192a6,,none-within-0x90,none-within-0x90
-0x00a19d57,"mov r32, imm32",0x00a192a6,,none-within-0x90,none-within-0x90
+0x00437732,push imm32,0x00437717,0x00437754,[ebp - 0x10],stack-slot/arg
+0x00438986,push imm32,0x0043882a,0x004389a8,[ebp - 0x18],stack-slot/arg
+0x00438d04,push imm32,0x00438b63,0x00438d26,[ebp - 0x20],stack-slot/arg
+0x0043f06a,push imm32,0x0043f026,0x0043f095,[ebp - 0x10],stack-slot/arg
+0x004400e9,push imm32,0x0043ffca,0x00440114,[ebp - 0x10],stack-slot/arg
+0x00443c62,push imm32,0x00443c1c,0x00443c8d,[ebp + 8],stack-slot/arg
+0x00443fb3,push imm32,0x00443ee1,0x00443fdf,[ebp - 0x20],stack-slot/arg
+0x00450339,push imm32,0x00450307,0x0045035b,[ebp - 0x14],stack-slot/arg
+0x004504ab,push imm32,0x00450307,0x004504cc,esi,register
+0x004505fb,push imm32,0x00450307,0x0045061f,[edi + 0xe34],persistent-field
+0x00450754,push imm32,0x00450307,0x00450778,[edi + 0xe30],persistent-field
+0x00450806,push imm32,0x00450307,0x0045082a,[edi + 0xe38],persistent-field
+0x004b3744,"mov r32, imm32",0x004b2c8e,0x004b376d,[ebp - 0x1c],stack-slot/arg
+0x004edd58,push imm32,0x004edd3a,0x004edd7a,[ebx + 0x18],persistent-field
+0x0050e901,push imm32,0x0050e6f4,0x0050e923,[ebp - 0x24],stack-slot/arg
+0x0055911d,push imm32,0x00558f4b,0x0055913b,[ebx + 0x38],persistent-field
+0x00564c82,push imm32,0x0056499d,0x00564ca0,[esi + 0x44],persistent-field
+0x0057024f,push imm32,0x0057023b,0x00570271,esi,register
+0x0059843e,push imm32,0x005983e9,0x0059845b,[esi + 0x30],persistent-field
+0x005a571d,"mov r32, imm32",0x005a5699,0x005a5742,[ebp + 8],stack-slot/arg
+0x005a581c,push imm32,0x005a5699,0x005a583e,[ebp - 0x10],stack-slot/arg
+0x005ca68e,push imm32,0x005ca5a9,0x005ca6b1,[ebx + 0x9b0],persistent-field
+0x0066887f,push imm32,0x0066885b,0x006688a1,[ebp - 0x10],stack-slot/arg
+0x00669976,push imm32,0x00669397,0x00669998,[ebp - 0x14],stack-slot/arg
+0x0066b96e,push imm32,0x0066b544,0x0066b98c,[ebp + 0xc],stack-slot/arg
+0x0066c04d,push imm32,0x0066bd27,0x0066c06f,[ebp - 0x10],stack-slot/arg
+0x0066d2f4,"mov r32, imm32",0x0066d1e7,0x0066d31d,[ebp - 0x24],stack-slot/arg
+0x00688e21,push imm32,0x00688d18,0x00688e43,[ebp - 0x10],stack-slot/arg
+0x0069103f,push imm32,0x00691027,0x00691063,[ebx + 0x120],persistent-field
+0x0069213a,push imm32,0x00691f21,0x0069215f,[ebp - 0x10],stack-slot/arg
+0x00694f15,push imm32,0x00694bf6,0x00694f3a,[ebp - 0x10],stack-slot/arg
+0x0069567a,push imm32,0x00694bf6,0x0069569f,[ebp - 0x10],stack-slot/arg
+0x00697bfe,push imm32,0x00697a2d,0x00697c1c,[ebp - 0x14],stack-slot/arg
+0x006be5e8,push imm32,0x006be562,0x006be603,esi,register
+0x006c19b9,"mov r32, imm32",0x006c1858,0x006c19df,[ebp - 0x28],stack-slot/arg
+0x006e9a9d,push imm32,0x006e993b,0x006e9ac3,[ebp - 0x10],stack-slot/arg
+0x006ed6c2,push imm32,0x006ed6a7,0x006ed6e3,[ebp - 0x10],stack-slot/arg
+0x006ed885,push imm32,0x006ed6a7,0x006ed8b2,[ebx - 0x30],persistent-field
+0x0073e40a,"mov r32, imm32",0x0073d83c,,no-0x447891-create-call-in-window; imm32 consumed as arithmetic/compare operand (sub/add) — not a namespace resolve,imm32-operand (not a resolve)
+0x00741dd8,push imm32,0x00741d39,0x00741dfa,[ebp - 0x10],stack-slot/arg
+0x007aa090,push imm32,0x007a9f90,0x007aa0b5,[ebp - 0x10],stack-slot/arg
+0x007aa718,push imm32,0x007a9f90,0x007aa73d,[ebp - 0x2c],stack-slot/arg
+0x007ad0bf,push imm32,0x007aced0,0x007ad0e6,[ebp + 8],stack-slot/arg
+0x0093656f,"mov r32, imm32",0x0093641d,0x00936595,[ebp - 0x24],stack-slot/arg
+0x00936b98,push imm32,0x0093641d,0x00936bba,[ebp + 8],stack-slot/arg
+0x00936ef9,push imm32,0x0093641d,0x00936f1b,[ebp + 8],stack-slot/arg
+0x0093a0a1,"mov r32, imm32",0x0093a008,,no-0x447891-create-call-in-window; imm32 flows into a compare/dispatch chain — not a namespace resolve,imm32-operand (not a resolve)
+0x0093c25e,push imm32,0x0093b90d,0x0093c280,[ebp + 8],stack-slot/arg
+0x0093cbbe,push imm32,0x0093cb27,0x0093cbdd,[ebp + 8],stack-slot/arg
+0x00940933,push imm32,0x00940667,0x00940955,[ebp - 0x28],stack-slot/arg
+0x009409fc,push imm32,0x00940667,0x00940a1e,[ebp + 8],stack-slot/arg
+0x00940aa5,push imm32,0x00940667,0x00940ac7,[ebp - 0x1c],stack-slot/arg
+0x00940bbf,push imm32,0x00940667,0x00940be2,[ebp - 0x20],stack-slot/arg
+0x009413a7,push imm32,0x00941224,0x009413c9,[ebp - 0x24],stack-slot/arg
+0x00941480,push imm32,0x00941224,0x009414a2,[ebp + 8],stack-slot/arg
+0x00941526,"mov r32, imm32",0x00941224,0x0094154c,[ebp - 0x14],stack-slot/arg
+0x00941b65,push imm32,0x00941b4a,0x00941b86,[ebp - 0x10],stack-slot/arg
+0x00942d0a,push imm32,0x00942ac5,0x00942d2c,[ebp - 0x14],stack-slot/arg
+0x009435f3,push imm32,0x00943565,0x00943614,[ebp - 0x1c],stack-slot/arg
+0x009436a5,push imm32,0x00943565,0x009436c7,[ebp - 0x28],stack-slot/arg
+0x00943d4b,"mov r32, imm32",0x00943565,0x00943d74,[ebp - 0x50],stack-slot/arg
+0x009450f4,"mov r32, imm32",0x00945059,0x00945119,[ebp - 0x14],stack-slot/arg
+0x009451f3,push imm32,0x00945059,0x00945215,[ebp - 0x1c],stack-slot/arg
+0x00945aeb,"mov r32, imm32",0x00945a40,0x00945b10,[ebp - 0x10],stack-slot/arg
+0x00945bea,push imm32,0x00945a40,0x00945c0c,[ebp - 0x18],stack-slot/arg
+0x00946490,"mov r32, imm32",0x009463f7,0x009464b5,[ebp + 8],stack-slot/arg
+0x0094658f,push imm32,0x009463f7,0x009465b1,[ebp - 0x10],stack-slot/arg
+0x009468fe,"mov r32, imm32",0x009468af,0x00946924,[ebp - 0x10],stack-slot/arg
+0x009469ff,push imm32,0x009468af,0x00946a21,[ebp - 0x1c],stack-slot/arg
+0x0094700f,"mov r32, imm32",0x00946fa8,0x00947034,[ebp - 0x10],stack-slot/arg
+0x0094710e,push imm32,0x00946fa8,0x00947130,[ebp - 0x14],stack-slot/arg
+0x0094a6a2,push imm32,0x0094a2ae,0x0094a6c4,[ebp - 0x14],stack-slot/arg
+0x0096d4ad,"mov r32, imm32",0x0096d3fd,0x0096d4d9,[ecx + 0x3004],persistent-field
+0x00985fe4,push imm32,0x00985fbe,0x00986004,[esi + 0x28d0],persistent-field
+0x00986875,push imm32,0x00986649,0x009868b4,[ebp - 0x10],stack-slot/arg
+0x00986bfd,push imm32,0x00986bc9,0x00986c1e,[ebp - 0x14],stack-slot/arg
+0x009daae0,push imm32,0x009daac3,0x009dab02,[ebp - 0x10],stack-slot/arg
+0x009ec4d3,push imm32,0x009ec3d7,0x009ec4ee,edi,register
+0x00a197dd,"mov r32, imm32",0x00a192a6,,no-0x447891-create-call-in-window; imm32 consumed as arithmetic/compare operand (sub) — not a namespace resolve,imm32-operand (not a resolve)
+0x00a19d57,"mov r32, imm32",0x00a192a6,,no-0x447891-create-call-in-window; imm32 consumed as arithmetic/compare operand (sub) — not a namespace resolve,imm32-operand (not a resolve)

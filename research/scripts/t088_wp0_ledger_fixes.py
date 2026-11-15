@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """T088 WP0 + ledger integration (one-shot, audit-preserved).
 
+T088.1 NOTE: the embedded EV-93/EV-97/P2-05/G10 text below was corrected on
+2026-11-16 (marked `t088.1-corrected`) because the T088 release of this
+one-shot script still carried the pre-reviewer-C1/C4/C7 numbers; the CURRENT
+authoritative text lives in research/source-of-truth/ (see
+research/scripts/t0881_ledger_fixes.py and
+research/result/stage-readiness/T0881-EVIDENCE-INTEGRITY-CORRECTIONS-REPORT.md).
+DO NOT re-run this script (it appends duplicate rows); it is preserved for
+audit provenance only.
+
 Fixes the three T087-acceptance findings and integrates the T088 results:
   F1  EV-92 instruction_or_data: old 0x98 routing -> byte-accurate routing
       (states 0|1|6 -> 0x564FBE / 2|5 -> 0x564E52 / 3|4 -> 0x56512A or
@@ -69,8 +78,9 @@ def main():
          ("resolve-site census: 12 persistent-field aliases incl [fieldctx+0xD4]/[singleton+0x9B0]/"
           "[edi+0xE30-E38]/[esi+0x28D0], rest stack-slot transients; companion classification CSV "
           "sha256=828e501ff5304e4a82b3e694c2fb99eea63ffe7ba9fed952ba18be97f7bd24c5 (39 candidates: "
-          "2 CONFIRMED-CAMERA-WRITER, 10 CONFIRMED-SHARED-WRITE-CONTEXT-UI, 2 RECEIVER-OTHER, "
-          "25 INCONCLUSIVE; 33/39 carry the default V{VT_ERROR,missing} builder)"),
+          "2 CONFIRMED-CAMERA-WRITER, 12 CONFIRMED-SHARED-WRITE-CONTEXT-UI, 0 RECEIVER-OTHER, "
+          "25 INCONCLUSIVE; 39/39 carry the default V{VT_ERROR,missing} builder) "
+          "[t088.1-corrected: T088 shipped 10/2 + 33/39 here; reviewer C1/C4 applied]"),
          "C-106;C-109", "research/scripts/t088_wp1_id31d_census.py (sha-pinned, LF canonical)"],
         ["EV-94", "research/result/stage-readiness/forensics/T088-FIELD-9E6CA4-CFG.txt",
          "aa5e48e001ccce05db267467f8502155e3e5b753a0803baa027b3ad326df902e",
@@ -109,16 +119,21 @@ def main():
          "C-107;C-108;C-109", "derived from EV-93/EV-94/EV-95 (all instruction-level)"],
         ["EV-97", "research/result/stage-readiness/forensics/T088-CAMERA-BOUNDS-SCENE-PORTAL.md",
          "fa851184d187bd0d78b649438ebe6036a199cc9d2a3174124930df4d4b4da8e4",
-         "slot15 0x53471A; 31 +0x1CC mov/lea sites; 9 direct +0x1CC writers; 33 slot15-family tables",
+         "slot15 0x53471A; 31 +0x1CC mov/lea sites (21 lea + 10 write-mov, reads excluded; "
+         "t088.1-corrected taxonomy); 10 direct +0x1CC writers (t088.1: +0x952ECE); "
+         "33 slot15-family tables",
          "instruction+census",
          "slot15 cull window re-dump; +0x1CC full-band probe census; family-vtable install checks; "
          "portal ordering edge table",
          ("camera-side map-bounds clamp NEGATIVE (bounded to decoded writer bodies; bounds on the "
-          "consume side slot15 + VR fold); [scene+0x1CC]: none of the 9 direct writers installs a "
-          "slot15-family vtable and the 33 family tables have no imm32 code reference — installer "
-          "UNLOCATED (bounded negative); portal->camera edges typed (E1 synchronous focus write in "
-          "portal-trigger/packet-spawn stacks; E2/E3 message-driven, pump-phase interleaving "
-          "statically undecidable)"),
+          "consume side slot15 + VR fold); [scene+0x1CC]: none of the 10 direct writers "
+          "(t088.1-corrected count: +0x952ECE) installs a slot15-family vtable inside its "
+          "census function window (bounded negative); the BASE table 0xB01278's imm32 install "
+          "chain IS located (0x52F1BC/0x52F1CF/0xA0B39E/0xA0BB2A + init 0x52F37F) — the "
+          "T088-era 'no imm32 code reference' claim is withdrawn; derived tables and the "
+          "+0x1CC member install remain UNLOCATED; portal->camera edges typed (E1 synchronous "
+          "focus write in portal-trigger/packet-spawn stacks; E2/E3 message-driven, "
+          "pump-phase interleaving statically undecidable)"),
          "C-109", "research/scripts/t088_wp4_scene_portal.py (sha-pinned, LF canonical)"],
     ]
     rows.extend(new_ev)
@@ -257,8 +272,11 @@ def main():
                 "follow vs top-left vs scripted offsets; it is a private position object, not a 0x31D "
                 "alias); 25 INCONCLUSIVE direct-slot census sites (containing-function bodies not fully "
                 "decoded — possible additional write contexts or clamps bounded to those functions); "
-                "slot15-family scene +0x1CC installer (9 direct +0x1CC writers are all OTHER classes; 33 "
-                "family vtables have no imm32 code ref — indirect construction path unpinned); "
+                "slot15-family scene +0x1CC installer (t088.1-corrected: TEN direct +0x1CC writers "
+                "— +0x952ECE — none installs a family vtable in its census window, bounded; the "
+                "BASE table install chain IS located at 0x52F1BC/0x52F1CF/0xA0B39E/0xA0BB2A + init "
+                "0x52F37F; the 32 derived tables have zero imm32 occurrence, construction path "
+                "untraced); "
                 "message-pump phase interleaving of cursor-driven writes vs scene draw (statically "
                 "undecidable); camera-vs-map-edge clamp: negative only within decoded writers")
             r[7] = ("STATIC: census the writers of [[user+0xF28]+0x14] (avatar-container position class) to "
@@ -295,8 +313,8 @@ def main():
            "A（t087：相机对象身份+写入公式+7 个 0x5CA91A 漏斗调用点；t088：全部 80 个命名空间解析点经 "
            "PCOM/Shape2D 注册表惰性单例闭包为同一共享 CWzVector2D；漏斗 #6/#7 定标为光标模式（枚举回调 "
            "PtInRect 门/窗口过程鼠标带 lParam 门）；直接 [vt+0x90] 家族 39 候选分类：2 CONFIRMED-CAMERA-"
-           "WRITER（fieldctx ctor 初始 + 0x93CB27 焦点写入者）、10 CONFIRMED-SHARED-WRITE-CONTEXT-UI、"
-           "2 RECEIVER-OTHER、25 INCONCLUSIVE）")
+           "WRITER（fieldctx ctor 初始 + 0x93CB27 焦点写入者）、12 CONFIRMED-SHARED-WRITE-CONTEXT-UI、"
+           "0 RECEIVER-OTHER、25 INCONCLUSIVE）[t088.1-corrected: T088 shipped 10/2 here]")
     setrow("P2-05", "unproven",
            "写入者集合=7 个 0x5CA91A 漏斗调用点（全部光标/UI 事件驱动）另有直接 [vt+0x90] 写入家族"
            "（39 候选已逐项分类，25 个 INCONCLUSIVE 含函数体未全解码）；焦点写入者 0x93CB27 的目标对象 "

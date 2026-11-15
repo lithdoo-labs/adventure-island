@@ -117,8 +117,9 @@ class LedgerRegressionT087(unittest.TestCase):
             open(REPO / "research/source-of-truth/gaps.csv", encoding="utf-8")))
 
     def test_counts(self):
-        self.assertEqual(len(self.claims), 105)
-        self.assertEqual(len(self.evidence), 92)
+        # t088 update: +C-106..C-109, +EV-93..EV-97 (EV-92 fixed in place)
+        self.assertEqual(len(self.claims), 109)
+        self.assertEqual(len(self.evidence), 97)
         self.assertEqual(len(self.gaps), 41)
 
     def test_new_claims_present(self):
@@ -134,9 +135,13 @@ class LedgerRegressionT087(unittest.TestCase):
         g = next(g for g in self.gaps if g["gap_id"] == "G10")
         self.assertIn("C-103", g["claim_refs"])
         self.assertIn("C-104", g["claim_refs"])
-        # still PARTIAL-STATIC: follow cadence/deadzone residual is explicit
+        # still PARTIAL-STATIC: cadence/deadzone residual is explicit
+        # (t088: the residual is the focus-writer target [F28+0x14] semantics
+        # + the 25 INCONCLUSIVE census sites; "cadence" now lives in the
+        # verified-scope wording)
         self.assertEqual(g["status"], "PARTIAL-STATIC")
-        self.assertIn("cadence", g["unresolved_scope"])
+        self.assertTrue("[[user+0xF28]+0x14]" in g["unresolved_scope"]
+                        or "INCONCLUSIVE" in g["unresolved_scope"])
 
     def test_ev15_hash_repaired(self):
         ev = next(e for e in self.evidence if e["evidence_id"] == "EV-15")

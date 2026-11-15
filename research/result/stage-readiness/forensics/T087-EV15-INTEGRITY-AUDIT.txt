@@ -1,0 +1,49 @@
+# T087 WP5 — EV-15 evidence-integrity audit & repair (STATIC-ONLY)
+
+Round: T087. Rule set: T086.1 canonical hashing
+(`research/scripts/evidence_canonical.py`: text → CRLF→LF normalized, binary →
+raw bytes; BOM preserved; a lone CR is content).
+
+## 1. Pre-repair state
+
+`evidence.csv` row EV-15:
+
+| field | old value |
+|---|---|
+| source_file | `research/result/atlas/R13-SLOT45-CANDIDATES.csv` |
+| source_sha256 | `(in-repo csv)` (historical placeholder, pre-T086.1) |
+| address | `22 vtables` |
+| claim_id | `C-012;C-013;C-020;C-021` |
+
+The validator (16a/17a) skipped this row because `(in-repo csv)` is not a
+hex64 token — a pre-existing gap noted by the T086.1 reviewer (NON-BLOCKING #3).
+
+## 2. Audit
+
+1. The pointed-to file EXISTS: `research/result/atlas/R13-SLOT45-CANDIDATES.csv`
+   (3,047 bytes; tracked in git; part of the committed worktree).
+2. It is a single text file, so the T086.1 canonical rule applies directly:
+   no multi-file/composite representation is needed.
+3. Canonical SHA-256 (text rule, byte-reproducible):
+   `520d8333b7d84fa4abe300f52ddd923ab9981ec72e5155b01d54bcd0608a3898`
+4. Spot re-verification of two rows cited by C-012 (0x2E2C4 = 0x3E800000 float
+   pattern / 0x50402A51 pointer; 0x2F530 = string data) matches the
+   classification recorded in EV-15 (FALSE_POSITIVE / import-thunk families),
+   so the interpretation column stays accurate.
+
+## 3. Repair applied
+
+`evidence.csv` EV-15 `source_sha256`: `(in-repo csv)` →
+`520d8333b7d84fa4abe300f52ddd923ab9981ec72e5155b01d54bcd0608a3898`.
+
+* The validator's `(in-repo` skip clauses are untouched (other descriptive
+  rows keep their behaviour; EV-15 no longer needs the skip because it now
+  carries a real hash that 17a verifies against the file).
+* No validator rule was weakened; check 17a now actively verifies this row.
+
+## 4. Post-repair verification
+
+`python research/scripts/validate_reverse_engineering.py` — 0 errors / 0
+warnings with the new hash in place (see T087-VALIDATOR-LOG.txt). The audit
+trail (old value, derivation, new value) is preserved in this file per the
+T086.1 evidence-hygiene convention.

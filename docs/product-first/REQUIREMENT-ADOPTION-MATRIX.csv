@@ -1,0 +1,66 @@
+requirement_id,phase,behavior,legacy_readiness,legacy_gap_ids,product_owner,proposed_adoption_mode,design_status,proposed_acceptance_focus,open_decision
+P0-01,P0,Map.info与13图allowlist,RE-GAP-STATIC,—,Content/Map Adapter,DATA-FIRST,PROPOSED,13 图 ID/Info/layers manifest 与不完整资源诊断,待需求卡审批
+P0-02,P0,Info字段映射/ignored审计,RE-GAP-STATIC,G40,Content/Map Adapter,DATA-FIRST,PROPOSED,Info 状态字段值与 ignored 明细单测,待需求卡审批
+P0-03,P0,info/link继承规则,PRODUCT-READY,—,Content/Map Adapter,LOCAL-CONTRACT,PROPOSED,无 link 目标图与循环/缺目标合成夹具,link 继承策略
+P0-04,P0,Tile source与Canvas解析,RE-READY,G02,Content/Map Adapter,DATA-FIRST,PROPOSED,Tile/Canvas origin、z、zM 资源索引快照,待需求卡审批
+P0-05,P0,Obj source及flow遗漏,RE-GAP-STATIC,G37,Content/Map Adapter,OPENMS-ADAPT,PROPOSED,Obj flow/rx 数量与绘制差异 golden,待需求卡审批
+P0-06,P0,Back与Canvas资源解析,RE-GAP-STATIC,G35;G36,Content/Map Adapter,OPENMS-ADAPT,PROPOSED,type0–4 Back 平铺/视差及重合边界 golden,待需求卡审批
+P0-07,P0,Back未投影字段,RE-GAP-STATIC,G36;G39,Content/Map Adapter,OPENMS-ADAPT,PROPOSED,auto-move 属性时钟与零速/缺字段测试,待需求卡审批
+P0-08,P0,Foothold原始字段,MapScenePlan原字段保留,G40,Content/Map Adapter,DATA-FIRST,PROPOSED,Foothold prev/next 与退化/单向碰撞数据验证,待需求卡审批
+P0-09,P0,Rope/Seat source,RE-READY,G41,Content/Map Adapter,DATA-FIRST,PROPOSED,Rope/Seat 空集合及 l/uf/page 校验,待需求卡审批
+P0-10,P0,Portal字段与MapHelper,RE-GAP-STATIC,G38;G39,Content/Map Adapter,DATA-FIRST,PROPOSED,Portal pt/pn/tm/tn、MapHelper 引用校验,待需求卡审批
+P0-11,P0,资源Bundle闭包,DESIGN-DECISION,G36;G37,Content/Map Adapter,LOCAL-CONTRACT,PROPOSED,13 图 Bundle 闭包、hash/尺寸/缺帧失败,资源缺失的阻断规则
+P0-12,P0,VR/bounds及回退,PRODUCT-READY,G10,Content/Map Adapter,LOCAL-CONTRACT,PROPOSED,VR 内缩与无 VR minimap→foothold 回退,待需求卡审批
+P0-13,P0,Physics表19字段和真实数值,RE-READY,—,Content/Map Adapter,DATA-FIRST,PROPOSED,19 Physics 参数保真及默认配置范围,待需求卡审批
+P1-01,P1,背景type0静态绘制,PRODUCT-READY,G35,Render Projection/Components,OPENMS-ADAPT,PROPOSED,静态 Back origin/alpha/flip/front golden,待需求卡审批
+P1-02,P1,背景type1平铺,RE-GAP-STATIC,G36,Render Projection/Components,OPENMS-ADAPT,PROPOSED,type1 单轴平铺与零步长/裁剪测试,待需求卡审批
+P1-03,P1,背景type2平铺,RE-GAP-STATIC,G36,Render Projection/Components,OPENMS-ADAPT,PROPOSED,type2 多地图平铺与重合绘制顺序,待需求卡审批
+P1-04,P1,背景type3双轴,RE-GAP-STATIC,G36,Render Projection/Components,OPENMS-ADAPT,PROPOSED,type3 双轴平铺与 Camera 初相,待需求卡审批
+P1-05,P1,背景type4滚动,RE-GAP-STATIC,G36;G39,Render Projection/Components,OPENMS-ADAPT,PROPOSED,type4 自动移动、重复与视差相位,待需求卡审批
+P1-06,P1,背景帧动画,RE-GAP-STATIC,G39,Render Projection/Components,LOCAL-CONTRACT,PROPOSED,front 0/1 与 Avatar 可见层级,待需求卡审批
+P1-07,P1,Tile整数加载键,RE-READY,—,Render Projection/Components,LOCAL-CONTRACT,PROPOSED,Tile/Obj 同键稳定排序和诊断键隔离,待需求卡审批
+P1-08,P1,Obj整数加载键,RE-READY,—,Render Projection/Components,LOCAL-CONTRACT,PROPOSED,场景层 0..7 空层和无层行为,待需求卡审批
+P1-09,P1,Tile/Obj通道与注册,RE-READY,G01;G07;G24;G27,Render Projection/Components,OPENMS-ADAPT,PROPOSED,Obj 帧 origin、flip、alpha 与坐标变换,待需求卡审批
+P1-10,P1,最终容器/排序比较/Draw遍历,Frozen ABI只定义产品顺序,旧报告同一比较器与CleanRoom冲突,Render Projection/Components,OPENMS-ADAPT,PROPOSED,flow 多实例/非 flow 单实例/帧钟,待需求卡审批
+P1-11,P1,equal key tie稳定性,PRODUCT-READY,G33,Render Projection/Components,OPENMS-ADAPT,PROPOSED,Avatar zmap/smap 锚点与装备遮挡 golden,待需求卡审批
+P1-12,P1,Avatar vs Obj/Tile遮挡,RE-READY,G08;G09,Render Projection/Components,LOCAL-CONTRACT,PROPOSED,角色站走跳蹲泳攀爬的显隐/回退快照,待需求卡审批
+P1-13,P1,Obj flow动画或平铺,RE-GAP-STATIC,G37,Render Projection/Components,LOCAL-CONTRACT,PROPOSED,Avatar 与地图层前后关系、合法 RenderNode,待需求卡审批
+P1-14,P1,Portal pv/ph/psh可见帧,Frozen ABI首帧产品约定,有帧不等于原版动画闭合,Render Projection/Components,OPENMS-ADAPT,PROPOSED,Portal 首帧/完整延迟/缺 delay 停帧,ABI 缺 delay 保持第一帧
+P1-15,P1,Layer节点/viewport Canvas,PRODUCT-READY,—,Render Projection/Components,LOCAL-CONTRACT,PROPOSED,Canvas viewport、sceneEpoch one-shot key、性能预算,待需求卡审批
+P2-01,P2,world→screen产品变换,否,1:1并非原版推论,Field Camera,LOCAL-CONTRACT,PROPOSED,screen=world-camera、1:1 与 resize 独立,待需求卡审批
+P2-02,P2,VR内缩/折叠,原版直接指令,不得当做固定窗口800×600,Field Camera,DATA-FIRST,PROPOSED,VR±400/300 内缩与退化轴向零收敛,待需求卡审批
+P2-03,P2,无VR边界回退,MapScenePlan§3正式产品回退,VR与回退不同证据等级,Field Camera,LOCAL-CONTRACT,PROPOSED,8 张无 VR 图 fallback 和极小图 case,待需求卡审批
+P2-04,P2,Viewport来源,PRODUCT-READY,G10,Field Camera,LOCAL-CONTRACT,PROPOSED,宿主 viewport resize 不改世界权威,待需求卡审批
+P2-05,P2,相机位置更新者/跟随目标,DESIGN-DECISION,G10,Field Camera,OPENMS-ADAPT,PROPOSED,目标焦点/脚本偏移/Portal 立即帧,ADR Camera焦点
+P2-06,P2,Camera deadzone平滑夹取/小图,DESIGN-DECISION,G10,Field Camera,PRODUCT-CHOICE,PROPOSED,deadzone/平滑/clamp/小图留白需批准方案,ADR deadzone/平滑
+P2-07,P2,Viewport resize不写回world,PRODUCT-READY,—,Field Camera,LOCAL-CONTRACT,PROPOSED,resize 前后 x/y/vx/vy 无突变,待需求卡审批
+P2-08,P2,0x1E与0x5A实际节拍,RE-GAP-STATIC,G34,Field Camera,PRODUCT-CHOICE,PROPOSED,dt 注入与稳定重放、掉帧子步,ADR 物理时钟
+P3-01,P3,行走平地积分一步,RE-READY,G40,Field Movement,OPENMS-ADAPT,PROPOSED,平地移动积分的逐步 golden,待需求卡审批
+P3-02,P3,缓坡/陡坡和摩擦,RE-GAP-STATIC,G40,Field Movement,OPENMS-ADAPT,PROPOSED,坡面、滑动、摩擦/鞋子配置边界,待需求卡审批
+P3-03,P3,Foothold段端/连接,RE-READY,G40,Field Movement,OPENMS-ADAPT,PROPOSED,Foothold 端点和 prev/next 换段,待需求卡审批
+P3-04,P3,空中水平vx与释键,无,旧R2称装载者没有而后续研究有代值,Field Movement,OPENMS-ADAPT,PROPOSED,空中左右键/松键减速与速度上限,待需求卡审批
+P3-05,P3,重力和终端下落,RE-GAP-STATIC,G40,Field Movement,OPENMS-ADAPT,PROPOSED,重力、终端速度、掉帧穿透防护,待需求卡审批
+P3-06,P3,Foothold碰撞斜线竖线/单向穿台,STATIC 无残项；实现按调用语境取半宽,仅已核13图;不能外推其他地图,Field Movement,OPENMS-ADAPT,PROPOSED,斜/竖 Foothold 单向/穿台碰撞,待需求卡审批
+P3-07,P3,陆地跳初速度,RE-READY,G40,Field Movement,OPENMS-ADAPT,PROPOSED,地面起跳状态/速度及装备修正,待需求卡审批
+P3-08,P3,游泳四方向加速度,RE-GAP-STATIC,G40,Field Movement,OPENMS-ADAPT,PROPOSED,8 水图四向游动与控制上限,待需求卡审批
+P3-09,P3,水中跳初速度,RE-READY,G40,Field Movement,OPENMS-ADAPT,PROPOSED,水跳与陆地/水域状态切换,待需求卡审批
+P3-10,P3,下跳门闩及穿台,无,R11早期字符串未解误把fieldLimit当bit17,Field Movement,PRODUCT-CHOICE,PROPOSED,下跳门闩寿命与解除条件,待需求卡审批
+P3-11,P3,蹲下及松开下键,RE-GAP-STATIC,G40,Field Movement,LOCAL-CONTRACT,PROPOSED,蹲下和松键状态恢复,待需求卡审批
+P3-12,P3,落地姿态stand/walk/alert,DESIGN-DECISION,G12,Field Movement,LOCAL-CONTRACT,PROPOSED,落地 stand/walk/alert 动作时钟,待需求卡审批
+P3-13,P3,抓绳/ladder判定,RE-READY,G41,Field Movement,OPENMS-ADAPT,PROPOSED,绳/梯抓取范围与输入优先级,待需求卡审批
+P3-14,P3,爬绳积分和离绳,RUNTIME 绳记录 hint 张力单点 dump；STATIC 走侧 ladder/rope 分叉（0x517DA8/0x9BCC9A，见 P3-13）,G41,Field Movement,OPENMS-ADAPT,PROPOSED,爬绳速度、端点和离绳,待需求卡审批
+P3-15,P3,坐下/站起状态,RE-READY,G41,Field Movement,LOCAL-CONTRACT,PROPOSED,坐下/站起状态与位置恢复,待需求卡审批
+P3-16,P3,普攻动作变体,RE-READY,—,Field Movement,LOCAL-CONTRACT,PROPOSED,普攻动作单次播放及恢复,待需求卡审批
+P3-17,P3,攻击命中/受击位移,PRODUCT-READY,G40,Field Movement,DEFER,PROPOSED,本轮不验伤害：只确认单次动作呈现,伤害结算非MVP
+P3-18,P3,死亡和击退字段,DESIGN-DECISION,G11,Field Movement,DEFER,PROPOSED,死亡与击退延期至战斗阶段,战斗/死亡非MVP
+P3-19,P3,Alert计时5000值,RE-GAP-STATIC,G12,Field Movement,PRODUCT-CHOICE,PROPOSED,alert 定时器暂停/恢复/归零,待需求卡审批
+P3-20,P3,Movement timestep物理时间单位,RE-GAP-STATIC,G34,Field Movement,PRODUCT-CHOICE,PROPOSED,产品固定 dt 与帧率等价,ADR 物理时钟
+P4-01,P4,上键Portal命中框,阶段允许上键换图,"不能混淆""",Field Portal,PRODUCT-CHOICE,PROPOSED,上键命中盒、有效目标与交互门,ADR 门触发命中盒
+P4-02,P4,pt分支与可见Portal,阶段§1.4约束基本换图类型,"不应阻塞""",Field Portal,OPENMS-ADAPT,PROPOSED,pt 资源、逻辑分支及特殊门户,待需求卡审批
+P4-03,P4,tm/tn解析和同图pn匹配,阶段设计批准产品目标解析,G38,Field Portal,LOCAL-CONTRACT,PROPOSED,tm/tn 同图/跨图解析与缺目标回滚,待需求卡审批
+P4-04,P4,跨图精确坐标落点,RE-READY,G38,Field Portal,OPENMS-ADAPT,PROPOSED,跨图落点、边界、速度和镜头同步,待需求卡审批
+P4-05,P4,同图落点/吸附,RE-READY,G38,Field Portal,OPENMS-ADAPT,PROPOSED,同图 Foothold 重绑/吸附,待需求卡审批
+P4-06,P4,传送后速度动作状态重置,RE-READY,G38;G41,Field Portal,LOCAL-CONTRACT,PROPOSED,传送后坐立爬泳动作/速度复位,待需求卡审批
+P4-07,P4,Camera转移/冷却防重复,产品转移策略尚未批准,同图一例不可推广跨图CD,Field Portal,PRODUCT-CHOICE,PROPOSED,冷却、输入抑制、Camera、sceneEpoch 顺序,ADR 门冷却/首帧
+P4-08,P4,成功/失败原子replace,MapScenePlan及Frozen ABI正式定义,与原版单帧场景加载无关,Field Portal,LOCAL-CONTRACT,PROPOSED,成功原子 replace、失败回滚与 key 唯一,待需求卡审批
+P4-09,P4,13图全部连通导航,DESIGN-DECISION,G38,Field Portal,PRODUCT-CHOICE,PROPOSED,13 图完整可达性与旧四门白名单冲突裁决,ADR 门图: 四门→完整13图

@@ -1,13 +1,27 @@
-# CMS 079 在 LoomRealm 上的复刻与改造
+# Adventure Island — OpenMS-Guided Product-First 设计与历史基线
 
 > 状态：Draft，供复核后改写
 > 记录日期：2026-10-26
 > 研究对象：国服冒险岛 CMS v079
 > 运行平台：LoomRealm（本仓库 submodule `loom-realm`）
 
+> **2026-11-16 现行方向（产品级决定）：** 以 Adventure Island 的可玩功能、13 张目标地图和可执行验收为准。OpenMS（GMS083）是优先行为/算法参考；CMS079 逆向研究继续作为保留的历史事实与可选兼容资料，不再成为每项功能都必须先完整逆向的前置条件。  
+> **不可破坏：** Frozen `components/RENDER-NODE-ABI-V1.md`、LoomRealm pinned `93648192323bf5f57996b7b54cbae641d8a53fdb`、资源访问及输入/状态权威。  
+> 本次新设计入口：[总览](docs/product-first/README.md) · [适配契约](docs/product-first/OPENMS-ADAPTATION-CONTRACT.md) · [65 项需求迁移](docs/product-first/PRODUCT-READINESS-MIGRATION.md) · [逐项矩阵](docs/product-first/REQUIREMENT-ADOPTION-MATRIX.csv)。  
+> 以下 2026-10-26 的“按 079 行为”“两张合成地图为第一阶段”等表述保留为历史基线；与现行产品方向冲突时，以上 Product-First 设计优先。**详细产品规格尚待逐项批准，不能把转向等同于已经 Stage-Ready。**
+
+## 0. 现行产品决定与边界
+
+1. **产品交付优先：** 以 13 图的资源载入、场景绘制、移动、Camera、Portal 往返及故障恢复的确定性测试定义功能就绪，不要求事先恢复全部 CMS079 汇编。
+2. **两套状态独立：** 109 Claims / 97 Evidence / 41 Gaps 及旧 65 项 P0–P4 Readiness 保持历史原义。新 `docs/product-first/` 仅记录产品规格及批准流程，不以“采用 OpenMS”将原版 Gap 标为 CLOSED。
+3. **只借行为不直接复制 GPL 代码：** OpenMS GPL-3.0；未经专项法律/许可证审查，禁止直接复制、集成其 GPL 模块。WZ/游戏素材仅由使用者本地合法来源导入，不分发资源包。
+4. **架构适配：** Field Runtime/Subsystem 与 Shared State 是状态权威；InputGate 接收输入；Render Projection 转换到既定 `cms-*` 标签。不得用 PixiJS/OpenMS 直接替换现有 ABI。
+5. **依赖图和冲突先裁决：** 旧 MapScenePlanV1 四条 Portal enabled 白名单与 13 图 P4-09 全联通冲突； Camera 焦点/deadzone、物理 Tick、缺帧策略和传送冷却也要有具体 ADR 与测试。
+6. **测试范围：** 原始 CMS079 客户端继续 STATIC-ONLY、不得启动；本项目合成夹具、PWA/Hostra、产品功能 E2E 可运行和测试。
+
 ## 1. 文档职责
 
-本文只记录改造决策和复核结论。逆向证据统一归档在 `research/task/` 与 `research/result/`。玩法实现落在本仓库的 game library 与 Subsystem；LoomRealm 的 `examples/PokeMan` 仅作平台结构参考，不在 LoomRealm Submodule 中添加本游戏代码。本文不写协议字段或函数地址。
+本文记录产品改造决策与历史复核结论，现行策略以第 0 节及所链接的 Product-First 文档为准。逆向证据统一归档在 `research/task/` 与 `research/result/`。玩法实现落在本仓库的 game library 与 Subsystem；LoomRealm 的 `examples/PokeMan` 仅作平台结构参考，不在 LoomRealm Submodule 中添加本游戏代码。本文不写协议字段或函数地址。
 
 决策改变时直接改本文，并在文末复核记录里留一行。
 
@@ -159,6 +173,7 @@ Task 061 写出了伤害公式、伤害上限和 MP 成长，处理器伪代码 
 
 | 日期 | 修订 | 结论 |
 |---|---|---|
+| 2026-11-16 | OpenMS-Guided 产品转向 | 冻结 ABI 与历史逆向台账不变；未来以 65 项需求及 13 图可执行验收为中心开展独立产品设计。 |
 | 2026-10-26 | 初稿 | 新建场地库。协议与官方资源留在研究侧。第一刀是一张合成小镇场地。 |
 | 2026-10-26 | 补记 Task 062 | 发送点、虚类和字段对齐只是部分完成。不改变第一刀范围。 |
 | 2026-10-26 | 系统取舍 | 留下移动、技能、地图的 079 行为。升级、任务及同类进度系统自己开发。 |

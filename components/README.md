@@ -2,6 +2,8 @@
 
 第一阶段的画面组件。子系统持有渲染树，Web Projector 按标签创建元素。元素只画当前副本，不决定人物走到哪、场景有没有切换。
 
+> **2026-11-16 产品设计转向：** 当前组件设计受 [OpenMS-Guided Product-First](../docs/product-first/README.md) 和 [适配契约](../docs/product-first/OPENMS-ADAPTATION-CONTRACT.md) 约束。采用 OpenMS 的行为参考不代表直接移植 PixiJS 或绕过 InputGate/RenderDomain。Frozen ABI 和 MapScenePlanV1 当前 schema 保持有效；涉及冲突须另行 ADR/版本审批。
+
 **公共接口规范：** [Adventure Island RenderNode ABI v1](./RENDER-NODE-ABI-V1.md) 已冻结，统一定义 RenderNode 五字段、Custom Element receiver、资源引用和 MVP 组件的 attrs/data/children/events。各组件 DESIGN 说明来源数据与画法，不得覆盖该 ABI。
 
 资料有两处：

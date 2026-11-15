@@ -1,0 +1,233 @@
+# T086.1 WP3 — G10 camera static slices (fresh interprocedural dig)
+
+Round: T086.1. Binary: `.work/task-036/game-image-unpacked.bin`
+sha256 d4a67597a7e1a072679c7b67c91a03a1242eab7aaa635ad8368277dc12a31718.
+All windows below were re-disassembled this round from the raw bytes
+(capstone 5.0.7, VA model VA-0x400000). Scope: A (rect backward dataflow from
+slot15's actual arguments), B (caller/call-semantics extension beyond the
+T086 byte census), C (user-position / scene-boundary consumption chain).
+This file is the source of new claim C-102 / evidence EV-88.
+
+---
+
+## 1. slot15 (0x53471A) body — full decode and corrected arg semantics
+
+```
+slot15(this=scene, arg_x=[ebp+8], arg_y=[ebp+0xC])            ret 8
+  0x53472C  esi = scene + 0x1CC                     ; member container (empty check 0x444866)
+  0x534743  ebx = 0x48AEC3([0xBDD6F4], &out)        ; getter: out = [fieldctx+0xD4], AddRef
+  0x534767  X0 = 0x404B07(out)                      ; vtable slot4 (+0x20) HRESULT-checked
+  0x5347A6  Y0 = 0x404B2E(out)                      ; vtable slot5 (+0x28)
+  X1 = 0x404B07([scene+0x1CC])  ; same two getters on the scene member container
+  Y1 = 0x404B2E([scene+0x1CC])
+  ; cull window test against (arg_x, arg_y):
+  0x5347D6  if (X1 + (3  - X0) > arg_x) goto cull
+  0x5347F9  if (X1 + ([scene+0x1D0] - X0) + 5 < arg_x) goto cull
+  0x534821  if (Y1 + (5  - Y0) > arg_y) goto cull
+  0x534840  if (Y1 + ([scene+0x1D4] - Y0) + 5 < arg_y) goto cull
+  ; visible:
+  0x53486F  X = 0x404B07([scene+0x1CC])
+  0x534874  0x8EE9E7(scene+0x218, X + ([scene+0x1D0] - X0) + 0xA, arg_y, [scene+0x6FC])
+  ; cull:   0x8EE966(scene+0x218)                   ; container clear/reset pair
+  0x53489A  if ([0xBDD490] != 0):                   ; USER object present
+  0x5348AD      0x953B3D([0xBDD490], arg_x, arg_y)  ; FORWARD the point to the user method
+```
+
+Key structural facts:
+* the values compared against the arguments are built from TWO persistent
+  sources: the field-context member `[fieldctx+0xD4]` (slots 4/5) and the
+  scene member `[scene+0x1CC]` (same slots), plus the scene world bounds
+  `[scene+0x1D0]/[scene+0x1D4]` (the VR-fold family, C-026/C-084).
+* `[fieldctx+0xD4]` is NOT a transient caller value — 0x48AEC3 is a plain
+  member getter (`out=[this+0xD4]`, conditional AddRef, ret 4). The T086
+  C-101 wording "the only persistent camera fields are the load-time VR fold
+  bounds ... the per-frame camera value is caller-transient by construction"
+  is therefore OVERSTATED for the slot15 neighborhood: persistent state is
+  READ here through an indirection whose holder is a field-context member.
+
+Getter bodies (0x404B07 / 0x404B2E) — COM-style slot 4 / slot 5 with
+HRESULT guard:
+```
+0x404B07: eax=[esi]; push &out; push esi; call [eax+0x20]   -> slot4
+0x404B2E: eax=[esi]; push &out; push esi; call [eax+0x28]   -> slot5
+```
+
+## 2. alt family entry 0x5348C5 — direct caller FOUND (T086 gap closed)
+
+T086 proved "0 direct E8 callers" for 0x53471A (true) but the family exports
+a SECOND cull entry at 0x5348C5:
+
+```
+0x5348C5: if ([0xBD9020]==0 && [0xBDD490]!=0)
+              0x9535F1([0xBDD490], [esp+8], [esp+8])     ; user method with (x, y)
+          ret 8
+```
+E8 census: exactly ONE direct caller — **0x9EDA8B** (function head 0x9EDA1D,
+ret 0xC: gates [this+0x80], QI-style slot check vs IID 0xBE2890, resolves a
+record via [this+0x80]->p-4 and 0x4376F2(), then forwards its two
+caller-supplied coordinates). So the family's cull path has a statically
+reachable caller after all — through the alternate entry, not through
+`call [reg+0x3C]`.
+
+## 3. user-side consumers of the forwarded point
+
+0x953B3D(user, x, y) (head at 0x953B3D; also called directly from 0x45B2C4):
+```
+  0x953B5D  0x9EC924(fieldctx=[0xBDD6F4], &pair, 1)      ; camera-get WITH offset (see §4)
+  0x953B6B  0x97FE3A([0xBDD4A0], &pair)                  ; lookup gated by the pair
+  0x953B81  if ([eax+0x6C]==0) skip
+  0x953B87  0x953D61(eax, &out2)
+  0x953BA0  0x8EE9E7(user+0x2990, x+0x14, y+0x14, [out2]) ; container add, margin 0x14
+```
+0x9535F1(user, x, y) — persistent USER-side state write:
+```
+  0x9535FF  vt+0x10 on user+4 member -> pair
+  0x953607  [user+0x2ED4] = pair.a ; [user+0x2ED8] = pair.b     ; PERSISTENT USER FIELDS
+  0x953616  copies 10 dwords from [0xBDD494]+0x98 ...
+```
+
+## 4. the [0xBDD838] screen-position singleton (read/write/offset architecture)
+
+The 24 consumers of 0x9EC924 all read through this newly recovered layer:
+
+```
+0x9EC924 fieldctx.camera_get(out_pair, flag):            ret 8
+  if ([0xBDD838]==0) return
+  0x5CABE1([0xBDD838], out_pair)                          ; base read
+  if (flag != 0):
+      out.x += 0x404B07([fieldctx+0xD4])                  ; + offset slot4
+      out.y += 0x404B2E([fieldctx+0xD4])                  ; + offset slot5
+
+0x5CABE1 camera base READ:                                ret 4
+  if ([this+0xC] != 0): out = ([this+0x938], [this+0x93C]); return 1
+  else: fallback pair [0xBE1768]/[0xBE1764]([this], out)  ; dynamic function pointers
+
+0x9EC989 fieldctx.camera_set(x, y, flag):                 ret 0xC
+  if (flag != 0): x -= 0x404B07([fieldctx+0xD4]); y -= 0x404B2E([fieldctx+0xD4])
+  0x5CB0E0([0xBDD838], x, y)
+
+0x5CB0E0 camera base WRITE:                               ret 8
+  x' = clamp(x, 0, 800)      ; 0x320 — min/max via cmp/jl/jge chain
+  y' = clamp(y, 0, 600)      ; 0x258
+  if ([this+0xC] != 0):
+      [this+0x938] = x' ; [this+0x93C] = y'               ; PERSISTENT POSITION STORE
+      0x5CA91A(this, x', y')
+  else:
+      0x5CA91A(this, x', y')
+      fallback pair [0xBE1754]/[0xBE1750]([this], &x')    ; dynamic function pointers
+```
+
+**Proven**: a screen-space position singleton `[0xBDD838]` with persistent
+fields +0x938/+0x93C (gated by +0xC), with a hard [0,800]x[0,600] clamp on
+the wrapper writer 0x5CB0E0 (the C-027 800x600 viewport correlation is now
+instruction-level), read via 0x5CABE1 with a dynamically resolved fallback
+pair, wrapped by the field-context accessors with a per-field offset object
+`[fieldctx+0xD4]` (slot4/slot5) added on read / subtracted on write.
+
+**E8 census (this round)**: 0x5CB0E0 has exactly ONE caller (0x9EC9EB);
+0x5CABE1 has 3 (0x80EF7C, 0x9E6C3A, 0x9EC937); 0x9EC924 has 24 consumers;
+0x9EC989 has exactly TWO producers (0x4BEDE7, 0x5F1C7D).
+
+**t086.1-reviewer correction (merged)**: the fields +0x938/+0x93C are NOT
+written exclusively through 0x5CB0E0 — the singleton has a SECOND direct
+field writer 0x5CB573 (see §8), so the earlier "single-funnel" wording in
+this file was wrong and is superseded by §8.
+
+## 5. the two producers — decoded (both are UI-grid placement templates)
+
+```
+producer A (call at 0x4BEDE7, function head 0x4BEDAA):
+  0x4BEE19(this, &pair, arg)             ; helper: computes a UI GRID cell
+      arg%10 -> row ; (row%2), (row/2)*0xCE(206), /2 *0x51(81), +2, +0xC8(200), +0x50(80)
+  x = [this+4 member]vt+0x2C() + pair.a + 0x22
+  y = [this+4 member]vt+0x30() + pair.b + 0x22
+  0x9EC989([0xBDD6F4], x, y, flag=0)     ; raw screen coords into camera_set
+
+producer B (call at 0x5F1C7D, function head 0x5F1C3D): same template
+  0x5F1C88(this, &pair, arg)             ; helper: arg/16 grid, fixed base (2, 0x1F6=502)
+  ... + 0x22 margins ... 0x9EC989(..., flag=0)
+```
+
+Both helpers compute deterministic GRID positions from a small index (10-col
+/ 16-col grids, fixed 200/80 and 502/20-ish offsets) — inventory-style UI
+stacking, not avatar-follow. HOWEVER (t086.1 reviewer correction, §8): the
+singleton ALSO has an input-driven per-tick direct writer (0x5CB573: speed
+field +0x970, +5 bias, /10 scale, same 800x600 clamp), so the role of
+[0xBDD838] is NOT determinable as "UI-only" from the producers alone — two
+UI-grid placement producers AND one input-driven updater both target it.
+Whether the WORLD camera for the scene cull is the offset object
+`[fieldctx+0xD4]` (read by slot15 directly) remains open — its class, its
+writers, and its update loop are the concrete next static targets.
+
+## 6. what changed vs T086 C-101 (correction ledger)
+
+| T086 C-101 statement | T086.1 status |
+|---|---|
+| 28 disp8 `call [reg+0x3C]` sites, 0 disp32/SIB/E8 for slot15 body | unchanged (re-verified) |
+| "no persistent camera fields beyond the VR fold; per-frame camera value caller-transient" | **OVERSTATED** — persistent members read in-slot: `[fieldctx+0xD4]` (offset provider) and, via the 0x9EC924/0x9EC989 wrappers, the `[0xBDD838]` singleton with +0x938/+0x93C and an 800x600-clamped single-funnel writer |
+| "frame-loop caller unidentified beyond slot12 wrapper 0x5658BF" | unchanged; PLUS new non-vtable entry: alt cull entry 0x5348C5 has exactly one direct caller 0x9EDA8B |
+| "0x953AF4 is a dispatcher, not a camera producer" | unchanged; its callees (0x9563E7 etc.) are among the 24 camera_get consumers (UI tier) |
+| producer identity "runtime-bound" | narrowed: the SET funnel is fully static (2 producers, both UI-grid templates); what remains runtime-bound is the identity/role of `[0xBDD838]` and `[fieldctx+0xD4]` (COM-style runtime classes) |
+
+## 7. G10 residual after T086.1
+
+* STATIC-PROVEN now: consumption chain (slot15 args -> 0x953B3D/0x9535F1),
+  the singleton read/write/offset architecture, the single-funnel clamped
+  writer, the two UI-grid producers, persistent user fields +0x2ED4/+0x2ED8.
+* STATIC-UNDERDETERMINED: concrete classes of [0xBDD838] and
+  [fieldctx+0xD4] (runtime COM-style resolution, same class of blocker as
+  the Gr2D [0xBE2788] chain); the writer of [fieldctx+0xD4]; whether any
+  producer in the movement family feeds 0x9EC989 through non-E8 encodings
+  (function-pointer stores were NOT exhaustively enumerated this round —
+  the two-template result covers only direct E8 callers).
+* Follow/deadzone/world-to-screen PARAMETERS (C-028's original question):
+  still NOT recovered. If `[0xBDD838]` is confirmed UI-tier and
+  `[fieldctx+0xD4]` is the scene scroll/camera offset, the follow algorithm
+  lives in the +0xD4 object's update path — the concrete next dig.
+
+Recommendation recorded in gaps.csv: G10 OPEN-RUNTIME -> PARTIAL-STATIC
+(structural read/write architecture + producer funnel now static; parameter
+semantics and object identity remain runtime-bound). C-028 itself stays
+OPEN-RUNTIME (no formula recovered).
+
+## 8. SECOND field writer 0x5CB573 (t086.1 reviewer counter-evidence, lead-verified)
+
+The independent reviewer found — and the lead re-verified from the raw
+bytes — that +0x938/+0x93C have a SECOND direct writer that bypasses the
+0x5CB0E0 wrapper (which is why the E8-census of 0x5CB0E0 could not see it):
+
+```
+0x9FEE1E  mov ecx, [0xBDD838]
+0x9FEE24  call 0x5CAB38            ; singleton method dispatcher:
+                                    ;   case 0 -> 0x5CB9EC
+                                    ;   case 1 -> 0x5CB573   <==
+                                    ;   case 2 -> 0x5CBE2A
+0x5CB573 (this=[0xBDD838], mode arg):
+  gate: [this+0xC] != 0
+  reads an INPUT-STATE object [this+0xC] via vtable slot 0x24 into a
+    0x14-byte local (0xa70120 zero-init), builds a 5-bit direction mask
+    from key-state readers 0x5CAAA9 (bits 1/2/4/8/0x10) and two state
+    bytes ([this+0x974]-selected), then:
+  0x5CB643  speed = [this+0x970] + 5
+  0x5CB64F  x' = [this+0x938] + speed * axisX / 10      ; imul + idiv 10
+  0x5CB665  y' = [this+0x93C] + speed * axisY / 10
+  0x5CB67E  clamp x' to [0, 800] ; clamp y' to [0, 600] ; (same pair as 0x5CB0E0)
+  0x5CB6A6  change detection vs current values
+  0x5CB713  mov [esi+0x93C], ecx        ; DIRECT field write
+  0x5CB71F  mov [esi+0x938], edx        ; DIRECT field write
+  0x5CB725  0x5CC30A(this+0x9BC)        ; queue/notify (0x9BC sub-object)
+  0x5CB742  packs command dword 0x200 (word-packed x/y into +8)
+  0x5CB74B  0x5CA91A(this, ...)         ; same post-move notify as 0x5CB0E0
+```
+
+This is an INPUT-DRIVEN, PER-TICK position updater with an explicit speed
+field ([this+0x970]), +5 bias, /10 scale factor and the same 800x600 clamp —
+i.e. a concrete static candidate for the C-028 update-mechanism family
+(whether it drives the world camera or a UI scroll surface is exactly the
+class-identity question that remains open; the earlier "UI placement anchor"
+leaning for [0xBDD838] is hereby WEAKENED to "role undetermined: two UI-grid
+placement producers AND one input-driven updater both target it").
+
+Supersedes: §4 "written ONLY through 0x5CB0E0" (corrected above) and the
+§6 table row "single-funnel writer" (read: wrapper writer; plus the §8
+direct writer).

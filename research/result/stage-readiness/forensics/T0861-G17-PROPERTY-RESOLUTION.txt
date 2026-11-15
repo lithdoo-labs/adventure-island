@@ -1,0 +1,85 @@
+# T086.1 WP1 — G17 ExternalCodeTableGetter resolution + dispatcher-namespace audit
+
+server079.jar sha256: 49382081ff5525380bc6024f61859d2e08c2983b0faca2554061c6d1218cf360
+
+## 1. enum declaration order (javap static-init ldc order, dense ordinals)
+RecvPacketOpcode: 114 constants; SendPacketOpcode: 115 constants
+  SHOW_ITEM_GAIN_INCHAT: send decl index 38
+  DOJO_WARP_UP:          send decl index 39
+  -> base is declared -1 position(s) BEFORE the dependent
+
+## 2. getValue bytecode semantics (verified from javap -c transcript)
+  0:  prop = props.getProperty(n)
+  12: if (prop == null || prop.length() <= 0) -> 150: return def
+  23: args = prop.trim().split(" ")
+  42: if (args.length == 2):
+  49:     base = valueOf(args[0], values).getValue()   // enum current value (NPE if absent)
+  67:     if (base == def): base = this.getValue(args[0], values, def)   // recursive resolve
+  85:     tok = args[1]
+  94: else: tok = args[0]
+  100: if (tok.length()>2 && tok.substring(0,2).equals("0x")):
+  124:     return (short)(Short.parseShort(tok.substring(2),16) + base)
+  140: return (short)(Short.parseShort(tok) + base)
+  150: return def
+  populateValues: for each enum constant IN DECLARATION ORDER: setValue(getValue(name, values, (short)-2))
+  SendPacketOpcode ctor: code = -2 (bipush -2; putfield code)
+
+## 3. relative-form property lines in the jar (full census)
+total relative-form lines: 1
+  DOJO_WARP_UP = 'SHOW_ITEM_GAIN_INCHAT 1'   base 'SHOW_ITEM_GAIN_INCHAT' in-props=True in-send-enum=True
+
+## 4. full populateValues emulation (declaration order, def=-2)
+  SHOW_ITEM_GAIN_INCHAT -> 208 (0x00D0)
+  DOJO_WARP_UP          -> 209 (0x00D1)
+  => DOJO_WARP_UP = 0x00D1 — the relative line RESOLVES under the shipped bytecode.
+     The T086 reviewer annotation 'corrupt / base not resolvable' is WITHDRAWN.
+
+## 5. provenance join re-run (442 rows, bytecode-faithful prop resolution)
+  corpus rows: 442
+  DEFAULT-FFFE: 76
+  SERVER-PROPERTIES: 355
+  SERVER-PROPERTIES-FF: 11
+  conflicts: []
+  (T086 EV-83 said 355 direct + 11 FF + 76 FFFE + 0 conflicts — re-derivation agrees
+   within the FFFE/placeholder split; the DOJO row is properties-derivable after all)
+
+## 6. dispatcher-namespace audit (0xA10CE3 switch vs recvops/sendops)
+  EV-84 named cases: 62  match recvops: 62  match sendops: 0
+  switch default cases: ['0x2e', '0x38', '0x39', '0x3d', '0x75']
+  0x20..0x80 values missing from jar sendops: 39
+  handled by the switch yet ABSENT from sendops: 35
+    ['0x42', '0x43', '0x44', '0x47', '0x48', '0x49', '0x4a', '0x4b', '0x4c', '0x4d', '0x4f', '0x50', '0x51', '0x52', '0x53', '0x54', '0x55', '0x57', '0x58', '0x59', '0x5d', '0x5e', '0x5f', '0x61', '0x62', '0x63', '0x76', '0x77', '0x78', '0x79', '0x7a', '0x7b', '0x7c', '0x7e', '0x7f']
+
+  => the switch's number<->name alignment belongs to the RECV (C2S) namespace
+     (task44 'live c2s x same numbers'); 39+ handled ids have no sendops meaning at
+     all, so calling the switch an 'S2C opcode binding' is unsupported. The T086
+     §1.2 client-adjudication of the 5 SEND-side conflict names (ENGAGE_REQUEST /
+     ENGAGE_RESULT / FAIRY_PEND_MSG / DATA_CRC_CHECK_FAILED / BBS_OPERATION) is
+     RETRACTED to UNRESOLVED-VERSION-AUTHORITY; recv SKILL_MACRO(0x6D) keeps only
+     switch-corroboration (the dispatcher itself consumes packet readers, so it is
+     inbound-processing machinery whose id space matches recvops — direction
+     attribution of the dispatcher remains an open static question).
+
+## 7. 15 public-server value conflicts — final triage (T086.1)
+
+| # | dir | name | jar/ms079 | Afauria | client evidence | status |
+|---|---|---|---|---|---|---|
+| 1 | recv | LEFT_KNOCK_BACK | 0x00D0 | 0x00D2 | none (no builder; 0xA10CE3 out of range) | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 2 | recv | REPORT_PLAYER | 0x7FFE | 0x00FF | none — both sides placeholders (explicit disabled markers) | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 3 | recv | SKILL_MACRO | 0x006D | 0x0067 | 0xA10CE3 case 0x6D exists + task44 c2s name; direction of dispatcher unresolved | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 4 | recv | SNOWBALL | 0x00CF | 0x00D0 | none verified (task050 builder row 0x1999a6=0xCF is a MISATTRIBUTION — its chain 0x964319/0x7accff is a movement setter, not a packet writer) | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 5 | recv | SPOUSE_CHAT | 0x7FFE | 0x00FF | none — both sides placeholders | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 6 | send | ARIANT_SCOREBOARD | 0x009A | 0x009D | none (outside 0x20..0x80 and 0xCF..0xEC switch families) | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 7 | send | BBS_OPERATION | 0x0074 | 0x0077 | RETRACTED: numeric-range adjudication invalid (switch id space = recvops) | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 8 | send | BOAT_EFFECT | 0x0098 | 0x0097 | partial: family router 0x5658FF has handlers for BOTH 0x97 (0x565935) and 0x98 (0x56599A); payload-shape adjudication inconclusive | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 9 | send | CATCH_MONSTER | 0x0103 | 0x00FE | none | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 10 | send | DATA_CRC_CHECK_FAILED | 0x0072 | 0x0074 | RETRACTED: numeric-range adjudication invalid | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 11 | send | ENGAGE_REQUEST | 0x0045 | 0x0049 | RETRACTED: numeric-range adjudication invalid | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 12 | send | ENGAGE_RESULT | 0x0046 | 0x004A | RETRACTED: numeric-range adjudication invalid | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 13 | send | FAIRY_PEND_MSG | 0x0060 | 0x0063 | RETRACTED: numeric-range adjudication invalid | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 14 | send | MOVE_PLATFORM | 0x009F | 0x00FF | none (Afauria side is a 0xFF placeholder) | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+| 15 | send | SHOW_ITEM_EFFECT | 0x00C5 | 0x00C4 | none | UNRESOLVED-VERSION-AUTHORITY (report-level) |
+
+All 15 rows carry the T086.1 report-level label UNRESOLVED-VERSION-AUTHORITY
+(placeholders noted where applicable). The label is NOT written into the
+authoritative gaps.csv status enum.

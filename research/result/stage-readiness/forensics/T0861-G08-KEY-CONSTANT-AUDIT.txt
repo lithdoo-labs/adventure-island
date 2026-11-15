@@ -1,0 +1,292 @@
+# T086.1 WP0 — G08 insertion-key radix audit (independent re-derivation)
+#
+# T086 defect: the machine-code base -0x40000000 (= -2^30 = -1073741824) was
+# mislabeled '-2^31' in prose (C-099/G08/report). 0x40000000 = 2^30; 2^31 =
+# 0x80000000. All effective values and byte encodings were already correct —
+# this audit re-derives them from the raw bytes and pins the radix.
+
+## 1. primary avatar site 0x9363D9..0x93641C (independent decode)
+0x09363d9  8b81280f0000           mov eax, dword ptr [ecx + 0xf28]
+0x09363df  8d50f4                 lea edx, [eax - 0xc]
+0x09363e2  f7d8                   neg eax
+0x09363e4  1bc0                   sbb eax, eax
+0x09363e6  23c2                   and eax, edx
+0x09363e8  8b9030010000           mov edx, dword ptr [eax + 0x130]
+0x09363ee  69d2b80b0000           imul edx, edx, 0xbb8
+0x09363f4  2b9034010000           sub edx, dword ptr [eax + 0x134]
+0x09363fa  8b4018                 mov eax, dword ptr [eax + 0x18]
+0x09363fd  f7d8                   neg eax
+0x09363ff  1bc0                   sbb eax, eax
+0x0936401  83e005                 and eax, 5
+0x0936404  40                     inc eax
+0x0936405  8d1492                 lea edx, [edx + edx*4]
+0x0936408  40                     inc eax
+0x0936409  8d8450267500c0         lea eax, [eax + edx*2 - 0x3fff8ada]
+0x0936410  50                     push eax
+0x0936411  81c188000000           add ecx, 0x88
+0x0936417  e82bbdb1ff             call 0x452147
+0x093641c  c3                     ret 
+
+template check 0x9363D9..0x936417: PASS (19/19 instructions exact)
+
+lea 0x936409 disp32 raw bytes = 267500c0 -> 0xC0007526 (signed -1073711834)
+  -0x3FFF8ADA = -(2^30 - 0x7526) = -(1073741824 - 29990) = -1073711834
+  check: 2^30 - 0x3FFF8ADA = 29990 = 0x7526 (29990 = 0x7526)
+
+## 2. symbolic execution of the primary-site key computation
+
+```
+field   = [user+0xF28] - 0xC        ; null-safe via neg/sbb/and
+L       = dword [field+0x130]        ; layer
+G       = dword [field+0x134]        ; zM / group
+flag    = dword [field+0x18]
+edx     = L*3000 - G
+eax     = ((flag!=0) ? 5 : 0) + 1 + 1   ; -> {2, 7}
+key     = eax + 2*5*(L*3000 - G) - 0x3FFF8ADA
+       = 10*(3000*L - G) - 0x40000000 + 29990 + 2 + 5*(flag!=0)
+       = 10*(3000*L - G) - 2^30 + {29992, 29997}
+```
+
+## 3. numeric table (formula path vs symbolic path; both must agree as i32)
+
+| layer | group | flag | key (i32) | hex | symbolic==formula | note |
+|---|---|---|---|---|---|---|
+| 0 | 0 | 0 | -1073711832 | 0xc0007528 | OK | task anchor case 1 |
+| 0 | 0 | 1 | -1073711827 | 0xc000752d | OK | task anchor case 2 |
+| 0 | -5 | 0 | -1073711782 | 0xc000755a | OK | negative group |
+| 1 | 0 | 0 | -1073681832 | 0xc000ea58 | OK | layer=1 |
+| 7 | 500 | 1 | -1073506827 | 0xc00395f5 | OK | layer=7 group=500 flag=1 |
+| 149 | 0 | 0 | -1069241832 | 0xc044aa18 | OK | zmax layer 149 |
+| 35792 | 0 | 0 | 48168 | 0x0000bc28 | OK | near-overflow layer (10*3000*35792 = 2^30+... wraps) |
+| 100000 | 0 | 1 | 1926288173 | 0x72d0d32d | OK | signed-32 boundary wrap |
+
+anchor assertions from the T086.1 task:
+  layer=0, group=0, flag=0 -> -1073711832  (PASS)
+  layer=0, group=0, flag=1 -> -1073711827  (PASS)
+
+effective constants at L=0,G=0: flag=0 -> -2^30+29992 ; flag=1 -> -2^30+29997
+
+## 4. sister sites (fresh decode incl. the two windows T086 left empty)
+### window 0x93e7f2..0x93e831 — avatar site 2 (imul 0x93E80D)
+0x093e7f2  8b86280f0000           mov eax, dword ptr [esi + 0xf28]
+0x093e7f8  8d48f4                 lea ecx, [eax - 0xc]
+0x093e7fb  f7d8                   neg eax
+0x093e7fd  1bc0                   sbb eax, eax
+0x093e7ff  23c1                   and eax, ecx
+0x093e801  8b8830010000           mov ecx, dword ptr [eax + 0x130]
+0x093e807  8b9034010000           mov edx, dword ptr [eax + 0x134]
+0x093e80d  69c9b80b0000           imul ecx, ecx, 0xbb8
+0x093e813  8b4018                 mov eax, dword ptr [eax + 0x18]
+0x093e816  2bca                   sub ecx, edx
+0x093e818  f7d8                   neg eax
+0x093e81a  1bc0                   sbb eax, eax
+0x093e81c  83e005                 and eax, 5
+0x093e81f  40                     inc eax
+0x093e820  40                     inc eax
+0x093e821  399e280f0000           cmp dword ptr [esi + 0xf28], ebx
+0x093e827  8d0c89                 lea ecx, [ecx + ecx*4]
+0x093e82a  8dbc48267500c0         lea edi, [eax + ecx*2 - 0x3fff8ada]
+
+### window 0x93e909..0x93e929 — avatar site 3 — T086 window was EMPTY; includes dec edi key-1 at 0x93E926
+0x093e909  8dbc48267500c0         lea edi, [eax + ecx*2 - 0x3fff8ada]
+0x093e910  ff157016be00           call dword ptr [0xbe1670]
+0x093e916  d1e0                   shl eax, 1
+0x093e918  83c003                 add eax, 3
+0x093e91b  83e0fc                 and eax, 0xfffffffc
+0x093e91e  e84d191300             call 0xa70270
+0x093e923  8965ec                 mov dword ptr [ebp - 0x14], esp
+0x093e926  4f                     dec edi <==
+0x093e927  57                     push edi
+0x093e928  51                     push ecx
+
+### window 0x93ef0d..0x93ef2d — avatar site 4 — T086 window was EMPTY; includes dec edi key-1 at 0x93EF2A
+0x093ef0d  8dbc48267500c0         lea edi, [eax + ecx*2 - 0x3fff8ada]
+0x093ef14  ff157016be00           call dword ptr [0xbe1670]
+0x093ef1a  d1e0                   shl eax, 1
+0x093ef1c  83c003                 add eax, 3
+0x093ef1f  83e0fc                 and eax, 0xfffffffc
+0x093ef22  e849131300             call 0xa70270
+0x093ef27  8965ec                 mov dword ptr [ebp - 0x14], esp
+0x093ef2a  4f                     dec edi <==
+0x093ef2b  57                     push edi
+0x093ef2c  51                     push ecx
+
+### window 0x70dd97..0x70ddf7 — reviewer +3 sibling band 0x70DDD7
+0x070dd97  0000                   add byte ptr [eax], al
+0x070dd99  008b88340100           add byte ptr [ebx + 0x13488], cl
+0x070dd9f  008b98300100           add byte ptr [ebx + 0x13098], cl
+0x070dda5  00568b                 add byte ptr [esi - 0x75], dl
+0x070dda8  7018                   jo 0x70ddc2
+0x070ddaa  894dfc                 mov dword ptr [ebp - 4], ecx
+0x070ddad  750a                   jne 0x70ddb9
+0x070ddaf  6803400080             push 0x80004003
+0x070ddb4  e848113600             call 0xa6ef01
+0x070ddb9  8bbf24010000           mov edi, dword ptr [edi + 0x124]
+0x070ddbf  69dbb80b0000           imul ebx, ebx, 0xbb8
+0x070ddc5  2b5dfc                 sub ebx, dword ptr [ebp - 4]
+0x070ddc8  8b07                   mov eax, dword ptr [edi]
+0x070ddca  f7de                   neg esi
+0x070ddcc  1bf6                   sbb esi, esi
+0x070ddce  83e605                 and esi, 5
+0x070ddd1  8d0c9b                 lea ecx, [ebx + ebx*4]
+0x070ddd4  83c603                 add esi, 3
+0x070ddd7  8d8c4e267500c0         lea ecx, [esi + ecx*2 - 0x3fff8ada]
+0x070ddde  51                     push ecx
+0x070dddf  57                     push edi
+0x070dde0  ff90b4000000           call dword ptr [eax + 0xb4]
+0x070dde6  85c0                   test eax, eax
+0x070dde8  5e                     pop esi
+0x070dde9  7d0c                   jge 0x70ddf7
+0x070ddeb  681005ba00             push 0xba0510
+0x070ddf0  57                     push edi
+0x070ddf1  50                     push eax
+0x070ddf2  e818113600             call 0xa6ef0f
+
+### window 0x7a99b5..0x7a9a20 — avatar-variant 29992 base 0x7A99D5 / 29991 0x7A9A0E
+0x07a99b5  0000                   add byte ptr [eax], al
+0x07a99b7  833f00                 cmp dword ptr [edi], 0
+0x07a99ba  750a                   jne 0x7a99c6
+0x07a99bc  6803400080             push 0x80004003
+0x07a99c1  e83b552c00             call 0xa6ef01
+0x07a99c6  8b3f                   mov edi, dword ptr [edi]
+0x07a99c8  69f6b80b0000           imul esi, esi, 0xbb8
+0x07a99ce  8b07                   mov eax, dword ptr [edi]
+0x07a99d0  2bf3                   sub esi, ebx
+0x07a99d2  8d0cb6                 lea ecx, [esi + esi*4]
+0x07a99d5  8d8c09287500c0         lea ecx, [ecx + ecx - 0x3fff8ad8]
+0x07a99dc  51                     push ecx
+0x07a99dd  57                     push edi
+0x07a99de  ff90b4000000           call dword ptr [eax + 0xb4]
+0x07a99e4  85c0                   test eax, eax
+0x07a99e6  7d69                   jge 0x7a9a51
+0x07a99e8  681005ba00             push 0xba0510
+0x07a99ed  57                     push edi
+0x07a99ee  eb5b                   jmp 0x7a9a4b
+0x07a99f0  83bfc400000000         cmp dword ptr [edi + 0xc4], 0
+0x07a99f7  751e                   jne 0x7a9a17
+0x07a99f9  8b8630010000           mov eax, dword ptr [esi + 0x130]
+0x07a99ff  69c0b80b0000           imul eax, eax, 0xbb8
+0x07a9a05  2b8634010000           sub eax, dword ptr [esi + 0x134]
+0x07a9a0b  8d0480                 lea eax, [eax + eax*4]
+0x07a9a0e  8d9c00277500c0         lea ebx, [eax + eax - 0x3fff8ad9]
+0x07a9a15  eb05                   jmp 0x7a9a1c
+0x07a9a17  bb141f04c0             mov ebx, 0xc0041f14
+
+### window 0x559ee7..0x559f70 — obj-like family 0x559F07 (-0x40000000 exact) + 59970/59980
+0x0559ee7  ed                     in eax, dx
+0x0559ee8  894624                 mov dword ptr [esi + 0x24], eax
+0x0559eeb  47                     inc edi
+0x0559eec  396e3c                 cmp dword ptr [esi + 0x3c], ebp
+0x0559eef  750a                   jne 0x559efb
+0x0559ef1  6803400080             push 0x80004003
+0x0559ef6  e806505100             call 0xa6ef01
+0x0559efb  69ff30750000           imul edi, edi, 0x7530
+0x0559f01  53                     push ebx
+0x0559f02  8b5e3c                 mov ebx, dword ptr [esi + 0x3c]
+0x0559f05  8b03                   mov eax, dword ptr [ebx]
+0x0559f07  8d8f000000c0           lea ecx, [edi - 0x40000000] <==
+0x0559f0d  51                     push ecx
+0x0559f0e  53                     push ebx
+0x0559f0f  ff90b4000000           call dword ptr [eax + 0xb4]
+0x0559f15  3bc5                   cmp eax, ebp
+0x0559f17  7d0c                   jge 0x559f25
+0x0559f19  681005ba00             push 0xba0510
+0x0559f1e  53                     push ebx
+0x0559f1f  50                     push eax
+0x0559f20  e8ea4f5100             call 0xa6ef0f
+0x0559f25  396e40                 cmp dword ptr [esi + 0x40], ebp
+0x0559f28  750a                   jne 0x559f34
+0x0559f2a  6803400080             push 0x80004003
+0x0559f2f  e8cd4f5100             call 0xa6ef01
+0x0559f34  8b5e40                 mov ebx, dword ptr [esi + 0x40]
+0x0559f37  8b03                   mov eax, dword ptr [ebx]
+0x0559f39  8d8f42ea00c0           lea ecx, [edi - 0x3fff15be]
+0x0559f3f  51                     push ecx
+0x0559f40  53                     push ebx
+0x0559f41  ff90b4000000           call dword ptr [eax + 0xb4]
+0x0559f47  3bc5                   cmp eax, ebp
+0x0559f49  7d0c                   jge 0x559f57
+0x0559f4b  681005ba00             push 0xba0510
+0x0559f50  53                     push ebx
+0x0559f51  50                     push eax
+0x0559f52  e8b84f5100             call 0xa6ef0f
+0x0559f57  396e44                 cmp dword ptr [esi + 0x44], ebp
+0x0559f5a  750a                   jne 0x559f66
+0x0559f5c  6803400080             push 0x80004003
+0x0559f61  e89b4f5100             call 0xa6ef01
+0x0559f66  8b5e44                 mov ebx, dword ptr [esi + 0x44]
+0x0559f69  8b03                   mov eax, dword ptr [ebx]
+
+### window 0x50ed51..0x50ed90 — drop base 0x50ED77
+0x050ed51  ac                     lodsb al, byte ptr [esi]
+0x050ed52  f1                     int1 
+
+### window 0x5181c1..0x518200 — NPC base 0x5181E6
+0x05181c1  3001                   xor byte ptr [ecx], al
+0x05181c3  0000                   add byte ptr [eax], al
+0x05181c5  8db99c000000           lea edi, [ecx + 0x9c]
+0x05181cb  750a                   jne 0x5181d7
+0x05181cd  6803400080             push 0x80004003
+0x05181d2  e82a6d5500             call 0xa6ef01
+0x05181d7  8b3f                   mov edi, dword ptr [edi]
+0x05181d9  69f6b80b0000           imul esi, esi, 0xbb8
+0x05181df  8b07                   mov eax, dword ptr [edi]
+0x05181e1  2bf3                   sub esi, ebx
+0x05181e3  8d0cb6                 lea ecx, [esi + esi*4]
+0x05181e6  8d8c092b7500c0         lea ecx, [ecx + ecx - 0x3fff8ad5]
+0x05181ed  51                     push ecx
+0x05181ee  57                     push edi
+0x05181ef  ff90b4000000           call dword ptr [eax + 0xb4]
+0x05181f5  85c0                   test eax, eax
+0x05181f7  7d0c                   jge 0x518205
+0x05181f9  681005ba00             push 0xba0510
+0x05181fe  57                     push edi
+0x05181ff  50                     push eax
+
+## 5. key-1 path separation
+0x93E7F2-family computes the SAME key then applies `dec edi` (0x93E87C / 0x93E926 /
+0x93EF2A) BEFORE feeding the 0x427EB3-family PUT wrapper 0x439AAD.  The primary
+site 0x9363D9 pushes the unmodified key into 0x452147 (call [eax+0xB4] keyed insert).
+  flag=0: key = -2^30+29992 ; key-1 = -2^30+29991
+  flag=1: key = -2^30+29997 ; key-1 = -2^30+29996
+
+## 6. lea disp32 family census (window [-0x40000100, -0x3FFF0000]) re-run
+total lea disp32 hits: 34
+
+| base offset B (key = -2^30 + B + ...) | lea sites |
+|---|---|
+| 0 | 0x559f07 |
+| 2000 | 0x6688d2 |
+| 19990 | 0x666f68 |
+| 29983 | 0x693e7e |
+| 29985 | 0x6938a0 0x693d61 |
+| 29986 | 0x69392e 0x693cd3 |
+| 29987 | 0x6939bc 0x693c0f |
+| 29988 | 0x693a4a 0x693b4b |
+| 29989 | 0x693812 0x693abd |
+| 29990 | 0x6c45a4 0x70ddd7 0x741942 0x936409 0x93e82a 0x93e909 0x93ef0d |
+| 29991 | 0x69374e 0x6c3abd 0x7a9a0e |
+| 29992 | 0x7a99d5 |
+| 29995 | 0x5181e6 0x6c3a2c 0x9889a8 0x989aed |
+| 29996 | 0x48ce02 0x9882e4 |
+| 29999 | 0x50ed77 |
+| 59970 | 0x559f39 |
+| 59980 | 0x559f6b |
+
+All constants in this family are of the form -(2^30 - B): the base is 2^30 =
+0x40000000 = 1073741824. Cross-check against the tile/obj decimal baselines:
+  tile (C-001): -1073721834 == -(2^30 - 19990)? True
+  obj  (C-002): -1073739824 == -(2^30 - 2000)?  True
+-> tile 19990 / obj 2000 / avatar-family {29983..29999} / obj-like 0 share ONE key
+   space on the -2^30 base. The '-2^31' prose in T086 C-099/G08/G09/report was a
+   radix labeling error only; no numeric value or byte encoding changes.
+
+## 7. negative check: family constants as plain immediates
+  0x7536 (29990) as imm32 after opcode bytes: 0 candidate site(s)
+  0x7537 (29991) as imm32 after opcode bytes: 0 candidate site(s)
+  0x7538 (29992) as imm32 after opcode bytes: 0 candidate site(s)
+  0x753B (29995) as imm32 after opcode bytes: 0 candidate site(s)
+  0x753F (29999) as imm32 after opcode bytes: 0 candidate site(s)
+
+(T086 already showed ZERO genuine immediate sites; constants live in lea disp32.)
+

@@ -97,8 +97,22 @@
 5. **P3 按完整独立行为用例逐个收口**，优先平地一步、端点换段、地/水两种初速、落地/下跳、抓绳/座位，然后输入状态、计时。不可修改 Physics 原始数值或偷偷取常数替代 decrypt。
 6. **P4 从13图真实 PortalRecord 构建全内图边表**；同/跨图落点链已静态核证（C-054/C-055），下一步验 Foothold 重绑/状态复位/Camera（P4-05..07）；发生错误保持旧世界。
 
-> **t086 轮结论（纯静态缺口闭合轮）**：以 T085 后基线 \8630b981\ 为起点，全轮纯静态。**G08/G09/G24/G22/G01/G07/G33 关闭（CLOSED-STATIC）**——(1) slot25 返回对象类完整定身：ctor 0x504067D7、主 vtable 0x5042E3F0（76 槽）、QI intmap 0x2E520 首项 IID 6DC8C7CE（C-096）；(2) 该节点主表 slot45=0x50409ECD 为键控有序树插入，**比较器 0x50403A42 静态寻获并读取**（slot4 链爬升 + slot0 键比较，等键 tie-break=次键确定性比较；C-097）——C-012 时代『22 候选 vtable slot45=插入』的笼统断言维持已撤销，本轮结论来自当年候选集之外的真实主表；(3) G22 消解：0x2E2C4/0x2E2CC 系 purecall 桩表（C-098）；(4) **avatar 世界键公式机器码恢复**：*(layer*3000−zM) − 2^31 + 29990 + (flag≠0?7:2)\，类型基族 −2^31+{29983..29999} 全枚举（C-099）；(5) G09 数据面闭合：Base.wz zmap 149 层与 C-043 EXE 模型精确一致、zmap_cn 恒等、smap 106 条部件绑定（C-100）；跨对象遮挡与 tile/obj 同容器同比较器。**G17 转 PARTIAL-STATIC**——442 条数值全溯源至 jar properties（0 冲突）、公开 ms079 全同、Afauria 15 处冲突、**新增客户端指令级绑定 92 条**（EXE 0xA10CE3 开关，C-095）。**G10 维持 OPEN-RUNTIME（范围推进）**——slot15 调用点编码完备普查（28 disp8/0 其他/0 直接）无 scene 族接收者；slot12 唯一直接调用者 0x5658CA 新发现；0x953AF4 为分发器非相机生产者；相机矩形=调用方临时参数（结构性结论，C-101）。矩阵 P1-09/P1-10/P1-12 → RE-READY（P1-11 保持 PRODUCT-READY 语义增强）。Claim/Evidence/Gap = **101 / 87 / 41**（CLOSED-STATIC 25）。独立盲审 Reviewer 全轮平行取证，记录见 \orensics/T086-REVIEWER-INDEPENDENT.md\。阶段总判定维持 **NOT STAGE-READY**（G10 Camera 生产者、G17 原版权威残项、G24/G38 运行时佐证项）。
+> **t086 轮结论（纯静态缺口闭合轮）**：以 T085 后基线 \8630b981\ 为起点，全轮纯静态。**G08/G09/G24/G22/G01/G07/G33 关闭（CLOSED-STATIC）**——(1) slot25 返回对象类完整定身：ctor 0x504067D7、主 vtable 0x5042E3F0（76 槽）、QI intmap 0x2E520 首项 IID 6DC8C7CE（C-096）；(2) 该节点主表 slot45=0x50409ECD 为键控有序树插入，**比较器 0x50403A42 静态寻获并读取**（slot4 链爬升 + slot0 键比较，等键 tie-break=次键确定性比较；C-097）——C-012 时代『22 候选 vtable slot45=插入』的笼统断言维持已撤销，本轮结论来自当年候选集之外的真实主表；(3) G22 消解：0x2E2C4/0x2E2CC 系 purecall 桩表（C-098）；(4) **avatar 世界键公式机器码恢复**：*(layer*3000−zM) − 2^30 + 29990 + (flag≠0?7:2)\，类型基族 −2^30+{29983..29999} 全枚举（C-099；t086.1 勘误：原文误写 2^31，0x40000000=2^30，数值/字节编码不变）；(5) G09 数据面闭合：Base.wz zmap 149 层与 C-043 EXE 模型精确一致、zmap_cn 恒等、smap 106 条部件绑定（C-100）；跨对象遮挡与 tile/obj 同容器同比较器。**G17 转 PARTIAL-STATIC**——442 条数值全溯源至 jar properties（0 冲突）、公开 ms079 全同、Afauria 15 处冲突、**新增客户端指令级绑定 92 条**（EXE 0xA10CE3 开关，C-095）。**G10 维持 OPEN-RUNTIME（范围推进）**——slot15 调用点编码完备普查（28 disp8/0 其他/0 直接）无 scene 族接收者；slot12 唯一直接调用者 0x5658CA 新发现；0x953AF4 为分发器非相机生产者；相机矩形=调用方临时参数（结构性结论，C-101）。矩阵 P1-09/P1-10/P1-12 → RE-READY（P1-11 保持 PRODUCT-READY 语义增强）。Claim/Evidence/Gap = **101 / 87 / 41**（CLOSED-STATIC 25）。独立盲审 Reviewer 全轮平行取证，记录见 \orensics/T086-REVIEWER-INDEPENDENT.md\。阶段总判定维持 **NOT STAGE-READY**（G10 Camera 生产者、G17 原版权威残项、G24/G38 运行时佐证项）。
 
 ## 3. 交付验收规则
 
 阶段为 Ready 当且仅当其所有必需子项处于 `RE-READY` 或 `PRODUCT-READY` 且可复现的原版基线与产品等价验收分开。设计待批、静态待查、运行时待采和外部资料阻塞都不能靠“以后再查”宣布完成。当前只有上表明列的**独立子模块**满足交付条件。设计冲突只在本证据裁决之后按 `DESIGN-DECISION-BACKLOG.md` 收口。
+
+---
+
+## T086.1 轮补充（证据一致性修复与 Camera 纯静态深挖）
+
+以 T086 后基线 `a86e76e1` 为起点。**勘误与新增**：
+
+1. **G08 基数勘误**：T086 将排序键基数在文字层面误写为 `−2^31`；机器码常量为 `−0x40000000 = −2^30`（0x40000000=2^30）。锚点测试 L0/G0/flag0=**-1073711832**、flag1=**-1073711827**（`forensics/T0861-G08-KEY-CONSTANT-AUDIT.txt`，C-099/G08/G09/EV-85 同步修正；全部数值与字节编码不变）。
+2. **G17 相对属性裁定**：本仓 `server079.jar` 的 `ExternalCodeTableGetter.getValue` 字节码**支持**两字段相对赋值（基=枚举当前值，=def(-2) 时递归解析 properties）；`SHOW_ITEM_GAIN_INCHAT`（send 声明序 38，0xD0）先于 `DOJO_WARP_UP`（39）→ **DOJO_WARP_UP=0x00D1 可静态推导**，T086 reviewer 的"损坏行"判断撤回（C-095/EV-83 注记修正）。同时发现 0xA10CE3 开关的任务44命名空间属 recvops 而非 sendops（62 个具名 case：61 与 recvops 条目精确一致、1（0x6A quest_KJ）两空间皆无、0 与 sendops 一致），35 个已处理 id 在 sendops 中不存在 → T086 对 5 个 send 侧冲突名的"客户端裁定"撤回，15 项公开服分歧全部回到 UNRESOLVED-VERSION-AUTHORITY（报告级标签）。
+3. **EV-82～EV-87 哈希跨平台规范化**：T086 生成器在 Windows 默认文本模式下写出 CRLF，台账绑定了 CRLF 字节；本仓 blob 为 LF。T086.1 采用**规范字节哈希**（文本 LF 规范化 / 二进制原始字节，等同 git blob 内容），六行重基线（旧→新全量记录见 `forensics/T0861-EVIDENCE-BYTE-HASH-AUDIT.csv`），Validator 17a 改用同一规范（`research/scripts/evidence_canonical.py`）；全量审计 87 行，其余 81 行无需变化（58 二进制 + 19 LF 文本 + 3 离盘 + 1 复合）。
+4. **G10 结构链推进（C-102/EV-88，G10 → PARTIAL-STATIC）**：slot15 参数消费链（0x53471A→0x953B3D/0x9535F1，含用户持久字段 +0x2ED4/+0x2ED8）；`[0xBDD838]` 屏幕位置单例（+0x938/+0x93C，门 +0xC）读 0x5CABE1/写 0x5CB0E0（**硬夹取 [0,800]×[0,600]**，C-027 的 800×600 相关性升至指令级）；fieldctx 包装 0x9EC924/0x9EC989（读加/写减 `[fieldctx+0xD4]` slot4/5 偏移）；0x9EC989 写路径**恰两处直接生产者**（0x4BEDE7/0x5F1C7D，均为 UI 网格模板）；t086.1 reviewer 反证（已复核）：字段尚有**第二个直接写者 0x5CB573**（输入轴驱动逐拍更新：speed=[this+0x970]+5、pos+=speed*axis/10、同 800×600 夹取、直接存 0x5CB713/0x5CB71F，经 0x5CAB38 case1 自 0x9FEE24 进入）——`[0xBDD838]` 的角色据此**不确定**（UI 网格摆放与输入驱动更新并存，为 C-028 更新机制的静态候选）；世界相机候选仍为 `[fieldctx+0xD4]`（slot15 直接读取），其类与写者为下一步静态目标。C-101"持久字段仅 VR 折叠"措辞已修正。
+
+Claim/Evidence/Gap = **102 / 88 / 41**（G10 OPEN-RUNTIME→PARTIAL-STATIC）。项目维持 **NOT STAGE-READY**。
+

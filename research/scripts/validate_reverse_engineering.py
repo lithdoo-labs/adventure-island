@@ -774,6 +774,14 @@ def check_t081_integrity(sot):
 #       64-hex token AND whose source_file resolves to an existing regular
 #       file in the repo must carry the actual sha256 of that file. Catches
 #       the F1 failure mode (data-directory source carrying the EXE hash).
+#       t086.1: the hash is computed over the file's CANONICAL bytes
+#       (research/scripts/evidence_canonical.py): raw bytes for binary
+#       files, CRLF->LF-normalized bytes for text files. This equals the
+#       git-blob content for repo-committed text under autocrlf and is the
+#       same on Windows and Linux; it is a documented canonicalization, not
+#       a weakened check (any non-EOL byte change still changes the hash).
+#       See forensics/T0861-EVIDENCE-BYTE-HASH-AUDIT.csv for the six
+#       re-baselined rows (old CRLF-worktree hash -> canonical hash).
 #   17b LABEL-REGRESSION: strings superseded by the t082/t083 corrections
 #       must not appear as ACTIVE conclusions in the authoritative stores
 #       (source-of-truth CSVs, requirement matrix, readiness report) unless a
@@ -838,7 +846,14 @@ def check_evidence_sha_match(evid):
             continue  # missing regular file is flagged by check 6; dirs skip
         if len(hex64) != 1 or len(toks) != 1:
             continue  # compound rows: file->hash 1:1 already covered by 16a
-        actual = hashlib.sha256(open(path[0], 'rb').read()).hexdigest()
+        # t086.1: canonical-byte hash (CRLF->LF for text files, raw for
+        # binary) — deterministic across platforms and git autocrlf settings
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        try:
+            from evidence_canonical import canonical_sha256
+        finally:
+            sys.path.pop(0)
+        actual = canonical_sha256(path[0])
         if actual != hex64[0].lower():
             err('EVID-SHA-MATCH',
                 f'{eid}: source_sha256 does not match the actual file: claimed '

@@ -197,3 +197,14 @@ Gap 更新：G17 BLOCKED→PARTIAL-STATIC；G08 OPEN-RUNTIME→CLOSED-STATIC；G
 - 未重复 T085 已闭合的 G34/G38/G41 工作。
 - 结论类型四值（STATIC-CONFIRMED/STATIC-EQUIVALENT/PARTIAL-STATIC/STATIC-UNDERDETERMINED）仅在本报告使用；权威 CSV 状态仍为七值枚举。
 - 项目维持 **NOT STAGE-READY**。
+
+---
+
+## 11. T086.1 勘误附录（本节由 T086.1 轮追加，原文以上未改动）
+
+1. **§3/摘要 G08 基数**：本文所有 `−2^31` 均应为 `−2^30`（0x40000000 = 2^30 = 1073741824）。机器码、数值、键空间结论不变；锚点值 L0/G0/flag0=-1073711832、flag1=-1073711827。独立复核：`forensics/T0861-G08-KEY-CONSTANT-AUDIT.txt`。
+2. **§8 修正项 2 撤回**：`DOJO_WARP_UP = SHOW_ITEM_GAIN_INCHAT 1` 并非损坏行 —— 本仓 jar 的 `ExternalCodeTableGetter.getValue` 字节码支持两字段相对赋值（基取枚举当前值，=def(-2) 时递归查 properties），且 SHOW_ITEM_GAIN_INCHAT（声明序 38，0xD0）先于 DOJO_WARP_UP（39），故 0x00D1 可静态推导。C-095 的注记已在 T086.1 改写。
+3. **§1.2/§1.3 客户端裁定范围收窄**：0xA10CE3 开关的 task44 命名属 recvops（C2S 数值空间）——62 个具名 case 中 61 与 recvops 精确一致、1（0x6A quest_KJ）两空间皆无、0 与 sendops 一致，且 35 个被处理 id 在 sendops 中不存在 —— "92 个 S2C opcode 数值获得绑定"的解释不成立；对 5 个 send 侧冲突名（ENGAGE_REQUEST/ENGAGE_RESULT/FAIRY_PEND_MSG/DATA_CRC_CHECK_FAILED/BBS_OPERATION）的客户端裁定撤回（G17 残项更新）。
+4. **§5.4 措辞修正**："scene 持久字段仅载入期 VR 折叠边界"过度陈述 —— slot15 直接读取持久成员 `[fieldctx+0xD4]`（slot4/5），且存在 `[0xBDD838]` 屏幕位置单例（详见 T086.1 C-102/EV-88）；"0 直接调用者"对 0x53471A 成立，但家族备用入口 0x5348C5 有唯一直接调用者 0x9EDA8B。
+5. **EV-82～EV-87 哈希**：本报告第 7 节记录的六条 Evidence SHA-256 为 CRLF 工作树字节哈希；T086.1 已按规范字节（LF 文本/原始二进制）重基线，旧→新映射见 `forensics/T0861-EVIDENCE-BYTE-HASH-AUDIT.csv`。
+

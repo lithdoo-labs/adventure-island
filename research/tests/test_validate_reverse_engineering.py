@@ -696,25 +696,37 @@ class T085ScriptTests(unittest.TestCase):
         r = self._run_script('t085_dump_evidence.py')
         self.assertNotEqual(r.returncode, 0)
 
-    def test_47_crlf_evidence_hash_mismatch_fails(self):
-        # the exact t085 defect class: file on disk CRLF (autocrlf checkout)
-        # while evidence.csv carries the LF-normalized sha256 -> must FAIL
+    def test_47_evidence_hash_canonicalization(self):
+        # t085 found the defect class (CRLF checkout vs LF ledger); t086.1
+        # adopted the canonical-byte rule (LF-normalized text, raw binary):
+        # a CRLF worktree file with an LF-canonical ledger hash now PASSES
+        # (platform-deterministic), while TAMPERED content still FAILS.
         ev_path = os.path.join(self.root, 'research', 'source-of-truth', 'evidence.csv')
         ev = open(ev_path, encoding='utf-8').read()
+        cc_path = os.path.join(self.root, 'research', 'result', 'clean-room',
+                               'EVIDENCE-INDEX.csv')
+        ev_cc = open(cc_path, encoding='utf-8').read()
         body = '# fixture t085 evidence\nline2\n'
         import hashlib
         lf_hash = hashlib.sha256(body.encode('utf-8')).hexdigest()
-        ev += (f'EV-77,research/result/stage-readiness/forensics/T085-X.txt,'
+        row = (f'EV-77,research/result/stage-readiness/forensics/T085-X.txt,'
                f'{lf_hash},0x1,instruction,"x","y",C-001,fixture\n')
-        open(ev_path, 'w', encoding='utf-8', newline='').write(ev)
+        open(ev_path, 'w', encoding='utf-8', newline='').write(ev + row)
+        open(cc_path, 'w', encoding='utf-8', newline='').write(ev_cc + row)
         tgt = os.path.join(self.root, 'research', 'result', 'stage-readiness',
                            'forensics', 'T085-X.txt')
-        with open(tgt, 'wb') as f:  # CRLF on disk
+        with open(tgt, 'wb') as f:  # CRLF on disk (autocrlf checkout shape)
             f.write(body.replace('\n', '\r\n').encode('utf-8'))
         r = run_validator(self.root)
         out = r.stdout.decode('utf-8', 'replace')
-        self.assertNotEqual(r.returncode, 0)
-        self.assertIn('EVID-SHA-MATCH', out)
+        self.assertEqual(r.returncode, 0, out)  # canonical rule accepts the EOL shape
+        # negative: tampered content must still fail
+        with open(tgt, 'wb') as f:
+            f.write(body.replace('\n', '\r\n').encode('utf-8') + b'TAMPERED\r\n')
+        r2 = run_validator(self.root)
+        out2 = r2.stdout.decode('utf-8', 'replace')
+        self.assertNotEqual(r2.returncode, 0)
+        self.assertIn('EVID-SHA-MATCH', out2)
 
     def test_48_ledger_updater_double_apply_fails(self):
         # negative: re-applying the t085 ledger delta must be refused

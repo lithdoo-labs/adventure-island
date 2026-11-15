@@ -14,7 +14,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 
 | ID | 模块 | 问题 | 状态 | 证据 | 最小验证 |
 |---|---|---|---|---|---|
-| G01 | Map/Sort | R13 比较器/容器语义 | PARTIAL-STATIC | 键公式 A 级独立成立（MAP-R13-STATIC-CLOSURE）；身份链 A 级（MAP-R13-ROUND3-DISPATCH）；插入语义未定（MAP-R13-DISPATCH-COMPLETE）| 见 R-09 |
+| G01 | Map/Sort | R13 比较器/容器语义 | CLOSED-STATIC | key formulas A (C-001/002); channels A (C-017); 22 candidate zero-insert census (C-012, refuted blanket reading retained); slot45 carries precomputed key as arg2 (C-075); t086: FINAL ORDERING RECEIVER RECOVERED — slot45 body 0x50409ECD forwards the key into the per-node ordered container [node+0x2C] (insert 0x50409EF4, tree search 0x5040390D, rebalance insert 0x50405476/0x5040C35E) with comparator 0x50403A42 (C-097); equal-key policy = secondary slot0-key compare |
 | G02 | Map/Sort | Tile/Obj 键公式 | CLOSED-STATIC | tile=z+10(layer·3000−zM)−1073721834 @0x666F68；obj=layer·30000+z−1073739824 @0x6688D2（MAP-R13-FINAL-ROUND4 imul 0x7530 确认）| — |
 | G03 | Map/Sort | [0xBE2788] vs Shape2D 冲突 | CLOSED-STATIC | E576EA33 唯一 Gr2D；RTTI+intmap（MAP-R13-STATIC-CLOSURE v2）| — |
 | G04 | Combat | R9 变体选择 | CLOSED-STATIC | {值,键}对 + xorshift RNG + variant[rand%count]（SEC16-FORENSICS A 级）| — |
@@ -25,10 +25,10 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | ID | 模块 | 问题 | 状态 | 证据 | 最小验证 |
 |---|---|---|---|---|---|
 | G06 | Map/Sort | [0xBE2788] 真实虚表 | CLOSED-STATIC | =0x5042D140（40 槽 intmap 精确衔接）| — |
-| G07 | Map/Sort | DLL 内比较器 | PARTIAL-STATIC | 上项已闭；比较器体在栈封装函数内待读；t084 四个 stack-package callee（0x43286E/0x44484B/0x429411/0x43E3A6）读尽且无比较逻辑（C-085/EV-71） | 最终接收者=运行时 slot25 端点（随 G24/G27 dump） |
-| G08 | Map/Sort | Avatar 插入键构造 | OPEN-RUNTIME | 进图运行时路径 | 进图转储 + Avatar 加载断点 |
-| G09 | Avatar | 部件组合/遮挡运行时序 | OPEN-RUNTIME | 进图后渲染 | 进图捕获 |
-| G10 | Camera | 镜头跟随/deadzone 实际参数 | OPEN-RUNTIME | 进图输入循环 | 进图转储 [0xBDF54C] 族 |
+| G07 | Map/Sort | DLL 内比较器 | CLOSED-STATIC | excluded from all vtable slot45s (EV-15); stack-package callees fully read, zero comparator logic (C-085); t086: the comparator is a Gr2D FREE FUNCTION 0x50403A42 invoked inside the keyed insert 0x50409EF4 (not a vtable slot) — body fully read: payload slot4-chain climb + slot0-key compare with sign result and equal-key tie-break (C-097/EV-82) |
+| G08 | Map/Sort | Avatar 插入键构造 | CLOSED-STATIC | t086 C-099/EV-85 + reviewer cross-check: CMS079 formula machine-code recovered - key = 10*(layer*3000 - zM) - 2^31 + 29990 + (2 + 5*(flag!=0)) = -2^31 + {29992, 29997} + 10*(3000L-g) — effective values VALUE-IDENTICAL to the v83 hypothesis, independently derived; layer/zM at [user+0xF28]-0xC field +0x130/+0x134; consumption: 0x9363D9 -> 0x452147 -> direct keyed [eax+0xB4] call on [[this+0x88]+0xE44]; 0x93E7F2 applies key-1 then feeds the 0x427EB3-family PUT wrapper 0x439AAD; reviewer-extended family: +3 band 0x70DDD7 ({29993,29998}), flat bases 29991/29992, sentinel 0xC0041F14, full type-base set {0, 2000, 19990, 29983, 29985..29992, 29995, 29996, 29999, 59970, 59980} (19990/2000 = the tile/obj bases — one designed key space); all feed the C-097 keyed insert |
+| G09 | Avatar | 部件组合/遮挡运行时序 | CLOSED-STATIC | static model complete (zmap 149 layers, C-043); t086: (a) cross-object ordering mechanism CLOSED — avatars/mobs/NPCs/drops insert into the SAME ordered container with the SAME comparator 0x50403A42 and the shared -2^31+299xx key space (C-097/C-099); (b) data anchors verified in the shipped Base.wz — zmap.img 149 == EXE model, zmap_cn order-identical, smap.img 106 layer->component bindings (C-100/EV-86); internal part order (zmap) and world order (key space) established separately per task |
+| G10 | Camera | 镜头跟随/deadzone 实际参数 | OPEN-RUNTIME | VR fold A (C-026); scene-manager skeleton (C-084); t086 (C-101/EV-87): slot15 caller census encoding-complete — 28 disp8 sites + 0 disp32 + 0 SIB + 0 direct E8, receivers all life/UI/COM families (bounded negative now enumeration-complete); slot12 0x53465B has exactly one direct E8 caller 0x5658CA (window method 0x5658BF — first static frame-loop entry); 0x953AF4 = 4-way arg dispatcher (not a camera producer); STRUCTURAL: slot15 consumes the camera rect as caller ARGS — the per-frame camera value is caller-transient, persistent scene fields are only the load-time VR bounds |
 | G11 | Move | +0x61 死亡位移位 | OPEN-STATIC | 77 disp8 候选无结构归属 | 进图 diff（user±0x100）|
 | G12 | Move | +0x3BC 减计数机制 | OPEN-STATIC | sub/dec 全库不存在（A-negative）| 计算位移假说检验 |
 | G13 | Audio | WINMM 序号→函数名映射 | OPEN-STATIC | IAT 静态 4 序号已证（A）；名字映射待同时代 DLL | 获取 win2k/xp winmm.dll |
@@ -45,7 +45,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | ID | 模块 | 问题 | 状态 | 证据 |
 |---|---|---|---|---|
 | G16 | UI | 逐窗口事件逻辑精读 | OPEN-STATIC | 26+ 窗口 WZ 结构已映射 |
-| G17 | Protocol | opcode 枚举数值 | BLOCKED | 值在服务器外部 properties（不在盘）|
+| G17 | Protocol | opcode 枚举数值 | PARTIAL-STATIC | opcode semantics corpus A (C-046); t086 (C-095/EV-83/EV-84): all 442 values fully attributed — 355 jar-properties direct + 11 explicit 0xFF + 76 ExternalCodeTableGetter default 0xFFFE, ZERO corpus-vs-jar conflicts; jar properties identical to public ms079 (366/366) and conflict with Afauria on 15 names; NEW client-instruction tier: switch 0xA10CE3 statically binds 92 S2C opcodes (0x20..0x80) to handler bodies = task44 runtime map 92/92; prior wire observations (task048: 17/18 values incl. WARP_TO_MAP=0x81) match properties |
 
 ## 第二轮新增（2026-11-13 STATIC-ROUND-2）
 
@@ -60,9 +60,9 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 | ID | 模块 | 问题 | 状态 | 证据 |
 |---|---|---|---|---|
 | G21 | Gr2D | [0x5042D0A0] 身份 | CLOSED-STATIC | =__imp__purecall（导入名表 A 级，R13-PE-IAT-FORENSICS）|
-| G22 | Gr2D | RawCanvas 具体虚表 | PARTIAL-STATIC | 起点 0x2E2C4/0x2E2CC 歧义（R13-RTTI-VTABLE-FORENSICS）；slot45={purecall,dtor}联合排除插入 |
+| G22 | Gr2D | RawCanvas 具体虚表 | CLOSED-STATIC | ambiguity proven (EV-09/10/15); t086 RESOLVED (C-098/EV-82): 0x2E2C4/0x2E2CC are purecall-padded abstract stub tables (installed on small subobjects by 0x50402A30/0x50402874); the real 6DC8C7CE-class primary vtable = 0x5042E3F0 (76 slots, adjoins intmap 0x2E520), ctor 0x504067D7; slot45 of the real primary = 0x50409ECD (keyed insert, C-097) |
 | G23 | PCOM | 0x427EB3 身份 | CLOSED-STATIC | =属性 PUT 包装（层 slot25 setter +0xCC，R13-427EB3-FORENSICS）|
-| G24 | Map/Sort | [eax+0xB4] 最终语义 | OPEN-RUNTIME | t084.1 (C-086/C-087)：接收者=slot25 返回对象（0x42944A 取 [ebp-0x10]），[0xBE2788] 静态推导=inner（0x5042D224）；dump 现为确认命名预测+取返回对象 vtable |
+| G24 | Map/Sort | [eax+0xB4] 最终语义 | CLOSED-STATIC | t084.1 (C-086/C-087): production slot25 = 0x5040418C; t086 (C-096/C-097/EV-82): the slot25-created node class FULLY identified — ctor 0x504067D7, vtable stack {0x5042E3F0 primary(76), 0x5042E3EC, 0x5042E3E8, 0x5042E3D0}, QI intmap 0x2E520 entry0 IID 6DC8C7CE dw=0; the [eax+0xB4] slot45 receiver = that node, body 0x50409ECD = keyed ordered-tree insert (C-097); slot56 = 0x50409DBA ARGB setter; the t082 bp-0x666F77 capture downgrades to confirming the already-statically-proven identity (predicted [EBP-0x10] vtable = 0x5042E3F0) |
 
 ## Round 3.1 Task2 更新
 
@@ -86,7 +86,7 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 
 | ID | 模块 | 问题 | 状态 | 证据 |
 |---|---|---|---|---|
-| G33 | Map/Sort | 相等键次序策略（稳定性） | OPEN-STATIC | 仅 WZ 静态条目序样本；无绘制顺序证据（Claim C-018 撤销后拆分）|
+| G33 | Map/Sort | 相等键次序策略（稳定性） | CLOSED-STATIC | WZ-order sample observed only (EV-28); t086 (C-097): equal-key policy = comparator 0x50403A42 tie-break comparing payload slot0 keys (deterministic secondary order); product stable-sort remains a safe superset |
 | G34 | Camera | 0x5A↔0x1E 换算关系 | CLOSED-STATIC | 0x1E 已证（C-030）；t085: H1 换算假说被两轮独立立即数普查否决——90/30 仅有两个相遇点且均非换算（T3 slot9 0x9C3D1D 覆盖返回 90；T4 slot9 0x9C9CF7 步长累加器阈值 90），其余域完全分离（C-094/EV-81） |
 | G35 | Map/Sort | Background 键公式复验 | PARTIAL-STATIC | 单一 imul-1000 站点上下文不足（EV-20）|
 
@@ -106,12 +106,12 @@ CLOSED-STATIC | CLOSED-RUNTIME | PARTIAL-STATIC | OPEN-STATIC | OPEN-RUNTIME | B
 ## 台账统计（由 `research/scripts/generate_cleanroom_deliverables.py` 从 source-of-truth/gaps.csv 自动生成；`<!--GAP-STATS-AUTO-->
 | 状态 | 数量 |
 |---|---|
-| CLOSED-STATIC | 18 |
+| CLOSED-STATIC | 25 |
 | CLOSED-RUNTIME | 0 |
-| PARTIAL-STATIC | 10 |
-| OPEN-STATIC | 7 |
-| OPEN-RUNTIME | 4 |
-| BLOCKED | 1 |
+| PARTIAL-STATIC | 8 |
+| OPEN-STATIC | 6 |
+| OPEN-RUNTIME | 1 |
+| BLOCKED | 0 |
 | SUPERSEDED | 1 |
 | **总计** | **41** |
 <!--/GAP-STATS-AUTO-->

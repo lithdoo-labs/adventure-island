@@ -1,0 +1,443 @@
+direction,opcode_hex,opcode_dec,name,jar_property,value_source,notes_field,task055_check
+recv,0x0013,19,PONG,0x13,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0001,1,LOGIN_PASSWORD,0x01,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,HELLO_LOGIN,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,HELLO_CHANNEL,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x0003,3,LICENSE_REQUEST,0x03,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0002,2,SERVERLIST_REQUEST,0x02,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0009,9,CHARLIST_REQUEST,0x09,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0005,5,SERVERSTATUS_REQUEST,0x05,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x000C,12,CHECK_CHAR_NAME,0x0C,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0011,17,CREATE_CHAR,0x11,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0012,18,DELETE_CHAR,0x12,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0015,21,STRANGE_DATA,0x15,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x000A,10,CHAR_SELECT,0x0A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,AUTH_SECOND_PASSWORD,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x0004,4,SET_GENDER,0x04,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,RSA_KEY,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x000B,11,PLAYER_LOGGEDIN,0x0B,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0021,33,CHANGE_MAP,0x21,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0022,34,CHANGE_CHANNEL,0x22,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0023,35,ENTER_CASH_SHOP,0x23,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0024,36,MOVE_PLAYER,0x24,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0025,37,CANCEL_CHAIR,0x25,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0026,38,USE_CHAIR,0x26,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0028,40,CLOSE_RANGE_ATTACK,0x28,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0029,41,RANGED_ATTACK,0x29,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x002A,42,MAGIC_ATTACK,0x2A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x002B,43,PASSIVE_ENERGY,0x2B,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x002C,44,TAKE_DAMAGE,0x2C,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x002D,45,GENERAL_CHAT,0x2D,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x002E,46,CLOSE_CHALKBOARD,0x2E,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x002F,47,FACE_EXPRESSION,0x2F,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0030,48,USE_ITEMEFFECT,0x30,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0031,49,WHEEL_OF_FORTUNE,0x31,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0035,53,MONSTER_BOOK_COVER,0x35,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0036,54,NPC_TALK,0x36,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0038,56,NPC_TALK_MORE,0x38,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x003A,58,NPC_SHOP,0x3A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x003B,59,STORAGE,0x3B,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x003C,60,USE_HIRED_MERCHANT,0x3C,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x003D,61,MERCH_ITEM_STORE,0x3D,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x003E,62,DUEY_ACTION,0x3E,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0042,66,ITEM_SORT,0x42,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0043,67,ITEM_GATHER,0x43,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0044,68,ITEM_MOVE,0x44,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0045,69,USE_ITEM,0x45,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0046,70,CANCEL_ITEM_EFFECT,0x46,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0048,72,USE_SUMMON_BAG,0x48,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00AA,170,PET_EXCEPTIONLIST,0xAA,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0049,73,PET_FOOD,0x49,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x004A,74,USE_MOUNT_FOOD,0x4A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,USE_SCRIPTED_NPC_ITEM,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x004C,76,USE_CASH_ITEM,0x4C,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x004E,78,USE_CATCH_ITEM,0x4E,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x004F,79,USE_SKILL_BOOK,0x4F,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0052,82,USE_RETURN_SCROLL,0x52,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0053,83,USE_UPGRADE_SCROLL,0x53,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0054,84,DISTRIBUTE_AP,0x54,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0055,85,AUTO_ASSIGN_AP,0x55,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0056,86,HEAL_OVER_TIME,0x56,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0057,87,DISTRIBUTE_SP,0x57,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0058,88,SPECIAL_MOVE,0x58,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0059,89,CANCEL_BUFF,0x59,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x005A,90,SKILL_EFFECT,0x5A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x005B,91,MESO_DROP,0x5B,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x005C,92,GIVE_FAME,0x5C,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x005E,94,CHAR_INFO_REQUEST,0x5E,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x005F,95,SPAWN_PET,0x5F,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0060,96,CANCEL_DEBUFF,0x60,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0061,97,CHANGE_MAP_SPECIAL,0x61,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0062,98,USE_INNER_PORTAL,0x62,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0063,99,TROCK_ADD_MAP,0x63,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0068,104,QUEST_ACTION,0x68,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0069,105,EFFECT_ON_OFF,0x69,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x006D,109,SKILL_MACRO,0x6D,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0070,112,ITEM_BAOWU,0x70,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x008E,142,ITEM_SUNZI,0x8E,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0071,113,ITEM_MAKER,0x71,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,USE_TREASUER_CHEST,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x0074,116,PARTYCHAT,0x74,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00DF,223,PARTY_SS,0xDF,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0075,117,WHISPER,0x75,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0076,118,MESSENGER,0x76,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0077,119,PLAYER_INTERACTION,0x77,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0078,120,PARTY_OPERATION,0x78,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0079,121,DENY_PARTY_REQUEST,0x79,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x007A,122,GUILD_OPERATION,0x7A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x007B,123,DENY_GUILD_REQUEST,0x7B,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x007E,126,BUDDYLIST_MODIFY,0x7E,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x007F,127,NOTE_ACTION,0x7F,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0081,129,USE_DOOR,0x81,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0083,131,CHANGE_KEYMAP,0x83,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,UPDATE_CHAR_INFO,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x008D,141,ENTER_MTS,0x8D,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x008A,138,ALLIANCE_OPERATION,0x8A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x008B,139,DENY_ALLIANCE_REQUEST,0x8B,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0095,149,REQUEST_FAMILY,0x95,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0096,150,OPEN_FAMILY,0x96,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0097,151,FAMILY_OPERATION,0x97,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0098,152,DELETE_JUNIOR,0x98,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0099,153,DELETE_SENIOR,0x99,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x009A,154,ACCEPT_FAMILY,0x9A,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x009B,155,USE_FAMILY,0x9B,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x009C,156,FAMILY_PRECEPT,0x9C,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x009D,157,FAMILY_SUMMON,0x9D,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x009E,158,CYGNUS_SUMMON,0x9E,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x009F,159,ARAN_COMBO,0x9F,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x008C,140,BBS_OPERATION,0x8C,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,TRANSFORM_PLAYER,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00A5,165,MOVE_PET,0xA5,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00A6,166,PET_CHAT,0xA6,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00A7,167,PET_COMMAND,0xA7,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00A8,168,PET_LOOT,0xA8,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00A9,169,PET_AUTO_POT,0xA9,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00AD,173,MOVE_SUMMON,0xAD,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00AE,174,SUMMON_ATTACK,0xAE,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00B0,176,DAMAGE_SUMMON,0xB0,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00B7,183,MOVE_LIFE,0xB7,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00B8,184,AUTO_AGGRO,0xB8,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00BD,189,FRIENDLY_DAMAGE,0xBD,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00BC,188,MONSTER_BOMB,0xBC,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,HYPNOTIZE_DMG,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00C0,192,NPC_ACTION,0xC0,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00C6,198,ITEM_PICKUP,0xC6,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00C9,201,DAMAGE_REACTOR,0xC9,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00CF,207,SNOWBALL,0xCF,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00D0,208,LEFT_KNOCK_BACK,0xD0,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00D1,209,COCONUT,0xD1,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00D7,215,MONSTER_CARNIVAL,0xD7,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00D9,217,SHIP_OBJECT,0xD9,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,CS_UPDATE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00E9,233,BUY_CS_ITEM,0xE9,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00E8,232,TOUCHING_CS,0xE8,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00EA,234,COUPON_CODE,0xEA,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00F6,246,MAPLETV,0xF6,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,MOVE_DRAGON,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,REPAIR,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,REPAIR_ALL,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,TOUCHING_MTS,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,USE_MAGNIFY_GLASS,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,USE_POTENTIAL_SCROLL,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,USE_EQUIP_SCROLL,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,GAME_POLL,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,OWL,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,OWL_WARP,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,USE_OWL_MINERVA,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x0084,132,RPS_GAME,0x84,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,UPDATE_QUEST,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00E0,224,PLAYER_UPDATE,0xE0,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,USE_ITEM_QUEST,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,FOLLOW_REQUEST,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,FOLLOW_REPLY,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,MOB_NODE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0xFFFE,-2,DISPLAY_NODE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00CA,202,TOUCH_REACTOR,0xCA,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x0085,133,RING_ACTION,0x85,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,MTS_TAB,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00CB,203,NEW_SX,0xCB,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,BOATS,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00E2,226,BEANS_GAME1,0xE2,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00E3,227,BEANS_GAME2,0xE3,SERVER-PROPERTIES,loaded from properties,agree
+recv,0x00BB,187,MOONRABBIT_HP,0xBB,SERVER-PROPERTIES,loaded from properties,agree
+recv,0xFFFE,-2,MARRAGE_RECV,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+recv,0x00FF,255,SERVERLIST_REREQUEST,0xFF,SERVER-PROPERTIES-FF,property key is not a member of the enum,agree
+recv,0x00FF,255,AFTER_LOGIN,0xFF,SERVER-PROPERTIES-FF,property key is not a member of the enum,agree
+recv,0x00FF,255,REGISTER_PIN,0xFF,SERVER-PROPERTIES-FF,property key is not a member of the enum,agree
+recv,0x00FF,255,PLAYER_DC,0xFF,SERVER-PROPERTIES-FF,property key is not a member of the enum,agree
+recv,0x00FF,255,VIEW_ALL_CHAR,0xFF,SERVER-PROPERTIES-FF,property key is not a member of the enum,agree
+recv,0x00FF,255,PICK_ALL_CHAR,0xFF,SERVER-PROPERTIES-FF,property key is not a member of the enum,agree
+recv,0x0014,20,ERROR_LOG,0x14,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x0019,25,RELOG,0x19,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x0047,71,USE_FISHING_ITEM,0x47,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x004B,75,SCRIPTED_ITEM,0x4B,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x006A,106,quest_KJ,0x6A,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x7FFE,32766,REPORT_PLAYER,0x7FFE,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x0072,114,ITEM_MZD,0x72,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x7FFE,32766,SPOUSE_CHAT,0x7FFE,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x00FB,251,MTS_OP,0xFB,SERVER-PROPERTIES,property key is not a member of the enum,agree
+recv,0x0104,260,ChatRoom_SYSTEM,0x104,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0014,20,PING,0x14,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0000,0,LOGIN_STATUS,0x00,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00FF,255,PIN_OPERATION,0xFF,SERVER-PROPERTIES-FF,loaded from properties; sentinel/disabled-style value shared by multiple names; also used by ALL_CHARLIST,agree
+send,0xFFFE,-2,SECONDPW_ERROR,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0009,9,SERVERLIST,0x09,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0006,6,SERVERSTATUS,0x06,SERVER-PROPERTIES,loaded from properties,agree
+send,0x000B,11,SERVER_IP,0x0B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x000A,10,CHARLIST,0x0A,SERVER-PROPERTIES,loaded from properties,agree
+send,0x000C,12,CHAR_NAME_RESPONSE,0x0C,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,RELOG_RESPONSE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0011,17,ADD_NEW_CHAR_ENTRY,0x11,SERVER-PROPERTIES,loaded from properties,agree
+send,0x7FFE,32766,DELETE_CHAR_RESPONSE,0x7FFE,SERVER-PROPERTIES,loaded from properties; sentinel/disabled-style value shared by multiple names,agree
+send,0x0018,24,CHANNEL_SELECTED,0x18,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00FF,255,ALL_CHARLIST,0xFF,SERVER-PROPERTIES-FF,loaded from properties; sentinel/disabled-style value shared by multiple names; also used by PIN_OPERATION,agree
+send,0x0004,4,CHOOSE_GENDER,0x04,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0005,5,GENDER_SET,0x05,SERVER-PROPERTIES,loaded from properties,agree
+send,0x007D,125,CHAR_CASH,0x7D,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0013,19,CHANGE_CHANNEL,0x13,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0022,34,UPDATE_STATS,0x22,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0029,41,FAME_RESPONSE,0x29,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0027,39,UPDATE_SKILLS,0x27,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0081,129,WARP_TO_MAP,0x81,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0041,65,SERVERMESSAGE,0x41,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0056,86,AVATAR_MEGA,0x56,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0104,260,SPAWN_NPC,0x104,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0105,261,REMOVE_NPC,0x105,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0106,262,SPAWN_NPC_REQUEST_CONTROLLER,0x106,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00EE,238,SPAWN_MONSTER,0xEE,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00F0,240,SPAWN_MONSTER_CONTROL,0xF0,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00F2,242,MOVE_MONSTER_RESPONSE,0xF2,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00A4,164,CHATTEXT,0xA4,SERVER-PROPERTIES,loaded from properties,agree
+send,0x002A,42,SHOW_STATUS_INFO,0x2A,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,SHOW_MESO_GAIN,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0033,51,SHOW_QUEST_COMPLETION,0x33,SERVER-PROPERTIES,loaded from properties,agree
+send,0x008B,139,WHISPER,0x8B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00A2,162,SPAWN_PLAYER,0xA2,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,ANNOUNCE_PLAYER_SHOP,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x00A9,169,SHOW_SCROLL_EFFECT,0xA9,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00D0,208,SHOW_ITEM_GAIN_INCHAT,0xD0,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00D1,209,DOJO_WARP_UP,SHOW_ITEM_GAIN_INCHAT 1,SERVER-PROPERTIES,loaded from properties; relative form 'SHOW_ITEM_GAIN_INCHAT 1' resolved by ExternalCodeTableGetter.getValue,absent
+send,0xFFFE,-2,CURRENT_MAP_WARP,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x00EF,239,KILL_MONSTER,0xEF,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0110,272,DROP_ITEM_FROM_MAPOBJECT,0x110,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C3,195,FACIAL_EXPRESSION,0xC3,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00BB,187,MOVE_PLAYER,0xBB,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00F1,241,MOVE_MONSTER,0xF1,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00BC,188,CLOSE_RANGE_ATTACK,0xBC,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00BD,189,RANGED_ATTACK,0xBD,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00BE,190,MAGIC_ATTACK,0xBE,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,ENERGY_ATTACK,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0146,326,OPEN_NPC_SHOP,0x146,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0147,327,CONFIRM_SHOP_TRANSACTION,0x147,SERVER-PROPERTIES,loaded from properties,agree
+send,0x014A,330,OPEN_STORAGE,0x14A,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0020,32,MODIFY_INVENTORY_ITEM,0x20,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00A3,163,REMOVE_PLAYER_FROM_MAP,0xA3,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0111,273,REMOVE_ITEM_FROM_MAP,0x111,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C7,199,UPDATE_CHAR_LOOK,0xC7,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C8,200,SHOW_FOREIGN_EFFECT,0xC8,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C9,201,GIVE_FOREIGN_BUFF,0xC9,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00CA,202,CANCEL_FOREIGN_BUFF,0xCA,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C2,194,DAMAGE_PLAYER,0xC2,SERVER-PROPERTIES,loaded from properties,agree
+send,0x003A,58,CHAR_INFO,0x3A,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00D6,214,UPDATE_QUEST_INFO,0xD6,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0023,35,GIVE_BUFF,0x23,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0024,36,CANCEL_BUFF,0x24,SERVER-PROPERTIES,loaded from properties,agree
+send,0x014F,335,PLAYER_INTERACTION,0x14F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00A7,167,UPDATE_CHAR_BOX,0xA7,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0145,325,NPC_TALK,0x145,SERVER-PROPERTIES,loaded from properties,agree
+send,0x016F,367,KEYMAP,0x16F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00FC,252,SHOW_MONSTER_HP,0xFC,SERVER-PROPERTIES,loaded from properties,agree
+send,0x003B,59,PARTY_OPERATION,0x3B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00CB,203,UPDATE_PARTYMEMBER_HP,0xCB,SERVER-PROPERTIES,loaded from properties,agree
+send,0x008A,138,MULTICHAT,0x8A,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00F4,244,APPLY_MONSTER_STATUS,0xF4,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00F5,245,CANCEL_MONSTER_STATUS,0xF5,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0096,150,CLOCK,0x96,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0040,64,SPAWN_PORTAL,0x40,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0117,279,SPAWN_DOOR,0x117,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0118,280,REMOVE_DOOR,0x118,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B4,180,SPAWN_SUMMON,0xB4,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B5,181,REMOVE_SUMMON,0xB5,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B7,183,SUMMON_ATTACK,0xB7,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B6,182,MOVE_SUMMON,0xB6,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0115,277,SPAWN_MIST,0x115,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0116,278,REMOVE_MIST,0x116,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B9,185,DAMAGE_SUMMON,0xB9,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00F8,248,DAMAGE_MONSTER,0xF8,SERVER-PROPERTIES,loaded from properties,agree
+send,0x003C,60,BUDDYLIST,0x3C,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C5,197,SHOW_ITEM_EFFECT,0xC5,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C6,198,SHOW_CHAIR,0xC6,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00CF,207,CANCEL_CHAIR,0xCF,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C0,192,SKILL_EFFECT,0xC0,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00C1,193,CANCEL_SKILL_EFFECT,0xC1,SERVER-PROPERTIES,loaded from properties,agree
+send,0x008D,141,BOSS_ENV,0x8D,SERVER-PROPERTIES,loaded from properties,agree
+send,0x011E,286,REACTOR_SPAWN,0x11E,SERVER-PROPERTIES,loaded from properties,agree
+send,0x011C,284,REACTOR_HIT,0x11C,SERVER-PROPERTIES,loaded from properties,agree
+send,0x011F,287,REACTOR_DESTROY,0x11F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0091,145,MAP_EFFECT,0x91,SERVER-PROPERTIES,loaded from properties,agree
+send,0x003E,62,GUILD_OPERATION,0x3E,SERVER-PROPERTIES,loaded from properties,agree
+send,0x003F,63,ALLIANCE_OPERATION,0x3F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0074,116,BBS_OPERATION,0x74,SERVER-PROPERTIES,loaded from properties,agree
+send,0x006A,106,FAMILY,0x6A,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,EARN_TITLE_MSG,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x00FD,253,SHOW_MAGNET,0xFD,SERVER-PROPERTIES,loaded from properties,agree
+send,0x014B,331,MERCH_ITEM_MSG,0x14B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x014C,332,MERCH_ITEM_STORE,0x14C,SERVER-PROPERTIES,loaded from properties,agree
+send,0x014E,334,MESSENGER,0x14E,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0107,263,NPC_ACTION,0x107,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00AD,173,SPAWN_PET,0xAD,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00AF,175,MOVE_PET,0xAF,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B0,176,PET_CHAT,0xB0,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B3,179,PET_COMMAND,0xB3,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00B1,177,PET_NAMECHANGE,0xB1,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00D8,216,PET_FLAG_CHANGE,0xD8,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00EC,236,COOLDOWN,0xEC,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00D9,217,PLAYER_HINT,0xD9,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00E5,229,SUMMON_HINT,0xE5,SERVER-PROPERTIES,loaded from properties; also used by TUTORIAL_SUMMON,agree
+send,0xFFFE,-2,SUMMON_HINT_MSG,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x00E3,227,CYGNUS_INTRO_DISABLE_UI,0xE3,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00E4,228,CYGNUS_INTRO_LOCK,0xE4,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0035,53,USE_SKILL_BOOK,0x35,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,SHOW_EQUIP_EFFECT,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0080,128,SKILL_MACRO,0x80,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0083,131,CS_OPEN,0x83,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0161,353,CS_UPDATE,0x161,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0162,354,CS_OPERATION,0x162,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0082,130,MTS_OPEN,0x82,SERVER-PROPERTIES,loaded from properties,agree
+send,0x005A,90,PLAYER_NPC,0x5A,SERVER-PROPERTIES,loaded from properties,agree
+send,0x002B,43,SHOW_NOTES,0x2B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00BA,186,SUMMON_SKILL,0xBA,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,ARIANT_PQ_START,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0103,259,CATCH_MONSTER,0x103,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0100,256,CATCH_ARIANT,0x100,SERVER-PROPERTIES,loaded from properties,agree
+send,0x009A,154,ARIANT_SCOREBOARD,0x9A,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0144,324,ZAKUM_SHRINE,0x144,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0098,152,BOAT_EFFECT,0x98,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00A6,166,CHALKBOARD,0xA6,SERVER-PROPERTIES,loaded from properties,agree
+send,0x015F,351,DUEY,0x15F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x002C,44,TROCK_LOCATIONS,0x2C,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0129,297,MONSTER_CARNIVAL_START,0x129,SERVER-PROPERTIES,loaded from properties,agree
+send,0x012A,298,MONSTER_CARNIVAL_OBTAINED_CP,0x12A,SERVER-PROPERTIES,loaded from properties,agree
+send,0x012B,299,MONSTER_CARNIVAL_PARTY_CP,0x12B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x012C,300,MONSTER_CARNIVAL_SUMMON,0x12C,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,MONSTER_CARNIVAL_SUMMON1,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x012E,302,MONSTER_CARNIVAL_DIED,0x12E,SERVER-PROPERTIES,loaded from properties,agree
+send,0x010D,269,SPAWN_HIRED_MERCHANT,0x10D,SERVER-PROPERTIES,loaded from properties,agree
+send,0x010F,271,UPDATE_HIRED_MERCHANT,0x10F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0034,52,SEND_TITLE_BOX,0x34,SERVER-PROPERTIES,loaded from properties,agree
+send,0x010E,270,DESTROY_HIRED_MERCHANT,0x10E,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0032,50,UPDATE_MOUNT,0x32,SERVER-PROPERTIES,loaded from properties,agree
+send,0x005B,91,MONSTERBOOK_ADD,0x5B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x005C,92,MONSTERBOOK_CHANGE_COVER,0x5C,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0060,96,FAIRY_PEND_MSG,0x60,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0182,386,VICIOUS_HAMMER,0x182,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0075,117,FISHING_BOARD_UPDATE,0x75,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00AB,171,FISHING_CAUGHT,0xAB,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0094,148,OX_QUIZ,0x94,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0120,288,ROLL_SNOWBALL,0x120,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0121,289,HIT_SNOWBALL,0x121,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0122,290,SNOWBALL_MESSAGE,0x122,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0123,291,LEFT_KNOCK_BACK,0x123,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0036,54,FINISH_SORT,0x36,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0037,55,FINISH_GATHER,0x37,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0064,100,SEND_PEDIGREE,0x64,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0065,101,OPEN_FAMILY,0x65,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0066,102,FAMILY_MESSAGE,0x66,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0067,103,FAMILY_INVITE,0x67,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0068,104,FAMILY_JUNIOR,0x68,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0069,105,SENIOR_MESSAGE,0x69,SERVER-PROPERTIES,loaded from properties,agree
+send,0x006B,107,REP_INCREASE,0x6B,SERVER-PROPERTIES,loaded from properties,agree
+send,0x006C,108,FAMILY_LOGGEDIN,0x6C,SERVER-PROPERTIES,loaded from properties,agree
+send,0x006D,109,FAMILY_BUFF,0x6D,SERVER-PROPERTIES,loaded from properties,agree
+send,0x006E,110,FAMILY_USE_REQUEST,0x6E,SERVER-PROPERTIES,loaded from properties,agree
+send,0x004E,78,YELLOW_CHAT,0x4E,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,PIGMI_REWARD,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0093,147,GM_EFFECT,0x93,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0124,292,HIT_COCONUT,0x124,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0125,293,COCONUT_SCORE,0x125,SERVER-PROPERTIES,loaded from properties,agree
+send,0x006F,111,LEVEL_UPDATE,0x6F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0070,112,MARRIAGE_UPDATE,0x70,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0071,113,JOB_UPDATE,0x71,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,HORNTAIL_SHRINE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x009C,156,STOP_CLOCK,0x9C,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,MESOBAG_SUCCESS,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,MESOBAG_FAILURE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,SERVER_BLOCKED,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,DRAGON_MOVE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,DRAGON_REMOVE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,DRAGON_SPAWN,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x00E7,231,ARAN_COMBO,0xE7,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0073,115,TOP_MSG,0x73,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0025,37,TEMP_STATS,0x25,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0026,38,TEMP_STATS_RESET,0x26,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00E5,229,TUTORIAL_SUMMON,0xE5,SERVER-PROPERTIES,loaded from properties; also used by SUMMON_HINT,agree
+send,0xFFFE,-2,REPAIR_WINDOW,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,PYRAMID_UPDATE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,PYRAMID_RESULT,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,ENERGY,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,GET_MTS_TOKENS,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x017C,380,MTS_OPERATION,0x17C,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,SHOW_POTENTIAL_EFFECT,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,SHOW_POTENTIAL_RESET,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,CHAOS_ZAKUM_SHRINE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,CHAOS_HORNTAIL_SHRINE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,GAME_POLL_QUESTION,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,GAME_POLL_REPLY,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0095,149,GMEVENT_INSTRUCTIONS,0x95,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,BOAT_EFF,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0045,69,OWL_OF_MINERVA,0x45,SERVER-PROPERTIES,loaded from properties; also used by ENGAGE_REQUEST,agree
+send,0xFFFE,-2,XMAS_SURPRISE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0092,146,CASH_SONG,0x92,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0021,33,UPDATE_INVENTORY_SLOT,0x21,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,FOLLOW_REQUEST,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,FOLLOW_EFFECT,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,FOLLOW_MOVE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,FOLLOW_MSG,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,FOLLOW_MESSAGE,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,TALK_MONSTER,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,REMOVE_TALK_MONSTER,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,MONSTER_PROPERTIES,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x009F,159,MOVE_PLATFORM,0x9F,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,MOVE_ENV,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,UPDATE_ENV,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0045,69,ENGAGE_REQUEST,0x45,SERVER-PROPERTIES,loaded from properties; also used by OWL_OF_MINERVA,agree
+send,0xFFFE,-2,GHOST_POINT,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0xFFFE,-2,GHOST_STATUS,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x0046,70,ENGAGE_RESULT,0x46,SERVER-PROPERTIES,loaded from properties; also used by SHOW_PREDICT_CARD,agree
+send,0x0130,304,ENGLISH_QUIZ,0x130,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0132,306,ARIANT_SCORE_UPDATE,0x132,SERVER-PROPERTIES,loaded from properties,agree
+send,0xFFFE,-2,RPS_GAME,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x015E,350,UPDATE_BEANS,0x15E,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0087,135,BLOCK_MSG,0x87,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0170,368,AUTO_HP_POT,0x170,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0171,369,AUTO_MP_POT,0x171,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0002,2,LICENSE_RESULT,0x02,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0113,275,SPAWN_LOVE,0x113,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0114,276,REMOVE_LOVE,0x114,SERVER-PROPERTIES,loaded from properties,agree
+send,0x008F,143,FORCED_MAP_EQUIP,0x8F,SERVER-PROPERTIES,loaded from properties,agree
+send,0x0046,70,SHOW_PREDICT_CARD,0x46,SERVER-PROPERTIES,loaded from properties; also used by ENGAGE_RESULT,agree
+send,0xFFFE,-2,BEANS_TIPS,,DEFAULT-FFFE,enum present but absent from properties; ExternalCodeTableGetter default is -2,absent
+send,0x015C,348,BEANS_GAME1,0x15C,SERVER-PROPERTIES,loaded from properties,agree
+send,0x015D,349,BEANS_GAME2,0x15D,SERVER-PROPERTIES,loaded from properties,agree
+send,0x00FF,255,SEND_LINK,0xFF,SERVER-PROPERTIES-FF,"property key is not a member of the enum; also used by PIN_OPERATION, ALL_CHARLIST",agree
+send,0x00FF,255,PIN_ASSIGNED,0xFF,SERVER-PROPERTIES-FF,"property key is not a member of the enum; also used by PIN_OPERATION, ALL_CHARLIST",agree
+send,0x0028,40,SKILL_USE_RESULT,0x28,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x002D,45,ANTI_MACRO_RESULT,0x2D,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x002F,47,CLAIM_RESULT,0x2F,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0030,48,CLAIM_STATUS_CHANGED,0x30,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0031,49,SET_TAMING_MOB_INFO,0x31,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0072,114,SET_BUY_EQUIP_EXT,0x72,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0072,114,DATA_CRC_CHECK_FAILED,0x72,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x008C,140,SPOUSE_CHAT,0x8C,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0099,153,BOAT_HIDE,0x99,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x00CE,206,Animation_EFFECT,0xCE,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x00E3,227,TUTORIAL_DISABLE_UI,0xE3,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x00E4,228,TUTORIAL_LOCK_UI,0xE4,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x00E6,230,TUTORIAL_GUIDE,0xE6,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x00F7,247,MOB_TO_MOB_DAMAGE,0xF7,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x00FB,251,ARIANT_THING,0xFB,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0175,373,SEND_TV,0x175,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0176,374,REMOVE_TV,0x176,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x0177,375,ENABLE_TV,0x177,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x017B,379,MTS_OPERATION2,0x17B,SERVER-PROPERTIES,property key is not a member of the enum,agree
+send,0x00FF,255,CYGNUS_CHAR_CREATED,0xFF,SERVER-PROPERTIES-FF,"property key is not a member of the enum; also used by PIN_OPERATION, ALL_CHARLIST",agree

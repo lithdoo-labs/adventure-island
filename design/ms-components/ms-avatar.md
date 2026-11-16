@@ -202,7 +202,7 @@ domain.update({
 - 基础 Action 支持**完整循环**、**先播前置段再循环后续片段**、**非循环播至末帧并保持**三种语义。非循环基础 Action 停在末帧，直到 Subsystem 改变 `attrs.action`（或者单次 Event 暂时覆盖后再回到它）。
 - 基础 Action 的正常结束是组件内部的视觉状态，**不向 Subsystem 发完成事件**，不自行切换别的业务 Action。
 - `render.event("action")` 是**一次性覆盖播放**：即使该 Action 的基础循环定义允许循环，单次 Event 也只执行一次完整动作，到期回到最新基础 Action。新 Event 到达时遵照既定的显式重启规则；`one-shot-enabled=false` 仍有强制终止优先权。
-- 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。对应 `ms-action` Clip 更新时**保留当前已累计的播放时间、按新 Clip 重新定位帧，不视为重播**（§5.12）；跨外观版本的一致性协议仍待定。
+- 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。对应 `ms-action` Clip 更新时**保留当前已累计的播放时间、按新 Clip 重新定位帧，不视为重播**（§5.12）；换装时需遵守 §5.13 的同次 Domain 原子发布规则。
 - 以上是**确定的行为语义**，不是已批准的 `ms-action` Clip 字段级 Schema。
 
 **待定 `ms-action.data.clip` 的表达示例**（字段名 `playback` 和 `repeatFrom` 暂不冻结；不同键对应不同子节点）：
@@ -520,44 +520,44 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 
 ## 10. 剩余事项总清单（ms-avatar / ms-action）
 
-**范围**：仅统计当前 `ms-avatar` + `ms-action` 新设计中**尚未定稿的产品选择、字段 ABI、实现接口与必需验证工作**。§1–§8 已确认的原则不再重投票。此清单随裁决维护；以后如发现 CMS079 新事实，可继续增加事项。下表的“待实现/验证”**不表示原则尚未确认**。
+**范围**：仅统计当前 `ms-avatar` + `ms-action` 新设计中**尚未定稿的产品选择、字段 ABI、实现接口与必需验证工作**；不延伸到 Map、Camera、世界 Actor 逻辑。§1–§8 已确认的原则不再重投票。每项建议是**尚未批准的推荐取舍**，不能当作已冻结 ABI。**P0**＝下一阶段优先裁决或取得证据；**P1**＝实施/字段 ABI 冻结前必须落实；**P2**＝验收与迁移阶段。下表“待实现/验证”不表示原则尚未确认。
 
 ### 10.1 尚需逐项决定的产品 / ABI 问题
 
-| ID | 议题 | 尚待裁决的准确边界 |
-| --- | --- | --- |
-| D01 | **基础 Action 遇到 one-shot 覆盖时的时间轴** | one-shot 期间基础动作 `elapsedMs` 继续累计还是冻结？结束后回到最新基础动作的哪个相位？当前只确定基础 attrs 变化不打断 one-shot、缺 Clip 本身不暂停本应推进的时间 |
-| D02 | **`ms-avatar` 动态 attrs 的最终闭集** | `action` 与 `one-shot-enabled` 之外的 `x/y`、`facing`、`expression` 是否属于 Avatar，格式、默认值及非法值规则；`skin/face/hair/equips` 冗余 attrs 是否正式移除 |
-| D03 | **表情模型** | 表情选择入口、表情帧/时长/循环的数据归属（父级 vs 独立数据轨）、表情与身体独立时间轴的精确定义、表情资源复用和 `showFace` 交互 |
-| D04 | **动作名称与子节点身份** | `ms-action.attrs.name` 是否为正式字段、名称/键的语法与长度、同名重复的拒绝范围、改名如何影响当前播放与 RenderNode key 生命周期 |
-| D05 | **`ms-action` Clip Schema** | `data.clip` 的格式版本、`playback`（loop/hold/suffix loop）、`repeatFrom` 单位与边界、`frames` 表示和具体 Action 播放模式如何编码 |
-| D06 | **Clip 帧时序与源资料映射** | 缺失、零、负 delay 的语义；alias/UOL、非连续帧、重复帧、`repeat`、首尾边界与全零持续时间的校验；依据真实 CMS079 固定样本定稿 |
-| D07 | **Clip 部件绘制 Schema** | frame 中 move/rotate/flip/showFace、origin/anchors、部件 z 层、遮挡与共享图层、装备隐藏规则、帧内绘制顺序的字段及校验规则 |
-| D08 | **父级共享外观 `data` Schema** | `appearance`、zOrder、共用资源索引/外观来源和 Clip 引用关系；哪些字段属于父数据、哪些属于 Clip，如何判定“合法组合” |
-| D09 | **资源引用与缓存契约的公开数据字段** | `namespace/key/contentVersion`、图集/源矩形/尺寸校验、可复用资源身份、缓存键及像素缺失/版本冲突的处理范围；不重复设计 Content API |
-| D10 | **Avatar 呈现输出与场景边界** | `x/y` 是否由场景持有、坐标原点/镜像/最终 Canvas（Shadow DOM 或共享 Painter）、与世界 Display List 深度排序的边界；不在此预定义整个 Map |
-| D11 | **动作工作集与应用规模约束** | 当前外观“可触发动作”的完整覆盖范围、是否/何时预载、每动作帧数/层数、每角色节点数/序列化字节及缓存预算；不能直接采用旧 32 Action / 256 KiB 或 OpenMS 126 的硬值 |
-| D12 | **错误时的呈现与可观测性契约** | 父外观无效、当前 Clip 无效、重复动作名、内容版本冲突等的错误分类、诊断载荷与展示/清屏行为；保留业务 Action、不静默选择其他 Action 的原则已定 |
+| ID | 议题 | 尚待裁决的准确边界 | 推荐取舍 | 优先级 |
+| --- | --- | --- | --- | --- |
+| D01 | **基础 Action 遇到 one-shot 覆盖时的时间轴** | one-shot 期间基础动作 `elapsedMs` 继续累计还是冻结？结束后回到最新基础动作的哪个相位？当前只确定基础 attrs 变化不打断 one-shot、缺 Clip 本身不暂停本应推进的时间  | **冻结被 one-shot 覆盖的基础动作时间**；返回时同名基础 Action 延续冻结相位，若 retained 基础名变化则新动作从 0 起播。一个可见动作对应一个推进中的主体时间轴。 | P0 |
+| D02 | **`ms-avatar` 动态 attrs 的最终闭集** | `action` 与 `one-shot-enabled` 之外的 `x/y`、`facing`、`expression` 是否属于 Avatar，格式、默认值及非法值规则；`skin/face/hair/equips` 冗余 attrs 是否正式移除  | Avatar retained attrs 建议只保留 `action`、`one-shot-enabled`、`facing`、`expression`；皮肤/脸/头发/装备放父级渲染就绪数据，世界 `x/y` 交场景，Avatar 用局部原点。枚举值和默认值严格校验。 | P0 |
+| D03 | **表情模型** | 表情选择入口、表情帧/时长/循环的数据归属（父级 vs 独立数据轨）、表情与身体独立时间轴的精确定义、表情资源复用和 `showFace` 交互  | 用 `attrs.expression` 选表情；表情帧数据放共享外观中、与身体 Action 独立计时；`showFace` 只控制本帧是否可见。更换表情名重置其表情播放相位。 | P0 |
+| D04 | **动作名称与子节点身份** | `ms-action.attrs.name` 是否为正式字段、名称/键的语法与长度、同名重复的拒绝范围、改名如何影响当前播放与 RenderNode key 生命周期  | `attrs.name` 为唯一、大小写敏感的索引；同父重名作为错误，不按 DOM 顺序消歧；改名采用旧 key 删除 + fresh key 新建，长度/字符边界随 CMS079 样本确定。 | P1 |
+| D05 | **`ms-action` Clip Schema** | `data.clip` 的格式版本、`playback`（loop/hold/suffix loop）、`repeatFrom` 单位与边界、`frames` 表示和具体 Action 播放模式如何编码  | 采用显式 `formatVersion:1`、非空有序 `frames`、`loop/hold/suffix-loop` 三种基础播放语义和零基 `repeatFrom`；Event 入口始终覆盖为 one-shot。具体字段待定稿。 | P1 |
+| D06 | **Clip 帧时序与源资料映射** | 缺失、零、负 delay 的语义；alias/UOL、非连续帧、重复帧、`repeat`、首尾边界与全零持续时间的校验；依据真实 CMS079 固定样本定稿  | 在 Adapter 解析 alias/UOL、负/缺省 delay、重复帧并正规化为可验证毫秒时序；零时长帧可表达，但循环片段总时长必须为正。不要无条件把所有负 delay 做绝对值。 | P1 |
+| D07 | **Clip 部件绘制 Schema** | frame 中 move/rotate/flip/showFace、origin/anchors、部件 z 层、遮挡与共享图层、装备隐藏规则、帧内绘制顺序的字段及校验规则  | 复用旧 `avatar-model.mjs` 的几何与遮挡校验：Adapter 产出渲染就绪的帧层、origin/anchors/变换，父级统一 zOrder；Renderer 不重做 WZ 插槽裁决。 | P1 |
+| D08 | **父级共享外观 `data` Schema** | `appearance`、zOrder、共用资源索引/外观来源和 Clip 引用关系；哪些字段属于父数据、哪些属于 Clip，如何判定“合法组合”  | 父级 `appearance` 放共享 zOrder、资源索引和外观绘制事实；子 Clip 只保留帧及资源引用；父组件验证两者能组成完整画面。换装仍同次提交，不新增事务 version 字段。 | P1 |
+| D09 | **资源引用与缓存契约的公开数据字段** | `namespace/key/contentVersion`、图集/源矩形/尺寸校验、可复用资源身份、缓存键及像素缺失/版本冲突的处理范围；不重复设计 Content API  | 沿用 `namespace/key/contentVersion`、源矩形与尺寸一致性校验；父 Avatar 统一按资源身份缓存，支持异步 epoch、引用 pin/unpin 与预算内 LRU。Content 冲突 fail closed。 | P1 |
+| D10 | **Avatar 呈现输出与场景边界** | `x/y` 是否由场景持有、坐标原点/镜像/最终 Canvas（Shadow DOM 或共享 Painter）、与世界 Display List 深度排序的边界；不在此预定义整个 Map  | 世界坐标、场景深度归场景；Avatar 处理局部锚点、朝向和纸娃娃内部图层。初版可用 Shadow DOM Canvas，Painter 内部可抽离以供未来共享，不提前冻结 Map ABI。 | P0 |
+| D11 | **动作工作集与应用规模约束** | 当前外观“可触发动作”的完整覆盖范围、是否/何时预载、每动作帧数/层数、每角色节点数/序列化字节及缓存预算；不能直接采用旧 32 Action / 256 KiB 或 OpenMS 126 的硬值  | Event 前发布当前外观能实际触发的动作子节点，常见图片按需预读；按 V01 实测决定单 Clip 与单 Avatar 两层规模预算，不套旧 32/256KiB 或 OpenMS 126 的定值。 | P1 |
+| D12 | **错误时的呈现与可观测性契约** | 父外观无效、当前 Clip 无效、重复动作名、内容版本冲突等的错误分类、诊断载荷与展示/清屏行为；保留业务 Action、不静默选择其他 Action 的原则已定  | 区分“尚未就绪”“Clip 无效”“像素未就绪”“Content 版本冲突”，诊断包含 Avatar/Action/资源身份；不隐式改选业务 Action，不把视觉缺陷映射为技能判定失败。 | P1 |
 
 ### 10.2 原则已定、仍须实现接口 / 竞态行为的事项
 
-| ID | 议题 | 待落实的机制 |
-| --- | --- | --- |
-| I01 | **父子通知和同步查询 API** | 本地变更事件名称/载荷、只读 Clip getter、子节点 attrs/移动/删除/重挂的监听与解绑、跨父级迟到通知防护；原则已在 §5.15 确认 |
-| I02 | **首次挂载与原子换装的呈现门闩** | `connectedCallback` 后如何识别所需数据已交付、父/子 `receiveRenderData` 交错时如何重建一致组合、绘制及 Action Event 入口如何避免临时混画；局部就绪与同次 Domain 原子发布已在 §5.13、§5.16 确认 |
-| I03 | **Render Clock 的组件内部完整接口** | provider 获取、对象失效通知、订阅/解绑、暂停/恢复的 delta 计算与跨父级切换；稳定对象身份、继承回退、显式暂停及 DOM 断连规则已定 |
-| I04 | **播放器及异步资源生命周期的具体算法** | Clip 替换时 seek、缺 Clip 继续计时、one-shot 取消、异步 epoch/Abort、图片缓存 pin/unpin、被移除资源释放；产品行为已在 §5.4–§5.16 确认 |
-| I05 | **验证器、限制与诊断接口落地** | 父级/Clip 字段级闭集、结构/数量/字节上界、非法输入处理、错误上报方式，以及各类无资源状态的渲染表现 |
+| ID | 议题 | 待落实的机制 | 推荐实施方式 | 优先级 |
+| --- | --- | --- | --- | --- |
+| I01 | **父子通知和同步查询 API** | 本地变更事件名称/载荷、只读 Clip getter、子节点 attrs/移动/删除/重挂的监听与解绑、跨父级迟到通知防护；原则已在 §5.15 确认  | 用组件内部同步变更通知 + 只读 Clip 快照 getter；父级只接纳当前直接子节点，标脏不立即画图，Event 入口同步刷新；MutationObserver 辅助结构变化。 | P1 |
+| I02 | **首次挂载与原子换装的呈现门闩** | `connectedCallback` 后如何识别所需数据已交付、父/子 `receiveRenderData` 交错时如何重建一致组合、绘制及 Action Event 入口如何避免临时混画；局部就绪与同次 Domain 原子发布已在 §5.13、§5.16 确认  | 绘制/Event 前构建与验证当前父数据 + 子 Clip 的一致性快照；未就绪时不绘制混合帧，数据回调只标脏。以真实 WebProjector 浏览器测试定下投影结束/调度细节。 | P0 |
+| I03 | **Render Clock 的组件内部完整接口** | provider 获取、对象失效通知、订阅/解绑、暂停/恢复的 delta 计算与跨父级切换；稳定对象身份、继承回退、显式暂停及 DOM 断连规则已定  | 稳定 `getRenderClock()` 返回对象 + 可取消订阅 + 明确 provider 失效通知；pause 不能回退本地，切换仅重设采样基准，不丢失相位。 | P1 |
+| I04 | **播放器及异步资源生命周期的具体算法** | Clip 替换时 seek、缺 Clip 继续计时、one-shot 取消、异步 epoch/Abort、图片缓存 pin/unpin、被移除资源释放；产品行为已在 §5.4–§5.16 确认  | 分离纯时间定位器与资源 Painter；Clip、Action、外观/实例变化提升内部 epoch，拒绝过期图片；共享图片缓存 pin/unpin 与可取消读入。 | P1 |
+| I05 | **验证器、限制与诊断接口落地** | 父级/Clip 字段级闭集、结构/数量/字节上界、非法输入处理、错误上报方式，以及各类无资源状态的渲染表现  | 父级/Clip 独立闭集 Validator + 组合 Validator；格式错误 fail closed，像素未就绪允许继续计时；上限由 V01 数据反推并提供可定位诊断。 | P1 |
 
 ### 10.3 实现前必须完成的证据与迁移工作
 
-| ID | 工作 | 交付/验收 |
-| --- | --- | --- |
-| V01 | **真实 CMS079 外观与动作抽样测量** | 含不同武器、服装、表情、身体动作/技能姿态的资源闭包，统计 Clip 数量、序列化体积、帧/层/锚点、图像复用和缺失情况；与固定 OpenMS GMS083 的参考行为区分 |
-| V02 | **浏览器 WebProjector / DOM 时序集成测试** | 首挂空壳、父/子数据交付不同顺序、紧邻的 Action Event、结构替换、重复名称、剪裁/过期异步绘制、暂停/断连/重挂及换装同次提交不混画 |
-| V03 | **性能和像素一致性验证** | 初始 Snapshot/replace 成本、子 Clip 增量更新、缓存命中与峰值内存、慢解码与后台恢复、CMS079 锚点/层序/表情/动作像素验收 |
-| V04 | **旧 `cms-actor` 的迁移方案（单独阶段）** | 新标签注册、Adapter/Validator/测试与运行时接入；旧组件和冻结 `components/RENDER-NODE-ABI-V1.md` 继续不改，不能把 Draft 当成已发布 ABI |
+| ID | 工作 | 交付/验收 | 建议验收路径 | 优先级 |
+| --- | --- | --- | --- | --- |
+| V01 | **真实 CMS079 外观与动作抽样测量** | 含不同武器、服装、表情、身体动作/技能姿态的资源闭包，统计 Clip 数量、序列化体积、帧/层/锚点、图像复用和缺失情况；与固定 OpenMS GMS083 的参考行为区分  | 先构造合法 CMS079 小型代表样本：多武器、换装、站走跳/攀爬、技能姿态、表情；统计动作数、字节/帧/层/锚点、纹理复用、alias/负 delay，并单列与 OpenMS GMS083 的差异。 | P0 |
+| V02 | **浏览器 WebProjector / DOM 时序集成测试** | 首挂空壳、父/子数据交付不同顺序、紧邻的 Action Event、结构替换、重复名称、剪裁/过期异步绘制、暂停/断连/重挂及换装同次提交不混画  | 用真实 WebProjector + 浏览器测试首挂空壳、父子回调交错、紧接 Event、同次换装、重名/删除、慢解码、暂停、断连重挂、Clip 更新及清理。 | P1 |
+| V03 | **性能和像素一致性验证** | 初始 Snapshot/replace 成本、子 Clip 增量更新、缓存命中与峰值内存、慢解码与后台恢复、CMS079 锚点/层序/表情/动作像素验收  | 测初始 Snapshot、整树 replace、单 Clip update、峰值内存/缓存命中/慢解码/后台恢复；真实 CMS079 做锚点、遮挡、表情和帧时序像素比对后再定预算。 | P2 |
+| V04 | **旧 `cms-actor` 的迁移方案（单独阶段）** | 新标签注册、Adapter/Validator/测试与运行时接入；旧组件和冻结 `components/RENDER-NODE-ABI-V1.md` 继续不改，不能把 Draft 当成已发布 ABI  | 新 `ms-avatar` / `ms-action` 并行注册、构造独立 Adapter/Validator 和验收，达标后单独迁移调用方；不就地改旧 `cms-actor` 或冻结 ABI。 | P2 |
 
 **非当前必做事项**：transient Event 的跨新实例精确重放已明确接受为**不保证**；除非未来提出必须恢复技能途中相位的新需求，不在当前 V1 设计中额外增加 retained 起始时间/动作序号。跨多个 Domain/提交的分阶段换装也**不属于当前支持范围**，将来确需才另议版本化与显式激活机制。
 
-**建议裁决顺序**：先解决 D01（one-shot 覆盖期间基础时间轴），然后 D02/D03 的动态输入，再依次冻结 D04–D09 的动作/外观数据 Schema；I01/I02 与字段 Schema 可配合浏览器 PoC 迭代。其余项在落地及测试阶段执行。
+**建议裁决顺序**：**D01 → D02/D03/D10 → V01 → D04–D09、D11/D12 → I02 小型 WebProjector PoC（尽早验证父子投影门闩）→ I01/I03–I05 → V02/V03 → V04**。其中 I02 是拆分动作子节点后最关键的投影竞态风险，不应在完整 ABI 冻结后才做浏览器验证。

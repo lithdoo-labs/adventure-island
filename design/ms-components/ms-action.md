@@ -191,13 +191,13 @@ LoomRealm RenderNode.children
 
 **图集必须真实合并**：旧 [cms-actor 实施说明](../../components/cms-actor/IMPLEMENTATION.md) 已支持图集整页读取/解码与多张小图 source 裁剪；固定 OpenMS [visual-resources.js](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/visual-resources.js) 通过 atlas manifest 和共享 lease 复用页面。**PWA installation-bundle 合并 Content 项不等于 PNG 已合成图集**；新实现必须实际构建 atlas 页及 sprite → 页内裁剪映射并用 CMS079 实测。
 
-**已确认 I01–I05 的实施方向（§7）**：I01 子快照与通知、I02 快照门闩和浏览器 PoC、I03 父级 Clock、I04 Player/Painter/图集缓存分层、I05 严格验证和诊断；仍待实际编码及 V01–V04 真实素材、浏览器/像素性能和迁移验收。
+**已确认 I01–I05 的实施方向（§7）**：I01 子快照与通知、I02 快照门闩和浏览器 PoC、I03 父级 Clock、I04 Player/Painter/图集缓存分层、I05 严格验证和诊断。**V01–V04 统一延后到设计落地后的工程/验收/迁移阶段执行，不阻碍继续讨论和细化 Schema 与内部 API**；详见 [ms-avatar §10.3–§10.4](./ms-avatar.md)。
 
 **验证状态**：本设计已批准 I01–I05 的实现方向，但仍是 Draft；没有新 ms-action 实现、完整 Validator、Chromium PoC 或真实 CMS079 验收，不能称作 Frozen ABI。
 
 ## 7. 已确认 I01–I05 在 ms-action 中的实现分工（待编码/验证）
 
-本节与 [ms-avatar `11](./ms-avatar.md) **共同定义已批准的实现方向**，不代表现有 `ms-action` Custom Element、内部接口或 WebProjector PoC 已完成。
+本节与 [ms-avatar §11](./ms-avatar.md) **共同定义已批准的实现方向**，不代表现有 `ms-action` Custom Element、内部接口或 WebProjector PoC 已完成。
 
 ### 7.1 I01：只读 Clip 快照与私有变更通知
 
@@ -211,7 +211,7 @@ LoomRealm RenderNode.children
 - 子组件**只发布自己的 Clip 状态**，不自行推测全局换装是否已完成；子通知不能要求父组件立即绘制。初始化时元素可能已经连接 DOM 但 `attrs.name` 或 `data.clip` 尚未交付；空壳不是有效动作。
 - 当前 LoomRealm WebProjector 先更新 DOM 结构与 attrs，再同步逐元素尝试 `receiveRenderData()`。**不是**所有子元素共用一个回调，也没有专供 Avatar 的投影事务成功标记。子组件必须保证新的解析失败不会意外保留旧 valid 状态；父组件须按当前需要的有效 Clip 和共享外观构建组合快照，失败则 fail closed。
 - 同次 Domain 换装由 Adapter 整体发布；已发布且目标有效的 Clip 可在图集尚未解码时触发一次性 Event 并开始计时。未知/无效 Clip 的 Event 立即丢弃、不补播。
-- **优先做真实 WebProjector 浏览器 PoC**：首挂空壳、父子数据回调交错、更新后紧接 action Event、无效数据/抛错、`replace()` 删除迁移、慢图集解码且旧绘制晚到。具体验收矩阵见 [ms-avatar `11.2](./ms-avatar.md)；如果只靠局部快照不足以辨识换装完整性，须增加 Renderer **内部的可验证完成信号**，不宣称延迟一个 microtask 就保证原子。
+- **进入实施阶段时优先做真实 WebProjector 浏览器 PoC**：首挂空壳、父子数据回调交错、更新后紧接 action Event、无效数据/抛错、`replace()` 删除迁移、慢图集解码且旧绘制晚到。具体验收矩阵见 [ms-avatar §11.2](./ms-avatar.md)。它不是当前继续设计的前置条件；如果只靠局部快照不足以辨识换装完整性，须增加 Renderer **内部的可验证完成信号**，不宣称延迟一个 microtask 就保证原子。
 
 ### 7.3 I03 / I04：父级 Clock、Player、Painter 与共享图集缓存
 
@@ -224,7 +224,7 @@ LoomRealm RenderNode.children
 
 - 子节点验证 Clip 字段类型、格式版本、帧有序/非负有限持续时间、循环与后缀起点、frame/layer 结构、sprite 引用形式及应用级容量；**数据错误立即标记 invalid**，不绘制/恢复旧有效定义。
 - 父 `ms-avatar` 负责校验共享 `appearance/sprites/expressions`、重名、sprite/zOrder 引用完整性、图集 `source` 与实际尺寸，并将 D12 的 `ACTION_MISSING / ACTION_INVALID / DUPLICATE_ACTION / CONTENT_CONFLICT / APPEARANCE_INVALID / PIXELS_PENDING` 等候选诊断区分展示；无效当前组合清理过期像素，缺图片不阻塞有效动画时钟。
-- 单 Clip / 全 Avatar 的帧、层、JSON 字节和 atlas 页缓存预算需真实 CMS079 V01/V03 测量，不能直接继承旧 32 Action / 256KiB 阈值。
+- 单 Clip / 全 Avatar 的帧、层、JSON 字节和 atlas 页缓存预算需在**后续实施/验收阶段**通过真实 CMS079 V01/V03 测量确定，不能直接继承旧 32 Action / 256KiB 阈值。当前可以继续讨论候选字段、限制机制与错误处理，不把未验证的数值当成最终 ABI。
 
-**当前状态**：I01–I05 已确认实施架构，私有接口名和 Validator 字段仍为候选；**没有新增源码、没有跑过 PoC，也没有通过真实 CMS079 像素/性能验收**。
+**当前状态与阶段安排**：I01–I05 的实现架构已确认，私有接口名和 Validator 字段仍为候选。**V01–V04 已归档为设计落地阶段的工程待办，而非继续设计的前置门槛**。实施启动时优先 I02 最小 WebProjector PoC 与 V01 CMS079 数据测量；新组件联调后执行 V02/V03；完成验收后才执行 V04，从旧 `cms-actor` 逐步迁移。**目前没有新增源码、没有通过 PoC 或真实 CMS079 像素/性能验收，不能将未测项目标记为通过或冻结。**
 

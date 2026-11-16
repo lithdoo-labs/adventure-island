@@ -233,7 +233,7 @@ specialActionClip = {
 | Event 的 `action` 名称不存在于当前 **已验证 `ms-action` 子节点索引** | **丢弃此次 Event**，生成包含动作名的诊断；不缓存名称等待下一份 Plan，也不改变基础动作或当前 one-shot |
 | Event 动作定义存在，但图片/图集尚在读取、解码 | **收到 Event 时开始一次性 Action 播放时间轴**，在资源可用时绘制届时的**当前帧**；可能跳过早期帧，极端情况下整个 one-shot 不可见 |
 | Event 动作自然到期但资源仍未就绪 | 按既定规则结束覆盖、回到最新 `attrs.action`；不得因为迟到的资源而补播 |
-| Retained `attrs.action` 对应的 `ms-action` 暂不可用 | **保留基础 Action 请求**；子节点/Clip 可用后重新解析，诊断缺失而不把其改成其他业务动作 |
+| Retained `attrs.action` 对应的 `ms-action` 暂不可用 | **保留基础 Action 请求**，按 §5.14 对本应运行的基础时间轴继续累计 `elapsedMs`；子节点/Clip 恢复后直接重新定位帧，不重播，不改选业务 Action |
 | 当前 Action 定义存在但基础图像尚未就绪 | 保留基础 Action 状态与资源加载；绘制失败或暂缺时使用明确的渲染诊断，不凭空选择另一动作 |
 | 新 Event / 禁用 one-shot / 子节点 Clip 替换或删除 / 外观变化 / 组件断开 | 过期异步解码或绘制结果不得覆盖新状态；读取取消、缓存 pin/unpin 与有效版本检查依然适用 |
 
@@ -299,7 +299,7 @@ specialActionClip = {
 ### 5.11 尚待讨论的边界
 
 1. **`ms-action` Clip Schema**：动作名、帧、循环边界、零延迟/缺失 delay、资源引用版本；父级共用外观数据（如 `appearance`）与子节点内容如何一致验证。
-2. **Clip 热更新语义已确认（§5.12）**：同名有效 Clip 替换保留已播放时间；one-shot Clip 消失则取消；基础 Clip 缺失仍保留 retained 请求。**待定**：基础 Clip 缺失期间的时间累计；换装时跨父子节点同次原子发布原则见 §5.13。
+2. **Clip 热更新语义已确认（§5.12）**：同名有效 Clip 替换保留已播放时间；one-shot Clip 消失则取消；基础 Clip 缺失仍保留 retained 请求。基础 Clip 缺失期间的时间累计与恢复行为已在 §5.14 确认；换装时跨父子节点同次原子发布见 §5.13。
 3. **父子数据通知**：子节点独立 `receiveRenderData()`、名称变化、DOM 增删如何更新 Avatar 索引并排除事件顺序竞态。
 4. **当前外观动作覆盖率与容量**：OpenMS 的预定义 Action 集只是参考，不可将 126 动作直接等同于 CMS079 必须全量传输；测量真实 CMS079 样本后确定适当应用级限制。
 5. **未来精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实。Clock 失效通知 API 留待实施阶段。
@@ -316,7 +316,7 @@ specialActionClip = {
 | 正在播放的 one-shot，收到**同名且校验有效**的新 Clip | 保留该次 one-shot 的 `elapsedMs`，按新 Clip 的 `once` 时间轴重新定位帧，不重新触发技能 |
 | 新 one-shot Clip 总时长变短、`elapsedMs` 已达到或超过新时长 | 立即判定该 one-shot 已结束，回到最新 retained `attrs.action` |
 | 当前 one-shot 对应子节点被移除、Clip 无效或不再可用 | 立即取消该 one-shot，回到最新基础 Action，**不保留待补播任务** |
-| retained 基础 `attrs.action` 对应的 `ms-action` 被移除、Clip 无效或不再可用 | 保留 `attrs.action` 原值并记录可定位诊断；不擅自选择另一个业务 Action。后续恢复时的时间基准另议 |
+| retained 基础 `attrs.action` 对应的 `ms-action` 被移除、Clip 无效或不再可用 | 保留 `attrs.action` 原值并记录可定位诊断，不擅自选择另一业务 Action；缺失与恢复时的基础动作时间按 §5.14 继续累计和重新定位 |
 | 非当前动作的 Clip 更新或移除 | 更新动作索引与依赖资源引用；不得重启或扰动当前有效动作的播放相位 |
 
 实施要求：
@@ -366,6 +366,28 @@ domain.update({
 **验收情景**：只换已有武器相关 Clip、增减动作节点的整树替换、换装与 `attrs.action` 同时更新、未修改的 Clip 经验证可复用、父子数据回调出现先后差异、异步旧图片返回晚于新外观、跨提交错误使用被 Adapter 检测。
 
 **OpenMS 对照**：`prepareFieldAvatar()` 先准备新外观、图集和动画；`publishFieldAvatar()` 再发布新显示对象。我们保留“先准备一致状态、再发布”的原则，但 LoomRealm 原子 RenderNode 提交与独立子组件是 Adventure Island 的设计，不是 OpenMS 原生 ABI。
+
+### 5.14 第二阶段已确认：基础 Clip 暂缺期间的时间连续性（方案 B）
+
+**已确认**：retained `attrs.action` 的基础动作定义（`ms-action` 子节点/已校验 `data.clip`）临时缺失或无效时，**不将该数据缺失解释为 Render Clock 暂停**。保留基础 Action 请求及 Animation Player 的本地时间事实；只要基础动作按照既定播放策略本来应推进，仍随当前有效 Render Clock 累计其 `elapsedMs`。恢复有效 Clip 时，直接根据**当前累计播放时间**和新 Clip 的时长、循环、hold 语义定位当前帧，**不从第 0 帧重播、不补画缺失时间内的帧**。
+
+| 场景 | 处理 |
+| --- | --- |
+| `attrs.action="walk1"`，已播放 300ms，Clip 缺失时 Render Clock 仍运行；2s 后恢复 | 保留基础动作选择，累计时间到约 **2300ms**；恢复时在有效新 Clip 上 seek 2300ms 对应帧，不从 300ms 或 0ms 开始 |
+| Clip 自首次投影开始就不存在，但 retained 基础动作已经被选择 | 可照常累计此基础动作本应经过的本地时间；待有效 Clip 出现后据此定位，而非以 Clip 到达时刻作为动作开始时间 |
+| Clip 存在，但图像尚在下载、解码 | **不属于 Clip 定义缺失**；沿用 §5.7 的资源延迟规则，时钟照常经过 |
+| 当前 Render Clock 显式暂停 | 仍然冻结，不因为 Clip 恢复而补算暂停时间 |
+| 同一 Avatar 实例断开 DOM | 仍然冻结；重挂按 §5.9 保留已有相位，不补算断连时间 |
+| 基础动作 Clip 缺失期间收到一次性 Event | Event 仍依赖**自身** Clip 是否有效（§5.7），不因为基础动作缺失而另行缓存；one-shot 与基础动作的既有覆盖关系保持不变 |
+
+**边界**：
+
+1. 只是在既定时间推进策略上增加“缺少 Clip 不能阻止应有的时钟推进”，**不擅自决定 one-shot 覆盖时基础 Action 是否并行计时**：若该情景此前的 Player 策略将基础时钟挂起，就不在缺失期间额外推进。这项覆盖下的基础时钟策略另行裁决。
+2. 不能在 Clip 缺失时复用已失效的旧 Clip 帧假装当前动作有效；应记录缺失诊断并等待有效定义、资源和绘制上下文。Clip 恢复不导致自动选择新的业务 Action。
+3. 基础 Action 名确实变化时遵循原有 retained 动作选择规则；**重复投影同名 `attrs.action` 不重启**。缺失后的恢复只是动作定义变化，不等于新动作事件。
+4. 计算继续使用 Render Clock 提供的未暂停时间；不引入 Component 自己的墙钟补偿，也不借用 Subsystem 的战斗权威时间戳。
+
+**验收场景**：无 Clip 时经过 2s 后恢复 seek；Clip 恢复于循环后缀阶段；非循环动作已过终点则保持末帧；显式暂停/断连期间不累计；同名重复 retained 投影不重启；one-shot 所需 Clip 缺失时 Event 仍丢弃、不补播。
 
 ## 6. 外观数据、动作子节点与资源所有权
 
@@ -419,6 +441,7 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 | 动作定义的承载方式 | **`ms-action` RenderNode 子节点，父 Avatar 按动作名索引** | **已确认** |
 | 图片资源加载/解码/缓存所有权 | **统一归 `ms-avatar`，不在 `ms-action` 独立加载** | **已确认** |
 | `ms-action` Clip 内容更新与删除 | 同名有效 Clip 保留 elapsedMs 重新求帧；one-shot 删除即取消，基础请求保留 | **已确认** |
+| 基础 Action Clip 暂缺后的时间连续性 | 本应推进时继续累计 elapsedMs；恢复有效 Clip 后 seek，不补播 | **已确认** |
 | 换装时父级 appearance 与子 Action Clip 一致性 | **同一 Domain、同一次 update/replace 原子提交**；子组件绘制前校验组合；不新增 appearance-version | **已确认** |
 | `ms-action` 的 Clip Schema、容量与通知机制 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |

@@ -502,8 +502,9 @@ class GapClosureIntegrityT090(unittest.TestCase):
         claims = _read_csv(SOT / "claims.csv")
         gaps = _read_csv(SOT / "gaps.csv")
         ev = _read_csv(SOT / "evidence.csv")
-        self.assertEqual(len(claims), 119)
-        self.assertEqual(len(ev), 107)
+        # t091 migration: 119->120 claims (C-120), 107->108 evidence (EV-108)
+        self.assertEqual(len(claims), 120)
+        self.assertEqual(len(ev), 108)
         self.assertEqual(len(gaps), 41)
 
     def test_mapwz_identity_recorded(self):

@@ -5,7 +5,7 @@
 ## 全局合同
 
 - 地图闭包：222000000, 222000001, 230030200, 230030100, 230030000, 230020300, 230020200, 230020100, 230020000, 230000000, 230000001, 230000002, 230000003。
-- OpenMS 参考锚点：`07994de02756356e3e025e3aca9e79433898d2c8`（GMS083）；每项使用 pinned commit 的具体文件/行引用，路径仅作行为参考，不构成复制源码许可。
+- OpenMS 参考锚点：07994de02756356e3e025e3aca9e79433898d2c8（GMS083）；每项使用 pinned commit 的具体文件/行引用，路径仅作行为参考，不构成复制源码许可。
 - ABI：冻结 RenderNode v1 五字段及现有标签/attrs/data/event/key/sceneEpoch 不变；无法表达的动态行为走新 Plan/tag 版本 ADR。
 - 权威：Field Runtime / Subsystem / Shared State；输入经 InputGate；Web Component 只绘制。
 - 错误：构建期 fail-closed；运行期保留 last-good；传送失败不改变源状态。
@@ -18,6 +18,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：Map/Info：version、cloud、town、swim、returnMap、forcedReturn、mobRate、bgm、mapMark、hideMinimap、fieldLimit；VR/miniMap/layers。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：map descriptor 唯一、13/13 allowlist、mapId 与 Portal graph 节点一致。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; Map/Info：version、cloud、town、swim、returnMap、forcedReturn、mobRate、bgm、mapMark、hideMinimap、fieldLimit；VR/miniMap/layers。
 - **正常行为：** 读取并严格限制 13 个 mapId；filename、mapId、info 与层记录必须一致，未知地图拒绝进入本发布闭包。 map descriptor 唯一、13/13 allowlist、mapId 与 Portal graph 节点一致。
 - **边界行为：** 13 个 Map struct 文件全部存在；mapId/filename 不一致、info 缺失或 mapId 重复时构建失败。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -38,6 +39,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：Map.Info 全字段及原始 presence 位；所有数值类型和字符串字段。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：同一输入重复构建产生字节一致 descriptor；ignored ledger 能定位原始字段。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; Map.Info 全字段及原始 presence 位；所有数值类型和字符串字段。
 - **正常行为：** 把已知 Info 字段映射到 typed descriptor；未知字段进入 ignored-field ledger，禁止静默丢弃。 同一输入重复构建产生字节一致 descriptor；ignored ledger 能定位原始字段。
 - **边界行为：** 可选 fly/noMapCmd/onFirstUserEnter/onUserEnter/effect/decHP/protectItem 缺失时保留缺失；0 与缺失不等价。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -58,6 +60,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：info.link、mapId、被引用 map descriptor。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：链路 A→B→C 解析终点 C；A→B→A 报 LINK_CYCLE；不存在目标报 LINK_TARGET_MISSING。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; info.link、mapId、被引用 map descriptor。
 - **正常行为：** 将 info.link 作为显式引用解析；不在 13 图样本中推断继承，通用解析必须拒绝环和悬空引用。 链路 A→B→C 解析终点 C；A→B→A 报 LINK_CYCLE；不存在目标报 LINK_TARGET_MISSING。
 - **边界行为：** 无 link 时直接使用本图；link 指向已存在终点时按 ADR 约定处理；循环/多义/目标缺失失败。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -78,6 +81,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：map.Tile、map.TileFrame、struct.map.Tileset、Canvas.z/origin、resource.Map/tile。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：同一 source record 的 asset/placement 引用闭合；sourceOrder 保留；缺 z 拒绝该 Plan。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; map.Tile、map.TileFrame、struct.map.Tileset、Canvas.z/origin、resource.Map/tile。
 - **正常行为：** 按 TileSet/u/no 解析 Tile Canvas；画布 z、尺寸、origin 和资源版本必须真实存在。 同一 source record 的 asset/placement 引用闭合；sourceOrder 保留；缺 z 拒绝该 Plan。
 - **边界行为：** canvasZ 缺失时报告 tile-canvas-z-absent，不以 0 补齐；无 Tile 组需由 manifest 明确 SOURCE-EMPTY。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -98,6 +102,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：map.Obj、map.ObjFrame、struct.map.Obj、Canvas z/origin、flow/r/z/zM/f。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：同一 map 记录中普通 Obj 可绘制；unsupported Obj 阻断完整 Plan 发布。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; map.Obj、map.ObjFrame、struct.map.Obj、Canvas z/origin、flow/r/z/zM/f。
 - **正常行为：** 解析 Obj 的 oS/l0/l1/l2 与放置字段；普通 Obj 可进 v1，flow/r 非零不得静默省略。 同一 map 记录中普通 Obj 可绘制；unsupported Obj 阻断完整 Plan 发布。
 - **边界行为：** r 缺省或 0 进入 v1；r 非零或 flow 存在时输出 obj-visual-field-unsupported。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -118,6 +123,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：map.Back、map.BackFrame、struct.map.Back、Canvas delay/origin、resource.Map/back。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：type0 资源闭包完整；sourceOrder 和 front 保留。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; map.Back、map.BackFrame、struct.map.Back、Canvas delay/origin、resource.Map/back。
 - **正常行为：** 解析 Back set/index/animation 与 Canvas 帧，保留每帧 delay presence、origin、尺寸和资源版本。 type0 资源闭包完整；sourceOrder 和 front 保留。
 - **边界行为：** 空帧、资源缺失、非有限坐标拒绝；缺 delay 不补 0；type 1–7 不进 v1。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -138,6 +144,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：Back 放置记录：rx/ry/type/cx/cy/front/f/a；不把字段值转成未经批准的公式。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：输出字段逐项可追溯到源路径；未支持 type 明确 unsupported。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; Back 放置记录：rx/ry/type/cx/cy/front/f/a；不把字段值转成未经批准的公式。
 - **正常行为：** 完整保留 rx/ry/type/cx/cy/front/flip/opacity 等未投影字段，供 V2 Adapter 使用。 输出字段逐项可追溯到源路径；未支持 type 明确 unsupported。
 - **边界行为：** cx/cy=0 保持 0；opacity 仅允许 0..255 整数；front 非 0/1 拒绝。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -158,6 +165,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：map.Foothold：id/x1/y1/x2/y2/layer/platform/prev/next/force/forbidFallDown。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：每个连接引用都指向本 Plan ID；sourceOrder 稳定；保留有符号 force。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; map.Foothold：id/x1/y1/x2/y2/layer/platform/prev/next/force/forbidFallDown。
 - **正常行为：** 规范化 Foothold ID、端点、layer/platform、prev/next、force 与 forbidFallDown。 每个连接引用都指向本 Plan ID；sourceOrder 稳定；保留有符号 force。
 - **边界行为：** 重复 ID、非有限/超界坐标、悬空 prev/next 拒绝；竖直段保留但不可作为站立面。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -178,6 +186,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：map.Rope：x/y1/y2/l/uf/page/id；map.Seat：index/x/y。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：绳和座位仅进入 Field Runtime；不产生 RenderNode；目标地图缺失记录可用空数组但需显式来源状态。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; map.Rope：x/y1/y2/l/uf/page/id；map.Seat：index/x/y。
 - **正常行为：** 导入 Rope 与 Seat 的坐标和标志，空组显式表示，不在组件层绘制。 绳和座位仅进入 Field Runtime；不产生 RenderNode；目标地图缺失记录可用空数组但需显式来源状态。
 - **边界行为：** Rope 缺组仅在 manifest 声明 SOURCE-EMPTY 时接受；l/uf/page 不猜测；Seat index 保留数字或字符串类型。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -198,6 +207,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：map.Portal、MapHelper portal pv/ph/psh、image/default、delay/onlyOnce/hideTooltip/hRange/vRange。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：目标解析只读 Field Runtime PortalRecord；组件只接收 portalPlan。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; map.Portal、MapHelper portal pv/ph/psh、image/default、delay/onlyOnce/hideTooltip/hRange/vRange。
 - **正常行为：** 规范化 Portal pn/pt/x/y/tm/tn 与脚本/范围/视觉字段，逻辑记录与视觉帧分离。 目标解析只读 Field Runtime PortalRecord；组件只接收 portalPlan。
 - **边界行为：** tm=999999999 表示无目标；tn 空值不推导目标；pt 9/12/13 按 unsupported 规则拒绝发布视觉记录。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -218,6 +228,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：LogicalResourceRefV1、ContentVersion、resource.Map/back/tile/obj/helper/minimap、Builder manifest。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：闭包完整才可签发 ready bundle；资源清单可复算且无私有 locator。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; LogicalResourceRefV1、ContentVersion、resource.Map/back/tile/obj/helper/minimap、Builder manifest。
 - **正常行为：** 构建 13 图的显式资源闭包，逐项验证逻辑引用、SHA-256、MIME、尺寸、source rect 和引用者。 闭包完整才可签发 ready bundle；资源清单可复算且无私有 locator。
 - **边界行为：** 缺失/冲突/版本不符/解码尺寸不符均阻断对应地图 Plan；失败不得发布部分树。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -238,6 +249,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：VRLeft/Top/Right/Bottom、miniMap width/height/centerX/centerY、Foothold bbox。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：13 图每图都产出 source/adjustment/sourceBounds/effectiveBounds；Camera 不二次内缩。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; VRLeft/Top/Right/Bottom、miniMap width/height/centerX/centerY、Foothold bbox。
 - **正常行为：** 按 VR→miniMap→Foothold 的确定顺序生成 BoundsRecord；VR 四边缺一项不得套用 VR inset。 13 图每图都产出 source/adjustment/sourceBounds/effectiveBounds；Camera 不二次内缩。
 - **边界行为：** VR 轴收敛时向零截断中点；miniMap 尺寸/中心缺项转 foothold；三者皆不可用时报 bounds-unavailable。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -258,6 +270,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Content/Map Adapter；构建期 Content index 与 MapBundle 是权威；Web Component 不参与
 - **输入 → 输出：** MapDescriptor + WZ-derived FSDB struct/group + Resource manifest; 关联源字段：struct.physics.Default 与地图/foothold 覆盖项；20 个历史字段名中本契约使用已核对的 19 个物理值。 → typed MapDescriptor / MapScenePlanV1 / MapBundleManifest; 可观察验收：同一 ContentVersion 解析出完全相同 physics config；版本变化需重新构建。
+- **状态变化：** 构建状态：UNVALIDATED → VALIDATED/READY；任何必需字段/资源/闭包错误 → REJECTED。构建期不得修改正在运行的 FieldRuntime。
 - **资源字段依赖：** Map.Info/Back/Tile/Obj/Foothold/Rope/Seat/Portal/Physics + LogicalResourceRefV1; struct.physics.Default 与地图/foothold 覆盖项；20 个历史字段名中本契约使用已核对的 19 个物理值。
 - **正常行为：** 从 physics.Default 读取 19 个已定义数值，按字段名和单位建型，不在代码中硬编码猜测值。 同一 ContentVersion 解析出完全相同 physics config；版本变化需重新构建。
 - **边界行为：** 缺字段、非有限值、单位/范围不符拒绝物理配置；不得把未知字段默认为 0。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -278,6 +291,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：BackPlanV1.frames、origin、source、opacity、flip。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：world-space 位置变更只更新计划；组件不自行查询 WZ/FSDB。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; BackPlanV1.frames、origin、source、opacity、flip。
 - **正常行为：** 绘制 type0 背景单帧，按 placement-origin 锚定，远景/近景由父树段决定。 world-space 位置变更只更新计划；组件不自行查询 WZ/FSDB。
 - **边界行为：** 单帧无 delay 正常；多帧任一缺 delay 时 v1 停第一帧；缺资源整张地图失败。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -298,6 +312,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：Back type/cx/cy/rx/ry/Canvas width/height。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：视口内重复覆盖无缝且不会生成世界尺寸 Canvas。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; Back type/cx/cy/rx/ry/Canvas width/height。
 - **正常行为：** 提出 type1 单轴平铺产品行为：仅按明确 tile-step-x 沿 X 重复，Y 不重复。 视口内重复覆盖无缝且不会生成世界尺寸 Canvas。
 - **边界行为：** tile-step-x=0 表示不重复；非正/过大步长拒绝或诊断，不改用画布宽度。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -318,6 +333,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：Back type/cx/cy/origin/frames。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：不同 viewport 下可见重复数正确，资源仍只解码一次。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; Back type/cx/cy/origin/frames。
 - **正常行为：** 提出 type2 双轴平铺产品行为：按显式 cx/cy 周期在 X/Y 两轴重复。 不同 viewport 下可见重复数正确，资源仍只解码一次。
 - **边界行为：** 任一轴步长为 0 时该轴不重复；不从画布尺寸静默补周期。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -338,6 +354,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：Back type/rx/ry/cx/cy/viewport/camera。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：相同 camera 输入重放结果一致，视差只影响绘制位置不改世界坐标。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; Back type/rx/ry/cx/cy/viewport/camera。
 - **正常行为：** 提出 type3 双轴平铺并分别应用 rx/ry 视差因子，公式固定在 BackPlanV2。 相同 camera 输入重放结果一致，视差只影响绘制位置不改世界坐标。
 - **边界行为：** rx/ry=0 为无视差；非有限数拒绝；负速率按有符号方向处理。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -358,6 +375,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：Back type/rx、frame duration、presentation clock。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：30/60/120Hz 重放相同时间点得到相同背景位移。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; Back type/rx、frame duration、presentation clock。
 - **正常行为：** 提出 type4 水平自动移动背景；使用单调 presentation clock，不依赖帧率。 30/60/120Hz 重放相同时间点得到相同背景位移。
 - **边界行为：** rate=0 静止；非零方向由符号决定；视口 resize 不重置相位。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -378,6 +396,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：BackFrame.delay、frames、loop、tick timestamp。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：虚拟时钟 0/1/延迟边界/循环边界逐帧一致。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; BackFrame.delay、frames、loop、tick timestamp。
 - **正常行为：** 为背景帧建立独立确定性时钟，delay 为非负毫秒，loop 时按总周期取模。 虚拟时钟 0/1/延迟边界/循环边界逐帧一致。
 - **边界行为：** 缺 delay 表示 hold；全 0 周期的循环计划拒绝；延迟过大只保留合法帧。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -398,6 +417,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：canvasZ/layer/zM/sourceOrder。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：同输入 key 恒定，层号变化按公式变化，渲染排序不依赖 JS sort 稳定性。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; canvasZ/layer/zM/sourceOrder。
 - **正常行为：** 计算 Tile 诊断整数键，但不把诊断键当排序方向；产品顺序按 canvasZ 后 sourceOrder。 同输入 key 恒定，层号变化按公式变化，渲染排序不依赖 JS sort 稳定性。
 - **边界行为：** canvasZ 缺失拒绝；负 zM 可合法保留；键溢出或非 safe integer 拒绝。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -418,6 +438,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：layer/z/zM/sourceOrder。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：Obj key 公式可 golden test；相同 z 顺序不变。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; layer/z/zM/sourceOrder。
 - **正常行为：** 计算 Obj 诊断整数键，产品绘制按 z 升序和 sourceOrder tie-break。 Obj key 公式可 golden test；相同 z 顺序不变。
 - **边界行为：** z 缺失/非整数拒绝；zM 只保留，不代替 z 参与 Obj key。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -438,6 +459,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：MapLayerPlanV1.assets/tiles/objs、LogicalResourceRefV1。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：0..7 层排序、placement 资源闭包与 ABI schema 校验通过。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; MapLayerPlanV1.assets/tiles/objs、LogicalResourceRefV1。
 - **正常行为：** 每个非空地图层生成一个 cms-map-layer；Tile/Obj 批量绘制，不为每个画布创建 RenderNode。 0..7 层排序、placement 资源闭包与 ABI schema 校验通过。
 - **边界行为：** 空层不生成节点；资产 ID 重复、孤儿资产或错误 kind 引用拒绝。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -458,6 +480,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：MapLayerPlanV1、sourceOrder、z/canvasZ/layer。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：不同引擎排序实现的 golden draw list 完全相同。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; MapLayerPlanV1、sourceOrder、z/canvasZ/layer。
 - **正常行为：** 按 Obj z 升序→Tile canvasZ 升序→sourceOrder 绘制；layer 0..7 按树顺序。 不同引擎排序实现的 golden draw list 完全相同。
 - **边界行为：** 相同 key 不推断原版比较器；`clientSortKey` 仅诊断，不影响产品顺序。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -478,6 +501,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：avatar.DrawOrder、LayerSlot、Avatar.Part、islot/vslot、smap/zmap、origin/map/anchors。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：同装备组合绘制次序稳定；无锚点部件不画且有 diagnostic。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; avatar.DrawOrder、LayerSlot、Avatar.Part、islot/vslot、smap/zmap、origin/map/anchors。
 - **正常行为：** Avatar 内部使用 zmap/smap、islot/vslot、anchor 与 zOrder 决定部件顺序和遮挡。 同装备组合绘制次序稳定；无锚点部件不画且有 diagnostic。
 - **边界行为：** 缺 zmap/smap/slot 元数据拒绝生成 AvatarPlan；部件缺动作时按 actor contract 跳过并诊断。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -498,6 +522,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：cms-scene-view children、cms-avatar-layer、cms-actor、MapLayerPlanV1。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：三图切换 Actor HTMLElement 身份稳定；Avatar 内部 zmap/smap 仍正确。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; cms-scene-view children、cms-avatar-layer、cms-actor、MapLayerPlanV1。
 - **正常行为：** 维持 v1 树顺序：地图层在 AvatarLayer 前，AvatarLayer 恰好一个 Actor；不伪造 actor 插入 Obj 深度带。 三图切换 Actor HTMLElement 身份稳定；Avatar 内部 zmap/smap 仍正确。
 - **边界行为：** 跨图 Actor key 不变；层内深度穿插超出 v1 能力时记录限制，不重排 managed children。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -518,6 +543,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：Obj flow、ObjFrame、delay、frame index、origin、ResourceRef。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：同一 presentation clock 回放 flow 帧一致；v1 收到 flow 必须 unsupported。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; Obj flow、ObjFrame、delay、frame index、origin、ResourceRef。
 - **正常行为：** 对含 flow 的 Obj 建立 V2 动画序列，不允许 v1 Adapter 静默丢弃 flow。 同一 presentation clock 回放 flow 帧一致；v1 收到 flow 必须 unsupported。
 - **边界行为：** flow 引用缺帧、循环零周期或资源不闭合时该 map 不可发布。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -538,6 +564,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：Portal type、pv/ph/psh、default、portalStart/Continue/Exit frames。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：Portal 逻辑与视觉独立；phase transition 由 Field Runtime retained data 决定。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; Portal type、pv/ph/psh、default、portalStart/Continue/Exit frames。
 - **正常行为：** Portal v1 静态帧可显示；ph/psh 的 Start/Continue/Exit 状态动画进入新 tag/plan 版本。 Portal 逻辑与视觉独立；phase transition 由 Field Runtime retained data 决定。
 - **边界行为：** pv 帧缺失时不拿 editor icon 代替；phase 资源缺失不得假称动画完整。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -558,6 +585,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Render Projection/Components；场景与位置仍由 Field Runtime；组件仅拥有 frame/cache/canvas 私有呈现状态
 - **输入 → 输出：** MapScenePlanV1 + LogicalResourceRefV1 + Viewport snapshot; 关联源字段：Viewport、layer plan、visible placements、DPR、resource cache。 → Frozen ABI v1 RenderNode tree / Canvas pixels; 可观察验收：Resize、disconnect、sceneEpoch change 后旧任务不覆盖新场景且资源释放。
+- **状态变化：** RenderProjection revision 更新并发布新 RenderNode tree；组件只更新私有 Canvas/frame/cache 状态；PlayerMotionState/CameraState 不由绘制更新。
 - **资源字段依赖：** Canvas width/height/origin/source/delay + LogicalResourceRefV1; Viewport、layer plan、visible placements、DPR、resource cache。
 - **正常行为：** 每层使用 viewport-sized Canvas 与可见区域裁剪，缓存/解码/画布生命周期有界。 Resize、disconnect、sceneEpoch change 后旧任务不覆盖新场景且资源释放。
 - **边界行为：** 超出像素/并发/资源预算时明确 error；不得创建整幅世界 Canvas。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -578,6 +606,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：World position、camera top-left、viewport、DPR。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：world-camera 的四角和负坐标 golden test；DPR 不改变世界坐标。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; World position、camera top-left、viewport、DPR。
 - **正常行为：** 定义 screenX=worldX-cameraLeft、screenY=worldY-cameraTop；Y 向下、1:1 CSS px。 world-camera 的四角和负坐标 golden test；DPR 不改变世界坐标。
 - **边界行为：** viewport 尺寸不为正拒绝；camera x/y 使用有限整数世界像素。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -598,6 +627,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：sourceBounds/effectiveBounds、viewport width/height。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：800×600 与非标准 viewport 均无二次内缩；地图小于视口时居中。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; sourceBounds/effectiveBounds、viewport width/height。
 - **正常行为：** VR 四边完整时按 MapScenePlan 公式构建 effectiveBounds；Camera 不重复应用 inset。 800×600 与非标准 viewport 均无二次内缩；地图小于视口时居中。
 - **边界行为：** 轴收敛/反向时向零截断中点；viewport 不同于 800×600 不得沿用固定 400/300 top-left 夹取。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -618,6 +648,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：miniMap width/height/centerX/centerY、Foothold bbox。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：8 张无 VR 地图都得到可重复边界；来源诊断可见。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; miniMap width/height/centerX/centerY、Foothold bbox。
 - **正常行为：** 无完整 VR 时按 miniMap→Foothold bbox 回退，source/adjustment 必须保留。 8 张无 VR 地图都得到可重复边界；来源诊断可见。
 - **边界行为：** miniMap 缺项或 Foothold 空集时 bounds-unavailable；不得混合 VR 单边与 minimap。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -638,6 +669,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：Viewport width/height、DPR、scene bounds。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：640×480/800×600/1280×720 与 DPR 1/2/3 通过。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; Viewport width/height、DPR、scene bounds。
 - **正常行为：** Viewport 来自 LoomRealm Viewport snapshot；DPR 只控制设备像素画布。 640×480/800×600/1280×720 与 DPR 1/2/3 通过。
 - **边界行为：** resize 连续合并；width/height 为 0 时暂停绘制但不重置 world。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -658,6 +690,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：Actor world position、camera state、map bounds。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：组件 receiveRenderData 不可写 world；camera snapshot 可重放。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; Actor world position、camera state、map bounds。
 - **正常行为：** CameraSubsystem 是 camera x/y 唯一写入者；目标为 Actor feet+(0,-50) 作为 OpenMS 候选。 组件 receiveRenderData 不可写 world；camera snapshot 可重放。
 - **边界行为：** Actor 不存在时保持最后有效 camera；首次进入 map 以 arrival target snap。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -678,6 +711,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：feet target、monotonic elapsed、viewport、sourceBounds。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：同一虚拟时间序列 camera 输出逐帧相同；不因 render FPS 改变。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; feet target、monotonic elapsed、viewport、sourceBounds。
 - **正常行为：** 使用 28px deadband 与 coefficient=100 的 OpenMS filter 作为候选；输出仍为 ABI top-left。 同一虚拟时间序列 camera 输出逐帧相同；不因 render FPS 改变。
 - **边界行为：** 首帧 snap；时间回退/非有限 dt 拒绝；小地图居中；deadband 内不抖动。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -698,6 +732,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：Viewport resize event、camera snapshot。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：比较 resize 前后 PlayerState 字节完全相同。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; Viewport resize event、camera snapshot。
 - **正常行为：** Viewport resize 只更新 camera projection 与 Canvas，不修改 Actor/physics state。 比较 resize 前后 PlayerState 字节完全相同。
 - **边界行为：** 连续 resize 与恢复旧尺寸不积累位置误差；资源加载迟到结果被 epoch 隔离。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -718,6 +753,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Camera；CameraState 属于 Field Runtime；RenderNode 仅投影当前值
 - **输入 → 输出：** Actor feet world pose + sourceBounds + Viewport + monotonic time; 关联源字段：monotonic elapsed、InputGate sequence、accumulator。 → CameraState top-left x/y → cms-scene-view.attrs.x/y; 可观察验收：16.67/33/250/1000ms 帧序列在同一 tick input log 下得到同一 state hash。
+- **状态变化：** CameraState.target/filter/initialized/x/y 更新；PlayerMotionState、mapId、sceneEpoch 保持不变。
 - **资源字段依赖：** VR/minimap/foothold bounds + Viewport + Actor feet; monotonic elapsed、InputGate sequence、accumulator。
 - **正常行为：** Physics 固定 30ms tick；render frame delta 只累加到 accumulator，输入 edge 按 tick 顺序消费。 16.67/33/250/1000ms 帧序列在同一 tick input log 下得到同一 state hash。
 - **边界行为：** 每次最多 8 个 catch-up tick；剩余 backlog 保留并报告 overload，不丢模拟时间。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -738,6 +774,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：InputFrame、Physics walk force/speed/friction、ground tangent。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：恒定输入 30 ticks 与 golden position/velocity 匹配。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; InputFrame、Physics walk force/speed/friction、ground tangent。
 - **正常行为：** 平地行走以 Physics config 加速/限速/制动，按固定 tick 积分。 恒定输入 30 ticks 与 golden position/velocity 匹配。
 - **边界行为：** 左右同时按下水平输入为 0；速度不越过目标限值；输入无效拒绝。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -758,6 +795,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：x1/y1/x2/y2、Physics friction、force；V2 drag。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：正/负斜率、零 force、最大坡度与速度上限 property tests。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; x1/y1/x2/y2、Physics friction、force；V2 drag。
 - **正常行为：** 坡面速度投影到 Foothold tangent；坡度、摩擦和 slip 使用明确产品参数。 正/负斜率、零 force、最大坡度与速度上限 property tests。
 - **边界行为：** FootholdV1 缺 per-segment drag 时不猜测；极陡坡按产品阈值阻止/滑落并记录诊断。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -778,6 +816,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：Foothold id/prev/next/layer/platform、position/speed。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：双向链、单向链、断链、环、端点反向进入 fixture。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; Foothold id/prev/next/layer/platform、position/speed。
 - **正常行为：** 跨 Foothold endpoint 时按 prev/next 转移，保留切向速度和剩余 tick 时间。 双向链、单向链、断链、环、端点反向进入 fixture。
 - **边界行为：** 悬空/非互逆链接按明确边界规则；一次 tick 超过 32 次转移时 fault，不无限循环。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -798,6 +837,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：InputFrame、vx、Physics air control/drag/max speed。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：跳跃上升/下降阶段左右输入切换 golden replay。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; InputFrame、vx、Physics air control/drag/max speed。
 - **正常行为：** 空中水平输入产生有限加速度；释键按 air drag 逐步减速，保持动量连续。 跳跃上升/下降阶段左右输入切换 golden replay。
 - **边界行为：** 左/右同时按下为 0；极端速度钳制到 Physics 上限；不因 render FPS 改变。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -818,6 +858,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：Physics gravity/terminal/fall speed、position/velocity。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：同轨迹 30/60/120Hz replay 结果一致；高速下落不穿台。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; Physics gravity/terminal/fall speed、position/velocity。
 - **正常行为：** 空气状态按重力推进 vy，应用 terminal velocity，并进行 swept collision。 同轨迹 30/60/120Hz replay 结果一致；高速下落不穿台。
 - **边界行为：** 超大 dt 不跳过地面；非有限 gravity/terminal 立即 fault 并保留 last-good state。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -838,6 +879,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：Foothold endpoints、layer/platform、prev/next、sweep start/end。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：斜线、竖线、水平线、端点、反向穿越和穿台 fixture。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; Foothold endpoints、layer/platform、prev/next、sweep start/end。
 - **正常行为：** 使用确定性 swept segment contact；斜面可落地，竖直段只作墙/边界，不作站立面。 斜线、竖线、水平线、端点、反向穿越和穿台 fixture。
 - **边界行为：** one-way 平台只在从上向下穿越时接触；碰撞相同时按 sourceOrder/id tie-break。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -858,6 +900,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：InputFrame.jumpPressed、ground state、Physics jumpSpeed。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：边缘跳、同帧双击、held-key、落地后再次跳测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; InputFrame.jumpPressed、ground state、Physics jumpSpeed。
 - **正常行为：** jumpPressed edge 在地面有效时施加 jumpSpeed 初速度；按住不重复触发陆地跳。 边缘跳、同帧双击、held-key、落地后再次跳测试。
 - **边界行为：** 空中再次按下无效；落地后新 edge 才可再次跳；movementLocked 时忽略。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -878,6 +921,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：Map.Info.swim、InputFrame、Physics swim acceleration/drag。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：八张水图分别测试上/下/左/右、对角输入和离开水域。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; Map.Info.swim、InputFrame、Physics swim acceleration/drag。
 - **正常行为：** info.swim=1 的 8 张水图采用 water movement mode，四方向可控。 八张水图分别测试上/下/左/右、对角输入和离开水域。
 - **边界行为：** 未提供 swimArea 的 v1 将整张目标地图视作水域；若 V2 引入区域，边界采用半闭区间规则。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -898,6 +942,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：swim state、jumpPressed/jump held、Physics fly/swim values。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：0/299/300/301ms 边界、切出水域和重按测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; swim state、jumpPressed/jump held、Physics fly/swim values。
 - **正常行为：** 水中 jump edge 施加 water jump impulse；可按产品 cadence 支持持续按键重复。 0/299/300/301ms 边界、切出水域和重按测试。
 - **边界行为：** 300ms repeat 作为 OpenMS 候选，需 ADR 批准；释放 jump 清除 repeat accumulator。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -918,6 +963,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：InputFrame.down/jumpPressed、Foothold.forbidFallDown、field policy。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：平台上下两侧、边缘、禁止标志、连续按键测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; InputFrame.down/jumpPressed、Foothold.forbidFallDown、field policy。
 - **正常行为：** Down+Jump edge 尝试从当前 Foothold 下跳，受 forbidFallDown 产品字段约束。 平台上下两侧、边缘、禁止标志、连续按键测试。
 - **边界行为：** 禁止下跳时不改变位置/速度；允许时暂时忽略当前 Foothold，穿过后清除 ignore id。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -938,6 +984,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：InputFrame、ground state、locomotion state。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：down press/release、down+left、空中 down fixture。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; InputFrame、ground state、locomotion state。
 - **正常行为：** 地面仅按 Down 且无水平输入进入 crouch/prone；松开恢复 stand/walk。 down press/release、down+left、空中 down fixture。
 - **边界行为：** 空中/游泳/攀爬状态不触发地面 crouch；左右与 down 同时按下按水平移动规则处理。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -958,6 +1005,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：landing event、vx、AvatarPlan locomotionActions、alert timer。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：落地速度阈值两侧、缺动作、重复落地事件测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; landing event、vx、AvatarPlan locomotionActions、alert timer。
 - **正常行为：** 落地时按水平速度选择 stand/walk，alert 计时为产品时钟状态，不由组件私有 timer 决定。 落地速度阈值两侧、缺动作、重复落地事件测试。
 - **边界行为：** 无可用姿态帧回退到 stand；姿态缺失产生 diagnostic，不改变物理状态。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -978,6 +1026,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：Rope x/y1/y2/l/uf/page、Actor feet、vertical input。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：绳顶/底、左右边界、跨层、重叠绳测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; Rope x/y1/y2/l/uf/page、Actor feet、vertical input。
 - **正常行为：** 按 Up/Down 与 Rope 几何捕获；x 容差 10px 作为 OpenMS 候选。 绳顶/底、左右边界、跨层、重叠绳测试。
 - **边界行为：** l/uf 缺失或不受支持时不猜 ladder/rope 类型；多个绳重叠按 sourceOrder tie-break。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -998,6 +1047,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：Rope y1/y2/l/uf/page、InputFrame up/down。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：上端/下端、uf=0/1、绳中松键和重复捕获测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; Rope y1/y2/l/uf/page、InputFrame up/down。
 - **正常行为：** 攀爬每 tick 沿绳轴移动；3px/30ms 作为 OpenMS 候选速度，端点按 uf 规则释放或停住。 上端/下端、uf=0/1、绳中松键和重复捕获测试。
 - **边界行为：** y1/y2 顺序不归一化；超出端点按明确规则；释放后切换 air/ground 并重置速度。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1018,6 +1068,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：Seat index/x/y、Actor bounds、InputFrame。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：三个含 Seat 地图测试；无 Seat 的 10 张地图测试无副作用。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; Seat index/x/y、Actor bounds、InputFrame。
 - **正常行为：** Seat 命中后设置 sit state 与固定坐标；离开输入按产品规则站起并重新寻找 Foothold。 三个含 Seat 地图测试；无 Seat 的 10 张地图测试无副作用。
 - **边界行为：** 无 Seat 记录的地图坐下无效；站起空间被遮挡时保留坐姿并提示。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1038,6 +1089,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：InputGate attack edge、AvatarPlan actions、RenderDomain.emit。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：事件不重放、重连不重播、动作结束回当前 locomotion。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; InputGate attack edge、AvatarPlan actions、RenderDomain.emit。
 - **正常行为：** 攻击动作由 RenderDomain `action` transient event 触发，不写 retained movement state。 事件不重放、重连不重播、动作结束回当前 locomotion。
 - **边界行为：** 动作计划缺失时丢弃一次，不补播；同动作重复事件从第 0 帧重播。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1058,6 +1110,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：外部 impulse、vx/vy、movement lock。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：重复 impulse、零 impulse、movement lock、非有限值测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; 外部 impulse、vx/vy、movement lock。
 - **正常行为：** 本轮只定义受击反馈接口，不做伤害结算；击退作为独立 impulse 意图进入 MovementSubsystem。 重复 impulse、零 impulse、movement lock、非有限值测试。
 - **边界行为：** 无服务器/战斗权威时拒绝伪造 HP 或 damage；无效 impulse 不改变 last-good state。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1078,6 +1131,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：未来 Combat authority 与 avatar action；本阶段不读取未知字段。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：ABI validator 拒绝未知字段；现有移动状态不受影响。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; 未来 Combat authority 与 avatar action；本阶段不读取未知字段。
 - **正常行为：** 死亡/击退字段保留为后续 CombatState 扩展，不进入当前 P3 movement MVP。 ABI validator 拒绝未知字段；现有移动状态不受影响。
 - **边界行为：** 未批准的死亡字段不得投影到 frozen Actor attrs 或 RenderNode data。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1098,6 +1152,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：landing tick、alertUntilTick、locomotion。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：4999/5000/5001ms 边界、暂停、跨图 reset 测试。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; landing tick、alertUntilTick、locomotion。
 - **正常行为：** 落地 alert 计时按 5000ms 产品时钟候选值推进，到期回当前 locomotion。 4999/5000/5001ms 边界、暂停、跨图 reset 测试。
 - **边界行为：** 重复 alert 重置计时；暂停/切图按 FieldRuntime tick policy 决定，不使用 wall-clock timer。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1118,6 +1173,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Movement；Shared State/Field Runtime 是唯一权威；Actor 组件只接收投影
 - **输入 → 输出：** InputGate tick frame + Physics config + Foothold/Rope/Seat/Map Info; 关联源字段：monotonic clock、accumulator、InputGate tick queue。 → PlayerMotionState position/velocity/mode/pose/contacts; 可观察验收：30/60/120Hz、250ms/1000ms stall、input edge replay hash。
+- **状态变化：** 每个固定 tick 更新 tickIndex/simulationTimeMs 与 PlayerMotionState 的 position/velocity/mode/contacts/locomotion；last-good snapshot 用于 fault 回退。
 - **资源字段依赖：** Physics 19 numeric fields + Foothold/Rope/Seat/Map Info; monotonic clock、accumulator、InputGate tick queue。
 - **正常行为：** 所有运动状态仅由 30ms 固定 tick 推进；渲染帧 delta 不直接参与物理积分。 30/60/120Hz、250ms/1000ms stall、input edge replay hash。
 - **边界行为：** 每 render 最多 8 次 catch-up，余量保留；长 backlog 记录 overload，不静默丢时间。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1138,6 +1194,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：Portal x/y/type、Actor feet、InputGate.upPressed。 → same-map relocation or atomic cross-map transition; 可观察验收：中心、四边、四角、边界+/-1px、重叠门测试。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; Portal x/y/type、Actor feet、InputGate.upPressed。
 - **正常行为：** Up edge 在 portal rectangle 内触发；半宽 20、半高 50 作为产品候选。 中心、四边、四角、边界+/-1px、重叠门测试。
 - **边界行为：** 右/下边界 exclusive；pt0/pt6 不参与；未 grounded/attack/locked 时不传送。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1158,6 +1215,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：pt、tm/tn、visual、pv/ph/psh/image resource。 → same-map relocation or atomic cross-map transition; 可观察验收：每个 pt 分支有 fixture；无视觉资源不自动填 editor icon。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; pt、tm/tn、visual、pv/ph/psh/image resource。
 - **正常行为：** 只允许明确支持的 pt1/2/3/10 路由；pt2 pv、pt10 image/default 视觉分支独立于逻辑。 每个 pt 分支有 fixture；无视觉资源不自动填 editor icon。
 - **边界行为：** pt0 spawn、pt6 special、pt9/12/13 unsupported；未知 pt 不触发。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1178,6 +1236,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：tm/tn、map portal index、13-map graph。 → same-map relocation or atomic cross-map transition; 可观察验收：46 条内部目标均唯一；8 条外部边拒绝；重复名称 fixture 拒绝。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; tm/tn、map portal index、13-map graph。
 - **正常行为：** 同图与跨图统一用 `(targetMap,targetName)` 严格查找唯一 PortalRecord；不 fallback 到 portal 0。 46 条内部目标均唯一；8 条外部边拒绝；重复名称 fixture 拒绝。
 - **边界行为：** tm sentinel、空 tn、目标缺失或重名拒绝；target map 不在 13 allowlist 保持 disabled。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1198,6 +1257,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：destination PortalRecord、FootholdPlan、target bounds。 → same-map relocation or atomic cross-map transition; 可观察验收：每条内部 edge 检查落点有限且在 bounds 内；吸附 tie-break 稳定。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; destination PortalRecord、FootholdPlan、target bounds。
 - **正常行为：** 跨图落点使用目标 portal `(x,y-10)` 候选，再按确定性规则吸附有效 Foothold。 每条内部 edge 检查落点有限且在 bounds 内；吸附 tie-break 稳定。
 - **边界行为：** 无可吸附 foothold 时以零速度 air state 到达；目标坐标非法或目标资源缺失则回滚。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1218,6 +1278,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：同图 target PortalRecord、FootholdPlan、Actor state。 → same-map relocation or atomic cross-map transition; 可观察验收：ph00↔ph00_1 与 230030100/200 等同图链路 replay。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; 同图 target PortalRecord、FootholdPlan、Actor state。
 - **正常行为：** 同图跳转保留当前 sceneEpoch/tree，仅更新 Actor 世界坐标与运动状态。 ph00↔ph00_1 与 230030100/200 等同图链路 replay。
 - **边界行为：** 目标缺失/重复不移动；无 foothold 时 air state；不重建场景或清理当前地图资源。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1238,6 +1299,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：PlayerMotionState、destination environment、arrival position。 → same-map relocation or atomic cross-map transition; 可观察验收：逐字段 before/after diff；失败 rollback 与成功 reset 两组测试。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; PlayerMotionState、destination environment、arrival position。
 - **正常行为：** 传送提交时清零 vx/vy、jump/drop/ladder/seat/action transient，重新判定 ground/swim/air。 逐字段 before/after diff；失败 rollback 与成功 reset 两组测试。
 - **边界行为：** 朝向默认保留；目标 foothold 缺失则 air；失败时源状态逐字节保持。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1258,6 +1320,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：portal token、clock、camera filter、sceneEpoch。 → same-map relocation or atomic cross-map transition; 可观察验收：499/500/501ms 与 119/120/121ms 边界；迟到旧 token 不释放新 token。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; portal token、clock、camera filter、sceneEpoch。
 - **正常行为：** 跨图 camera reset+snap；同图 camera filter retarget；PortalTravelGate 使用单调时钟。 499/500/501ms 与 119/120/121ms 边界；迟到旧 token 不释放新 token。
 - **边界行为：** cross-map 500ms interval、same-map 120ms admission/600ms recovery 为候选值；重复 edge 与 active token 被拒绝。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1278,6 +1341,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：MapBundle、RenderDomain.replace、FieldRuntime transaction、sceneEpoch。 → same-map relocation or atomic cross-map transition; 可观察验收：在每个 await/commit 边界注入失败；旧 mapId、Actor、Camera 和 tree hash 不变。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; MapBundle、RenderDomain.replace、FieldRuntime transaction、sceneEpoch。
 - **正常行为：** 准备目标 Plan/资源/落点后执行单一 replace+state commit；失败保持旧树旧状态。 在每个 await/commit 边界注入失败；旧 mapId、Actor、Camera 和 tree hash 不变。
 - **边界行为：** 任意 prepare/resource/replace 失败均释放 token/资源；不递增已发布 sceneEpoch，不产生半张地图。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1298,6 +1362,7 @@
 - **地图范围：** 222000000;222000001;230030200;230030100;230030000;230020300;230020200;230020100;230020000;230000000;230000001;230000002;230000003
 - **模块 / 权威所有者：** Field Portal；PortalTravelGate/token 与 FieldRuntime state 为权威；cms-portal 只画
 - **输入 → 输出：** InputGate Up edge + PortalRecord + 13-map graph + destination MapBundle; 关联源字段：13 个 Map IDs、54 条非 sentinel link、PortalGraph CSV。 → same-map relocation or atomic cross-map transition; 可观察验收：46 internal/unique、8 external/disabled、forward/reverse reachability 13/13。
+- **状态变化：** PortalGate IDLE→PREPARING→COMMITTING→COOLDOWN；失败转 ROLLBACK→IDLE。same-map 只更新 Actor/MovementState；cross-map 原子更新 mapId/sceneEpoch/Player/Camera/tree；失败源状态不变。
 - **资源字段依赖：** Portal pn/pt/x/y/tm/tn + destination portal index + resource closure; 13 个 Map IDs、54 条非 sentinel link、PortalGraph CSV。
 - **正常行为：** 将 13 图内部唯一目标连接作为完整导航候选；外部 8 条永不静默开放。 46 internal/unique、8 external/disabled、forward/reverse reachability 13/13。
 - **边界行为：** 启用前要求目标地图/portal 唯一且资源闭包通过；图需正反向全 13 可达。；不把 SOURCE-ABSENT 当成 SOURCE-EMPTY，不静默补默认值。
@@ -1316,5 +1381,5 @@
 ## 统计与解释
 
 - 需求行数：65；唯一 Requirement ID：65。
-- 每行均包含目标、地图、Owner、I/O、状态权威、资源字段、正常/边界/错误行为、OpenMS commit 与文件位置、CMS079 历史边界、079/083 差异、ABI、性能、单测、集成测试、13 图验收、依赖、未决项和批准状态。
+- 每行均包含目标、地图、Owner、I/O、状态变化、状态权威、资源字段、正常/边界/错误行为、OpenMS commit 与文件位置、CMS079 历史边界、079/083 差异、ABI、性能、单测、集成测试、13 图验收、依赖、未决项和批准状态。
 - 历史 readiness 只描述研究证据，不代表产品批准或功能实现。

@@ -59,3 +59,6 @@
 实测 Portal graph：54 条非 sentinel 目标记录、46 条内部唯一目标、8 条闭包外目标；内部图正反向可达均为 13/13。旧四门白名单尚未被代码迁移；ADR-001 仍待批准。
 
 独立 sub-agent 能力在本轮环境不可用，Reviewer 状态 NOT-RUN；不得把本轮主 Agent 审计标记为独立 ACCEPT。
+
+
+- [主 Agent 设计审查总结（非独立 ACCEPT）](DESIGN-REVIEW-SUMMARY.md)

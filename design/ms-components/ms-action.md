@@ -67,7 +67,28 @@ LoomRealm RenderNode.children
 - 同名重复子节点应报告可定位错误并阻止歧义播放；不可悄悄以 DOM 顺序选一个。
 - 当 Event 指定的 Action 未在**当前已注册且有效**的 `ms-action` 集中时，仍遵守 [ms-avatar](./ms-avatar.md) 的既定规则：丢弃此次一次性 Event，不等待新子节点到达后补播。
 - Action 定义存在、图片还在父组件解码时，按 Renderer 接收 Event 的时间照常计时；`ms-action` **不因资源未就绪而阻塞 Clip 生效**。
-- 子节点 Clip 替换或被移除、父节点切换外观、one-shot 中断时，父组件必须使对应的**异步过期绘制结果失效**。正在播放的相同 Action 在 Clip 被替换时如何延续相位尚待下一轮定义。
+- 子节点 Clip 替换或被移除、父节点切换外观、one-shot 中断时，父组件必须使对应的**异步过期绘制结果失效**。**已确认**：同名有效 Clip 更新不重播，父 Avatar 保留当前播放实例的 `elapsedMs` 并按新定义定位帧；one-shot Clip 消失或失效时取消并回到最新基础 Action（见 §3.1）。
+
+### 3.1 已确认：Clip 热更新与动作删除语义
+
+`ms-action` **只提供定义变更**，它不会自行调用 `setAction()`、启动或重启动作。处于当前播放状态的迁移由 `ms-avatar` 的 Animation Player 决定：
+
+| 子节点变化 | 父 Avatar 行为 |
+| --- | --- |
+| 同名有效 Clip 变化，且基础 Action 正播放该名字 | 保留当前基础播放实例已累计的 `elapsedMs`，依照新 Clip 时长/循环/hold 规则 seek 到当前帧 |
+| 同名有效 Clip 变化，且当前 one-shot 使用该名字 | 保留本次 one-shot 的 `elapsedMs`，按新 Clip 的一次性时间轴 seek；**不重新触发 Event** |
+| 新 one-shot 时长小于或等于已经过时间 | 立即完成，回到最新 retained 基础 Action |
+| 当前 one-shot Clip 删除、变为无效或不再可用 | 取消 one-shot，回到最新基础 Action；不保留补播队列 |
+| 基础 Action Clip 删除、变为无效或不再可用 | **不修改 `attrs.action`**，对缺失做诊断；基础 Clip 后续恢复时的时间基准尚未决定 |
+| 其他未播放 Clip 更新 | 索引和资源引用更新，不改变活动播放进度 |
+
+此处继承的是**经过毫秒数**，不是帧号或 `elapsed / totalDuration` 比例。更新 Clip 时必须重新计算帧；例如旧帧时长 100/100/100/100ms，新时长 150/150/150ms，`elapsedMs=250` 从旧帧 2 映射到新帧 1。
+
+**强制中断和资源边界**：`one-shot-enabled=false` 继续具有立即清除的优先权；图片尚未下载/解码不算 Clip 无效，动画照常计时。新的 `render.event("action")` 才是新的 one-shot 播放指令。父 Avatar 必须让旧的异步绘制请求过期，不能把更早的旧画面绘出。
+
+**投影一致性**：父 Avatar 的动作查询必须以当前有效、已校验的子节点 Clip 为准，不能只依赖异步 DOM 观察通知。跨多个 Render Update 更新父级外观与子 Clip 时，版本匹配与发布原子性的业务策略待独立确定；单个微任务的批量绘制不能假装版本已经匹配。
+
+该规则属于新组件的 LoomRealm 数据组织方案；OpenMS `EntityAnimation.seek()` 可以参考时间定位，但 OpenMS 换装通常准备整个新 Avatar 并替换，不是上游对 `ms-action` 节点热更新。
 
 ## 4. 数据规模与发布语义
 
@@ -102,7 +123,7 @@ LoomRealm RenderNode.children
 
 1. `ms-action` 的具体字段 ABI：动作名、Clip 版本、循环区间和帧列表。
 2. 父子通知与快照投影顺序、重挂/移除时清理逻辑；包括不同 Action 重名的错误处理。
-3. 当前播放的 Clip 被子节点更新或删除时，延续相位、重启还是中断。
+3. **已确认 (§3.1)** 同名 Clip 热更新保留 `elapsedMs`，失效 one-shot 取消；**待定** 基础 Clip 缺失期间的累计时间、跨外观版本的匹配规则。
 4. 父级 `appearance` 与每个 Action Clip 的共用 zOrder/资源引用、版本一致性与缓存容量。
 5. CMS079 实际外观动作范围与序列化开销，是否需要另一层共享数据压缩。
 

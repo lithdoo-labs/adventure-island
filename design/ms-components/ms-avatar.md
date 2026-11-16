@@ -202,7 +202,7 @@ domain.update({
 - 基础 Action 支持**完整循环**、**先播前置段再循环后续片段**、**非循环播至末帧并保持**三种语义。非循环基础 Action 停在末帧，直到 Subsystem 改变 `attrs.action`（或者单次 Event 暂时覆盖后再回到它）。
 - 基础 Action 的正常结束是组件内部的视觉状态，**不向 Subsystem 发完成事件**，不自行切换别的业务 Action。
 - `render.event("action")` 是**一次性覆盖播放**：即使该 Action 的基础循环定义允许循环，单次 Event 也只执行一次完整动作，到期回到最新基础 Action。新 Event 到达时遵照既定的显式重启规则；`one-shot-enabled=false` 仍有强制终止优先权。
-- 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。如何在对应 `ms-action` Clip 或共享外观数据替换时保留相位另议。
+- 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。对应 `ms-action` Clip 更新时**保留当前已累计的播放时间、按新 Clip 重新定位帧，不视为重播**（§5.12）；跨外观版本的一致性协议仍待定。
 - 以上是**确定的行为语义**，不是已批准的 `ms-action` Clip 字段级 Schema。
 
 **待定 `ms-action.data.clip` 的表达示例**（字段名 `playback` 和 `repeatFrom` 暂不冻结；不同键对应不同子节点）：
@@ -296,10 +296,34 @@ specialActionClip = {
 
 这属于 Renderer 内部组件协作协议，**不要求 LoomRealm RenderNode/Render Update v1 新增字段**。
 
+### 5.12 第二阶段已确认：ms-action Clip 更新与移除
+
+**已确认规则**：`ms-action` 的 Clip 内容变化是**绘制定义热更新**，不是新的 Action 播放指令。只有新的 `render.event("action")` 才会触发一次性动作从头重播。父 Avatar 持有的播放时间 `elapsedMs` 是迁移依据，**不直接继承旧帧号或以新总时长归一化相位百分比**。
+
+| 当前情况 | 父级 `ms-avatar` 的处理 |
+| --- | --- |
+| 正在播放的基础 Action，收到**同名且校验有效**的新 Clip | 保留基础播放实例已累计的 `elapsedMs`，基于新 Clip 的帧时长、循环/末帧规则**重新求当前帧**；不从第 0 帧重启 |
+| 正在播放的 one-shot，收到**同名且校验有效**的新 Clip | 保留该次 one-shot 的 `elapsedMs`，按新 Clip 的 `once` 时间轴重新定位帧，不重新触发技能 |
+| 新 one-shot Clip 总时长变短、`elapsedMs` 已达到或超过新时长 | 立即判定该 one-shot 已结束，回到最新 retained `attrs.action` |
+| 当前 one-shot 对应子节点被移除、Clip 无效或不再可用 | 立即取消该 one-shot，回到最新基础 Action，**不保留待补播任务** |
+| retained 基础 `attrs.action` 对应的 `ms-action` 被移除、Clip 无效或不再可用 | 保留 `attrs.action` 原值并记录可定位诊断；不擅自选择另一个业务 Action。后续恢复时的时间基准另议 |
+| 非当前动作的 Clip 更新或移除 | 更新动作索引与依赖资源引用；不得重启或扰动当前有效动作的播放相位 |
+
+实施要求：
+
+1. 父组件以 **Action 名 + 已验证 Clip** 建立索引。新 Clip 到达后，应替换对应播放实例引用，依据其累计时间重新 seek；帧索引必须重新计算。比如旧帧时长 `[100,100,100,100]`，新帧时长 `[150,150,150]`，累计 250ms 对应旧帧 2、新帧 1。
+2. 不能因为新 Clip 帧数、帧布局、时长或绘制图层不同就**默认重播**；先用新 Clip 的既定播放规则定位。若定义无法通过校验，则视作该动作暂不可用，不对错误数据 seek。
+3. `one-shot-enabled=false`、新的 action Event，以及同名 one-shot Clip 的删除/失效，继续分别触发既定的强制终止、替换或取消语义；**Clip 更新本身不产生新的 Event**。
+4. Clip 更新、删除、父级共享外观变化必须使旧异步绘制结果失效；图片加载仍由 Avatar 统一负责，不阻塞动画计时。已存在有效 Clip 的图片尚未解码完成，**不等于** Clip 已被删除。
+5. 父级数据与各 `ms-action` 子节点通过 LoomRealm 分别投影，任何一次 `RenderDomain.update()` 已提交的单节点 Clip 更新在父组件同步读取到最新有效定义后才能用于新一轮绘制。面向 Event 的动作查询也必须同步以当前有效索引为准，不能仅等待异步 `MutationObserver` 回调。父/子跨不同提交的版本一致性校验另议；**不能用一次微任务延迟假装跨提交原子性**。
+6. 原有实例同名 Clip 更新允许继承时间；组件重建是新实例，仍只从 retained 基础 Action 初始化，不恢复 transient one-shot。该迁移规则是 **Adventure Island 新组件设计**，不能归因于 OpenMS 原生热更新：OpenMS 的 `EntityAnimation` 支持 seek，而它的换装流程可先准备新 Avatar 再整体替换。
+
+**验收情景**：当前基础动作时序变化不重启、同名 one-shot 更新不重播、one-shot 缩短后立即完成、one-shot 子节点消失/失效立即取消、基础子节点消失不改变 `attrs.action`、非活动动作更新无副作用、异步旧画面不覆盖新 Clip。
+
 ### 5.11 尚待讨论的边界
 
 1. **`ms-action` Clip Schema**：动作名、帧、循环边界、零延迟/缺失 delay、资源引用版本；父级共用外观数据（如 `appearance`）与子节点内容如何一致验证。
-2. **当前播放的子节点发生更新**：相同 Action 的 Clip 被替换、删除或被外观更新整体替换时，保留相位、重启或中断，下一轮单独讨论。
+2. **Clip 热更新语义已确认（§5.12）**：同名有效 Clip 替换保留已播放时间；one-shot Clip 消失则取消；基础 Clip 缺失仍保留 retained 请求。**待定**：基础 Clip 缺失期间的时间累计、外观与子 Clip 的跨更新版本一致性。
 3. **父子数据通知**：子节点独立 `receiveRenderData()`、名称变化、DOM 增删如何更新 Avatar 索引并排除事件顺序竞态。
 4. **当前外观动作覆盖率与容量**：OpenMS 的预定义 Action 集只是参考，不可将 126 动作直接等同于 CMS079 必须全量传输；测量真实 CMS079 样本后确定适当应用级限制。
 5. **未来精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实。Clock 失效通知 API 留待实施阶段。
@@ -357,6 +381,7 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 | Clock 提供者失效通知 API | 必须可检测并重新查找；具体形式待定 | **实施细节待定** |
 | 动作定义的承载方式 | **`ms-action` RenderNode 子节点，父 Avatar 按动作名索引** | **已确认** |
 | 图片资源加载/解码/缓存所有权 | **统一归 `ms-avatar`，不在 `ms-action` 独立加载** | **已确认** |
+| `ms-action` Clip 内容更新与删除 | 同名有效 Clip 保留 elapsedMs 重新求帧；one-shot 删除即取消，基础请求保留 | **已确认** |
 | `ms-action` 的 Clip Schema、容量与通知机制 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |
 

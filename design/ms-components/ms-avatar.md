@@ -37,8 +37,8 @@
 | --- | --- |
 | `key` | Avatar RenderNode 身份，遵守 one-shot key 生命周期 |
 | `tag` | `ms-avatar` |
-| `attrs` | retained 基础 `action`、`one-shot-enabled`、`expression`（已确认），朝向 `facing` 等其他输入是否属于闭集仍按 D02 决定；不包含世界 `x/y`（D10） |
-| `data` | **当前角色共用**的渲染就绪外观信息（共享 zOrder、资源索引、表情帧与绘制事实；分工见已确认 D08 / §6.3），**不再携带全部 `actions` 字典**；具体顶层字段闭集尚待 Schema 冻结 |
+| `attrs` | **已确认 D02**：retained `action`、`one-shot-enabled`、`facing`、`expression` 四个独立可更新的显示输入；不包含世界 `x/y`，不直接承载皮肤/发型/装备等原始业务 ID。具体值域及缺省值由 Validator 冻结 |
+| `data` | **当前角色共用**的渲染就绪外观信息；D02 建议顶层独立的 `appearance`、`sprites`、`expressions`，对应共享外观、图集索引和表情定义；不携带全部 `actions` 字典。字段形状仍属 Draft（§6.6） |
 | `children` | **已确认：独立的 `ms-action` 数据型子节点**；每个子节点保存一个动作的绘制 Clip；纸娃娃内部图层不是 RenderNode |
 | `receiveRenderEvent` | 接收面向 Avatar 的瞬时 `action` Event，触发一次性覆盖动作 |
 
@@ -61,13 +61,15 @@
   key: "avatar:player",
   tag: "ms-avatar",
   attrs: {
-    facing: "right",       // 字段形式仍受 D02 约束；世界 x/y 交场景
+    facing: "right",       // 已确认独立 attrs，字符串值域待 Validator 确定；世界 x/y 交场景
     action: "walk1",
     "one-shot-enabled": "true", // 可选，默认 true
     expression: "default"      // 表情选择入口已确认（D03）；值域待定
   },
   data: {
-    appearance: { /* 共享 zOrder、资源索引、表情定义等；D08 分工已定，字段形状待定 */ }
+    appearance: { /* 共用外观、zOrder / 几何事实；候选字段 */ },
+    sprites: { /* 图集页/小图索引；候选字段，D02/D05 */ },
+    expressions: { /* 表情帧/循环定义；候选字段，D03 */ }
   },
   children: [
     {
@@ -101,7 +103,7 @@ domain.emit({
 - `render.event` 是 transient、可能丢失、不重放；重建组件只恢复 retained 基础 Action，不恢复中途技能。技能命中、伤害和冷却仍由 Subsystem 权威处理。
 - 仅当目标 Avatar 当前有效且所请求动作的 `ms-action` **已登记、已验证、Clip 可用**时才接纳事件；动作缺失时直接丢弃，不等待下一次 `replace()` 后补播。**Clip 有效不要求位图已经下载或解码**。
 - Subsystem / Adapter 应提前提供当前外观可触发的动作子节点；**不同动作可独立更新，但创建/删除子节点要求 `replace()` 提交整棵树**。因此不能把 Event 当成缺失动作的懒加载指令。
-- **已确认 D03**：`attrs.expression` 选择表情；帧/时序在父级共享外观数据中，由独立表情时间轴推进，`showFace` 仅控制是否显示。**已确认 D10**：世界 `x/y` 不属于 Avatar attrs，而由场景负责，Avatar 只处理局部原点及镜像。`skin/face/hair/equips` 是否正式从 attrs 闭集中排除，以及 `facing` 的最终输入格式、默认值和合法值，仍归 D02 后续决定。
+- **已确认 D02/D03**：`attrs.expression` 选择表情，帧/时序在父级共享外观数据中，由独立表情时间轴推进；`showFace` 只控制显示。四个 attrs 是动态显示输入闭集，`skin/face/hair/equips` 等原始外观选择经 Adapter 解析后进入 data，不作为额外 attrs。**D10**：世界 `x/y` 由场景负责。具体字符串值域、默认值和非法输入诊断留待 I05 Validator。
 
 ## 5. Render Clock、继承规则与动作播放
 
@@ -553,12 +555,12 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 
 **验收**：首挂缺父数据不绘制混合帧；坏 `walk1` 不能继续画旧 `walk1`；重复 `brandish1` 只使冲突动作不可用；慢图集到达时定位当下帧；资源版本冲突不使用旧缓存；问题修复后基础动作可按相位恢复。
 
-### 6.5 D02 / D05 / D06 / D07 / D11 的共同复核约束（尚未裁决）
+### 6.5 D02 / D05 / D06 / D07 / D11 共同证据及实现约束（方向已确认）
 
 **更新粒度与正确的 LoomRealm 语义**：
 
 - `RenderDomain.update()` 的 `attrs.set/remove` 可修改少量独立属性；`data.set/remove` **也可以只修改 `data` 的顶层成员**，不是必须整体替换所有 `data`。例如 `{data:{set:{appearance: nextAppearance}}}` 只替换 `appearance` 这个顶层属性，不直接原地改 `appearance.zOrder`。WebProjector 随后交付的是**完整当前 data**，且只在结构性数据值发生变化时尝试回调。
-- **D02 尚待裁决**：频繁独立变化且类型简单的显示选择应优先使用 retained attrs；不常变化的重资源目录与合成帧留在 data / 动作子节点。不要因为资源放父级就迫使每一次动作、朝向或表情变化重发整个共享外观对象。是否把共享父数据拆成独立顶层成员，待 D02/D08 字段级 Schema 定稿。
+- **已确认 D02 的更新粒度原则**：频繁独立变化且类型简单的显示选择使用四个 retained attrs；共用的绘制事实/纹理目录/表情分别可以作为父级独立 data 顶层成员更新；逐 Action 的大帧数据只更新该 `ms-action.data.clip`。不能因动作、朝向或表情选择变化重发所有大型外观数据；具体对象字段闭集和 Validator 仍待定。
 - 已确认 D10：世界 `x/y` 属于场景而非 Avatar；即使坐标变化频繁，也不能把世界坐标重新放进 `ms-avatar.attrs`。
 
 **OpenMS 与旧 `cms-actor` 的小文件聚合事实**：
@@ -570,7 +572,94 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 - **不要混淆两种合并**：现有 [PWA 安装包生成器](../../scripts/pwa/build-installation-bundle.mjs) 可以把 Content 项装进一次安装 payload，但这**不自动意味着运行时每张小 PNG 已合成为 atlas**。要减少浏览器的逐小图 Content 读取/解码，仍需真实的图集图片 + manifest/source rect 映射；当前 [合成 Avatar Content](../../scripts/pwa/synthetic-avatar-content.mjs) 甚至注明按 part/action/frame 生成独立 PNG，因此必须用实际 CMS079 生成链验证是否确有打图集，而不能只看安装包文件数。
 - 图集生成/发布属于 Adapter/构建与 Content 层，**不是** `ms-action` 的副作用；并不意味着需要修改 LoomRealm Core，也不意味着 RenderNode 子节点数据由 Content API 单独分段传输。具体图集如何划分、是否配合共享元数据块与前端预取策略，属于**待 V01/V03 实测后决定**。
 
-**本节记录必须考虑的复核约束，并未批准 D02、D05、D06、D07、D11 的字段级 ABI、打包粒度或容量数值。**
+**五项建议已获架构方向确认，但本节和 §6.6–§6.10 的字段示例仍为 Draft**：真实 CMS079 素材、OpenMS GMS083 的差异、图集打包粒度、具体数据字段名/合法值和容量数值必须经 V01/V03 与 I05 冻结，不能把示例当成已发布 ABI。
+
+
+### 6.6 已确认 D02：四个动态 attrs + 父级 data 顶层拆分
+
+**动态 attrs 闭集的职责已确认**：`action`（具体基础身体动作名）、`one-shot-enabled`（允许/强制取消 one-shot）、`facing`（朝向）、`expression`（表情选择）。它们可经 `RenderDomain.update()` 单字段 set/remove，避免每次运动、转向、眨眼重发动作/装备数据；世界 `x/y` 由场景持有，原始 `skin/face/hair/equips` ID 由 Adapter 转换成渲染就绪外观，不直接暴露给 Avatar。
+
+**共享数据建议拆成独立更新的顶层槽位**：`data.appearance`（zOrder 与共用外观绘制事实）、`data.sprites`（图集页/子图片引用目录）、`data.expressions`（表情帧定义），每个 `ms-action.data.clip` 单独存储动作。LoomRealm `data.set` **允许更新单个顶层槽位**，但若只改变 `appearance.zOrder`，仍须替换整个顶层 `appearance` 值；`receiveRenderData()` 获得投影时的**完整 data**。这只是降低 wire 更新范围，不承诺浏览器只接收某个嵌套差异。
+
+```js
+// 候选布局；未冻结 JSON 字段细节
+attrs: { action: "walk1", facing: "right", expression: "default",
+         "one-shot-enabled": "true" },
+data: {
+  appearance: { /* 共享 zOrder、几何/装备合成事实 */ },
+  sprites: { /* 公共 atlas + 裁剪映射 */ },
+  expressions: { /* 表情 Clip 数据，不包含身体 Action */ }
+}
+```
+
+**更新边界**：无换装依赖的单独表情定义/资源目录修订可只替换对应父级 data 顶层字段；一旦变更**影响当前外观和动作的共同绘制事实**，仍必须按 §5.13 把父级相关字段与受影响子 Clip 在同一 Domain 原子提交。不得利用拆分顶层槽位规避换装原子性。
+
+**待 I05 冻结**：attrs 的准确默认值、合法值、布尔字符串规则、缺字段行为、data 各顶层字段的详细闭集。
+
+### 6.7 已确认 D05：Action Clip 只描述时间轴与绘制帧
+
+**每个 `ms-action` 承载一份 render-ready Clip**：版本标记、明确的播放模式（完整 `loop`、非循环末帧 `hold`、先播前段再循环后缀）、非空有序 frames；每帧有明确持续时间及 Layer 引用。one-shot Event 一律临时覆盖播放为 `once`，不改变 Clip 中基础动作的默认规则。
+
+```js
+// 候选 ms-action.data.clip，字段名尚未 Frozen
+{
+  formatVersion: 1,
+  playback: { mode: "loop", repeatFrom: 0 },
+  frames: [
+    {
+      durationMs: 100,
+      move: [0, 0], rotate: 0, flip: false, showFace: true,
+      layers: [{
+        sprite: "body.walk1.0", z: "body",
+        origin: [19, 32], anchors: { navel: [-6, -20] }
+      }]
+    }
+  ]
+}
+```
+
+`sprite` 指向**父级共享资源目录中的逻辑小图 ID**，不在 Clip 中重复图集 PNG 字节、完整 Content 资源身份或 WZ 路径。例如父 `data.sprites["body.walk1.0"]` 可对应 `{resource:{namespace,key,contentVersion},source:{x,y,w,h}}`。多个 Action 可以引用同一页；同一 Clip 的不同帧也可以重复引用相同 sprite。
+
+**明确区分** `ms-action.attrs.name`（动作身份，D04）与 `clip.playback`（该动作的基础播放方式）；Clip 更新本身不重播、不自动选择业务动作。播放时间继续按 §5.12 的 `elapsedMs` 规则迁移。
+
+**待 V01/I05**：字段名、版本号演进、对象的实际合法范围、`repeatFrom` 索引边界、每帧/每层容量、`sprite` 命名规则。不能把此示例误称为 CMS079 标准文件格式。
+
+### 6.8 已确认 D06：Adapter 先正规化 CMS079 时序
+
+**Renderer 不直接解释 WZ/UOL/alias 或源 delay 特殊值。** Adapter 先展开 alias/UOL、解析帧引用、原始非连续/重复帧及 repeat 的真实语义，输出可验证的帧序列、毫秒持续时间及明确的循环边界；打图集只改变纹理来源，不得改变每个帧的时钟、逻辑身份或先后顺序。
+
+- 输出给 Renderer 的 `durationMs` 为有限非负数；**允许合法零时长帧**，但完整循环/后缀循环需要**正总时长**，防止无限零时长循环。缺失 delay 是特定源语义或数据错误，必须依据 CMS079 夹具作出明确转换，不凭空当作某个默认常数。
+- 负 delay 的实际语义必须由真实 CMS079 样本核验；**不作为通用规则直接 `Math.abs()`**。旧 `cms-actor` Adapter 的有符号 delay 归一化属于特定历史流程事实，不自动证明所有资源场景通用。
+- 参考固定 OpenMS [`animation-timing.js`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation-timing.js)：从 frame repeat 累积时长得到后缀起点，用二分查找定位零 delay 等边界；**OpenMS 是 GMS083 的代码行为，非 CMS079 全部时序规则的证明**。
+- 对含 `preAction`、特殊连续帧或重复别名的动作保留**可追溯的 Adapter 诊断/测试夹具**；Render ABI 只表达最终需要的定时事实，不要求将全部源 WZ 控制信息原封不动下发。
+
+**待 V01 验收**：不同身体动作、攻击、攀爬与 alias、repeat、正零负/缺失 delay 的边界，明确 end-frame/hold/one-shot 行为，不以猜测补齐异常源数据。
+
+### 6.9 已确认 D07：渲染就绪的逐帧部件布局与图集裁剪
+
+**Adapter 处理 CMS079 的 `islot/vslot/zmap/smap`、部件选择与遮挡优先级；Renderer 只消费已合成的 layer 绘制描述**。每帧携带 `move/rotate/flip/showFace` 等最终帧变换；单 layer 保留 `origin/anchors`、zOrder 引用、绘制可见性/遮挡解析结果及 `sprite` 引用。父级共用 zOrder/纹理索引属于 D08。
+
+**两个不能混淆的坐标**：
+1. `sprite.source={x,y,w,h}` 是该小图在图集页上的**采样矩形**。
+2. `origin`、`anchors`、frame `move`、`rotate`、`flip` 是**逻辑部件绘制坐标**。例如原小图宽 27、高 32、`origin=[19,32]`，合并到图集中的 `(64,96)` 并**不会改变**这个锚点或部件逻辑尺寸。
+
+可复用旧 `avatar-model.mjs` 的锚点链、遮挡排序与组合画布保护，参考 OpenMS 的 atlas subtexture / logical geometry 分离。**裁切图集不能让 Renderer 重新从原始 WZ 计算装备插槽**；在 Avatar 父级组合层验证 layer 的 z 名、图集索引、原点与遮挡/镜像规则的完整性。
+
+**待 V01/V03/I05**：帧几何字段精确命名、被遮挡部件和 alias 引用的异常边界、图集裁切的逐帧像素等价性、Canvas 输出尺寸与边界。
+
+### 6.10 已确认 D11：动作定义预发布、图片图集化并按需加载
+
+**分成三层，避免“动作子节点变多 → 网络 PNG 请求变多”：**
+
+1. **动作定义**：当前外观能够触发的基础、移动、攻击/技能动作，在可能的 Event 前准备并发布相应 `ms-action` Clip；初始 Snapshot 仍含完整当前动作树，不宣称子节点天然延迟传输。Event 缺 Clip 仍丢弃，不以 Event 触发临时补节点。
+2. **离线图片资源**：Adapter/构建阶段将多张小图合并为 atlas，生成 sprite → 完整页 `namespace/key/contentVersion` + `source` 的公共目录。**优先以可跨动作复用的部件/装备资源集合分组**作为实测基线，而非每帧独立 PNG、每动作重打同一资源或整角色一张超大图集；具体图集页划分还需性能测量。
+3. **运行时图片**：由父 `ms-avatar` 统一根据当前绘制帧按需读取/解码整页图集，对站/走/跳等常用动作可**预读**，其他动作有 Clip 但其图片尚未准备好时先按 Render Clock 计时、像素可用后只绘制当下帧。不将网络加载/图片解码塞入 `ms-action`。
+
+**容量不能仅按动作数**：至少分别测每个 Clip/全 Avatar 的 JSON 字节、帧/层/节点数、Content 请求数、图集页与压缩文件字节、整页解码像素内存、图集页复用率、首次可画时间及换装时新增页面/可复用页面数。以 V01/V03 确定**单 Clip + 全 Avatar 两层**业务预算、图集页尺寸/缓存并发/预读范围；**不照搬**旧 32 Action / 256KiB 或 OpenMS 126 的硬值。
+
+**明确安装包与图集差别**：PWA installation-bundle 收集多个 Content 文件，并不会自动把独立 PNG 像素合成 atlas；现有合成 fixture 按 part/action/frame 生成独立 PNG。此决策要求最终的真实 CMS079 发布链验证 atlas **实际生成并被多 Clip 复用**，不能只在文件名或 JSON 字段上声明“打包完成”。
+
+**验收**：多个动作引用同一 atlas 页时一次加载/解码；clip 只更改动作数据不触发大量重复资源读取；比较逐小图 vs 部件/装备集合图集的网络请求、解码峰值和首次可画时间；换装时旧图集 lease 可复用，不混画外观。
 
 
 ## 7. 和旧组件的关系
@@ -606,9 +695,9 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 | 父子 Clip 变化通知与按需索引刷新 | 子组件主动通知，父 Avatar 绘制/Event 前同步验证；MutationObserver 只辅助结构发现 | **已确认原则，接口待定** |
 | 首次挂载/重挂的动作就绪门槛 | 有效共享外观 + 当前需要的有效 Clip；不等待全部动作或图片解码 | **已确认原则，调度接口待定** |
 | `ms-action` 动作名称与改名语义 | **attrs.name 精确匹配，重复名冲突拒绝，改名使用 fresh key**（§5.19） | **已确认 D04** |
-| 父级共享外观与 Clip 数据分工 | 公共 zOrder、资源索引、表情归父；单动作帧/时序/资源引用归子（§6.3） | **已确认 D08，字段级 Schema 待定** |
+| 父级共享外观与 Clip 数据分工 | 公共 zOrder、资源索引、表情归父；单动作帧/时序/资源引用归子（§6.3）；父 data 顶层槽位可独立更新（§6.6） | **已确认 D02/D08 更新分工，字段校验 Draft** |
 | 无效数据和错误呈现 | 区分未就绪、缺 Clip、无效 Clip、图像延迟与 Content 冲突，拒绝失效旧帧（§6.4） | **已确认 D12，接口待定** |
-| `ms-action` Clip Schema 与容量 | 定义受 CMS079/OpenMS 及旧图集打包机制复核约束（§6.5），具体字段和体量未选定 | **待讨论 D05 / D06 / D07 / D11** |
+| `ms-action` Clip Schema 与容量 | 已选 render-ready Clip/图集引用/离线聚合的总体方案（§6.7–§6.10）；CMS079 时序特例、JSON 字段细节与预算需 V01/I05 验证 | **已确认 D05/D06/D07/D11 方向，Schema/数值 Draft** |
 | 世界坐标与最终 Canvas 输出边界 | **世界 x/y 与深度归场景，Avatar 负责局部绘制；初版可用 Shadow DOM Canvas**（§6.2） | **已确认 D10，长期后端未冻结** |
 
 ## 9. 依据与验证状态
@@ -631,19 +720,19 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 
 ## 10. 剩余事项总清单（ms-avatar / ms-action）
 
-**范围**：仅统计当前 `ms-avatar` + `ms-action` 新设计中尚未定稿的 **5 项产品/ABI 决策、5 项实施接口机制和 4 项验证/迁移工作**。**D01 / D03 / D04 / D08 / D09 / D10 / D12 已确认**，见 §5.17–§5.19、§6.1–§6.4，不再占用待决表；已确定分工不等于完整 JSON Schema 或实现完成。余下的“推荐取舍”**尚未获批准**；P0＝优先裁决/取得证据，P1＝实施/ABI 冻结前落实，P2＝验收与迁移阶段。“待实施/验证”不表示原则尚未确认。
+**范围**：12 项 D 系列设计方向现已全部选定（D02/D05/D06/D07/D11 本轮确认，§6.6–§6.10）；**不是**最终逐字段 Frozen ABI。仍保留 **5 项实施接口机制（I01–I05）、4 项真实验证/迁移工作（V01–V04）**，以及下面五项设计的尚待测量、字段校验子事项。P0＝优先验证；P1＝实现/Validator 前落实；P2＝性能验收/迁移。
 
-**已确认项索引**：D01 基础时间冻结（§5.17）；D03 表情轨（§5.18）；D04 动作名/身份（§5.19）；D09 Content 身份与图集缓存（§6.1）；D10 场景坐标与局部画布（§6.2）；**D08 父共用外观/子动作 Clip 数据分工（§6.3）；D12 错误分类/无效组合 fail closed（§6.4）**。详见 §6.5：OpenMS/旧 cms-actor 图集、小文件聚合和 attrs/data 更新粒度是其余事项的复核条件。
+**已确认项索引**：D01（§5.17）、D03（§5.18）、D04（§5.19）、D08/D09/D10/D12（§6.1–§6.4）；**本轮 D02（§6.6）、D05（§6.7）、D06（§6.8）、D07（§6.9）、D11（§6.10）**。OpenMS GMS083 是架构参考，真实 CMS079 的正/零/负/缺失 delay、图集裁剪像素一致性、资源容量上限需 V01/V03 验证，不把候选 JSON 示例当成已发布的 ABI。
 
-### 10.1 剩余 5 项产品 / ABI 待决问题
+### 10.1 五项方向已确认、细节仍需验证的设计事项
 
-| ID | 议题 | 尚待裁决的准确边界 | 推荐取舍 | 优先级 |
+| ID | 已确认设计方向 | 仍需验证或在 Validator 冻结的边界 | 依据与验收途径 | 优先级 |
 | --- | --- | --- | --- | --- |
-| D02 | **`ms-avatar` 动态 attrs 的最终闭集与更新粒度** | 已确认 `action`、`one-shot-enabled`、`expression` 属于 Avatar，世界 `x/y` 不属于 Avatar；仍需决定 `facing` 等属性及格式、默认值、外观 ID 输入去留；attrs 可单字段 update、data 可顶层字段 update，但嵌套对象需整体替换（§6.5） | 建议高频、独立的简单显示状态用 attrs，重型共享外观用 data、动作按独立子节点；最终闭集仍倾向 `action/one-shot-enabled/facing/expression`，避免频繁重复发送大 appearance。 | P0 |
-| D05 | **`ms-action` Clip Schema** | 帧/循环/播放规则如何编码，Clip 能否用对父级资源索引及图集页的引用避免重复资源目录，怎样使单 Action 更新真正较小 | 建议显式格式版本、有序帧、循环/hold/后缀循环；帧层只引用共享资源及 atlas 裁剪，不将小图片字节放入 Clip。字段与冗余程度须结合 OpenMS 和旧 atlas 夹具复核。 | P1 |
-| D06 | **Clip 帧时序与源资料映射** | CMS079 alias/UOL、零/负/缺失 delay、repeat/后缀循环与不同帧复用图像；不得因为打包图集改变帧的时间身份 | 建议 Adapter 先正规化时序与图像引用，参考 OpenMS 的动作时间编译但用真实 CMS079 验证；零时长合法场景允许、总循环段不得零时长；负值不能无证据一律 abs()。 | P1 |
-| D07 | **Clip 部件绘制 Schema** | move/rotate/flip/showFace、origin/anchors、层序/遮挡与 atlas `source` 裁剪如何同时表达；共享图集页不能改变单个部件的锚点 | 建议 Adapter 输出已解析的部件层、变换与裁剪来源，父级统一 zOrder；参考旧 `avatar-model.mjs` 与 OpenMS 子纹理思路，测图集裁剪下坐标/镜像一致性。 | P1 |
-| D11 | **动作工作集、图集分组与规模约束** | 当前可触发动作集合、预先发布范围、帧/层/节点/JSON 字节，和图集页面大小、Content 请求次数、解码内存/复用率如何一起权衡 | 建议 Event 前准备可触发动作定义、按需预读图集页；用 CMS079 V01/V03 测单 Clip/全 Avatar 预算及图集分组大小，不直接套旧 32/256KiB 或 OpenMS 126 数值。 | P1 |
+| D02 | 四个 attrs 单字段更新；父级共享数据拆 `appearance/sprites/expressions` 顶层成员，动作 Clip 独立子节点 | attrs 默认值、字符串枚举、表达式/朝向非法输入、父级顶层字段命名、更新时组合校验 | §6.6；以 LoomRealm 单字段 Patch 和父子数据回调测试冻结 I05 | P1 |
+| D05 | 每 Action 一份渲染就绪 Clip；版本、loop/hold/后缀循环、有序时长帧与共享 sprite 引用 | 完整 JSON 字段名、repeatFrom 索引合法边界、帧/层容量、跨字段校验 | §6.7；真实 CMS079 Clip 夹具 + I05 | P1 |
+| D06 | Adapter 正规化 CMS079 alias/UOL、帧时序与 repeat；Renderer 只接受合法非负 ms 时间 | 负/零/缺失 delay 与特殊 repeat 在 CMS079 的实际意义，合法零时长与终点边界 | §6.8；V01 对照 CMS079，并与 OpenMS GMS083 区分 | P0 |
+| D07 | Adapter 生成含 move/rotate/flip/showFace、origin/anchors/遮挡和 sprite 裁切引用的已合成帧 | 详细 Layer Schema、atlas source 与逻辑锚点像素等价、异常遮挡、Canvas 安全界限 | §6.9；旧 avatar-model + V01/V03 像素验收 | P1 |
+| D11 | 可触发 Clip 预先发布，按部件/装备集离线打 atlas；父 Avatar 按需整页加载并共享缓存 | 实际图集分组/页面尺寸、每 Clip/全 Avatar JSON 与内存预算、请求并发与预读策略 | §6.10；V01/V03 对比逐小图 vs atlas 网络/内存/首帧成本 | P0 |
 
 ### 10.2 原则已定、仍须实现接口 / 竞态行为的事项
 
@@ -666,4 +755,4 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 
 **非当前必做事项**：transient Event 的跨新实例精确重放已明确接受为**不保证**；除非未来提出必须恢复技能途中相位的新需求，不在当前 V1 设计中额外增加 retained 起始时间/动作序号。跨多个 Domain/提交的分阶段换装也**不属于当前支持范围**，将来确需才另议版本化与显式激活机制。
 
-**更新后的建议裁决顺序**：**D02（更新粒度与最终 attrs）→ V01（CMS079 + atlas 加载分布）→ D05/D06/D07/D11（联合考虑 OpenMS 与旧 cms-actor 图集）→ I02 最小 WebProjector PoC → I01/I03–I05 → V02/V03 → V04**。D08 与 D12 已确认其原则，不再重复投票；I02 是动作子节点架构最重要的投影竞态风险，建议在完整 ABI 冻结前进行浏览器验证。
+**更新后的建议实施顺序**：**I02 最小 WebProjector 投影竞态 PoC + V01（CMS079 时序/atlas 真实数据）→ I01（父子通知）→ I05（字段 Validator、诊断和预算）→ I03/I04（Clock/Player/图集缓存）→ V02/V03（浏览器、像素、网络与内存验收）→ V04（并行迁移）**。12 项产品方向不再重新投票，但 D02/D05/D06/D07/D11 的字段级数值仍需证据，且 I02 是关键架构风险。

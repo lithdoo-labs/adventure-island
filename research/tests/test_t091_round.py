@@ -43,7 +43,7 @@ class TestWClassBytes(unittest.TestCase):
 
     def test_w_primary_vtable_contents(self):
         self.assertEqual(L.u32(0xB0BC40 + 0x00), 0x94B9BE)   # state query (returns 7)
-        self.assertEqual(L.u32(0xB0BC40 + 0x08), 0x5C0324)   # ret-4 thunk of the direct focus method
+        self.assertEqual(L.u32(0xB0BC40 + 0x08), 0x5C0324)   # ret-4 stub at W vtable slot+8 (the direct focus method is a plain member)
         self.assertEqual(L.u32(0xB0BC40 + 0x10), 0x94B9E9)   # lea eax,[ecx+0x24] (X slot accessor)
 
     def test_w_init_ctor_members(self):

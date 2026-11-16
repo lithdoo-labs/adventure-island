@@ -120,8 +120,8 @@ identity is **not** offset-coincidental.
   (`0x9C1113`) writes the target pair (P+0x80/P+0x98 + checksums). No direct
   E8 callers exist; dispatch is vtable-mediated (see §5 residual R-T091-2).
   The owner arg of the initial 0x9BC622 call is the 0xA4F6F1 map-space query
-  result (eax@0x5BFEE3), NOT P; arg7 is a flags value (3) tested with
-  0xFFFFFFFE at 0x9BC737 [reviewer phase-2 D2 correction applied].
+  result (eax@0x5BFEE3), NOT P; the 6th stack arg is a flags value (3) tested with
+  0xFFFFFFFE at 0x9BC737 and the 7th is the owner [reviewer phase-2 D2 correction applied].
 
 ## 4. arg3 ↔ [user+0xF28] (WP3)
 

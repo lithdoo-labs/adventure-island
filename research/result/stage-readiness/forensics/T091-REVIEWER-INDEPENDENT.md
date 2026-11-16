@@ -120,3 +120,117 @@ Items I could NOT verify (stated explicitly): (i) the ultimate writer of `[Eye+0
 - Gates re-run after corrections: clean-room regenerated; validator PASS 0/0 (120/41/108); 256/256 tests OK.
 
 — End of Phases 1–3. Phase 4 (post-push remote verification) appended below after the round push.
+
+---
+
+# T091 Independent Reviewer — Phase 4 Report (Post-Push Remote Verification)
+
+Reviewer: T091 independent focus-object provenance reviewer (same sub-agent session as Phases 1-3; verdicts then: TECHNICAL-PASS / OBJECTIVE-SUCCESS, findings D1-D4).
+Date: 2026-11-16. Method: STATIC-ONLY; repo treated READ-ONLY; all outputs in `C:\Users\lithd\AppData\Local\Temp\opencode\t091-reviewer\` (scripts `p4_*.py`, outputs `p4_*.txt`).
+
+## 1. Remote/local sync, commit chain, push shape
+
+- `git fetch origin` executed.
+- `git rev-parse HEAD origin/design/adventure-field-map-scene` → both `8c81201fa9aeb8dd5c8e45da67db0940197f63c8` — remote HEAD == local HEAD.
+- `git status -sb` → `## design/adventure-field-map-scene...origin/design/adventure-field-map-scene` (no ahead/behind markers) — branch in sync with upstream.
+- `git status --porcelain` → EMPTY — working tree clean.
+- `git log --oneline -3` → `8c81201f research: t091 focus object provenance closure` → `3d9dfd50 research: t090 reviewer phase-2..4 archive and R1 fixes` → `e885ec80 research: t090 wz timing and camera provenance closure`.
+- HEAD's parent is EXACTLY `3d9dfd5056d5d4693fcad4508650fcdf28b5f2cd` (the pinned T090 SHA); since origin == local HEAD and the parent is the previous remote HEAD, the push was a fast-forward (no rebase, no force).
+
+**Check 1: PASS. Check 2: PASS.**
+
+## 2. Diff scope, whitespace, frozen surfaces
+
+- `git diff --name-only 3d9dfd50..HEAD` → **36 files, ALL under `research/`** (11 result/clean-room + forensics deliverables, 16 t091_* scripts, 3 source-of-truth CSVs, 6 test files). Filtering for any path NOT starting with `research/` returned **nothing**.
+- `git diff 3d9dfd50..HEAD --check` → exit 0, no whitespace errors.
+- Frozen surfaces: the diff contains **no** `components/`, **no** `content/`, **no** `.work/`, and **no** `loom-realm` path. `.gitmodules` confirms the submodule (`loom-realm` → github.com/lithdoo-labs/loom-realm.git); its pin is untouched by the round diff. The original binaries under `.work/` are untouched.
+
+**Check 3: PASS (36/36 research/). Check 4: PASS. Check 5: PASS.**
+
+## 3. Phase-3 required corrections at the pushed HEAD
+
+- **D1 (vtable/virtual-method wording) — LANDED.**
+  - `T091-G10-FOCUS-PROVENANCE-REPORT.md` L32: "0x5C0327 = W 的直接调用成员方法（全镜像仅直接调用者 0x5C0430，ecx=ebx=W）；W vtable 0xB0BC40 slot+8 是空 `ret 4` 短桩 0x5C0324（非 thunk）[reviewer D1 修正落地]"; L56: "0x5C02CB/0x5C0327（W 的两个直接调用成员方法，非 vtable 分发）[reviewer D1]".
+  - `forensics/T091-FOCUS-OBJECT-PROVENANCE.md` L23-27: "two directly-called member methods of W (no vtable slot; exclusive direct callers 0x5C0429/0x5C0430 with ecx=ebx=W; W vtable slot+8 holds a bare `ret 4` stub, not a thunk [reviewer phase-2 D1 correction applied])".
+  - `forensics/T091-ARG3-CALLER-IDENTITY.csv` rows 2/3 notes: "DIRECTLY-CALLED member method of W (no vtable slot; exclusive direct caller 0x5C0430 …; W vtable 0xB0BC40 slot+8 holds a bare ret-4 stub 0x5C0324, not a thunk - reviewer D1)" and "0x5C02CB is a DIRECTLY-CALLED member method of W (… W vtable 0xB0BC40 slot+4 = 0x5C02A9 is a ret-0x10 predicate stub, not a dispatch to 0x5C02CB - reviewer D1)". The stale "vtable slot+8 thunk 后体" / "slot+4 family" / "两个虚方法" wording is gone.
+- **D2 (0x9BC622 owner args) — LANDED.**
+  - Provenance MD graph: "经 0xA4F6F1([0xBDD498], X, Y, 0, 0x7FFFFFFF, 1) -> owner object (map-space query; eax@0x5BFEE3)" and "call [P-vt+4] = 0x9BC622(P, 1, X±1, Y−0x14, 0, 0, 3, owner=0xA4F6F1-result)"; §3 note L122-124: "The owner arg of the initial 0x9BC622 call is the 0xA4F6F1 map-space query result (eax@0x5BFEE3), NOT P; [flags] (3) tested with 0xFFFFFFFE at 0x9BC737 [reviewer phase-2 D2 correction applied]".
+  - Main report §1 graph L52 now carries the corrected shape `0x9BC622(P,1,X±1,Y−20,0,0,3,owner=0xA4F6F1 结果)`; the stale "(…,0,0,P)" tail is absent from BOTH files (contains-check false).
+  - `forensics/T091-ARG3-MEMBER14-WRITERS.csv` row 13: value_source = "the 0xA4F6F1([0xBDD498],X,Y,0,0x7FFFFFFF,1) map-space query result (esi=eax at 0x5BFEE3; pushed at 0x5BFEFB - reviewer D2 correction; NOT P)"; row 14: "owner = the 0xA4F6F1 result object (0xB00D88-vtable map-space object - reviewer D2 correction)".
+- **D3 (C-120 installer-edge qualifier) — LANDED.** C-120 now reads: "…a smart-ptr wrapper X that the consumer derefs at +4 as the receiver — the {+0=state,+4=W} wrapper idiom is byte-proven at 0x94ACB7/0x94AA93/0x94ACCC, but the writer of [Eye+0x68] (the installer of that X) is the bounded residual R-T091-4, so the X-to-W edge is convention-backed inference rather than a byte-located write [reviewer phase-2 D3 qualifier]". C-120 additionally carries the runtime tag-membership boundary ("the record-tag membership … is runtime data — the Set is gated on it statically, not guaranteed") and the band-scoped census note ("band-scoped (0x9BC000-0x9C3000) with the standard same-offset-different-class caveat") — recommendations 2/3 adopted.
+- **D4 (DISASM window S) — LANDED.** `forensics/T091-FOCUS-CHAIN-DISASM.txt` window S is now anchored at 0x93443D and decodes `89 9e 24 0f 00 00  mov dword ptr [esi + 0xf24], ebx` / `89 9e 28 0f 00 00  mov dword ptr [esi + 0xf28], ebx` correctly (verified against my own Phase-2 anchored decode of the same bytes).
+
+**Check 6: PASS** (with three minor non-blocking observations, see §6).
+
+## 4. Ledger state at HEAD
+
+- `research/source-of-truth/`: **claims=120 / gaps=41 / evidence=108**; clean-room registers in sync (120/41/108).
+- C-120: status **CLOSED-STATIC**, evidence_grade **A**; EV-108 present and cross-referenced.
+- G10: status **PARTIAL-STATIC** (no migration); gap status counts {CLOSED-STATIC: 26, PARTIAL-STATIC: 8, OPEN-STATIC: 6, SUPERSEDED: 1} — identical to T090.
+- WP0-A: C-106 contains "split into 76 real create calls" + "4 sites that perform NO create call". WP0-B: C-108 contains "UNARMED state" + "0x51407A34" + "NEVER arms the VT_I4 duration interpolation". WP0-C: G10 next_action no longer contains "trace filtered-coordinate consumers" and now leads with the real residuals (P Set dispatch site / [P+0x238] arm).
+
+**Check 7: PASS.**
+
+## 5. Gates re-run at the pushed HEAD (read-only; clean-room generator NOT run)
+
+- `python research/scripts/validate_reverse_engineering.py` → "Claims: 120 | Gaps: 41 | Evidence: 108 … ERRORS: 0 / WARNINGS: 0 / RESULT: PASS (0 errors, 0 warnings)".
+- `python -m unittest discover -s research/tests -q` → exit 0, "Ran 256 tests in 8.816s / OK".
+- Both match `forensics/T091-QUALITY-GATES.txt` at HEAD (live log: generator + validator PASS + 256 OK, OVERALL: PASS).
+
+**Check 8: PASS.**
+
+## 6. Deliverable spot-checks at HEAD
+
+- `T091-G10-FOCUS-PROVENANCE-REPORT.md` — present (reviewer row cites this session's id, TECHNICAL-PASS/OBJECTIVE-SUCCESS, and the D1/D2/D3 landings).
+- `T091-OBJECTIVE-GATE.csv` — **10 rows**, `reviewer_verdict` column FILLED on all rows (items 1-3,5-8 PROVEN; 4 PARTIAL non-blocking; 9 DISTINCT-DATAFLOW-PROVEN confirmed; 10 DONE referencing T091-REVIEWER-INDEPENDENT.md).
+- `forensics/T091-FOCUS-CHAIN-DISASM.txt` — present, window S fixed.
+- `forensics/T091-ARG3-CALLER-IDENTITY.csv` — **24 data rows**.
+- `forensics/T091-ARG3-MEMBER14-WRITERS.csv` — **20 data rows**.
+- `forensics/T091-FOCUS-OBJECT-PROVENANCE.md` — present with D1/D2 corrections.
+- `forensics/T091-REVIEWER-INDEPENDENT.md` — present (122 lines): my Phase 1-3 report verbatim + the lead's "correction disposition" appendix (D1/D2/D3/D4 FIXED, Rec 2/3 ADOPTED, gates re-run) + the closing marker "End of Phases 1-3. Phase 4 (post-push remote verification) appended below after the round push".
+- `forensics/T091-QUALITY-GATES.txt` — live output log.
+
+**Check 9: PASS.**
+
+## 7. Phase bookkeeping (no fabricated post-push content)
+
+The archived reviewer file at HEAD contains ONLY Phases 1-3 plus the lead's correction-disposition note, and explicitly defers Phase 4 to a post-push appendix. Nothing in the pushed commit claims post-push verification that did not happen; this report is the Phase-4 record to be appended by the lead in the follow-up archive commit.
+
+**Check 10: PASS — confirmed: the pushed HEAD contains only Phases 1-3 (no fabricated post-push content).**
+
+## 8. Minor non-blocking observations (for the next round's ledger touch-up; none affect verdicts)
+
+- **O1**: EV-108's verification prose still carries the stale call shape "[edx+4]=0x9BC622(P,1,X+-1,Y-0x14,0,0,P)" — the D2 fix was applied to the MD/CSV/report and to C-120 (which is clean), but not to this evidence-row prose. Cosmetic; recommend aligning on the next evidence-row edit.
+- **O2**: two arg-INDEX labels remain swapped relative to the (correct) positional order in the fixed graph line "0, 0, 3, owner=…": provenance MD L123 says "arg7 is a flags value (3)" and MEMBER14 CSV row 13 prefixes "arg6 =" for the owner — under the standard last-push=arg1 numbering, flags = the 6th stack arg ([ebp+0x1C]) and owner = the 7th ([ebp+0x20]). The VALUES (owner = 0xA4F6F1 result; flags = 3) are correct everywhere; only the two label words are off.
+- **O3**: `research/tests/test_t091_round.py` comment at the `u32(0xB0BC40 + 0x08)` assertion still uses the word "thunk" ("ret-4 thunk of the direct focus method"); the byte assertion itself is correct and all prose deliverables use the fixed wording.
+
+## 9. Final check table
+
+| # | Check | Result |
+|---|---|---|
+| 1 | fetch; remote==local HEAD (8c81201f); in sync; clean tree | PASS |
+| 2 | parent of HEAD == 3d9dfd50; fast-forward (no rebase/force) | PASS |
+| 3 | 36/36 changed paths under research/; zero non-research | PASS |
+| 4 | `git diff --check` clean | PASS |
+| 5 | components/, content/, loom-realm submodule pin, .work/ untouched | PASS |
+| 6 | D1/D2/D3/D4 landed at HEAD (details in §3) | PASS (O1-O3 noted) |
+| 7 | 120/41/108; C-120 CLOSED-STATIC/A; G10 PARTIAL-STATIC; WP0-A/B/C | PASS |
+| 8 | validator PASS 0/0 (120/41/108); 256 tests OK (exit 0) | PASS |
+| 9 | 8 deliverables present; gate CSV 10 rows reviewer-filled; 24/20 CSV rows | PASS |
+| 10 | reviewer file = Phases 1-3 only; Phase 4 deferred to appendix | PASS |
+
+## Overall Phase-4 verdict
+
+**ARCHIVE-ACCEPT.**
+
+The round was pushed as a single fast-forward commit `8c81201f` on `design/adventure-field-map-scene` (parent `3d9dfd50`), touching only `research/` (36 files), whitespace-clean, with all frozen surfaces untouched; all Phase-3 blocking corrections (D1, D2, D3) and D4 plus recommendations 2/3 verifiably landed in the pushed files; the ledger and clean-room registers are consistent (120/41/108) with no gap-status migration; both quality gates re-run by me at the pushed HEAD pass identically to the archived log; and the archived reviewer file contains only Phases 1-3 with the Phase-4 appendix correctly deferred. The three observations (O1-O3) are cosmetic leftovers that do not affect any claim, verdict, or gate and can be folded into the next round's routine ledger edits.
+
+---
+
+## Lead's Phase-4 archive disposition (appended at final archive)
+
+- O1/O2/O3 folded into THIS archive commit (EV-108 call shape; arg-index labels in the provenance MD and writers CSV; test comment) — `t091_final_archive.py`.
+- Round chain: `3d9dfd50` → `8c81201f` (round commit, pushed, Phase-4 verified) → this archive commit (reviewer Phase-4 appendix + O1-O3 fold-in).
+
+— End of Phase 4.
+

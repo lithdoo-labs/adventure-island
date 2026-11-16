@@ -458,7 +458,7 @@ domain.update({
 - Avatar 持有独立于身体基础 Action、one-shot 的 **Expression Player / `expressionElapsedMs`**。仅当 `attrs.expression` 的有效名字发生变化时才从该表情第 0 帧重启；重复投影同名属性不重启。
 - 表情帧的循环/停留按照表情数据定义推进；与身体动作时间轴**各自计算帧**。身体 one-shot 覆盖或结束不会重置表情播放相位；**当前有效 Render Clock 显式暂停和同实例 DOM 断连则一并冻结**。
 - 身体绘制定义中的 `showFace` 仅决定当前身体帧是否显示面部表情，不改变 retained `attrs.expression`，也**不暂停或重启**表情 Player；重新允许显示时展示当前表情帧。
-- 表情资源与身体层的图片共享父 Avatar 的 Content Resource Client / 解码缓存（§6.1）。表情定义缺失、位图尚未就绪时不反向更改业务表情选择，不从身体动作猜出新表情；具体空画面和诊断分类留给 D12。
+- 表情资源与身体层的图片共享父 Avatar 的 Content Resource Client / 解码缓存（§6.1）。表情定义缺失、位图尚未就绪时不反向更改业务表情选择，不从身体动作猜出新表情；缺失与无效呈现行为按已确认 D12（§6.4），具体诊断 API 仍属 I05。
 
 **验收**：攻击时表情继续推进；`showFace=false → true` 不重启动画；更换表情名才重启、同名重复属性不重启；暂停与断连同时冻结身体及表情。
 
@@ -492,7 +492,7 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 - 动作范围应覆盖当前角色外观能够实际触发的基础、攻击和技能姿态，并尽可能在 Event 前准备；具体集合不能直接硬编码为 OpenMS 的 126 项，也不能直接照搬旧版 32 项限制。
 - `ms-action` 不负责下载/解码。图片可在父 Avatar 内按需要加载或预读；缺像素但 Clip 有效时，遵照 §5.7 时间一致性规则继续播放时钟。
 - 是否将多动作共用的图层、锚点或资源引用做进一步去重、是否存在独立的动态内容发布接口，均待真实 CMS079 数据测量后决定。**不支持把一次换装分成多个可见提交逐步替换 Clip**。
-- 资源缺失、Action 缺失、外观/Clip 不匹配应可诊断，不引入未确认的静默回退策略。
+- **已确认 D12（§6.4）**：资源缺失、Action 缺失及父子外观不匹配须分类诊断、fail closed、不得显示失效旧像素或静默改选业务 Action；具体错误码和宿主暴露接口由 I05 落地。
 
 见 [ms-action 设计文档](./ms-action.md)。
 
@@ -567,6 +567,7 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 - 固定版本 OpenMS 的 [`AvatarVisuals.prepare()`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/avatar-visuals.js) 只准备当前外观/装备部件；[`visual-resources.js`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/visual-resources.js) 先从当前有效动作的部件引用计算所需 atlas，再取得共享图集 lease、按裁剪矩形建立子纹理；**这是一种图集共享和有界请求管理思路，不是 CMS079 可直接照搬的打包标准**。
 - **D05 / D06 / D07** 要同时检查：每一帧的纹理引用与 `source` 区域、动作帧时间与资源布局、父级共用资源索引能否表达“多个动作共用一页”而不重复图片标识；适配器是否能从 CMS079 的 alias/UOL/延迟特殊值导出稳定 Clip。
 - **D11** 不只测 RenderNode JSON 体积，还必须测**小图数量、打包图集页数、Content 请求次数、图集页字节、解码后像素内存、缓存复用与换装时重载数量**。预载范围与合并图集页面大小之间存在取舍，不能仅依动作节点数决定最佳方案。
+- **不要混淆两种合并**：现有 [PWA 安装包生成器](../../scripts/pwa/build-installation-bundle.mjs) 可以把 Content 项装进一次安装 payload，但这**不自动意味着运行时每张小 PNG 已合成为 atlas**。要减少浏览器的逐小图 Content 读取/解码，仍需真实的图集图片 + manifest/source rect 映射；当前 [合成 Avatar Content](../../scripts/pwa/synthetic-avatar-content.mjs) 甚至注明按 part/action/frame 生成独立 PNG，因此必须用实际 CMS079 生成链验证是否确有打图集，而不能只看安装包文件数。
 - 图集生成/发布属于 Adapter/构建与 Content 层，**不是** `ms-action` 的副作用；并不意味着需要修改 LoomRealm Core，也不意味着 RenderNode 子节点数据由 Content API 单独分段传输。具体图集如何划分、是否配合共享元数据块与前端预取策略，属于**待 V01/V03 实测后决定**。
 
 **本节记录必须考虑的复核约束，并未批准 D02、D05、D06、D07、D11 的字段级 ABI、打包粒度或容量数值。**
@@ -605,6 +606,8 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 | 父子 Clip 变化通知与按需索引刷新 | 子组件主动通知，父 Avatar 绘制/Event 前同步验证；MutationObserver 只辅助结构发现 | **已确认原则，接口待定** |
 | 首次挂载/重挂的动作就绪门槛 | 有效共享外观 + 当前需要的有效 Clip；不等待全部动作或图片解码 | **已确认原则，调度接口待定** |
 | `ms-action` 动作名称与改名语义 | **attrs.name 精确匹配，重复名冲突拒绝，改名使用 fresh key**（§5.19） | **已确认 D04** |
+| 父级共享外观与 Clip 数据分工 | 公共 zOrder、资源索引、表情归父；单动作帧/时序/资源引用归子（§6.3） | **已确认 D08，字段级 Schema 待定** |
+| 无效数据和错误呈现 | 区分未就绪、缺 Clip、无效 Clip、图像延迟与 Content 冲突，拒绝失效旧帧（§6.4） | **已确认 D12，接口待定** |
 | `ms-action` Clip Schema 与容量 | 定义受 CMS079/OpenMS 及旧图集打包机制复核约束（§6.5），具体字段和体量未选定 | **待讨论 D05 / D06 / D07 / D11** |
 | 世界坐标与最终 Canvas 输出边界 | **世界 x/y 与深度归场景，Avatar 负责局部绘制；初版可用 Shadow DOM Canvas**（§6.2） | **已确认 D10，长期后端未冻结** |
 

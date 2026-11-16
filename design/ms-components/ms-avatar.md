@@ -2,7 +2,7 @@
 
 > **状态：Draft，未冻结 ABI，未实现。**  
 > 目标标签：`ms-avatar`（新设计）；旧实现：`cms-actor`。  
-> 本文只讨论 Avatar，不提前定义 Map、Camera、World Renderer 或角色群体 Batch。  
+> 本文聚焦 Avatar 及其动作数据子组件 [ms-action](./ms-action.md)，不提前定义 Map、Camera、World Renderer 或角色群体 Batch。  
 > 参考：LoomRealm `93648192323bf5f57996b7b54cbae641d8a53fdb`；OpenMS GMS083 `07994de02756356e3e025e3aca9e79433898d2c8`。OpenMS 的行为是参考，不等于 CMS079 已验证事实。
 
 ## 1. 已确定的定位与职责
@@ -10,7 +10,7 @@
 **`ms-avatar` 是纯粹的人物外观与动作绘制器（Avatar Renderer），不是管理人物表现状态的游戏角色组件。**
 
 - **Subsystem / Field Runtime**：持有角色和装备的权威状态；决定世界位置、朝向、当前身体 Action、表情意图及动作切换时机；经游戏侧 Adapter 生成渲染就绪的外观计划。
-- **Renderer 内的 `ms-avatar`**：消费外观计划和当前呈现指令；按帧进行身体、头、脸、头发、装备合成；实现锚点对齐、部件遮挡、镜像、表情及身体动画；由继承或本地的 Render Clock 驱动独立 Animation Player，推进**视觉帧**。
+- **Renderer 内的 `ms-avatar`**：消费父节点的共享外观数据与 `ms-action` 子节点提供的各动作 Clip；维护 Action 名索引、统一资源客户端与图片缓存、按帧进行身体/头/脸/头发/装备合成；执行锚点对齐、遮挡、镜像和表情动画；由继承或本地 Render Clock 驱动 Animation Player，推进**视觉帧**。
 - **不属于 `ms-avatar`**：输入处理、角色物理、跳跃/攀爬判定、技能命中、装备合法性、Portal、地图、Camera 决策、与地图 Obj 的世界深度排序、技能粒子/受击者效果。
 - 纸娃娃**内部** `zmap/smap/islot/vslot` 排序与地图**世界**深度是两套不同的规则；前者是本组件绘制能力，后者由场景呈现系统决定。
 
@@ -27,28 +27,34 @@
 | 数据大小、画布分配、帧/图层数量有组件级上界且错误可诊断 | **保留原则；数值是否沿用 v1 再决定** |
 | 现有 `cms-actor` 在 Shadow DOM 内持有独立 Canvas | **可保留为初始实现，不冻结为组件的长期输出 ABI** |
 
-现有 `AvatarPlanV1` 的资源、action frames、origin/anchors、zOrder、`expression` 等是可复用的起点；不是要求重新解析 WZ，也不是已经批准的 V2 Schema。
+旧 `AvatarPlanV1` 的资源、action frames、origin/anchors、zOrder、`expression` 等仍是可复用的**源数据和实现基础**；新结构将共用外观数据与逐 Action Clip 分开，不是要求重新解析 WZ，也不是已经批准的 V2 Schema。
 
 ## 3. LoomRealm 交互边界
 
-`ms-avatar` 继续使用 **RenderNode 五字段**：`key / tag / attrs / data / children`。不修改 LoomRealm Render Update v1。
+`ms-avatar` 和 `ms-action` 都遵守 **RenderNode 五字段**：`key / tag / attrs / data / children`。不修改 LoomRealm Render Update v1。
 
-| 接口 | 计划承担的内容 |
+| 接口 | `ms-avatar` 的内容 |
 | --- | --- |
-| `key` | 独立 Avatar 节点身份，遵守 one-shot key 生命周期 |
+| `key` | Avatar RenderNode 身份，遵守 one-shot key 生命周期 |
 | `tag` | `ms-avatar` |
-| `attrs` | 小型、可独立增量更新的动态呈现输入（具体字段待决） |
-| `data` | 已解析的 `avatarPlan`；不包含原始文件路径、业务权威状态 |
-| `children` | 初步倾向为空；Avatar 内部部件不是 RenderNode 子节点 |
-| `receiveRenderEvent` | `action` Event 可启动单次纸娃娃动作（技能/攻击）；它是可丢失、不重放的视觉指令，不是技能判定的权威依据 |
+| `attrs` | retained 基础 Action、朝向、单次覆盖许可及其他待定动态显示输入 |
+| `data` | **当前角色共用**的渲染就绪外观信息（如 `appearance`、zOrder、资源描述；字段待定），**不再携带全部 `actions` 字典** |
+| `children` | **已确认：独立的 `ms-action` 数据型子节点**；每个子节点保存一个动作的绘制 Clip；纸娃娃内部图层不是 RenderNode |
+| `receiveRenderEvent` | 接收面向 Avatar 的瞬时 `action` Event，触发一次性覆盖动作 |
 
-`RenderDomain.update()` 的 `attrs/data` 更新不改变节点 `key/tag/children`，`data.set` 按顶层成员替换；`receiveRenderData()` 收到完整 data。动态动作更新不应导致未变的 AvatarPlan 重新解析/加载。
+- WebProjector 将 `RenderNode.children` 机械投影为 **`ms-avatar` 的 light DOM**。每个 `ms-action` 是独立注册的 Custom Element，自己的 `data` 只投递给它自己的 `receiveRenderData()`，**不自动触发父 Avatar 的数据回调**。
+- `ms-action` 消费、校验并暴露 Clip；`ms-avatar` 通过组件内部通知/索引取得当前动作，统一管理图片/图集的读取、解码、缓存、contentVersion 与实际绘制。子组件没有 RAF、Canvas 和图片资源所有权。
+- **已有** `ms-action` 的 `data.clip` 可以通过 `RenderDomain.update()` 独立更新；**增加、移除或改变 `children` 结构**须通过 `RenderDomain.replace()`。该设计提供独立寻址和增量更新，不等同于把初始 Snapshot 分段传输。
+- LoomRealm Core 不设置通用 `data` 字节、节点数量硬限制。旧版 `cms-actor` 的 256 KiB / 32 动作是**组件应用级上限**，拆成子节点并不免除未来 `ms-action` 的大小、帧数、图层和总工作集边界验证。
+- 结构提交时需要先校验直接子节点索引：Action 名唯一，Clip 定义已收到且有效；不能因为元素在 DOM 中存在就认为 Clip 已就绪。父子通知、索引一致性和构成帧的版本匹配仍需实现细化。
+
+详见 [ms-action 数据子组件设计](./ms-action.md)。
 
 ## 4. 动作输入 ABI：已确认原则与候选字段
 
-**已确认原则**：Subsystem 选择具体绘制 Action（如 `walk1`、`walk2`、`jump`），`ms-avatar` 不再根据 `locomotion=walk` 和武器信息决定动作；持续/基础动作采用 retained `attrs.action`，单次攻击或技能动作由 `render.event` 的 `action` 事件覆盖播放。**当前方案不引入 `action-seq` 字段。**
+**已确认原则**：Subsystem 直接选择 `walk1`、`walk2`、`jump` 等**具体** Action；`ms-avatar` 不按 `locomotion=walk` 或武器规则再选动作。基础动作通过 retained `attrs.action` 传入，单次攻击/技能通过 `render.event("action")` 临时覆盖。**不引入 `action-seq`。动作绘制定义由同一 Avatar 的 `ms-action` 子节点提供。**
 
-下面是用于后续讨论的节点示例；只有 Action / Event 的职责划分已经确认，其他 attrs、AvatarPlan V2 Schema 仍为候选：
+节点结构示意（共用数据、具体字段名和 Clip Schema 仍为候选，不是已批准的 Validator）：
 
 ```js
 {
@@ -58,18 +64,31 @@
     x: "120",
     y: "80",
     facing: "right",
-    action: "walk1",       // retained 基础 Action
-    "one-shot-enabled": "true", // 可选；默认 true（已确认）
-    expression: "default"  // 候选：表情选择
+    action: "walk1",
+    "one-shot-enabled": "true", // 可选，默认 true
+    expression: "default"      // 待定
   },
   data: {
-    avatarPlan: { /* 渲染就绪的动作定义与部件画布；Schema 待定 */ }
+    appearance: { /* 共用外观、zOrder、资源描述等；待定 */ }
   },
-  children: []
+  children: [
+    {
+      key: "avatar:player:walk1",
+      tag: "ms-action",
+      attrs: { name: "walk1" },
+      data: { clip: { playback: "loop", frames: [/* ... */] } },
+      children: []
+    },
+    {
+      key: "avatar:player:brandish1",
+      tag: "ms-action",
+      attrs: { name: "brandish1" },
+      data: { clip: { frames: [/* ... */] } },
+      children: []
+    }
+  ]
 }
 ```
-
-单次动作由 Subsystem 在完成必要的业务判定后发布：
 
 ```js
 domain.emit({
@@ -79,15 +98,12 @@ domain.emit({
 });
 ```
 
-- 同名 `action` Event 每到达一次都表示一次新的播放启动，从第 0 帧重启；因此无需用属性变化或 `action-seq` 区分连续释放。
-- Event 播放时，`attrs.action` 仍保存当前基础 Action；一次性播放结束，组件回到当时最新的 `attrs.action`。它只是**本地视觉播放切换**，不得反向修改 Subsystem 状态。
-- 单次动作播放中再次收到新 `action` Event，新动作中断旧动作、从第 0 帧播放；但 `attrs.action` 改变本身**不打断**当前单次动作，结束后回到最新基础 Action（已确认方案 A）。
-- `render.event` 是 LoomRealm transient Event：不存入 Render Store、不进入 Snapshot、不重放，可能因目标不存在、连接替换或其他 applicability 条件丢失。**这是明确接受的视觉恢复限制**：重建后显示 `attrs.action`，不恢复先前的攻击/技能动画；技能命中、伤害和冷却仍由 Subsystem 权威处理。
-- 如果游戏将来要求必定显示/断线后恢复中途技能动作，须另议 retained 播放状态；不能把现有 Event 说成可靠且可重放。
-- Event 应在目标节点当前有效且对应动作计划已发布时发送。已发布不等于位图已经解码；异步资源准备与首帧时序在第二阶段处理。
-- 倾向移除 `skin/face/hair/equips` 冗余 attrs；它们由 Subsystem 决定并通过 `avatarPlan` 表达，仍待独立确认。
-- `expression` 的动态选择与表达帧定义分离，具体数据布局待定。
-- `x/y` 沿用 V1 身体原点作为讨论起点；未来是否由场景持有坐标、组件是否保留最终 Canvas，仍待讨论。
+- 每次收到同名 `action` Event 都从第 0 帧重新播放。新 Event 中断旧 one-shot；但 `attrs.action` 更新只记录**最新基础动作**，不会打断正在播放的 one-shot。一次性动作自然结束后回到那时最新的基础 Action。
+- `one-shot-enabled="false"` 立即停止当前单次动作并阻止新 Event；这个 retained 状态用于强制覆盖而不是一次性取消序号。
+- `render.event` 是 transient、可能丢失、不重放；重建组件只恢复 retained 基础 Action，不恢复中途技能。技能命中、伤害和冷却仍由 Subsystem 权威处理。
+- 仅当目标 Avatar 当前有效且所请求动作的 `ms-action` **已登记、已验证、Clip 可用**时才接纳事件；动作缺失时直接丢弃，不等待下一次 `replace()` 后补播。**Clip 有效不要求位图已经下载或解码**。
+- Subsystem / Adapter 应提前提供当前外观可触发的动作子节点；**不同动作可独立更新，但创建/删除子节点要求 `replace()` 提交整棵树**。因此不能把 Event 当成缺失动作的懒加载指令。
+- `skin/face/hair/equips` 的原始游戏外观选择倾向由 Adapter 解析后放入共享外观数据，不重复作为当前角色 attrs；`expression` 的选择与表达轨迹、`x/y` 是否属于 Avatar 仍待单独确认。
 
 ## 5. Render Clock、继承规则与动作播放
 
@@ -125,7 +141,7 @@ interface RenderClockProvider {
 | 动画实体状态 | `EntityAnimation` 保存 `action`、`actionTimeMs`、`elapsedMs`、`frame`、表情状态和资源；提供 `setAction`、`advance(ms)`、`seek(ms)` | 支持把 Animation Player 与时间源分开 |
 | 时间来源 | `advance(ms)` 消费调用者传入的毫秒增量，而不是 EntityAnimation 自己建立 RAF | 支持外部供时；**不证明** DOM 祖先递归查找 |
 | 同名动作重启 | `setAction(name, playback, restart=false)` 默认避免同名/同模式重启，显式 `restart` 则可重播 | 单次 `action` Event 每到达一次就显式 restart 是我们的产品映射 |
-| 动作时长 | `compileAction` / `loopTime` / `timedFrame` 按 delay、repeat suffix 处理帧与循环；`seekActionClock` 可定位动作相位 | 第二阶段应决定哪些时间/完成规则进入 AvatarPlan，而不是按 RenderEvent 事件到达次数推断时钟 |
+| 动作时长 | `compileAction` / `loopTime` / `timedFrame` 按 delay、repeat suffix 处理帧与循环；`seekActionClock` 可定位动作相位 | 各个 `ms-action` Clip 承载动作时长/循环规则；具体字段待定，不按 Event 到达次数推断时钟 |
 | 在线状态恢复 | `RemoteAnimationClock` 以及 online scene 的 `actionStartTick`、`seek` 实现远端动作相位收敛 | OpenMS 的在线恢复依赖 retained 时间事实；**我们的 transient Event 不提供相同保证** |
 | 表情 | `EntityAnimation` 独立维护 `expressionMs` / `expressionElapsedMs` 等 | 继续保留独立表情播放状态 |
 
@@ -180,32 +196,31 @@ domain.update({
 - 新建 / 重连组件只收到禁用态 Snapshot：直接显示基础动作，不恢复旧 one-shot。
 - 快速 `false → true` 且更新被合并：不得宣称一定观察到取消；此序列不是受支持的瞬时取消接口。
 
-### 5.6 第二阶段已确认：基础 Action 的播放规则由 AvatarPlan 定义
+### 5.6 第二阶段已确认：基础 Action 的播放规则由 ms-action Clip 定义
 
-- Subsystem 通过 `attrs.action` 选择**具体**基础 Action；`ms-avatar` 只根据 `AvatarPlan.actions[action]` 中的帧与播放规则推进，不因名字包含 `stand`、`walk`、`jump`、`sit` 等字样而自行猜测循环、保持或结束。
+- Subsystem 通过 `attrs.action` 选择**具体**基础 Action；`ms-avatar` 只根据当前已登记的 `ms-action` Clip 的帧与播放规则推进，不因名字包含 `stand`、`walk`、`jump`、`sit` 等字样而自行猜测循环、保持或结束。
 - 基础 Action 支持**完整循环**、**先播前置段再循环后续片段**、**非循环播至末帧并保持**三种语义。非循环基础 Action 停在末帧，直到 Subsystem 改变 `attrs.action`（或者单次 Event 暂时覆盖后再回到它）。
 - 基础 Action 的正常结束是组件内部的视觉状态，**不向 Subsystem 发完成事件**，不自行切换别的业务 Action。
 - `render.event("action")` 是**一次性覆盖播放**：即使该 Action 的基础循环定义允许循环，单次 Event 也只执行一次完整动作，到期回到最新基础 Action。新 Event 到达时遵照既定的显式重启规则；`one-shot-enabled=false` 仍有强制终止优先权。
 - 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。如何在更换 AvatarPlan 时保留相位另议。
-- 以上是**确定的行为语义**，不是已批准的 AvatarPlan V2 字段级 Schema。
+- 以上是**确定的行为语义**，不是已批准的 `ms-action` Clip 字段级 Schema。
 
-**待定 Schema 的表达示例**（字段名 `playback` 和 `repeatFrom` 暂不冻结）：
+**待定 `ms-action.data.clip` 的表达示例**（字段名 `playback` 和 `repeatFrom` 暂不冻结；不同键对应不同子节点）：
 
 ```js
-actions: {
-  walk1: { playback: "loop", frames: [/* ... */] },
-  jump:  { playback: "hold", frames: [/* ... */] },
-  specialAction: {
-    playback: "loop",
-    repeatFrom: 1,       // 候选：零基帧索引；先播 frame 0，再循环 frame 1..N-1
-    frames: [/* ... */]
-  }
-}
+// 三个独立 ms-action 子节点的 data.clip（仅演示各自的数据）
+walk1Clip = { playback: "loop", frames: [/* ... */] };
+jumpClip = { playback: "hold", frames: [/* ... */] };
+specialActionClip = {
+  playback: "loop",
+  repeatFrom: 1,       // 候选：零基帧索引；先播 frame 0，再循环 frame 1..N-1
+  frames: [/* ... */]
+};
 ```
 
-如果未来使用 `repeatFrom`，必须保证位于帧边界且重复片段具有正时长，避免全零 delay 的无限循环；源数据的 `delay=0`、缺少 delay、repeat 值转换与边界行为应在 AvatarPlan Schema 阶段明确并测试。
+如果未来使用 `repeatFrom`，必须保证位于帧边界且重复片段具有正时长，避免全零 delay 的无限循环；源数据的 `delay=0`、缺少 delay、repeat 值转换与边界行为应在 `ms-action` Clip Schema 阶段明确并测试。
 
-**OpenMS 复核依据**：固定源码 `animation-timing.js` 中 `compileAction` 从首帧 `repeat` 计算 `repeatStartMs`，`loopTime` 在首轮播放完毕后循环指定的 suffix；`advanceActionClock` 区分 `once` 和 `loop`，`EntityAnimation.setAction` 支持播放模式覆盖。这支持“动作帧数据决定循环行为，调用入口决定 one-shot”的拆分，但 `playback/hold/repeatFrom` 的具体表示形式仍是 Adventure Island 的候选，**不能直接称作 CMS079 已验证 ABI**。
+**OpenMS 复核依据**：固定源码 `animation-timing.js` 中 `compileAction` 从首帧 `repeat` 计算 `repeatStartMs`，`loopTime` 在首轮播放完毕后循环指定的 suffix；`advanceActionClock` 区分 `once` 和 `loop`，`EntityAnimation.setAction` 支持播放模式覆盖。这支持“动作帧数据决定循环行为，调用入口决定 one-shot”的拆分；现在动作数据由独立 `ms-action.data.clip` 承载，但 `playback/hold/repeatFrom` 的具体表示形式仍是 Adventure Island 的候选，**不能直接称作 CMS079 已验证 ABI**。
 
 本项未来验收至少覆盖：正常站立循环、跳跃末帧保持、首段播放一次后循环 suffix、Event 覆盖循环动作只播放一次、one-shot 结束后回到最新基础动作、同名基础 Action 更新不重启。
 
@@ -215,18 +230,18 @@ actions: {
 
 | 情况 | ms-avatar 行为 |
 | --- | --- |
-| Event 的 `action` 名称不在当前 `AvatarPlan.actions` | **丢弃此次 Event**，生成包含动作名的诊断；不缓存名称等待下一份 Plan，也不改变基础动作或当前 one-shot |
+| Event 的 `action` 名称不存在于当前 **已验证 `ms-action` 子节点索引** | **丢弃此次 Event**，生成包含动作名的诊断；不缓存名称等待下一份 Plan，也不改变基础动作或当前 one-shot |
 | Event 动作定义存在，但图片/图集尚在读取、解码 | **收到 Event 时开始一次性 Action 播放时间轴**，在资源可用时绘制届时的**当前帧**；可能跳过早期帧，极端情况下整个 one-shot 不可见 |
 | Event 动作自然到期但资源仍未就绪 | 按既定规则结束覆盖、回到最新 `attrs.action`；不得因为迟到的资源而补播 |
-| Retained `attrs.action` 对应的 Action 定义暂不可用 | **保留基础 Action 请求**；计划可用后重新解析，诊断缺失而不把其改成其他业务动作 |
+| Retained `attrs.action` 对应的 `ms-action` 暂不可用 | **保留基础 Action 请求**；子节点/Clip 可用后重新解析，诊断缺失而不把其改成其他业务动作 |
 | 当前 Action 定义存在但基础图像尚未就绪 | 保留基础 Action 状态与资源加载；绘制失败或暂缺时使用明确的渲染诊断，不凭空选择另一动作 |
-| 新 Event / 禁用 one-shot / 新计划 / 组件断开 | 过期异步解码或绘制结果不得覆盖新状态；读取取消、缓存 pin/unpin 与有效版本检查依然适用 |
+| 新 Event / 禁用 one-shot / 子节点 Clip 替换或删除 / 外观变化 / 组件断开 | 过期异步解码或绘制结果不得覆盖新状态；读取取消、缓存 pin/unpin 与有效版本检查依然适用 |
 
 实现边界：
 
 1. `ms-avatar` 的 **Animation Player 时间推进不能因某张资源读取/解码/绘制 Promise 未完成而暂停**。现有 `cms-actor` 实现的 `_paintPending` / `_lastTick` 可能暂停动画直到绘制完成，这是**需要重构的已知差异**，不能将旧代码直接视为满足本规则。
 2. 必须区分“动画当前应处的帧”与“某次异步绘制请求最初抓取的帧”。资源就绪时应读取当前播放状态并触发合适的新一轮绘制；旧请求按版本/绘制 epoch 检查丢弃。内部 epoch 是异步过期保护，**不是 RenderNode `action-seq`**。
-3. 一次性 Event 若恰好在动作数据尚未发布时到达，按缺少 Action 直接丢弃；上游应尽量**先发布可用 AvatarPlan，再触发 Event**，但 LoomRealm 的有序消息不保证位图下载或解码已完成。
+3. 一次性 Event 若恰好在 `ms-action` 子节点/Clip 尚未提交并进入父组件有效索引时到达，按缺少 Action 直接丢弃；上游应尽量**先发布并确认可供父组件读取的动作定义，再触发 Event**，但 LoomRealm 的有序消息不保证位图下载或解码已完成。
 4. 诊断不改变 Subsystem 技能成功与否，不应把无资源的单次动画反向判定为未释放技能。资源和错误报告的具体诊断字段在实施契约中定义。
 5. 一次性动作的本地时间起点为**Renderer 接受该 Event 的时间**；不假设能够推断其在 Subsystem 中开始的精确时刻。网络传输的固有延迟仍存在，本策略只避免**额外等待解码而补播**。
 6. 这是当前 Event 最佳努力的视觉产品语义；不是网络实时交付或至少一次显示的保证。
@@ -244,7 +259,7 @@ actions: {
 | 当前 Clock 运行但页面在后台、RAF 被浏览器停调、或严重掉帧 | **时间仍经过**，下次回调定位当下帧；已到期 one-shot 结束，不补播遗漏帧 |
 | 同一 Clock 下连续画面请求 / 资源加载延迟 | 不阻断动画时间推进，只更新可见的最新帧 |
 | Clock 切换 | 沿用 §5.1：保留 Animation Player 播放状态和相位，重新建立新时钟采样基准；**不能用新旧 Clock 的绝对时间直接相减** |
-| DOM 断连 / 组件销毁 | 订阅解除与本地时钟停用规则已确定方向，断连期间的视觉时间是否延续、短暂重新挂载的 one-shot 是否保留，**下一项讨论** |
+| DOM 断连 / 组件销毁 | 按 §5.9：同实例断连冻结、重挂保留播放相位；新实例只恢复 retained 基础动作 |
 
 **时钟提供方的最低行为要求**：若使用 §5.2 的 `subscribe(deltaMs)` 形式，`deltaMs` 必须代表上一次有效采样以来**未暂停的实际经过时间（毫秒）**，而非固定帧步长。隐藏页恢复不能简单按 16ms 或固定上限裁掉已过时间；可以限制单次计算工作量，但不得把 3 秒真实间隔变成 16ms 动画时间。显式暂停区间必须从 delta 中排除。每个 Animation Player 应以累计时间/动作持续时间**直接求当前帧**，避免高延迟后循环追赶成千上万帧。
 
@@ -283,29 +298,43 @@ actions: {
 
 ### 5.11 尚待讨论的边界
 
-1. **AvatarPlan 动作集合**：全量静态动作目录、当前 Action 集，还是一个有界常用/可预加载动作工作集？下一轮优先确定。
-2. **AvatarPlan Schema 细节**：字段名、循环边界、零延迟/缺失 delay、表情轨、外观变化后计划替换的相位保留行为。
-3. **未来如需精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实，不偷换事件可靠性。
-4. **Clock 失效通知实现**：约定一致的可观测失效流程，避免提供者不再推进但子组件误认为“暂停”；与组件生命周期测试一起落地。
+1. **`ms-action` Clip Schema**：动作名、帧、循环边界、零延迟/缺失 delay、资源引用版本；父级共用外观数据（如 `appearance`）与子节点内容如何一致验证。
+2. **当前播放的子节点发生更新**：相同 Action 的 Clip 被替换、删除或被外观更新整体替换时，保留相位、重启或中断，下一轮单独讨论。
+3. **父子数据通知**：子节点独立 `receiveRenderData()`、名称变化、DOM 增删如何更新 Avatar 索引并排除事件顺序竞态。
+4. **当前外观动作覆盖率与容量**：OpenMS 的预定义 Action 集只是参考，不可将 126 动作直接等同于 CMS079 必须全量传输；测量真实 CMS079 样本后确定适当应用级限制。
+5. **未来精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实。Clock 失效通知 API 留待实施阶段。
 
-以上已确定第二阶段的主要行为原则，**未冻结完整 AvatarPlan Schema 或内部时钟接口签名**。
+以上已确定第二阶段的主要行为和**动作拆为子节点**的组织原则；未冻结完整 `ms-action` Clip Schema 或内部通知 API。
 
-## 6. 外观计划与资源：暂不冻结的取舍
+## 6. 外观数据、动作子节点与资源所有权
 
-**原则已确定**：业务侧解析 `islot/vslot/zmap/smap` 等原始事实并提供渲染就绪数据；Renderer 不自行反解 WZ 路径。组件负责依据计划执行逐帧的绘制顺序与遮挡。
+**已确认**：游戏侧 Adapter 解析 CMS079 的 `islot/vslot/zmap/smap` 和原始绘制事实；Renderer 不反向解析 WZ。数据按以下职责拆分：
 
-**仍需讨论**：
+| 数据或资源 | 所有者 | 职责 |
+| --- | --- | --- |
+| 角色共用的外观绘制信息（如 `appearance`、zOrder、资源表等） | `ms-avatar.data`（字段待定） | 提供多个动作共用的渲染事实 |
+| 单个动作合成帧、delay、循环规则及图片资源引用 | 对应 `ms-action.data.clip`（字段待定） | 单独更新和校验，父 Avatar 按动作名获取 |
+| 图片/图集下载、解码、资源版本校验、缓存及释放 | **`ms-avatar`** | 统一共享资源，避免各 Action 独立持有同一图集 |
+| 当前播放的 Action、身体/表情相位、one-shot 覆盖 | `ms-avatar` 的 Animation Player | 跟随继承或本地 Render Clock 推进；不写回 RenderNode |
 
-- `AvatarPlan` 是包含全部动作，还是当前动作加有限预加载动作？现行 V1 明确只允许有界的当前所需动作集（最多 32 个 Action）。
-- 装备变化时由 Adapter 发布新 Plan，还是采用更细粒度的局部替换？没有证据时先沿用**整体有界 Plan 更新**，但不因普通移动/动作切换重建 Plan。
-- 不强制把新生成的外观计划转成 `PresentationResourceClient` 可读取的动态 Content JSON；该能力在当前 LoomRealm 中不是现成的发布接口。
-- 资源缺失、Action 缺失与计划版本不匹配应产生可定位错误；静默回退策略尚未批准。
+OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar()` 再为当前外观合成动作集，`EntityAnimation` 从既有动作中播放；我们保留**动作在播放前就应准备好**的原则，但以 `ms-action` 子节点表达已合成动作，而不是原样复制 OpenMS 的 PixiJS 资源布局。
+
+**容量与更新语义**：
+
+- LoomRealm Core 没有通用的单个 RenderNode `data` 字节或节点数量硬上限。旧版 `AvatarPlanV1` 的 256 KiB / 32 Action 属于组件级约束，**不能因为拆分子节点就认为没有传输成本**。
+- 现有动作的 Clip 变化可以 `RenderDomain.update()` 指定子节点 key 独立更新；添加、删除和重排动作子节点要 `RenderDomain.replace()` 提交树结构。初始 Snapshot 和 `replace()` 仍涉及整个当前树，**不是流式按需下发**。
+- 动作范围应覆盖当前角色外观能够实际触发的基础、攻击和技能姿态，并尽可能在 Event 前准备；具体集合不能直接硬编码为 OpenMS 的 126 项，也不能直接照搬旧版 32 项限制。
+- `ms-action` 不负责下载/解码。图片可在父 Avatar 内按需要加载或预读；缺像素但 Clip 有效时，遵照 §5.7 时间一致性规则继续播放时钟。
+- 是否将多动作共用的图层、锚点或资源引用做进一步去重、装备变化时如何分批替换 Clip、是否存在独立的动态内容发布接口，均待真实 CMS079 数据测量后决定。
+- 资源缺失、Action 缺失、外观/Clip 不匹配应可诊断，不引入未确认的静默回退策略。
+
+见 [ms-action 设计文档](./ms-action.md)。
 
 ## 7. 和旧组件的关系
 
 - 现有 `components/cms-actor/`、`components/RENDER-NODE-ABI-V1.md` **保持不变**。
-- 新设计使用独立标签 `ms-avatar`，避免新旧 Schema 在同一标签内混用。
-- 可以复用现有 `avatar-model.mjs` 的几何、排序、校验逻辑与图像缓存方案，但不宣称新组件已经实现。
+- 新设计使用独立标签 `ms-avatar` 与数据型子组件 `ms-action`，避免新旧 Schema 在同一标签内混用。
+- 可以复用现有 `avatar-model.mjs` 的几何、排序、校验逻辑与图像缓存方案，需将集中式 Plan 的校验/数据读取改为父 Avatar + 子 Action 分工；不宣称新组件已经实现。
 - 新实现如果需要与场景统一 Display List 交错，可以抽取纯 Avatar Painter；不在本文件中提前决定整个 World Renderer 的节点树。
 
 ## 8. 下一轮需要逐项决定的事项
@@ -326,7 +355,9 @@ actions: {
 | DOM 断连、同实例重挂与新实例恢复 | 断连冻结、同实例续播；新实例仅恢复 retained 基础动作 | **已确认** |
 | 父级 RenderClock 对象身份 | 有效生命周期内稳定；暂停/恢复不换实例 | **已确认** |
 | Clock 提供者失效通知 API | 必须可检测并重新查找；具体形式待定 | **实施细节待定** |
-| AvatarPlan 动作集合/版本化策略 | 未选定 | **待讨论** |
+| 动作定义的承载方式 | **`ms-action` RenderNode 子节点，父 Avatar 按动作名索引** | **已确认** |
+| 图片资源加载/解码/缓存所有权 | **统一归 `ms-avatar`，不在 `ms-action` 独立加载** | **已确认** |
+| `ms-action` 的 Clip Schema、容量与通知机制 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |
 
 ## 9. 依据与验证状态
@@ -335,10 +366,13 @@ actions: {
 - [旧版 cms-actor 实施说明](../../components/cms-actor/IMPLEMENTATION.md)
 - [Frozen RenderNode ABI v1](../../components/RENDER-NODE-ABI-V1.md)
 - [Adventure Island 产品模块边界](../../docs/product-first/MODULE-CONTRACTS-V1.md)
+- [ms-action 数据子组件设计](./ms-action.md)
+- [OpenMS Avatar Visuals](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/avatar-visuals.js)
 - [OpenMS Avatar Composition](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/avatar-composition.js)
 - [OpenMS Animation Timing](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation-timing.js)
 - [OpenMS EntityAnimation](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation.js)
 - [OpenMS Online Scene](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/online/scene.js)
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
+- [LoomRealm Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)
 
-**验证状态**：新 `ms-avatar` 仅为设计 Draft；没有新增实现、Schema Validator、Chromium 测试或真实 CMS079 像素一致性验收。旧版历史测试不自动证明新 ABI 通过。
+**验证状态**：新 `ms-avatar` / `ms-action` 仅为设计 Draft；没有新增实现、Schema Validator、Chromium 测试或真实 CMS079 像素一致性验收.旧版历史测试不自动证明新 ABI 通过。

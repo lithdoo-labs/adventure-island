@@ -59,6 +59,7 @@
     y: "80",
     facing: "right",
     action: "walk1",       // retained 基础 Action
+    "one-shot-enabled": "true", // 可选；默认 true（已确认）
     expression: "default"  // 候选：表情选择
   },
   data: {
@@ -80,7 +81,7 @@ domain.emit({
 
 - 同名 `action` Event 每到达一次都表示一次新的播放启动，从第 0 帧重启；因此无需用属性变化或 `action-seq` 区分连续释放。
 - Event 播放时，`attrs.action` 仍保存当前基础 Action；一次性播放结束，组件回到当时最新的 `attrs.action`。它只是**本地视觉播放切换**，不得反向修改 Subsystem 状态。
-- 单次动作播放中再次收到新 `action` Event，初步沿用旧组件行为：新动作中断旧动作、从第 0 帧播放。对于此时基础 Action 变化是否立即中断，留到动画第二阶段裁决。
+- 单次动作播放中再次收到新 `action` Event，新动作中断旧动作、从第 0 帧播放；但 `attrs.action` 改变本身**不打断**当前单次动作，结束后回到最新基础 Action（已确认方案 A）。
 - `render.event` 是 LoomRealm transient Event：不存入 Render Store、不进入 Snapshot、不重放，可能因目标不存在、连接替换或其他 applicability 条件丢失。**这是明确接受的视觉恢复限制**：重建后显示 `attrs.action`，不恢复先前的攻击/技能动画；技能命中、伤害和冷却仍由 Subsystem 权威处理。
 - 如果游戏将来要求必定显示/断线后恢复中途技能动作，须另议 retained 播放状态；不能把现有 Event 说成可靠且可重放。
 - Event 应在目标节点当前有效且对应动作计划已发布时发送。已发布不等于位图已经解码；异步资源准备与首帧时序在第二阶段处理。
@@ -141,14 +142,42 @@ interface RenderClockProvider {
 - Avatar 不判断 `jump/dead/hit` 的业务优先级；**强制中断必须使用另行定义的显式呈现指令**，不能仅靠猜测基础 Action 的名称。
 - 上述仅是视觉播放规则；技能中断的物理、伤害、冷却和合法性由 Subsystem 判定。完整动画 ABI 尚未冻结。
 
-### 5.5 待讨论：强制中断的指令和可靠性
+### 5.5 第二阶段已确认：显式强制中断与一次性覆盖许可
 
-以下两种表达均为**未决定的候选**，不要同时默认启用：
+**已确认采用 retained `attrs["one-shot-enabled"]`，不新增 `action.cancel` RenderEvent。** 它是 Subsystem 发布的**视觉覆盖许可**，不是死亡、硬直、施法资格等业务状态。
 
-1. **瞬时取消 Event**（例如 `render.event("action.cancel")`）：组件收到后清除当前一次性覆盖并显示最新基础动作；不新增 attrs，但 Event 可能丢失且不重放，不能保证死亡等关键画面一定立即覆盖。
-2. **Retained 覆盖许可状态**（例如 `attrs["one-shot-enabled"] = "false"`）：为 false 时，立即清除一次性覆盖、绘制最新基础 Action，并拒绝新的单次 Event；恢复 true 时重新接受事件。允许重连快照恢复“禁止单次覆盖”的状态，但不会重放已丢失的取消瞬间，也不能替代动作事件历史。
+| 属性取值 | 语义 |
+| --- | --- |
+| 缺省或 `"true"` | 允许 `action` RenderEvent 启动单次覆盖动作 |
+| `"false"` | 立即清除当前单次覆盖，显示当时最新 `attrs.action`；禁止新的单次动作 Event |
 
-需要先决定强制中断的产品要求：只是最佳努力的视觉取消，还是即使丢包、重建也必须以最新基础 Action 盖过旧技能。若需要的是仅取消一次、取消后立即允许新技能，而又不新增实例标识，单独的 transient Event 更适合；retained 布尔许可只能表达**持续的阻止状态**，不能表达任意重复的瞬时取消。
+典型场景：Subsystem 决定死亡并一次发布 `action="dead"` 与 `one-shot-enabled="false"`。Avatar 显示 `dead`，不尝试根据 Action 名判断能否施法。恢复许可为 `"true"` 后允许新的单次 Event，但**不自动重播**被取消或丢失的旧事件。
+
+```js
+domain.update({
+  nodes: [{
+    key: "avatar:player",
+    attrs: { set: { action: "dead", "one-shot-enabled": "false" } }
+  }]
+});
+```
+
+实施要求：
+
+1. `"false"` 是持续禁止许可，不是一个瞬间的取消序号；**不能**用短时间 `false → true` 切换表达“取消一次然后立刻允许”。未发送的 retained 更新可能被 LoomRealm 合并，Renderer 可能只见最终 `true`。业务需要强制禁用时应维护该状态，直到后续真实解除条件出现；不能假设每次中间变化都会渲染。
+2. 组件在检测到禁用时终止本地 one-shot 播放；即使原 Event 已到达并开始播放也必须清除。禁用期间收到 Event 应忽略。恢复许可仅重新开放入口，不触发自动播放。
+3. `attrs.action` 与 `one-shot-enabled` 可在同一 `RenderDomain.update()` 发布。实现应将连续属性回调合并为一致的绘制状态，不依赖 `attributeChangedCallback` 的属性逐项更新顺序。
+4. RenderEvent 仍是 transient 且允许丢失。Retained 许可保证的是**快照恢复时能知道是否允许覆盖**，不是保证连接中断期间画面一定即时更新、也不是保证每次中断过渡都被展示。
+5. 禁用状态下不改变 Subsystem 权威动作、战斗和冷却；本组件只清除自己的视觉覆盖状态。
+6. 缺省值 `true` 仅为本组件的属性默认约定；`attrs` 在 LoomRealm 中始终是字符串，非 `"true"/"false"` 的值应由组件级 validator 拒绝，不擅自当作 truthy。
+
+### 5.5.1 需要覆盖的测试场景
+
+- one-shot 正在播放，基础动作从 `walk1` 变成 `jump`：保持 one-shot，到期后播放 `jump`。
+- one-shot 正在播放，同一更新发布 `action="dead"`、`one-shot-enabled="false"`：取消并显示 `dead`。
+- 禁用期间发送同名或不同名 `action` Event：都不得重启；恢复 `true` 后只响应新收到的 Event。
+- 新建 / 重连组件只收到禁用态 Snapshot：直接显示基础动作，不恢复旧 one-shot。
+- 快速 `false → true` 且更新被合并：不得宣称一定观察到取消；此序列不是受支持的瞬时取消接口。
 
 ### 5.6 其余第二阶段待裁决项
 
@@ -189,7 +218,7 @@ interface RenderClockProvider {
 | 单次技能/攻击通过 `action` RenderEvent，且不添加 `action-seq` | **是；接受 Event 不重放** | **已确认** |
 | 时钟来源：最近祖先 Render Clock，否则组件本地 Clock | **确定继承与回退原则** | **已确认** |
 | attrs.action 改变与一次性 Event 的覆盖关系 | **方案 A：单次动作播完后回到最新基础动作** | **已确认** |
-| 强制中断接口与可靠性 | 瞬时 cancel Event / retained 覆盖许可 | **第二阶段待讨论** |
+| 强制中断接口与可靠性 | retained `one-shot-enabled`，缺省 true、false 清除并禁止单次覆盖 | **已确认** |
 | Animation Player 的结束、时间步进、暂停语义 | 未选定 | **第二阶段待讨论** |
 | AvatarPlan 动作集合/版本化策略 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |

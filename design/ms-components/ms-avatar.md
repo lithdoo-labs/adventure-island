@@ -43,10 +43,10 @@
 | `receiveRenderEvent` | 接收面向 Avatar 的瞬时 `action` Event，触发一次性覆盖动作 |
 
 - WebProjector 将 `RenderNode.children` 机械投影为 **`ms-avatar` 的 light DOM**。每个 `ms-action` 是独立注册的 Custom Element，自己的 `data` 只投递给它自己的 `receiveRenderData()`，**不自动触发父 Avatar 的数据回调**。
-- `ms-action` 消费、校验并暴露 Clip；`ms-avatar` 通过组件内部通知/索引取得当前动作，统一管理图片/图集的读取、解码、缓存、contentVersion 与实际绘制。子组件没有 RAF、Canvas 和图片资源所有权。
+- `ms-action` 消费、校验并暴露 Clip；**已确认子节点主动发出 Renderer 内部的定义变化通知，父 Avatar 在关键入口同步读取当前直接子元素与已验证 Clip**（§5.15）。通知只使缓存失效，不直接画图，也不通过 LoomRealm RenderEvent。父 Avatar 统一管理图片/图集读取、解码、缓存、contentVersion 与实际绘制，子组件没有 RAF、Canvas 和图片资源所有权。
 - **已有** `ms-action` 的 `data.clip` 可以通过 `RenderDomain.update()` 独立更新；**增加、移除或改变 `children` 结构**须通过 `RenderDomain.replace()`。该设计提供独立寻址和增量更新，不等同于把初始 Snapshot 分段传输。
 - LoomRealm Core 不设置通用 `data` 字节、节点数量硬限制。旧版 `cms-actor` 的 256 KiB / 32 动作是**组件应用级上限**，拆成子节点并不免除未来 `ms-action` 的大小、帧数、图层和总工作集边界验证。
-- 结构提交时需要先校验直接子节点索引：Action 名唯一，Clip 定义已收到且有效；不能因为元素在 DOM 中存在就认为 Clip 已就绪。父子通知、索引一致性和构成帧的版本匹配仍需实现细化。
+- 结构提交时需要校验直接子节点索引：Action 名唯一，Clip 定义已收到且有效；不能因为元素在 DOM 中存在就认为 Clip 已就绪。**MutationObserver 只辅助发现子节点增加/移除/移动，不作为唯一的数据变化通知**；父子通知的具体 DOM 事件/方法签名和组合完成判定仍待实现细化。
 
 详见 [ms-action 数据子组件设计](./ms-action.md)。
 
@@ -300,7 +300,7 @@ specialActionClip = {
 
 1. **`ms-action` Clip Schema**：动作名、帧、循环边界、零延迟/缺失 delay、资源引用版本；父级共用外观数据（如 `appearance`）与子节点内容如何一致验证。
 2. **Clip 热更新语义已确认（§5.12）**：同名有效 Clip 替换保留已播放时间；one-shot Clip 消失则取消；基础 Clip 缺失仍保留 retained 请求。基础 Clip 缺失期间的时间累计与恢复行为已在 §5.14 确认；换装时跨父子节点同次原子发布见 §5.13。
-3. **父子数据通知**：子节点独立 `receiveRenderData()`、名称变化、DOM 增删如何更新 Avatar 索引并排除事件顺序竞态。
+3. **父子数据通知原则已确认（§5.15）**：子组件主动通知 + 父组件关键入口同步查询；**仍待实施**：具体事件名/方法、首次挂载时可用性门槛、父子回调交错和删除时通知机制。
 4. **当前外观动作覆盖率与容量**：OpenMS 的预定义 Action 集只是参考，不可将 126 动作直接等同于 CMS079 必须全量传输；测量真实 CMS079 样本后确定适当应用级限制。
 5. **未来精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实。Clock 失效通知 API 留待实施阶段。
 
@@ -356,7 +356,7 @@ domain.update({
 **需要明确的两层原子性：**
 
 1. **Render Store 层**：LoomRealm Render Update v1 在一个 Domain commit 中对全部更新建立 isolated candidate 并一次 atomic commit；对应用而言，应在发出更新前完成整套外观数据准备，避免多次独立提交中的可观察混合状态。
-2. **Web Component 呈现层**：LoomRealm WebProjector 会把父子各自的 `data` 交给对应元素的 `receiveRenderData()`，这些**不是一个合并后的父组件回调**。因此父 Avatar 必须在实际绘制和接纳依赖新外观的 Event 前，使本地共用数据及全部受影响 `ms-action` Clip 达成有效、一致的**已投影组合**；投影未完成或校验失败时，不得绘出混合帧，也不能把旧 Clip 当作新外观中的有效动作。具体父子通知/事务重建机制仍需实现契约与集成测试验证。
+2. **Web Component 呈现层**：LoomRealm WebProjector 会把父子各自的 `data` 交给对应元素的 `receiveRenderData()`，这些**不是一个合并后的父组件回调**。因此父 Avatar 必须在实际绘制和接纳依赖新外观的 Event 前，使本地共用数据及全部受影响 `ms-action` Clip 达成有效、一致的**已投影组合**；投影未完成或校验失败时，不得绘出混合帧，也不能把旧 Clip 当作新外观中的有效动作。通知与按需同步读取原则按 §5.15；**首次挂载/事务投影完成的可验证门槛**及跨回调交错细节仍需实现契约与集成测试验证。
 3. **没有跨多个 Domain 或跨多个提交的原子性承诺**：若父节点及子节点不在同一个 Domain，或者外观被拆为连续多次 Update/Replace 发表，**不符合本条要求**。有跨提交分阶段准备的真实需求时，再讨论 retained 版本号与显式激活协议。
 
 **目前不增加 `appearance-version` / `clip-version` 这一套用于换装同步的冗余 ABI 字段。** 原子提交与父组件的组合校验是首版约定；资源自身的 `contentVersion` 仍需正常验证，它不是外观事务版本号。
@@ -388,6 +388,31 @@ domain.update({
 4. 计算继续使用 Render Clock 提供的未暂停时间；不引入 Component 自己的墙钟补偿，也不借用 Subsystem 的战斗权威时间戳。
 
 **验收场景**：无 Clip 时经过 2s 后恢复 seek；Clip 恢复于循环后缀阶段；非循环动作已过终点则保持末帧；显式暂停/断连期间不累计；同名重复 retained 投影不重启；one-shot 所需 Clip 缺失时 Event 仍丢弃、不补播。
+
+### 5.15 第二阶段已确认：ms-action 主动通知 + Avatar 关键入口同步查询
+
+**已确认父子协作原则**：单个 `ms-action` 的 `receiveRenderData()` 更新不自动变成 `ms-avatar.receiveRenderData()`。子组件需在本地更新和校验完成后，**主动通知所属 Avatar：“我的动作定义可能已变化”**；父组件将通知视为**索引失效信号**，而不是立即播放或绘制指令。父组件在**实际需要使用动作定义时同步读取当前直接子节点的已验证 Clip**，不依赖异步 `MutationObserver` 结果的及时性。
+
+| 数据/结构入口 | 已确认处理原则 |
+| --- | --- |
+| `ms-action.receiveRenderData()` 收到新的 Clip | 子组件保存当前候选及校验结果（包括失效状态），主动向所属父 Avatar 通知定义变化；错误定义不可沿用旧有效 Clip 假装最新数据 |
+| `attrs.name` 变化 / 子节点连接、断开、移动 | 父级的动作索引必须失效；`MutationObserver` 可辅助结构发现，但不是唯一的准确性来源 |
+| `ms-avatar.receiveRenderEvent("action")` | **同步检查最新直接子节点 + 当前有效 Clip**，确认名称唯一、定义已验证及整体外观组合可用，再决定接纳或丢弃；禁止只信任尚未刷新的缓存索引 |
+| 准备实际绘制时 | 如果索引被标记为脏，统一同步刷新受影响的定义和有效外观组合；不要求每帧递归扫描全部 DOM |
+| 子节点通知先于父级 `data.appearance` 回调 | 只能标脏/延期组合，**不得凭先收到的数据就绘制新旧混合外观**；换装仍要求 §5.13 的单次 Domain 原子发布 |
+| 当前动作消失、失效或被新的同名 Clip 替换 | 在读取最新有效索引后按 §5.12/§5.14 的取消、保留 `elapsedMs` 和重新 seek 规则处理 |
+
+**实现边界和不可假设的保证**：
+
+1. 推荐内部机制：`ms-action` 在校验并替换本地快照后同步触发**仅供组件之间使用**的变更通知；`ms-avatar` 同步读取子组件公开的只读 Clip 状态。**具体通知事件名称、事件详情、查询方法与错误接口尚未冻结**。
+2. `MutationObserver` 可用于发现子节点的增删/移动和属性变更，但不会自动发现子节点 JS 私有的 Clip 数据变化，也不能保证在紧随而来的 `render.event` 前执行；必须在 Event 入口以当前直接子节点和 Clip 状态重新确认。
+3. `connectedCallback()` 不代表 initial attrs、children、data 已到齐。动作索引只能收录**真实存在、已收到数据并通过校验**的直接 `ms-action`；空壳元素不是有效动作。初次挂载何时开始首次绘制、何时能接纳 Event，下一项另行裁决。
+4. LoomRealm 已保证 preceding retained commit 在 eligible Event 之前完成相应 WebProjector reconcile / data delivery attempt；这**不等于所有业务组件的数据校验或异步绘制已成功**。Event 仍然可能因 Clip 缺失/失效而丢弃，不缓存补播。
+5. 同名重复必须诊断并阻止歧义，不能依据 DOM 顺序静默挑一个。旧元素在更换父级或删除后发来的迟到通知不得修改新的索引；过期图片绘制仍须按 epoch/有效状态失效。不得从组件内部通知回写受管理的 RenderNode attrs/data/children。
+
+此规则只涉及 Renderer 内部父子 Custom Element 协作，**不修改 LoomRealm RenderNode、Render Update v1 或 RenderEvent ABI**；无需新增业务 `action-seq`。
+
+**验收场景**：已存在子节点 Clip 独立更新、紧随更新的同名 Event、同步 Event 先于 `MutationObserver`、父/子 `receiveRenderData()` 交错、首次挂载空壳子节点、DOM 删除后迟到通知、重复动作名、失效 Clip 不使用旧定义、换装提交后禁止混合帧。
 
 ## 6. 外观数据、动作子节点与资源所有权
 
@@ -443,7 +468,8 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 | `ms-action` Clip 内容更新与删除 | 同名有效 Clip 保留 elapsedMs 重新求帧；one-shot 删除即取消，基础请求保留 | **已确认** |
 | 基础 Action Clip 暂缺后的时间连续性 | 本应推进时继续累计 elapsedMs；恢复有效 Clip 后 seek，不补播 | **已确认** |
 | 换装时父级 appearance 与子 Action Clip 一致性 | **同一 Domain、同一次 update/replace 原子提交**；子组件绘制前校验组合；不新增 appearance-version | **已确认** |
-| `ms-action` 的 Clip Schema、容量与通知机制 | 未选定 | **待讨论** |
+| 父子 Clip 变化通知与按需索引刷新 | 子组件主动通知，父 Avatar 绘制/Event 前同步验证；MutationObserver 只辅助结构发现 | **已确认原则，接口待定** |
+| `ms-action` Clip Schema 与容量、初次投影就绪门槛 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |
 
 ## 9. 依据与验证状态

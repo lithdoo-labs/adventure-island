@@ -12,7 +12,7 @@
 - **`ms-action`**：消费自己的 `receiveRenderData()`、验证单个动作 Clip、保存只读语义数据，并通过 Renderer 内部组件协议将当前定义暴露给所属的 `ms-avatar`。
 - **`ms-avatar`**：根据 `ms-action.attrs.name` 建立动作名精确索引，持有 Animation Player / Render Clock；**统一读取、解码、缓存、版本校验及释放身体动作与表情共用的图片/图集**。表情 Clip 属于父级共享外观数据，由独立 Expression Player 推进。
 - **`ms-action` 不负责**：自己的 RAF、Clock、Canvas/WebGL、图片读取/解码/缓存、资源所有权、战斗技能判定、选择下一个动作或触发播放。
-- 动作 Clip 仍是渲染就绪的定义，不携带原始 WZ/FSDB 文件路径，也不让 Renderer 推断装备和技能业务规则。
+- 动作 Clip 仍是渲染就绪的定义，不携带原始 WZ/FSDB 文件路径，也不让 Renderer 推断装备和技能业务规则。**已确认 D08**：父 `ms-avatar.data` 持有共享 zOrder、图集/图片资源索引与表情数据；每个子 Clip 只持有自己的帧/时序、图层变换、公共图集裁剪引用。多个 Action 可以复用同一图集页，`ms-action` 不读取/解码图像。
 
 ## 2. RenderNode 形状（候选字段，原则已确认）
 
@@ -107,7 +107,7 @@ LoomRealm RenderNode.children
 
 ### 3.3 已确认：基础 Action 的 Clip 缺失与恢复（时间继续流逝）
 
-- `ms-action` 的 DOM 子节点未存在、Clip 尚未交付或校验失败时，`ms-avatar` **保留 retained 基础 `attrs.action`**，报告缺失，不猜测替换为其他业务动作。
+- `ms-action` 的 DOM 子节点未存在、Clip 尚未交付或校验失败时，`ms-avatar` **保留 retained 基础 `attrs.action`**，报告缺失（D12），不猜测替换为其他业务动作。校验失败时不能继续把旧有效 Clip/旧装备像素误当作当前画面。
 - **缺少 Clip 定义不等于暂停当前 Render Clock**。基础动作在自身既定播放策略下本应累计的 `elapsedMs` 仍应推进；待同名有效 Clip 恢复后，按照新 Clip 的完整循环、局部循环或 hold 规则**直接求当前帧**，不从第 0 帧重新启动，也不补画错过的帧。
 - 例：`walk1` 播放 300ms 后 Clip 临时缺失，时钟正常前进 2s；有效 Clip 恢复后，以累计约 2300ms 在新 Clip 上 seek，而不是重新从 0ms 或 300ms 播放。
 - **例外**：选定时钟显式暂停或同一 Avatar 实例 DOM 断连时照原先规则冻结；**已确认 D01**：one-shot 覆盖基础动作期间基础 `elapsedMs` 冻结，缺 Clip 不会让被覆盖的基础动作偷偷累计时间。
@@ -151,10 +151,10 @@ LoomRealm RenderNode.children
 
 - LoomRealm Render Update v1 没有强制统一的 RenderNode `data` 大小、树节点个数或 JSON depth 硬限制；旧版 `cms-actor` 的 **256 KiB、32 Action** 是应用级限制。
 - 已存在的 `ms-action` 可用 `RenderDomain.update({ nodes: [{ key, data: { set: { clip } } }] })` 更新；`data.set` 替换的是对应子节点 `data` 的**顶层属性**，不是修改父节点的 `children`。
-- **增加、移除、重新排列子节点**需要通过 `RenderDomain.replace()` 更新 authoritative tree；`RenderDomain.update()` 无法更改 `key/tag/children`。
+- **增加、移除、重新排列子节点**需要通过 `RenderDomain.replace()` 更新 authoritative tree；`RenderDomain.update()` 无法更改 `key/tag/children`。已有 Clip 可以只更新对应子节点 `data.clip`；`data.set` 仅支持替换 data 的顶层成员，WebProjector 的 `receiveRenderData()` 总是收到当前完整 data。
 - 即使拆为子节点，初始 Snapshot 仍携带完整当前树；`replace()` 是全树结构提交，不自动按需传输某一子节点。未来若需真正延迟传输、共享跨角色 Clip 或独立资源发布，需要另行设计，不能声称当前子树已经具备这些能力。
-- 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。**换装需按 §3.2 把关联更新放入一次原子提交，不得跨提交逐步替换动作。**
-- 当前外观可触发的动作应**预先发布对应子节点**，不要在施放技能的 Event 到达后才尝试创建 Clip；具体动作清单与数据体积的产品策略尚待验证。**已确认 D03 / D10**：`ms-action` 不承担表情帧，也不承载世界 `x/y` 或世界深度；表情归父 Avatar 的共享外观数据，场景负责角色位置及世界排序。
+- 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。**D12 已确认无效 Action/组合 fail closed、旧画面不得冒充新状态，具体错误码和宿主输出 API 留 I05**。**换装需按 §3.2 把关联更新放入一次原子提交，不得跨提交逐步替换动作。**
+- 当前外观可触发的动作应**预先发布对应子节点**，不要在施放技能的 Event 到达后才尝试创建 Clip；具体动作清单与数据体积的产品策略尚待验证。**已确认 D03 / D10**：`ms-action` 不承担表情帧，也不承载世界 `x/y` 或世界深度；表情归父 Avatar 的共享外观数据，场景负责角色位置及世界排序。**D05/D06/D07/D11 待联合复核**旧版 cms-actor 的 atlas 合并加载及 OpenMS 的 atlas manifest/共享 lease，避免每帧小图片单独请求。
 
 ## 5. 与 OpenMS 的对应关系
 
@@ -176,18 +176,25 @@ LoomRealm RenderNode.children
 
 ## 6. 已确认项与剩余待决事项
 
-新一代 Actor 组件的**唯一完整待决清单**见 [ms-avatar §10](./ms-avatar.md)。**D01（覆盖基础时间冻结）、D03（表情轨归父级且独立计时）、D04（动作名精确匹配及 fresh-key 改名）、D09（Content 资源身份与父级统一缓存）、D10（世界坐标/世界深度归场景）已经确认**。
+新一代 Actor 组件**唯一完整台账**位于 [ms-avatar §10](./ms-avatar.md)：**已确认 D01、D03、D04、D08、D09、D10、D12**，剩余产品/ABI **5 项（D02、D05、D06、D07、D11）**、实施机制 5 项（I01–I05）、验证/迁移 4 项（V01–V04）。本文件不再把已确认的数据分工或错误处理当作待裁决方案。
 
-当前真正尚待裁决的产品/ABI 议题是 **7 项：D02、D05、D06、D07、D08、D11、D12**；另外还有 **5 项实施接口/竞态（I01–I05）与 4 项验证/迁移（V01–V04）**。它们的推荐方案、优先级见父文档。
+| 议题 | 当前状态与需要继续做的事 |
+| --- | --- |
+| D08（已确认） | 父级共享外观数据负责 zOrder、资源索引及独立表情；单 Action Clip 负责帧/循环/变换和小图裁剪引用。旧 cms-actor 的 atlas 整页缓存能力必须能够复用；**仅具体 JSON 字段名/校验器未冻结** |
+| D12（已确认） | Clip 缺失/无效、共享外观冲突、图片未解码、Content 版本或尺寸冲突需分类诊断；不回退到另一业务 Action，不显示已经失效的旧装备/旧动作像素。**具体错误码、诊断接口、调试占位画面交 I05** |
+| D02（未决） | attrs 高频独立变更，data 顶层字段可 patch 但嵌套 appearance 更新要替换整个该对象；如何避免频繁重复投递/序列化大共用数据仍须决定 |
+| D05 / D06 / D07（未决） | 动作帧时序、延迟/UOL、层布局和 atlas `source` 裁剪必须一起基于真实 CMS079、固定 OpenMS 与旧 cms-actor 验证；Clip 定义是渲染数据，**不是图集图片字节** |
+| D11（未决） | 同时测动作定义数量/大小、图集页数量与尺寸、Content 请求数、解码峰值、跨动作/换装图集复用及预读策略；不要照搬旧 32 Action / 256 KiB 或 OpenMS 126 个动作的阈值 |
+| I01 / I02 / I05（待实施） | 父子通知/同步查询与换装投影门闩、父级+Clip 组合验证及错误码/输出 API |
+| V01 / V03（待验证） | 真实 CMS079 实例与 atlas 小图合并前后 Content 请求、首帧耗时、缓存、内存、逐帧像素一致性 |
 
-| 尚未裁决 | 与 `ms-action` 有关的问题 | 推荐方案（仍待确认） |
-| --- | --- | --- |
-| D05–D06 | 每个动作 Clip 的具体字段、帧延迟/循环以及源资料特殊值 | 定义显式 `formatVersion`、有序帧、loop/hold/后缀循环；Adapter 先规范化 CMS079 源时序 |
-| D07–D08 | 帧内贴图如何以锚点、遮挡、变换组合，以及父级共享 zOrder 与 Clip 引用如何配合 | Adapter 输出已准备的帧层；父级共用 zOrder/资源索引，Clip 保留帧与引用，绘制前做组合校验 |
-| D11–D12 | 当前外观应提供多少动作、每个 Clip 多大、缺失/无效时如何报错 | 根据真实 CMS079 数据确定单 Clip/全 Avatar 容量边界，缺动作、无效 Clip 与图片未解码分别诊断 |
-| I01–I02 | 子组件同步通知与首次挂载/换装的投影回调竞态 | 本地通知 + 只读 Clip 查询；绘制和 Event 前读取有效快照，浏览器测交错顺序 |
-| I04–I05、V01–V03 | 播放器状态、旧异步图片、严格校验及像素性能验收 | 保留 `elapsedMs` 与 epoch 语义；真实 CMS079 与 Chromium 端到端验证 |
+**源码依据**：
 
-**已确认而非待决**：`ms-action` 是数据型子组件；不负责 RAF、Canvas、图片资源、表情轨或世界坐标；父级按当前所需 Clip 局部就绪；同名 Clip 更新不触发 Event；one-shot Clip 删除则取消；换装同次 Domain 原子发布。**字段 Schema、具体实现和测试仍未完成**。
+- [旧 cms-actor 实施契约：atlas 整页读取/解码、source 裁切、缓存](../../components/cms-actor/IMPLEMENTATION.md)
+- [旧 cms-actor 模型验证：atlas page 与每层 source/尺寸声明](../../components/cms-actor/src/avatar-model.mjs)
+- [固定 OpenMS `AvatarVisuals.prepare()`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/avatar-visuals.js)
+- [固定 OpenMS `visual-resources.js`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/visual-resources.js)
+
+**实现边界**：将动作拆为 `ms-action` 子节点是为独立索引和增量更新，**不代表把图像拆成每帧单独请求，也不代表 LoomRealm 支持分段加载子树**。已确认的两层（共享外观/单动作）数据分工与完整页面复用并不冲突。
 
 **验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和真实 CMS079 素材验收。不得据此声称 LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。

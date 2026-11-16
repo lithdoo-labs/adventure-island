@@ -233,4 +233,3 @@ The round was pushed as a single fast-forward commit `8c81201f` on `design/adven
 - Round chain: `3d9dfd50` → `8c81201f` (round commit, pushed, Phase-4 verified) → this archive commit (reviewer Phase-4 appendix + O1-O3 fold-in).
 
 — End of Phase 4.
-

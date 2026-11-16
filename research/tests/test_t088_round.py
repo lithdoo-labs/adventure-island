@@ -217,7 +217,7 @@ class MatrixAndLedgerT088(unittest.TestCase):
         self.assertNotIn("+0xD4", r["minimum_next_work"])     # identity task done in t087
         self.assertNotIn("构造点", r["minimum_next_work"])
         self.assertNotIn("运行时捕获", blob)
-        self.assertIn("[[user+0xF28]+0x14]", r["minimum_next_work"])   # the real residual
+        self.assertIn("[[arg3]+0x14]", r["minimum_next_work"])   # the real residual
 
     def test_writer_set_wording(self):
         r = next(x for x in self.matrix if x["requirement_id"] == "P2-05")

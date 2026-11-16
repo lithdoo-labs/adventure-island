@@ -46,13 +46,17 @@
 
 ## 3. OpenMS 匹配统计（口径：本轮实际检查的候选函数/常量）
 
-- 实际检查候选：**22**（矩阵 26 行中 22 行为本轮执行，4 行 NOT-RUN）。
-- **MATCH / MATCH-STRUCTURE / MATCH-COUNTS：16**（含 G35 back 常量、G36 attach+evaluator+vtable 槽、
-  G39 delay 默认/记录布局/累加/repeat 三分/portal 帧数、G10 滤波器三要素、G37 共享引擎、G36 滚动调度）。
-- **REFUTED（对 CMS079）：2**——GMS083 front 常量 B+272000（CMS079=B+271200）；
-  EV-20“仅 1 个 imul-1000 站点”（实为 61）。
-- **INCONCLUSIVE：2**——GMS083 0x00641EF1 clamp 未在本轮追踪；GMS083 portal id 空间与 CMS079 不同
-  （0x1122/0x1123 在 CMS079 为 GBK 字符串，id 不可移植，语义按 CMS079 自身 id 证明）。
+**[t090 WP0-B 勘误——真实矩阵重新对账]** 本节 T089 版统计（“26 行 / 22 执行 / 4 NOT-RUN”）与
+T089-OPENMS-CMS079-MATCH-MATRIX.csv 的真实内容不符，已按 CSV 逐行重数修正：
+- 矩阵总计 **24 数据行**：MATCH 类 **16**（MATCH/MATCH-STRUCTURE/MATCH-COUNTS/“MATCH (shared
+  engine)”）、REFUTED 类 **2**、INCONCLUSIVE 类 **2**、内部研究项 **2**（EV-20 旧证据反证；
+  namespace 名称 RESOLVED——均非 OpenMS 外部候选）、NOT-RUN **3**（G40/G20/G16）。
+- 严格排除 2 条内部研究行后，**外部 OpenMS 候选 = 22 项：已执行 19，未执行 3**；
+  已执行项分布：16 MATCH 类、1 REFUTED（GMS083 front 常量 B+272000，CMS079=B+271200）、
+  2 INCONCLUSIVE（GMS083 0x00641EF1 clamp 未追踪；GMS083 portal id 空间不同——0x1122/0x1123
+  在 CMS079 为 GBK 字符串，语义按 CMS079 自身 id 证明）。
+- EV-20“仅 1 个 imul-1000 站点”的反证（实为 61）为内部证据勘误行，不计入外部候选执行数。
+- 真实匹配结果未作任何改动（见回归测试 test_t090_round.py 的矩阵分类汇总断言）。
 - CMS079 新确认函数/方法体：**14**（0x669923/0x669930 键、0x66F890、0x66885B+0x66891C、0x43EC69、
   0x5040ABE6、0x5040B9xx 累加体、0x50403ECA、0x5140847D、0x514085B3、0x51408BED、0x51408C9A、
   0x51408D23、0x51408E33、0x437717）。

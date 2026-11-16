@@ -78,7 +78,7 @@ X/Y getters: slot+0x20 → `[this+0x1C]`, slot+0x28 → `[this+0x20]`
 
 `0x93CB27(this, scriptRecord)` (10 E8 callers) resolves the shared 0x31D
 object directly and issues `Set(X(src), Y(src))` where
-`src = [[this+0xF28]+0x14]` (avatar-container member, slots +0x20/+0x28).
+`src = [[this+0xF28]+0x14]` (avatar-container member, slots +0x20/+0x28). **[t090 WP0-A erratum]** superseded by C-115 (Set src = `[[arg3]+0x14]`; the F28 expression is byte-proven only for the fill-and-skip path that never Sets).
 Callers fetch the record via `0x769B51([0xBD8FEC], string_id, N, 0)` with
 N ∈ {500, 800, 1000}. This is a **scripted/event focus** operation, called
 from portal-trigger, packet-spawn, seat and input regions.

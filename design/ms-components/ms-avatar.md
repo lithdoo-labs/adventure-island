@@ -10,7 +10,7 @@
 **`ms-avatar` 是纯粹的人物外观与动作绘制器（Avatar Renderer），不是管理人物表现状态的游戏角色组件。**
 
 - **Subsystem / Field Runtime**：持有角色和装备的权威状态；决定世界位置、朝向、当前身体 Action、表情意图及动作切换时机；经游戏侧 Adapter 生成渲染就绪的外观计划。
-- **Renderer 内的 `ms-avatar`**：消费外观计划和当前呈现指令；按帧进行身体、头、脸、头发、装备合成；实现锚点对齐、部件遮挡、镜像、表情及身体动画；通过本地 Render Clock / RAF 推进**视觉帧**。
+- **Renderer 内的 `ms-avatar`**：消费外观计划和当前呈现指令；按帧进行身体、头、脸、头发、装备合成；实现锚点对齐、部件遮挡、镜像、表情及身体动画；由继承或本地的 Render Clock 驱动独立 Animation Player，推进**视觉帧**。
 - **不属于 `ms-avatar`**：输入处理、角色物理、跳跃/攀爬判定、技能命中、装备合法性、Portal、地图、Camera 决策、与地图 Obj 的世界深度排序、技能粒子/受击者效果。
 - 纸娃娃**内部** `zmap/smap/islot/vslot` 排序与地图**世界**深度是两套不同的规则；前者是本组件绘制能力，后者由场景呈现系统决定。
 
@@ -40,13 +40,15 @@
 | `attrs` | 小型、可独立增量更新的动态呈现输入（具体字段待决） |
 | `data` | 已解析的 `avatarPlan`；不包含原始文件路径、业务权威状态 |
 | `children` | 初步倾向为空；Avatar 内部部件不是 RenderNode 子节点 |
-| `receiveRenderEvent` | 只接收允许丢失、不需快照恢复的一次性视觉效果；**不得成为关键动作的唯一依据** |
+| `receiveRenderEvent` | `action` Event 可启动单次纸娃娃动作（技能/攻击）；它是可丢失、不重放的视觉指令，不是技能判定的权威依据 |
 
 `RenderDomain.update()` 的 `attrs/data` 更新不改变节点 `key/tag/children`，`data.set` 按顶层成员替换；`receiveRenderData()` 收到完整 data。动态动作更新不应导致未变的 AvatarPlan 重新解析/加载。
 
-## 4. 动态 ABI：候选草案（尚未批准）
+## 4. 动作输入 ABI：已确认原则与候选字段
 
-以下仅用于继续讨论 **attrs 与 data 的边界**，不是正式 Validator 或完整动作同步协议：
+**已确认原则**：Subsystem 选择具体绘制 Action（如 `walk1`、`walk2`、`jump`），`ms-avatar` 不再根据 `locomotion=walk` 和武器信息决定动作；持续/基础动作采用 retained `attrs.action`，单次攻击或技能动作由 `render.event` 的 `action` 事件覆盖播放。**当前方案不引入 `action-seq` 字段。**
+
+下面是用于后续讨论的节点示例；只有 Action / Event 的职责划分已经确认，其他 attrs、AvatarPlan V2 Schema 仍为候选：
 
 ```js
 {
@@ -56,32 +58,91 @@
     x: "120",
     y: "80",
     facing: "right",
-    action: "walk1",
-    expression: "default"
+    action: "walk1",       // retained 基础 Action
+    expression: "default"  // 候选：表情选择
   },
   data: {
-    avatarPlan: { /* 已解析的绘制定义；具体 Schema 待定 */ }
+    avatarPlan: { /* 渲染就绪的动作定义与部件画布；Schema 待定 */ }
   },
   children: []
 }
 ```
 
-说明：
+单次动作由 Subsystem 在完成必要的业务判定后发布：
 
-1. 倾向让 Subsystem 直接选择 `walk1`、`stand2`、`jump` 等**具体 Action 名称**，而不是 Avatar 根据 `locomotion=walk` 再决定武器后缀。
-2. `skin/face/hair/equips` 是游戏侧外观选择；既然 `avatarPlan` 已经解析这些选择，倾向从新节点的 `attrs` 移除，以免产生两套来源。
-3. `expression` 的当前选择与表情帧定义需要分离。现有 V1 将 `expression.name` 和帧列表放在 Plan 中，是否拆为动态输入 + 表情 Clip 定义**待定**。
-4. `x/y` 沿用 V1 的身体原点输入作为讨论起点；未来是否由父级场景设置位置、组件是否自持最终 Canvas，**待定**。
-5. `action-sequence`、动作开始 Tick、播放相位、暂停/恢复标记等**尚未定义**，以上示例不能保证同名动作重启或 Snapshot 恢复。
+```js
+domain.emit({
+  targetKey: "avatar:player",
+  name: "action",
+  data: { action: "brandish1" }
+});
+```
 
-## 5. 动画时钟与动作生命周期：暂不冻结
+- 同名 `action` Event 每到达一次都表示一次新的播放启动，从第 0 帧重启；因此无需用属性变化或 `action-seq` 区分连续释放。
+- Event 播放时，`attrs.action` 仍保存当前基础 Action；一次性播放结束，组件回到当时最新的 `attrs.action`。它只是**本地视觉播放切换**，不得反向修改 Subsystem 状态。
+- 单次动作播放中再次收到新 `action` Event，初步沿用旧组件行为：新动作中断旧动作、从第 0 帧播放。对于此时基础 Action 变化是否立即中断，留到动画第二阶段裁决。
+- `render.event` 是 LoomRealm transient Event：不存入 Render Store、不进入 Snapshot、不重放，可能因目标不存在、连接替换或其他 applicability 条件丢失。**这是明确接受的视觉恢复限制**：重建后显示 `attrs.action`，不恢复先前的攻击/技能动画；技能命中、伤害和冷却仍由 Subsystem 权威处理。
+- 如果游戏将来要求必定显示/断线后恢复中途技能动作，须另议 retained 播放状态；不能把现有 Event 说成可靠且可重放。
+- Event 应在目标节点当前有效且对应动作计划已发布时发送。已发布不等于位图已经解码；异步资源准备与首帧时序在第二阶段处理。
+- 倾向移除 `skin/face/hair/equips` 冗余 attrs；它们由 Subsystem 决定并通过 `avatarPlan` 表达，仍待独立确认。
+- `expression` 的动态选择与表达帧定义分离，具体数据布局待定。
+- `x/y` 沿用 V1 身体原点作为讨论起点；未来是否由场景持有坐标、组件是否保留最终 Canvas，仍待讨论。
 
-- **Simulation Clock 属于 Subsystem 进程**。Avatar 不推进物理世界、也不读取 LoomRealm Frame 作为游戏 Tick。
-- **Render Clock 属于 Renderer 进程**。Avatar 可以根据 Action Clip 的 delay 用本地 RAF 推进绘制帧；无需每一帧收到 Render Update。
-- Subsystem 负责选择当前 Action 及何时切换；Avatar 不能把“动画播完”当作自行修改权威角色状态的理由。
-- 旧版 `action` RenderEvent 驱动一次性攻击，事件丢失/Renderer 重建后无法恢复。对需要恢复的攻击/施法动作，倾向使用 retained Action 状态；瞬时、可丢失的附加效果仍可使用 RenderEvent。
-- 需要单独讨论：同名 Action 连续触发如何区分、播放结束保持哪帧、动作时间锚点如何定义、通信延迟和快照恢复如何定位播放相位、模拟暂停时动作是否冻结。
-- OpenMS 的 action frame、repeat suffix、preAction、独立 expression clock、seek 等提供候选行为；是否纳入 AvatarPlan 新版本，要逐项验证，不直接复制实现。
+## 5. Render Clock、继承规则与动作播放
+
+### 5.1 已确认：组件时钟继承与本地回退
+
+**`ms-avatar` 自带一个默认 Render Clock；若祖先组件提供可用 Render Clock，优先绑定 DOM / composed-tree 中最近祖先提供者的时钟；否则使用自己的时钟。** 不新增 RenderNode 时钟字段，也不要求修改 LoomRealm Core。
+
+- 可以由普通父元素、跨 ShadowRoot 的 host 链提供时钟。仅在连接、重新挂载、提供者更换等**生命周期时机**重新解析提供者；不在每次绘制或每帧递归查找。
+- 找到**暂停的祖先时钟**依然意味着提供者存在。暂停不得触发切换为本地时钟继续播放。
+- 时钟提供者失效或元素脱离原祖先后，取消旧订阅并重新解析；无可用祖先时钟时才回退本地。
+- 切换时钟**保持每个 Avatar 的 Action、身体帧相位、表情相位及单次覆盖状态**，只重置本地时间采样基准；严禁把不同 time origin 的绝对时间相减，避免首帧跳变。
+- 每个 Avatar 自己维护 Animation Player。多个组件共享同一 Render Clock 时，只共享调度/时间基准，不共享动作进度；独立使用时无需场景组件。
+- 初步可以通过本地 JS 接口暴露 `getRenderClock()`（或等效注入机制），而不是要求 LoomRealm 自带统一时钟服务。接口签名、更新通知及订阅注销细节属组件内部协议，待实现前定稿。
+- **Simulation Clock 始终属于 Subsystem**，决定游戏时间和业务状态；此处继承的 Render Clock 只推进画面，不参与物理判定。模拟暂停如何投影到 Renderer 时钟属于下一阶段讨论。
+
+### 5.2 可行的最小内部接口（示例，不是 Frozen ABI）
+
+```ts
+interface RenderClock {
+  subscribe(callback: (deltaMs: number) => void): () => void;
+}
+
+interface RenderClockProvider {
+  getRenderClock(): RenderClock;
+}
+```
+
+外部时钟可来自场景或其他宿主。组件优先采用最近祖先提供者。默认本地时钟和外部时钟需要一致的 delta 单位、非负有限值、停止及释放策略；不同提供者的 `deltaMs` 不代表同一个绝对时间坐标。
+
+### 5.3 OpenMS 对照复核（参考行为，不是 ms-avatar 的平台 API）
+
+| 核查点 | 固定 OpenMS 源码事实 | 对 ms-avatar 的影响 |
+| --- | --- | --- |
+| 动画实体状态 | `EntityAnimation` 保存 `action`、`actionTimeMs`、`elapsedMs`、`frame`、表情状态和资源；提供 `setAction`、`advance(ms)`、`seek(ms)` | 支持把 Animation Player 与时间源分开 |
+| 时间来源 | `advance(ms)` 消费调用者传入的毫秒增量，而不是 EntityAnimation 自己建立 RAF | 支持外部供时；**不证明** DOM 祖先递归查找 |
+| 同名动作重启 | `setAction(name, playback, restart=false)` 默认避免同名/同模式重启，显式 `restart` 则可重播 | 单次 `action` Event 每到达一次就显式 restart 是我们的产品映射 |
+| 动作时长 | `compileAction` / `loopTime` / `timedFrame` 按 delay、repeat suffix 处理帧与循环；`seekActionClock` 可定位动作相位 | 第二阶段应决定哪些时间/完成规则进入 AvatarPlan，而不是按 RenderEvent 事件到达次数推断时钟 |
+| 在线状态恢复 | `RemoteAnimationClock` 以及 online scene 的 `actionStartTick`、`seek` 实现远端动作相位收敛 | OpenMS 的在线恢复依赖 retained 时间事实；**我们的 transient Event 不提供相同保证** |
+| 表情 | `EntityAnimation` 独立维护 `expressionMs` / `expressionElapsedMs` 等 | 继续保留独立表情播放状态 |
+
+源码：
+- [EntityAnimation](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation.js)
+- [Animation Timing](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation-timing.js)
+- [Remote Animation Clock](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/online/remote-animation-clock.js)
+- [Online Scene](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/online/scene.js)
+
+### 5.4 第二阶段尚待决策：Animation Player 语义
+
+1. **基础动作循环/停留**：是否完全由 AvatarPlan action clip 定义（`loop`、末帧 hold、repeat suffix），而不是把规则写死在组件中？
+2. **基础动作改变与 Event 覆盖冲突**：例如攻击进行中收到 `attrs.action=jump` 或 `dead`，是立即中断，还是等攻击播完回到最新基础动作？
+3. **一次性动画播放完毕**：回到最新 `attrs.action` 已是默认方向，但非循环基础 Action（例如 `jump`）结束后怎样保持帧？是否需要结束回调？
+4. **资源未就绪/动作不存在**：Event 先到时是等待、丢弃，还是显示确定性 fallback？不能让一次性动作异步加载后错误覆盖更新的动作。
+5. **时钟与生命周期**：外部时钟暂停、隐藏页长时间停顿、断开重连、Clock 切换、模拟暂停的具体步进规则。
+6. **回放保证边界**：当前明确接受 Event 不恢复；如后续要“动作中途精确恢复”，需增补 retained 时间/相位模型，而不是误认为 `action` + Event 能做到。
+
+以上是待讨论项，**没有批准完整第二阶段 ABI**。
 
 ## 6. 外观计划与资源：暂不冻结的取舍
 
@@ -106,11 +167,12 @@
 | 议题 | 当前倾向 | 状态 |
 | --- | --- | --- |
 | Avatar 是否只负责纸娃娃呈现 | **是** | **已确认** |
-| 直接输入具体 Action 名 | 是 | 待确认 |
+| 直接输入具体 Action 名作为基础动作 | **是** | **已确认** |
 | 去除 `skin/face/hair/equips` 重复 attrs | 是 | 待确认 |
 | 表情选择与表情帧定义分离 | 是 | 待确认 |
-| 关键动作使用 retained 状态，RenderEvent 留给视觉脉冲 | 是 | 待确认 |
-| Action 时钟、重启、暂停、恢复字段 | 未选定 | **待讨论** |
+| 单次技能/攻击通过 `action` RenderEvent，且不添加 `action-seq` | **是；接受 Event 不重放** | **已确认** |
+| 时钟来源：最近祖先 Render Clock，否则组件本地 Clock | **确定继承与回退原则** | **已确认** |
+| Animation Player 的中断、结束、时间步进、暂停语义 | 未选定 | **第二阶段待讨论** |
 | AvatarPlan 动作集合/版本化策略 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |
 
@@ -122,6 +184,8 @@
 - [Adventure Island 产品模块边界](../../docs/product-first/MODULE-CONTRACTS-V1.md)
 - [OpenMS Avatar Composition](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/avatar-composition.js)
 - [OpenMS Animation Timing](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation-timing.js)
+- [OpenMS EntityAnimation](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation.js)
+- [OpenMS Online Scene](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/online/scene.js)
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 
 **验证状态**：新 `ms-avatar` 仅为设计 Draft；没有新增实现、Schema Validator、Chromium 测试或真实 CMS079 像素一致性验收。旧版历史测试不自动证明新 ABI 通过。

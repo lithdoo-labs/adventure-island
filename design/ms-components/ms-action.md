@@ -153,7 +153,7 @@ LoomRealm RenderNode.children
 - 已存在的 `ms-action` 可用 `RenderDomain.update({ nodes: [{ key, data: { set: { clip } } }] })` 更新；`data.set` 替换的是对应子节点 `data` 的**顶层属性**，不是修改父节点的 `children`。
 - **增加、移除、重新排列子节点**需要通过 `RenderDomain.replace()` 更新 authoritative tree；`RenderDomain.update()` 无法更改 `key/tag/children`。已有 Clip 可以只更新对应子节点 `data.clip`；`data.set` 仅支持替换 data 的顶层成员，WebProjector 的 `receiveRenderData()` 总是收到当前完整 data。
 - 即使拆为子节点，初始 Snapshot 仍携带完整当前树；`replace()` 是全树结构提交，不自动按需传输某一子节点。未来若需真正延迟传输、共享跨角色 Clip 或独立资源发布，需要另行设计，不能声称当前子树已经具备这些能力。
-- 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。**D12 已确认无效 Action/组合 fail closed、旧画面不得冒充新状态，具体错误码和宿主输出 API 留 I05**。**换装需按 §3.2 把关联更新放入一次原子提交，不得跨提交逐步替换动作。**
+- 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。**已确认 D12：无效 Action/组合 fail closed，旧画面不得冒充新状态；具体错误码和宿主输出 API 留 I05**。**换装需按 §3.2 把关联更新放入一次原子提交，不得跨提交逐步替换动作。**
 - 当前外观可触发的动作应**预先发布对应子节点**，不要在施放技能的 Event 到达后才尝试创建 Clip；具体动作清单与数据体积的产品策略尚待验证。**已确认 D03 / D10**：`ms-action` 不承担表情帧，也不承载世界 `x/y` 或世界深度；表情归父 Avatar 的共享外观数据，场景负责角色位置及世界排序。**D05/D06/D07/D11 待联合复核**旧版 cms-actor 的 atlas 合并加载及 OpenMS 的 atlas manifest/共享 lease，避免每帧小图片单独请求。
 
 ## 5. 与 OpenMS 的对应关系
@@ -192,6 +192,8 @@ LoomRealm RenderNode.children
 
 - [旧 cms-actor 实施契约：atlas 整页读取/解码、source 裁切、缓存](../../components/cms-actor/IMPLEMENTATION.md)
 - [旧 cms-actor 模型验证：atlas page 与每层 source/尺寸声明](../../components/cms-actor/src/avatar-model.mjs)
+- [PWA 安装包构建器：打包 Content 项不等于将 PNG 合并成 atlas](../../scripts/pwa/build-installation-bundle.mjs)
+- [合成素材示例：每个 part/action/frame 独立 PNG](../../scripts/pwa/synthetic-avatar-content.mjs)
 - [固定 OpenMS `AvatarVisuals.prepare()`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/avatar-visuals.js)
 - [固定 OpenMS `visual-resources.js`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/visual-resources.js)
 

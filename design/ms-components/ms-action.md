@@ -79,7 +79,7 @@ LoomRealm RenderNode.children
 | 同名有效 Clip 变化，且当前 one-shot 使用该名字 | 保留本次 one-shot 的 `elapsedMs`，按新 Clip 的一次性时间轴 seek；**不重新触发 Event** |
 | 新 one-shot 时长小于或等于已经过时间 | 立即完成，回到最新 retained 基础 Action |
 | 当前 one-shot Clip 删除、变为无效或不再可用 | 取消 one-shot，回到最新基础 Action；不保留补播队列 |
-| 基础 Action Clip 删除、变为无效或不再可用 | **不修改 `attrs.action`**，对缺失做诊断；基础 Clip 后续恢复时的时间基准尚未决定 |
+| 基础 Action Clip 删除、变为无效或不再可用 | **不修改 `attrs.action`**，诊断缺失；按 §3.3 保留本应运行的时间推进，Clip 恢复后 seek 而非从头重播 |
 | 其他未播放 Clip 更新 | 索引和资源引用更新，不改变活动播放进度 |
 
 此处继承的是**经过毫秒数**，不是帧号或 `elapsed / totalDuration` 比例。更新 Clip 时必须重新计算帧；例如旧帧时长 100/100/100/100ms，新时长 150/150/150ms，`elapsedMs=250` 从旧帧 2 映射到新帧 1。
@@ -104,6 +104,17 @@ LoomRealm RenderNode.children
 **首版不增加同步用 `appearance-version` 或 `clip-version` 字段**；图像的 `contentVersion` 是 Content 资源身份，不承担换装事务编号。不同提交/不同 Domain 的分阶段换装不受本方案支持；将来确有必要时再设计显式版本/激活机制。
 
 已确定的 §3.1 热更新规则不变：同名有效 Clip 更新保留 `elapsedMs`，one-shot Clip 删除则取消；图片未就绪不会让 Clip 失效或阻塞动画时钟。
+
+### 3.3 已确认：基础 Action 的 Clip 缺失与恢复（时间继续流逝）
+
+- `ms-action` 的 DOM 子节点未存在、Clip 尚未交付或校验失败时，`ms-avatar` **保留 retained 基础 `attrs.action`**，报告缺失，不猜测替换为其他业务动作。
+- **缺少 Clip 定义不等于暂停当前 Render Clock**。基础动作在自身既定播放策略下本应累计的 `elapsedMs` 仍应推进；待同名有效 Clip 恢复后，按照新 Clip 的完整循环、局部循环或 hold 规则**直接求当前帧**，不从第 0 帧重新启动，也不补画错过的帧。
+- 例：`walk1` 播放 300ms 后 Clip 临时缺失，时钟正常前进 2s；有效 Clip 恢复后，以累计约 2300ms 在新 Clip 上 seek，而不是重新从 0ms 或 300ms 播放。
+- **例外**：选定时钟显式暂停或同一 Avatar 实例 DOM 断连时照原先规则冻结；如果 one-shot 覆盖时基础动作的既定时钟策略本来挂起，则不能借“Clip 缺失”擅自改变覆盖期间的基础动作计时策略（该覆盖计时细节仍待决定）。
+- Clip 定义存在但图片未解码，和 Clip 定义缺失是两个不同情形；均不能据此让本应运行的动画时间停止。缺定义时不能拿无效旧帧冒充有效图像；晚到的图像仍需防止覆盖更新后的画面。
+- **仅适用于基础 Action 的 retained 播放状态**：新 `render.event("action")` 对应 Clip 若不存在，仍依既定规则直接丢弃且不补播。基础 Clip 恢复不触发新的 Event。
+
+该时间语义是 Adventure Island 产品选择，细节见 [ms-avatar §5.14](./ms-avatar.md)。
 
 ## 4. 数据规模与发布语义
 
@@ -138,7 +149,7 @@ LoomRealm RenderNode.children
 
 1. `ms-action` 的具体字段 ABI：动作名、Clip 版本、循环区间和帧列表。
 2. 父子通知与快照投影顺序、重挂/移除时清理逻辑；包括不同 Action 重名的错误处理。
-3. **已确认 (§3.1、§3.2)** 同名 Clip 热更新保留 `elapsedMs`，失效 one-shot 取消；换装使用同次原子发布；**待定** 基础 Clip 缺失期间的累计时间。
+3. **已确认 (§3.1–§3.3)** 同名 Clip 热更新保留 `elapsedMs`，失效 one-shot 取消；换装同次原子发布；基础 Clip 缺失不冻结其本应经过的时间，恢复后 seek。
 4. 父级共享外观与各 Clip 的具体 zOrder/资源引用组合校验算法、投影结束信号、缓存容量；**不新增**用于换装同步的 `appearance-version`。
 5. CMS079 实际外观动作范围与序列化开销，是否需要另一层共享数据压缩。
 

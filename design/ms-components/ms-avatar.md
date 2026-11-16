@@ -179,13 +179,41 @@ domain.update({
 - 新建 / 重连组件只收到禁用态 Snapshot：直接显示基础动作，不恢复旧 one-shot。
 - 快速 `false → true` 且更新被合并：不得宣称一定观察到取消；此序列不是受支持的瞬时取消接口。
 
-### 5.6 其余第二阶段待裁决项
+### 5.6 第二阶段已确认：基础 Action 的播放规则由 AvatarPlan 定义
 
-1. **基础动作循环/停留**：是否完全由 AvatarPlan action clip 定义（`loop`、末帧 hold、repeat suffix），而不是把规则写死在组件中？
-2. **非循环基础动作结束**：例如 `jump` 播完是否 hold 末帧，是否需要结束通知？
-3. **资源未就绪/动作不存在**：Event 先到时等待、丢弃，还是绘制确定性 fallback？过期异步结果不能覆盖更新的动作。
-4. **时钟与生命周期**：外部时钟暂停、隐藏页停顿、断开重连、Clock 切换、模拟暂停的具体步进规则。
-5. **回放边界**：保留 Event 不恢复原则。需要精确动作恢复时另议 retained 时间/相位模型。
+- Subsystem 通过 `attrs.action` 选择**具体**基础 Action；`ms-avatar` 只根据 `AvatarPlan.actions[action]` 中的帧与播放规则推进，不因名字包含 `stand`、`walk`、`jump`、`sit` 等字样而自行猜测循环、保持或结束。
+- 基础 Action 支持**完整循环**、**先播前置段再循环后续片段**、**非循环播至末帧并保持**三种语义。非循环基础 Action 停在末帧，直到 Subsystem 改变 `attrs.action`（或者单次 Event 暂时覆盖后再回到它）。
+- 基础 Action 的正常结束是组件内部的视觉状态，**不向 Subsystem 发完成事件**，不自行切换别的业务 Action。
+- `render.event("action")` 是**一次性覆盖播放**：即使该 Action 的基础循环定义允许循环，单次 Event 也只执行一次完整动作，到期回到最新基础 Action。新 Event 到达时遵照既定的显式重启规则；`one-shot-enabled=false` 仍有强制终止优先权。
+- 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。如何在更换 AvatarPlan 时保留相位另议。
+- 以上是**确定的行为语义**，不是已批准的 AvatarPlan V2 字段级 Schema。
+
+**待定 Schema 的表达示例**（字段名 `playback` 和 `repeatFrom` 暂不冻结）：
+
+```js
+actions: {
+  walk1: { playback: "loop", frames: [/* ... */] },
+  jump:  { playback: "hold", frames: [/* ... */] },
+  specialAction: {
+    playback: "loop",
+    repeatFrom: 1,       // 候选：零基帧索引；先播 frame 0，再循环 frame 1..N-1
+    frames: [/* ... */]
+  }
+}
+```
+
+如果未来使用 `repeatFrom`，必须保证位于帧边界且重复片段具有正时长，避免全零 delay 的无限循环；源数据的 `delay=0`、缺少 delay、repeat 值转换与边界行为应在 AvatarPlan Schema 阶段明确并测试。
+
+**OpenMS 复核依据**：固定源码 `animation-timing.js` 中 `compileAction` 从首帧 `repeat` 计算 `repeatStartMs`，`loopTime` 在首轮播放完毕后循环指定的 suffix；`advanceActionClock` 区分 `once` 和 `loop`，`EntityAnimation.setAction` 支持播放模式覆盖。这支持“动作帧数据决定循环行为，调用入口决定 one-shot”的拆分，但 `playback/hold/repeatFrom` 的具体表示形式仍是 Adventure Island 的候选，**不能直接称作 CMS079 已验证 ABI**。
+
+本项未来验收至少覆盖：正常站立循环、跳跃末帧保持、首段播放一次后循环 suffix、Event 覆盖循环动作只播放一次、one-shot 结束后回到最新基础动作、同名基础 Action 更新不重启。
+
+### 5.7 其余第二阶段待裁决项
+
+1. **资源未就绪/动作不存在**：Event 先到时等待、丢弃，还是绘制确定性 fallback？不能让异步资源加载后的旧动作错误覆盖新动作。
+2. **时钟与生命周期**：外部时钟暂停、隐藏页停顿、断开重连、Clock 切换、模拟暂停的具体步进规则。
+3. **回放边界**：保留 Event 不恢复原则。需要精确动作恢复时另议 retained 时间/相位模型。
+4. **AvatarPlan Schema 细节**：字段名、循环片段边界、零时长/缺失时长、计划替换后的相位保留行为尚未冻结。
 
 以上尚未批准完整第二阶段 ABI。
 
@@ -219,7 +247,8 @@ domain.update({
 | 时钟来源：最近祖先 Render Clock，否则组件本地 Clock | **确定继承与回退原则** | **已确认** |
 | attrs.action 改变与一次性 Event 的覆盖关系 | **方案 A：单次动作播完后回到最新基础动作** | **已确认** |
 | 强制中断接口与可靠性 | retained `one-shot-enabled`，缺省 true、false 清除并禁止单次覆盖 | **已确认** |
-| Animation Player 的结束、时间步进、暂停语义 | 未选定 | **第二阶段待讨论** |
+| 基础 Action 的循环 / hold / 局部循环、结束通知 | 从 AvatarPlan 读取；非循环末帧保持、不发完成事件 | **已确认行为，Schema 待定** |
+| Event 未就绪、Animation Player 时间步进与暂停语义 | 未选定 | **第二阶段待讨论** |
 | AvatarPlan 动作集合/版本化策略 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |
 

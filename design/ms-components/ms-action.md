@@ -106,4 +106,4 @@ LoomRealm RenderNode.children
 4. 父级 `appearance` 与每个 Action Clip 的共用 zOrder/资源引用、版本一致性与缓存容量。
 5. CMS079 实际外观动作范围与序列化开销，是否需要另一层共享数据压缩。
 
-**验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和实资源验收。不得据此声称 LumiRealm/LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。
+**验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和实资源验收。不得据此声称 LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。

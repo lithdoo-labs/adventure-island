@@ -18,11 +18,11 @@
 
 | 原有 `cms-actor` 设计 | 处理 |
 | --- | --- |
-| 组件消费经过 Adapter 解析的 `AvatarPlan`，不直接访问 WZ/FSDB 私有路径 | **保留** |
+| 父 Avatar 消费 Adapter 准备的共享外观信息和 ms-action 子节点，不直接访问 WZ/FSDB 私有路径 | **保留** |
 | body/head/face/hair/equips 按 origin、navel/neck/hand/brow 等锚点定位 | **保留** |
 | 帧内 zOrder、槽位遮挡、翻转、frame move/rotate、showFace | **保留设计基础，继续按 CMS079 夹具验证** |
 | 身体动作和表情的帧时钟相互独立 | **保留** |
-| `x/y` 变化不重新合成整套 AvatarPlan | **保留性能原则** |
+| `x/y` 变化不重新合成共享外观数据和各个动作 Clip | **保留性能原则** |
 | LoomRealm `PresentationResourceClient`、contentVersion 检查、解码缓存和取消旧加载 | **保留** |
 | 数据大小、画布分配、帧/图层数量有组件级上界且错误可诊断 | **保留原则；数值是否沿用 v1 再决定** |
 | 现有 `cms-actor` 在 Shadow DOM 内持有独立 Canvas | **可保留为初始实现，不冻结为组件的长期输出 ABI** |
@@ -202,7 +202,7 @@ domain.update({
 - 基础 Action 支持**完整循环**、**先播前置段再循环后续片段**、**非循环播至末帧并保持**三种语义。非循环基础 Action 停在末帧，直到 Subsystem 改变 `attrs.action`（或者单次 Event 暂时覆盖后再回到它）。
 - 基础 Action 的正常结束是组件内部的视觉状态，**不向 Subsystem 发完成事件**，不自行切换别的业务 Action。
 - `render.event("action")` 是**一次性覆盖播放**：即使该 Action 的基础循环定义允许循环，单次 Event 也只执行一次完整动作，到期回到最新基础 Action。新 Event 到达时遵照既定的显式重启规则；`one-shot-enabled=false` 仍有强制终止优先权。
-- 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。如何在更换 AvatarPlan 时保留相位另议。
+- 同名基础 Action 属性的重复投影不应重启动作；真正在同名情况下要求显式重播的场景使用已确认的单次 Action Event。如何在对应 `ms-action` Clip 或共享外观数据替换时保留相位另议。
 - 以上是**确定的行为语义**，不是已批准的 `ms-action` Clip 字段级 Schema。
 
 **待定 `ms-action.data.clip` 的表达示例**（字段名 `playback` 和 `repeatFrom` 暂不冻结；不同键对应不同子节点）：
@@ -277,7 +277,7 @@ specialActionClip = {
 | 元素暂时断开 DOM | 停止时钟订阅与绘制，冻结 Animation Player；取消/失效在途绘制、释放无需保留的位图或读取工作，不丢弃用来恢复绘制的 Action/Plan 语义状态 |
 | 同一元素重新连接 | 重新发现可用的祖先 Clock（否则本地 Clock），建立新的时间采样基准，从冻结相位继续，不重播 `attrs.action` 或既有 one-shot |
 | 断连期间 retained attrs 发生变化 | 重新连接时以**最新** `attrs.action`、`one-shot-enabled` 为准；`one-shot-enabled=false` 仍须清除 one-shot，不能因为冻结而绕过强制禁用 |
-| Renderer 销毁旧组件并创建新实例（含重建 / 重连 Snapshot） | 新 Animation Player 仅根据 retained `attrs.action`、许可和 AvatarPlan 建立基础画面；**不恢复之前 transient Event 的 one-shot 相位** |
+| Renderer 销毁旧组件并创建新实例（含重建 / 重连 Snapshot） | 新 Animation Player 仅根据 retained `attrs.action`、许可、共享外观数据和现存 `ms-action` Clip 建立基础画面；**不恢复之前 transient Event 的 one-shot 相位** |
 | 实例最终不再使用 | 解除订阅、丢弃本地播放状态并清理图像资源；`disconnectedCallback` 本身不等价于“确定永久销毁” |
 
 具体示例：`brandish1` 总时长 800ms，播放 200ms 时元素断连；即使三秒后将**同一实例**重新挂载，仍从约 200ms 相位继续。相同场景若创建的是**新实例**，则直接显示最新基础 Action，不补播旧 Event。
@@ -349,7 +349,7 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 | 时钟来源：最近祖先 Render Clock，否则组件本地 Clock | **确定继承与回退原则** | **已确认** |
 | attrs.action 改变与一次性 Event 的覆盖关系 | **方案 A：单次动作播完后回到最新基础动作** | **已确认** |
 | 强制中断接口与可靠性 | retained `one-shot-enabled`，缺省 true、false 清除并禁止单次覆盖 | **已确认** |
-| 基础 Action 的循环 / hold / 局部循环、结束通知 | 从 AvatarPlan 读取；非循环末帧保持、不发完成事件 | **已确认行为，Schema 待定** |
+| 基础 Action 的循环 / hold / 局部循环、结束通知 | 从 `ms-action` Clip 读取；非循环末帧保持、不发完成事件 | **已确认行为，Schema 待定** |
 | 一次性 Event 动作缺失、资源未就绪 | 缺动作丢弃；有动作先计时、资源到达绘制当前帧、不补播 | **已确认** |
 | Render Clock 显式暂停与后台/掉帧 | 暂停冻结；未暂停则按实际经过时间定位当前帧，不补画 | **已确认** |
 | DOM 断连、同实例重挂与新实例恢复 | 断连冻结、同实例续播；新实例仅恢复 retained 基础动作 | **已确认** |

@@ -133,16 +133,32 @@ interface RenderClockProvider {
 - [Remote Animation Clock](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/online/remote-animation-clock.js)
 - [Online Scene](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/online/scene.js)
 
-### 5.4 第二阶段尚待决策：Animation Player 语义
+### 5.4 第二阶段已确认：基础 Action 改变不打断一次性动作（方案 A）
+
+- 当 `action` RenderEvent 的一次性 Action 正在播放时，`attrs.action` 改变**仅更新基础动作选择**，不直接打断当前一次性动作。
+- 一次性 Action 自然完成后，切回**当时最新的** `attrs.action`；中间可能已经从 `walk1` 变成 `jump` 或 `stand1`。
+- 再次收到 `action` Event（包括同名 Event）则按已确定规则立即重启/替换当前一次性动作。这与“基础 attrs 的变化不打断”是两个独立入口。
+- Avatar 不判断 `jump/dead/hit` 的业务优先级；**强制中断必须使用另行定义的显式呈现指令**，不能仅靠猜测基础 Action 的名称。
+- 上述仅是视觉播放规则；技能中断的物理、伤害、冷却和合法性由 Subsystem 判定。完整动画 ABI 尚未冻结。
+
+### 5.5 待讨论：强制中断的指令和可靠性
+
+以下两种表达均为**未决定的候选**，不要同时默认启用：
+
+1. **瞬时取消 Event**（例如 `render.event("action.cancel")`）：组件收到后清除当前一次性覆盖并显示最新基础动作；不新增 attrs，但 Event 可能丢失且不重放，不能保证死亡等关键画面一定立即覆盖。
+2. **Retained 覆盖许可状态**（例如 `attrs["one-shot-enabled"] = "false"`）：为 false 时，立即清除一次性覆盖、绘制最新基础 Action，并拒绝新的单次 Event；恢复 true 时重新接受事件。允许重连快照恢复“禁止单次覆盖”的状态，但不会重放已丢失的取消瞬间，也不能替代动作事件历史。
+
+需要先决定强制中断的产品要求：只是最佳努力的视觉取消，还是即使丢包、重建也必须以最新基础 Action 盖过旧技能。若需要的是仅取消一次、取消后立即允许新技能，而又不新增实例标识，单独的 transient Event 更适合；retained 布尔许可只能表达**持续的阻止状态**，不能表达任意重复的瞬时取消。
+
+### 5.6 其余第二阶段待裁决项
 
 1. **基础动作循环/停留**：是否完全由 AvatarPlan action clip 定义（`loop`、末帧 hold、repeat suffix），而不是把规则写死在组件中？
-2. **基础动作改变与 Event 覆盖冲突**：例如攻击进行中收到 `attrs.action=jump` 或 `dead`，是立即中断，还是等攻击播完回到最新基础动作？
-3. **一次性动画播放完毕**：回到最新 `attrs.action` 已是默认方向，但非循环基础 Action（例如 `jump`）结束后怎样保持帧？是否需要结束回调？
-4. **资源未就绪/动作不存在**：Event 先到时是等待、丢弃，还是显示确定性 fallback？不能让一次性动作异步加载后错误覆盖更新的动作。
-5. **时钟与生命周期**：外部时钟暂停、隐藏页长时间停顿、断开重连、Clock 切换、模拟暂停的具体步进规则。
-6. **回放保证边界**：当前明确接受 Event 不恢复；如后续要“动作中途精确恢复”，需增补 retained 时间/相位模型，而不是误认为 `action` + Event 能做到。
+2. **非循环基础动作结束**：例如 `jump` 播完是否 hold 末帧，是否需要结束通知？
+3. **资源未就绪/动作不存在**：Event 先到时等待、丢弃，还是绘制确定性 fallback？过期异步结果不能覆盖更新的动作。
+4. **时钟与生命周期**：外部时钟暂停、隐藏页停顿、断开重连、Clock 切换、模拟暂停的具体步进规则。
+5. **回放边界**：保留 Event 不恢复原则。需要精确动作恢复时另议 retained 时间/相位模型。
 
-以上是待讨论项，**没有批准完整第二阶段 ABI**。
+以上尚未批准完整第二阶段 ABI。
 
 ## 6. 外观计划与资源：暂不冻结的取舍
 
@@ -172,7 +188,9 @@ interface RenderClockProvider {
 | 表情选择与表情帧定义分离 | 是 | 待确认 |
 | 单次技能/攻击通过 `action` RenderEvent，且不添加 `action-seq` | **是；接受 Event 不重放** | **已确认** |
 | 时钟来源：最近祖先 Render Clock，否则组件本地 Clock | **确定继承与回退原则** | **已确认** |
-| Animation Player 的中断、结束、时间步进、暂停语义 | 未选定 | **第二阶段待讨论** |
+| attrs.action 改变与一次性 Event 的覆盖关系 | **方案 A：单次动作播完后回到最新基础动作** | **已确认** |
+| 强制中断接口与可靠性 | 瞬时 cancel Event / retained 覆盖许可 | **第二阶段待讨论** |
+| Animation Player 的结束、时间步进、暂停语义 | 未选定 | **第二阶段待讨论** |
 | AvatarPlan 动作集合/版本化策略 | 未选定 | **待讨论** |
 | 世界坐标与最终 Canvas 输出边界 | 未选定 | **待讨论** |
 

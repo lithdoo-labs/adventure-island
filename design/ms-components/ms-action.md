@@ -25,8 +25,9 @@
   },
   data: {
     clip: {
-      playback: "loop",      // 候选字段，尚未冻结
-      frames: [/* 已合成的动作帧及资源引用 */]
+      formatVersion: 1,       // D05 方向确认；字段闭集仍需 CMS079 夹具
+      playback: { mode: "loop", repeatFrom: 0 },
+      frames: [/* durationMs、逐帧变换、layer 与共享 sprite ID */]
     }
   },
   children: []
@@ -37,7 +38,7 @@
 - **已确认 D04**：一条 `ms-action` 对应一个 `attrs.name` Action；区分大小写的精确字符串匹配，同一个 Avatar 直接子节点范围内名称唯一。重复名称的动作索引发生冲突，不得静默按 DOM 顺序选取；精确字符集和长度限制仍需 CMS079 资料与 Validator 定稿。
 - 默认子节点 `children: []`。**纸娃娃层、贴图和骨骼/锚点不因此成为 RenderNode 子节点**；它们仍属于单个动作 Clip 内部数据。
 - **`key` 是 RenderNode 身份，不是动作名**。同一个 live key 不得原地更改 `attrs.name`；改名应通过 `RenderDomain.replace()` 删除旧节点，使用符合 LoomRealm one-shot key 生命周期的 **fresh key** 创建新节点。
-- `attrs.name` 的语义和改名规则已经确认；`data.clip` 内的 `playback`、`frames`、版本等字段仍是候选，完整 Schema 与 Validator 尚未冻结。
+- `attrs.name` 的语义和改名规则已确认；**已确认 D05 的 Clip 结构方向**：版本、显式播放模式（完整 loop/hold/后缀循环）、有序持续时间帧、绘制层与共享 sprite 引用。上述字段名仍为候选 JSON，CMS079 夹具与 Validator 尚未冻结。
 
 ## 3. 父子组件数据协作
 
@@ -154,7 +155,7 @@ LoomRealm RenderNode.children
 - **增加、移除、重新排列子节点**需要通过 `RenderDomain.replace()` 更新 authoritative tree；`RenderDomain.update()` 无法更改 `key/tag/children`。已有 Clip 可以只更新对应子节点 `data.clip`；`data.set` 仅支持替换 data 的顶层成员，WebProjector 的 `receiveRenderData()` 总是收到当前完整 data。
 - 即使拆为子节点，初始 Snapshot 仍携带完整当前树；`replace()` 是全树结构提交，不自动按需传输某一子节点。未来若需真正延迟传输、共享跨角色 Clip 或独立资源发布，需要另行设计，不能声称当前子树已经具备这些能力。
 - 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。**已确认 D12：无效 Action/组合 fail closed，旧画面不得冒充新状态；具体错误码和宿主输出 API 留 I05**。**换装需按 §3.2 把关联更新放入一次原子提交，不得跨提交逐步替换动作。**
-- 当前外观可触发的动作应**预先发布对应子节点**，不要在施放技能的 Event 到达后才尝试创建 Clip；具体动作清单与数据体积的产品策略尚待验证。**已确认 D03 / D10**：`ms-action` 不承担表情帧，也不承载世界 `x/y` 或世界深度；表情归父 Avatar 的共享外观数据，场景负责角色位置及世界排序。**D05/D06/D07/D11 待联合复核**旧版 cms-actor 的 atlas 合并加载及 OpenMS 的 atlas manifest/共享 lease，避免每帧小图片单独请求。
+- 当前外观可触发的动作应**预先发布对应子节点**，不得等 Event 到达才创建 Clip。**已确认 D03/D10**：表情归父 Avatar，世界位置/世界深度归场景。**已确认 D05/D06/D07/D11 的架构方向**：Clip 只携带渲染就绪时序/逐帧部件与共享 sprite ID；源 WZ delay/UOL 由 Adapter 解析；小图片离线合并图集；运行时父 Avatar 按需加载整页。具体 CMS079 时序、图集分组和容量须 V01/V03 实测。
 
 ## 5. 与 OpenMS 的对应关系
 
@@ -174,29 +175,22 @@ LoomRealm RenderNode.children
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 - [LoomRealm Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)
 
-## 6. 已确认项与剩余待决事项
+## 6. D02 / D05 / D06 / D07 / D11 已确认的方向与待验证细节
 
-新一代 Actor 组件**唯一完整台账**位于 [ms-avatar §10](./ms-avatar.md)：**已确认 D01、D03、D04、D08、D09、D10、D12**，剩余产品/ABI **5 项（D02、D05、D06、D07、D11）**、实施机制 5 项（I01–I05）、验证/迁移 4 项（V01–V04）。本文件不再把已确认的数据分工或错误处理当作待裁决方案。
+**所有 D01–D12 的架构方向已确认，不等于完整 Clip JSON Schema、资源上限或实现冻结。** 唯一完整状态台账见 [ms-avatar §10](./ms-avatar.md)，详细候选 Schema 见 [ms-avatar §6.6–§6.10](./ms-avatar.md)。
 
-| 议题 | 当前状态与需要继续做的事 |
-| --- | --- |
-| D08（已确认） | 父级共享外观数据负责 zOrder、资源索引及独立表情；单 Action Clip 负责帧/循环/变换和小图裁剪引用。旧 cms-actor 的 atlas 整页缓存能力必须能够复用；**仅具体 JSON 字段名/校验器未冻结** |
-| D12（已确认） | Clip 缺失/无效、共享外观冲突、图片未解码、Content 版本或尺寸冲突需分类诊断；不回退到另一业务 Action，不显示已经失效的旧装备/旧动作像素。**具体错误码、诊断接口、调试占位画面交 I05** |
-| D02（未决） | attrs 高频独立变更，data 顶层字段可 patch 但嵌套 appearance 更新要替换整个该对象；如何避免频繁重复投递/序列化大共用数据仍须决定 |
-| D05 / D06 / D07（未决） | 动作帧时序、延迟/UOL、层布局和 atlas `source` 裁剪必须一起基于真实 CMS079、固定 OpenMS 与旧 cms-actor 验证；Clip 定义是渲染数据，**不是图集图片字节** |
-| D11（未决） | 同时测动作定义数量/大小、图集页数量与尺寸、Content 请求数、解码峰值、跨动作/换装图集复用及预读策略；不要照搬旧 32 Action / 256 KiB 或 OpenMS 126 个动作的阈值 |
-| I01 / I02 / I05（待实施） | 父子通知/同步查询与换装投影门闩、父级+Clip 组合验证及错误码/输出 API |
-| V01 / V03（待验证） | 真实 CMS079 实例与 atlas 小图合并前后 Content 请求、首帧耗时、缓存、内存、逐帧像素一致性 |
+| 决策 | 已确认的 ms-action 相关原则 | 仍需实测和 Validator 定稿 |
+| --- | --- | --- |
+| D02 | 动态 action/facing/expression/one-shot-enabled 放父 attrs；父共享 appearance/sprites/expressions 可各自顶层更新；各动作 Clip 分开 | 具体属性默认值、枚举与错误行为；跨父子组合校验 |
+| D05 | 每 Action Clip 含格式版本、loop/hold/后缀循环、按序帧、毫秒时长、layer、共享 sprite 引用，不携带 PNG | 版本格式、repeatFrom 边界、字段闭集与帧层容量 |
+| D06 | Adapter 将 CMS079 UOL/alias、零/负/缺失 delay、repeat 解释为规范化非负 ms 时序；图集不改变帧时间 | CMS079 真样本语义，OpenMS GMS083 只提供实现参考 |
+| D07 | 每帧保存 move/rotate/flip/showFace，layer 保存 origin/anchors、遮挡、逻辑尺寸和 atlas 裁剪引用，父级统一 zOrder | 裁剪图集后的像素等价、异常锚点/遮挡/画布界限 |
+| D11 | Event 前发布当前可触发动作定义；多小图离线合 atlas，父级按需整页加载与缓存 | 图集页分组、网络请求与解码内存、单 Clip 和全 Avatar 预算 |
 
-**源码依据**：
+**LoomRealm 更新语义**：attrs.set/remove 可以只修改一个属性；data.set/remove 可以只替换某顶层成员（例如 data.clip），不可对 clip.frames 的嵌套成员做原生 Patch。WebProjector receiveRenderData() 接收完整当前 data。每个 ms-action 子节点可独立更新 Clip，但初始 Snapshot / replace() 仍携带整棵树，不具备天然流式加载能力。
 
-- [旧 cms-actor 实施契约：atlas 整页读取/解码、source 裁切、缓存](../../components/cms-actor/IMPLEMENTATION.md)
-- [旧 cms-actor 模型验证：atlas page 与每层 source/尺寸声明](../../components/cms-actor/src/avatar-model.mjs)
-- [PWA 安装包构建器：打包 Content 项不等于将 PNG 合并成 atlas](../../scripts/pwa/build-installation-bundle.mjs)
-- [合成素材示例：每个 part/action/frame 独立 PNG](../../scripts/pwa/synthetic-avatar-content.mjs)
-- [固定 OpenMS `AvatarVisuals.prepare()`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/avatar-visuals.js)
-- [固定 OpenMS `visual-resources.js`](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/visual-resources.js)
+**图集必须真实合并**：旧 [cms-actor 实施说明](../../components/cms-actor/IMPLEMENTATION.md) 已支持图集整页读取/解码与多张小图 source 裁剪；固定 OpenMS [visual-resources.js](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/visual-resources.js) 通过 atlas manifest 和共享 lease 复用页面。**PWA installation-bundle 合并 Content 项不等于 PNG 已合成图集**；新实现必须实际构建 atlas 页及 sprite → 页内裁剪映射并用 CMS079 实测。
 
-**实现边界**：将动作拆为 `ms-action` 子节点是为独立索引和增量更新，**不代表把图像拆成每帧单独请求，也不代表 LoomRealm 支持分段加载子树**。已确认的两层（共享外观/单动作）数据分工与完整页面复用并不冲突。
+**下一阶段工程问题**：I01 父子数据通知、I02 首挂及换装门闩、I03 Clock 内部 API、I04 Player 与缓存生命周期、I05 Validator 与诊断；V01–V04 负责真实素材、浏览器/像素性能和迁移。
 
-**验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和真实 CMS079 素材验收。不得据此声称 LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。
+**验证状态**：本文仍是设计 Draft，没有新 ms-action 实现、完整 Validator、Chromium/真实 CMS079 验收，不能称作 Frozen ABI。

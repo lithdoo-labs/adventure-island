@@ -296,7 +296,7 @@ specialActionClip = {
 
 这属于 Renderer 内部组件协作协议，**不要求 LoomRealm RenderNode/Render Update v1 新增字段**。
 
-### 5.11 尚待讨论的边界
+### 5.11 未决问题索引（完整清单见 §10）
 
 1. **`ms-action` Clip Schema**：动作名、帧、循环边界、零延迟/缺失 delay、资源引用版本；父级共用外观数据（如 `appearance`）与子节点内容如何一致验证。
 2. **Clip 热更新语义已确认（§5.12）**：同名有效 Clip 替换保留已播放时间；one-shot Clip 消失则取消；基础 Clip 缺失仍保留 retained 请求。基础 Clip 缺失期间的时间累计与恢复行为已在 §5.14 确认；换装时跨父子节点同次原子发布见 §5.13。
@@ -304,7 +304,7 @@ specialActionClip = {
 4. **当前外观动作覆盖率与容量**：OpenMS 的预定义 Action 集只是参考，不可将 126 动作直接等同于 CMS079 必须全量传输；测量真实 CMS079 样本后确定适当应用级限制。
 5. **未来精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实。Clock 失效通知 API 留待实施阶段。
 
-以上已确定第二阶段的主要行为和**动作拆为子节点**的组织原则；未冻结完整 `ms-action` Clip Schema 或内部通知 API。
+以上已确定第二阶段主要行为、动作拆为子节点及首次局部就绪原则；未冻结完整 `ms-action` Clip Schema 或内部通知 API。**全部剩余设计、实施与验证事项统一列在 §10，避免把已确认原则再次当作待决方案。**
 
 ### 5.12 第二阶段已确认：ms-action Clip 更新与移除
 
@@ -515,7 +515,7 @@ OpenMS `AvatarVisuals.prepare()` 先按所选部件加载图集，`composeAvatar
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 - [LoomRealm Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)
 
-**验证状态**：新 `ms-avatar` / `ms-action` 仅为设计 Draft；没有新增实现、Schema Validator、Chromium 测试或真实 CMS079 像素一致性验收.旧版历史测试不自动证明新 ABI 通过。
+**验证状态**：新 `ms-avatar` / `ms-action` 仅为设计 Draft；没有新增实现、Schema Validator、Chromium 测试或真实 CMS079 像素一致性验收。旧版历史测试不自动证明新 ABI 通过。
 
 
 ## 10. 剩余事项总清单（ms-avatar / ms-action）

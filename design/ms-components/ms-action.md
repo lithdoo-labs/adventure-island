@@ -61,8 +61,8 @@ LoomRealm RenderNode.children
           └── Resource Client / Image Cache：图片加载与绘制
 ```
 
-- `ms-action.receiveRenderData()` 的变化**不会自动触发父节点的 `receiveRenderData()`**。应设计局部通知（如冒泡的内部 DOM CustomEvent）和/或父组件同步读取子组件 API；不通过 LoomRealm RenderEvent 绕一圈。
-- 父组件需要响应子元素增加、移除、移动以及 `attrs.name` / Clip 数据更新；建议初始/重挂时全量扫描直接子元素，增量时在本地维护索引。具体通知机制（如 MutationObserver + 内部事件）是实现选择，尚未冻结。
+- `ms-action.receiveRenderData()` 的变化**不会自动触发父节点的 `receiveRenderData()`**。**已确认**：子节点在校验/保存最新数据后主动向父 Avatar 发送 Renderer 内部的定义变化通知；父组件在关键入口按需同步读取当前已验证的 Clip。通知只标记索引失效，不引发即时重绘，也不通过 LoomRealm RenderEvent 绕一圈（§3.4）。
+- 父组件需要响应子元素增加、移除、移动以及 `attrs.name` / Clip 数据更新；初始化/重挂和 Action Event 入口需要同步检查当前直接子节点，正常绘制时可维护脏索引。`MutationObserver` 只辅助发现结构或属性变化，**不作为唯一的数据变更通知**；具体事件名和只读查询 API 尚未冻结。
 - 只读取**当前有效、已接收到 Clip、通过校验**的动作定义；一个空壳 `ms-action` 元素不能被当作 Action 已就绪。
 - 同名重复子节点应报告可定位错误并阻止歧义播放；不可悄悄以 DOM 顺序选一个。
 - 当 Event 指定的 Action 未在**当前已注册且有效**的 `ms-action` 集中时，仍遵守 [ms-avatar](./ms-avatar.md) 的既定规则：丢弃此次一次性 Event，不等待新子节点到达后补播。
@@ -116,6 +116,21 @@ LoomRealm RenderNode.children
 
 该时间语义是 Adventure Island 产品选择，细节见 [ms-avatar §5.14](./ms-avatar.md)。
 
+### 3.4 已确认：子组件主动通知变化，父级按需同步获取
+
+`ms-action` 作为已注册 Custom Element，消费自己的 `receiveRenderData()`，**不向父组件自动透传数据回调**。已确认的最小内部协作机制：
+
+1. 子组件每次接收到新的 `data.clip`（包含定义无效的情况）应校验并保存其**当前真实状态**；旧有效 Clip 不能在新定义校验失败后继续冒充当前数据。
+2. 完成本地状态替换后，**主动向所属的 `ms-avatar` 发出 Renderer 内部变更通知**，只表达“动作定义/有效性已改变”；不自行启动 Animation Player、加载图片、绘制或修改 RenderNode。通知不得被转成新的 `render.event`。
+3. 父 Avatar 收到通知只将动作索引、当前 Clip 引用和相关绘制状态标记为需要重新验证。正常绘制可按脏标记批量同步刷新；**收到 `render.event("action")` 时必须立即同步检查直接子元素及其当前有效 Clip**，不得依赖可能尚未运行的 `MutationObserver`。
+4. 子元素的增删、移动和 `attrs.name` 变化也必须使父级索引失效；`MutationObserver` 可以作为辅助观察手段，不能单独承担私有 Clip 数据更新通知。重复的 Action 名不得凭 DOM 先后顺序静默消歧。
+5. 校验组合必须在真正绘制前完成：初次连接时 `connectedCallback()` **不能假设 `attrs`、`children`、`data` 已就绪**；换装虽按同次 Domain 原子发布，父与多个子组件的 `receiveRenderData()` 仍可能先后发生。子通知只能标脏、不能导致新旧外观混合帧。
+6. 子节点被删除、迁移父级或组件断开时，来自旧父子关系的迟到通知和异步图片工作不能影响新索引；属于当前索引的 Clip 变更才执行已确认的 `elapsedMs` 迁移、one-shot 取消和资源过期保护。
+
+**不冻结**内部 DOM 事件名、事件 payload、只读 Clip getter、订阅/解绑机制和首次挂载数据完备判据。这些应通过后续最小实现接口与投影顺序测试确定，原则上不增加 RenderNode 字段。
+
+**LoomRealm 语义边界**：WebProjector 对每个元素独立交付 `receiveRenderData()`；前一 retained commit 到 Event 的因果顺序只确保该次 reconcile / callback *attempt* 已发生，**不承诺子组件业务校验成功，也不承诺位图解码完成**。缺 Action 的 Event 仍按 [ms-avatar §5.7](./ms-avatar.md) 丢弃不补播。
+
 ## 4. 数据规模与发布语义
 
 **目的：让动作独立寻址和独立更新，降低小改动需要替换整份动作计划的成本。不是规避 LoomRealm Core 的通用字节硬上限。**
@@ -148,7 +163,7 @@ LoomRealm RenderNode.children
 ## 6. 后续待逐项确定
 
 1. `ms-action` 的具体字段 ABI：动作名、Clip 版本、循环区间和帧列表。
-2. 父子通知与快照投影顺序、重挂/移除时清理逻辑；包括不同 Action 重名的错误处理。
+2. **父子通知原则已确认 (§3.4)**：子组件主动通知定义变化、父组件绘制/Action Event 入口同步读取；仍待实施的有通知事件/只读查询签名、首次挂载就绪门槛、断连及重复动作名的细化处理。
 3. **已确认 (§3.1–§3.3)** 同名 Clip 热更新保留 `elapsedMs`，失效 one-shot 取消；换装同次原子发布；基础 Clip 缺失不冻结其本应经过的时间，恢复后 seek。
 4. 父级共享外观与各 Clip 的具体 zOrder/资源引用组合校验算法、投影结束信号、缓存容量；**不新增**用于换装同步的 `appearance-version`。
 5. CMS079 实际外观动作范围与序列化开销，是否需要另一层共享数据压缩。

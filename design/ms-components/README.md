@@ -16,7 +16,8 @@
 
 | 组件 | 文档 | 状态 |
 | --- | --- | --- |
-| `ms-avatar` | [ms-avatar.md](./ms-avatar.md) | Draft：已确认职责；动态 ABI 和时钟待讨论 |
+| `ms-avatar` | [ms-avatar.md](./ms-avatar.md) | Draft：已确认动作与时钟行为；通过 `ms-action` 子节点读取 Clip，具体 Schema 待定 |
+| `ms-action` | [ms-action.md](./ms-action.md) | Draft：数据型动作子组件；不持有 RAF、Canvas 或图片资源，具体 Clip ABI 待定 |
 
 ## 依据
 

@@ -10,7 +10,7 @@
 
 - **Subsystem / Adapter**：根据当前外观、动作需求和 CMS079 原始资料准备每个动作的合成帧、位置信息、时长和资源引用；按需要创建/更新对应 RenderNode。
 - **`ms-action`**：消费自己的 `receiveRenderData()`、验证单个动作 Clip、保存只读语义数据，并通过 Renderer 内部组件协议将当前定义暴露给所属的 `ms-avatar`。
-- **`ms-avatar`**：建立动作名索引、持有 Animation Player / Render Clock；**统一读取、解码、缓存、版本校验及释放动作帧使用的图片/图集**，统一执行纸娃娃合成与绘制。
+- **`ms-avatar`**：根据 `ms-action.attrs.name` 建立动作名精确索引，持有 Animation Player / Render Clock；**统一读取、解码、缓存、版本校验及释放身体动作与表情共用的图片/图集**。表情 Clip 属于父级共享外观数据，由独立 Expression Player 推进。
 - **`ms-action` 不负责**：自己的 RAF、Clock、Canvas/WebGL、图片读取/解码/缓存、资源所有权、战斗技能判定、选择下一个动作或触发播放。
 - 动作 Clip 仍是渲染就绪的定义，不携带原始 WZ/FSDB 文件路径，也不让 Renderer 推断装备和技能业务规则。
 
@@ -21,7 +21,7 @@
   key: "avatar:player:walk2",
   tag: "ms-action",
   attrs: {
-    name: "walk2"            // 候选属性名；用于父节点索引
+    name: "walk2"            // 已确认动作名入口；字符/长度限制待定
   },
   data: {
     clip: {
@@ -34,10 +34,10 @@
 ```
 
 - `ms-action` 是正式注册的 Custom Element：LoomRealm WebProjector 为每个 RenderNode 创建元素，并将 `children` 机械投影成**父元素 light DOM** 的有序子元素。
-- 建议一条 `ms-action` 对应一个 Action 名；其定义应在同一 `ms-avatar` 的直接子节点范围内唯一。动作名的字符集、绑定字段、重命名/身份生命周期规则尚待 ABI 细化。
+- **已确认 D04**：一条 `ms-action` 对应一个 `attrs.name` Action；区分大小写的精确字符串匹配，同一个 Avatar 直接子节点范围内名称唯一。重复名称的动作索引发生冲突，不得静默按 DOM 顺序选取；精确字符集和长度限制仍需 CMS079 资料与 Validator 定稿。
 - 默认子节点 `children: []`。**纸娃娃层、贴图和骨骼/锚点不因此成为 RenderNode 子节点**；它们仍属于单个动作 Clip 内部数据。
-- `key` 是 RenderNode 身份；不把 `key` 或 DOM 顺序当作动作名本身。父组件以明确定义的动作名建立索引。
-- **动作字段**（`attrs.name`、`data.clip`、`playback`、`frames`）示例只是候选表达。先确定拆分与资源所有权，后续再冻结 Schema。
+- **`key` 是 RenderNode 身份，不是动作名**。同一个 live key 不得原地更改 `attrs.name`；改名应通过 `RenderDomain.replace()` 删除旧节点，使用符合 LoomRealm one-shot key 生命周期的 **fresh key** 创建新节点。
+- `attrs.name` 的语义和改名规则已经确认；`data.clip` 内的 `playback`、`frames`、版本等字段仍是候选，完整 Schema 与 Validator 尚未冻结。
 
 ## 3. 父子组件数据协作
 
@@ -71,7 +71,7 @@ LoomRealm RenderNode.children
 
 ### 3.1 已确认：Clip 热更新与动作删除语义
 
-`ms-action` **只提供定义变更**，它不会自行调用 `setAction()`、启动或重启动作。处于当前播放状态的迁移由 `ms-avatar` 的 Animation Player 决定：
+`ms-action` **只提供定义变更**，它不会自行调用 `setAction()`、启动或重启动作。**已确认 D01**：one-shot 覆盖期间基础 Action 的 `elapsedMs` 冻结；覆盖结束后同名未改选则续播，若基础名曾改变则从新基础动作 0ms 开始。当前播放 Clip 的更新迁移仍由 `ms-avatar` 的 Animation Player 决定：
 
 | 子节点变化 | 父 Avatar 行为 |
 | --- | --- |
@@ -101,7 +101,7 @@ LoomRealm RenderNode.children
 
 **Store 原子性 ≠ Web Component 回调原子性**：LoomRealm 对同一次 Render Update 的最终 Domain Store 状态原子提交，但 `ms-avatar` 和每个 `ms-action` 都独立接收 `receiveRenderData()`。父 Avatar 必须验证当前已投影的共享外观 + 所需有效 Clip **构成完整一致的组合**，才允许绘制或接受依赖新外观的 Action Event；不能让某个子组件率先收到数据便立即混合绘制。具体通知与投影结束检测仍待实现方案确认。
 
-**首版不增加同步用 `appearance-version` 或 `clip-version` 字段**；图像的 `contentVersion` 是 Content 资源身份，不承担换装事务编号。不同提交/不同 Domain 的分阶段换装不受本方案支持；将来确有必要时再设计显式版本/激活机制。
+**首版不增加同步用 `appearance-version` 或 `clip-version` 字段**；图像的 `contentVersion` 是 Content 资源身份，不承担换装事务编号。**已确认 D09**：父 Avatar 统一使用 Content 的 `namespace/key/contentVersion` 资源身份加载及缓存图片，检查实际/声明尺寸、源矩形范围和跨 Clip 的资源声明一致性，并处理过期请求及缓存释放。不同提交/不同 Domain 的分阶段换装不受本方案支持；将来确有必要时再设计显式版本/激活机制。
 
 已确定的 §3.1 热更新规则不变：同名有效 Clip 更新保留 `elapsedMs`，one-shot Clip 删除则取消；图片未就绪不会让 Clip 失效或阻塞动画时钟。
 
@@ -110,7 +110,7 @@ LoomRealm RenderNode.children
 - `ms-action` 的 DOM 子节点未存在、Clip 尚未交付或校验失败时，`ms-avatar` **保留 retained 基础 `attrs.action`**，报告缺失，不猜测替换为其他业务动作。
 - **缺少 Clip 定义不等于暂停当前 Render Clock**。基础动作在自身既定播放策略下本应累计的 `elapsedMs` 仍应推进；待同名有效 Clip 恢复后，按照新 Clip 的完整循环、局部循环或 hold 规则**直接求当前帧**，不从第 0 帧重新启动，也不补画错过的帧。
 - 例：`walk1` 播放 300ms 后 Clip 临时缺失，时钟正常前进 2s；有效 Clip 恢复后，以累计约 2300ms 在新 Clip 上 seek，而不是重新从 0ms 或 300ms 播放。
-- **例外**：选定时钟显式暂停或同一 Avatar 实例 DOM 断连时照原先规则冻结；如果 one-shot 覆盖时基础动作的既定时钟策略本来挂起，则不能借“Clip 缺失”擅自改变覆盖期间的基础动作计时策略（该覆盖计时细节仍待决定）。
+- **例外**：选定时钟显式暂停或同一 Avatar 实例 DOM 断连时照原先规则冻结；**已确认 D01**：one-shot 覆盖基础动作期间基础 `elapsedMs` 冻结，缺 Clip 不会让被覆盖的基础动作偷偷累计时间。
 - Clip 定义存在但图片未解码，和 Clip 定义缺失是两个不同情形；均不能据此让本应运行的动画时间停止。缺定义时不能拿无效旧帧冒充有效图像；晚到的图像仍需防止覆盖更新后的画面。
 - **仅适用于基础 Action 的 retained 播放状态**：新 `render.event("action")` 对应 Clip 若不存在，仍依既定规则直接丢弃且不补播。基础 Clip 恢复不触发新的 Event。
 
@@ -154,7 +154,7 @@ LoomRealm RenderNode.children
 - **增加、移除、重新排列子节点**需要通过 `RenderDomain.replace()` 更新 authoritative tree；`RenderDomain.update()` 无法更改 `key/tag/children`。
 - 即使拆为子节点，初始 Snapshot 仍携带完整当前树；`replace()` 是全树结构提交，不自动按需传输某一子节点。未来若需真正延迟传输、共享跨角色 Clip 或独立资源发布，需要另行设计，不能声称当前子树已经具备这些能力。
 - 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。**换装需按 §3.2 把关联更新放入一次原子提交，不得跨提交逐步替换动作。**
-- 当前外观可触发的动作应**预先发布对应子节点**，不要在施放技能的 Event 到达后才尝试创建 Clip；具体动作清单与数据体积的产品策略尚待验证。
+- 当前外观可触发的动作应**预先发布对应子节点**，不要在施放技能的 Event 到达后才尝试创建 Clip；具体动作清单与数据体积的产品策略尚待验证。**已确认 D03 / D10**：`ms-action` 不承担表情帧，也不承载世界 `x/y` 或世界深度；表情归父 Avatar 的共享外观数据，场景负责角色位置及世界排序。
 
 ## 5. 与 OpenMS 的对应关系
 
@@ -174,19 +174,20 @@ LoomRealm RenderNode.children
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 - [LoomRealm Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)
 
-## 6. 相关待决事项与推荐方案
+## 6. 已确认项与剩余待决事项
 
-**唯一完整待决台账**：见 [ms-avatar §10](./ms-avatar.md)。当前包含 **12 项产品/ABI 决策（D01–D12）、5 项实现接口与竞态机制（I01–I05）、4 项验证/迁移工作（V01–V04）**，并逐项给出建议及优先级。此处只提炼与 `ms-action` 直接相关的事项；它们尚未获准冻结。
+新一代 Actor 组件的**唯一完整待决清单**见 [ms-avatar §10](./ms-avatar.md)。**D01（覆盖基础时间冻结）、D03（表情轨归父级且独立计时）、D04（动作名精确匹配及 fresh-key 改名）、D09（Content 资源身份与父级统一缓存）、D10（世界坐标/世界深度归场景）已经确认**。
 
-| 对应台账 | ms-action 的未决边界 | 推荐方向 |
+当前真正尚待裁决的产品/ABI 议题是 **7 项：D02、D05、D06、D07、D08、D11、D12**；另外还有 **5 项实施接口/竞态（I01–I05）与 4 项验证/迁移（V01–V04）**。它们的推荐方案、优先级见父文档。
+
+| 尚未裁决 | 与 `ms-action` 有关的问题 | 推荐方案（仍待确认） |
 | --- | --- | --- |
-| D04–D05 | 动作名/节点身份及 `data.clip` 字段/播放规则 | `attrs.name` 精确索引；同父重名报错，改名使用 fresh key；Clip 显式 formatVersion、有序 frames、loop/hold/suffix-loop |
-| D06–D07 | CMS079 alias/UOL/delay 及帧内布局/遮挡数据 | Adapter 先正规化源时序、anchor/zmap/smap 与部件变换，Renderer 消费渲染就绪帧，不再解析 WZ |
-| D08–D09 | 父级共享资源与 Clip 引用的组合校验 | 共享 zOrder/资源表由父 Avatar 管理，Clip 只引用；`contentVersion` 作为像素资源身份，不当作换装事务版本 |
-| D11–D12 | 每动作规模、失败和诊断状态 | 根据真实 CMS079 统计确定单 Clip/总 Avatar 预算；Clip 无效、未就绪及位图未解码分别诊断 |
-| I01–I02 | 子组件通知/只读查询、首挂与换装回调竞态 | 子节点校验后主动通知、父级绘制/Event 前同步查子 Clip；用真实 WebProjector 测试父子投影完成门闩 |
-| I04–I05 / V01–V03 | 动作替换、无效状态、像素与性能验收 | 继续遵守已确认的时间/epoch/缓存规则；用真实样本及 Chromium 端到端测量，不用旧版限值推定通过 |
+| D05–D06 | 每个动作 Clip 的具体字段、帧延迟/循环以及源资料特殊值 | 定义显式 `formatVersion`、有序帧、loop/hold/后缀循环；Adapter 先规范化 CMS079 源时序 |
+| D07–D08 | 帧内贴图如何以锚点、遮挡、变换组合，以及父级共享 zOrder 与 Clip 引用如何配合 | Adapter 输出已准备的帧层；父级共用 zOrder/资源索引，Clip 保留帧与引用，绘制前做组合校验 |
+| D11–D12 | 当前外观应提供多少动作、每个 Clip 多大、缺失/无效时如何报错 | 根据真实 CMS079 数据确定单 Clip/全 Avatar 容量边界，缺动作、无效 Clip 与图片未解码分别诊断 |
+| I01–I02 | 子组件同步通知与首次挂载/换装的投影回调竞态 | 本地通知 + 只读 Clip 查询；绘制和 Event 前读取有效快照，浏览器测交错顺序 |
+| I04–I05、V01–V03 | 播放器状态、旧异步图片、严格校验及像素性能验收 | 保留 `elapsedMs` 与 epoch 语义；真实 CMS079 与 Chromium 端到端验证 |
 
-**已确认而非待决**：`ms-action` 是数据型子组件，不负责 RAF、图片下载和绘制；父级采用**当前所需 Clip 局部就绪**（§3.5），不等待整个动作列表；Clip 更新不重新触发 Event，同名动作保留 `elapsedMs`，one-shot Clip 消失会取消；换装需同次 Domain 原子发布。上述不是尚待选择的候选方案。
+**已确认而非待决**：`ms-action` 是数据型子组件；不负责 RAF、Canvas、图片资源、表情轨或世界坐标；父级按当前所需 Clip 局部就绪；同名 Clip 更新不触发 Event；one-shot Clip 删除则取消；换装同次 Domain 原子发布。**字段 Schema、具体实现和测试仍未完成**。
 
-**验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和实资源验收。不得据此声称 LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。
+**验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和真实 CMS079 素材验收。不得据此声称 LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。

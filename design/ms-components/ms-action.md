@@ -174,14 +174,19 @@ LoomRealm RenderNode.children
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 - [LoomRealm Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)
 
-## 6. 后续待逐项确定
+## 6. 相关待决事项与推荐方案
 
-本组件与父 Avatar 相关的**全部未决事项**、实施接口与验证工作集中列于 [ms-avatar §10](./ms-avatar.md)；下列仅摘录与 `ms-action` 直接相关的工作。
+**唯一完整待决台账**：见 [ms-avatar §10](./ms-avatar.md)。当前包含 **12 项产品/ABI 决策（D01–D12）、5 项实现接口与竞态机制（I01–I05）、4 项验证/迁移工作（V01–V04）**，并逐项给出建议及优先级。此处只提炼与 `ms-action` 直接相关的事项；它们尚未获准冻结。
 
-1. `ms-action` 的具体字段 ABI：动作名、Clip 版本、循环区间和帧列表。
-2. **父子通知及局部首次就绪原则已确认（§3.4、§3.5）**：子组件主动通知，父组件按需同步读取；当前所需 Clip 有效即可绘制、不等待全部动作。**仍待实施**：内部事件与查询签名、首次绘制调度、父子回调交错、断连与重复名称的细化处理。
-3. **已确认 (§3.1–§3.3)** 同名 Clip 热更新保留 `elapsedMs`，失效 one-shot 取消；换装同次原子发布；基础 Clip 缺失不冻结其本应经过的时间，恢复后 seek。
-4. 父级共享外观与各 Clip 的具体 zOrder/资源引用组合校验算法、投影结束信号、缓存容量；**不新增**用于换装同步的 `appearance-version`。
-5. CMS079 实际外观动作范围与序列化开销，是否需要另一层共享数据压缩。
+| 对应台账 | ms-action 的未决边界 | 推荐方向 |
+| --- | --- | --- |
+| D04–D05 | 动作名/节点身份及 `data.clip` 字段/播放规则 | `attrs.name` 精确索引；同父重名报错，改名使用 fresh key；Clip 显式 formatVersion、有序 frames、loop/hold/suffix-loop |
+| D06–D07 | CMS079 alias/UOL/delay 及帧内布局/遮挡数据 | Adapter 先正规化源时序、anchor/zmap/smap 与部件变换，Renderer 消费渲染就绪帧，不再解析 WZ |
+| D08–D09 | 父级共享资源与 Clip 引用的组合校验 | 共享 zOrder/资源表由父 Avatar 管理，Clip 只引用；`contentVersion` 作为像素资源身份，不当作换装事务版本 |
+| D11–D12 | 每动作规模、失败和诊断状态 | 根据真实 CMS079 统计确定单 Clip/总 Avatar 预算；Clip 无效、未就绪及位图未解码分别诊断 |
+| I01–I02 | 子组件通知/只读查询、首挂与换装回调竞态 | 子节点校验后主动通知、父级绘制/Event 前同步查子 Clip；用真实 WebProjector 测试父子投影完成门闩 |
+| I04–I05 / V01–V03 | 动作替换、无效状态、像素与性能验收 | 继续遵守已确认的时间/epoch/缓存规则；用真实样本及 Chromium 端到端测量，不用旧版限值推定通过 |
+
+**已确认而非待决**：`ms-action` 是数据型子组件，不负责 RAF、图片下载和绘制；父级采用**当前所需 Clip 局部就绪**（§3.5），不等待整个动作列表；Clip 更新不重新触发 Event，同名动作保留 `elapsedMs`，one-shot Clip 消失会取消；换装需同次 Domain 原子发布。上述不是尚待选择的候选方案。
 
 **验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和实资源验收。不得据此声称 LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。

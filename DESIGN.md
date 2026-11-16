@@ -193,3 +193,12 @@ Task 061 写出了伤害公式、伤害上限和 MP 成长，处理器伪代码 
 | 2026-10-26 | WZ 转 FSDB | 地图信息进 `struct.Map`，放置进按地图编号分组的 JSONL，画布像素进 PNG 资源。锚点和 `z` 留在记录里。链接图只写 `link`。 |
 | 2026-10-26 | WZ 全包转入 | 16 个 WZ 包都进 FSDB。地图补上 info 标量、物理常数、区域和活动节点。物品、字符串、怪物、技能、声音、效果、界面、变身和骑宠一并写入。 |
 | 2026-10-26 | FSDB 缩样 | `content/cms_design.md` 用射手村记下转换后的目录、地图 JSON、分组 JSONL、图集、物理常数和身体画布。 |
+
+
+## 10. Product-First 运行时设计细化（2026-11-16）
+
+本轮在 docs/product-first/ 建立 65 项完整产品需求卡、P0–P4 模块契约、ADR Register、13 图资源覆盖与 Portal graph、OpenMS 来源/许可证矩阵、Golden Fixture 验收计划和 R0–R4 路线图。所有需求仍为 PROPOSED / NOT-APPROVED；这批文档是工程提案，不代表功能已经实现，也不改变 CMS079 Canonical Claim/Evidence/Gap。
+
+关键数据审计：目标 13 图中 5 张 land、8 张 water；54 条非 sentinel Portal links 中 46 条内部唯一、8 条外部；内部 graph 正反向均 13/13 可达。旧四门白名单需按 ADR-001 迁移。Frozen RenderNode ABI v1 与 LoomRealm pin 保持不变。
+
+独立 Reviewer sub-agent 在本轮执行环境不可用，Reviewer 结论为 NOT-RUN；本轮没有独立盲审或对抗审，不得标为最终 ACCEPT。详见 docs/product-first/INDEPENDENT-REVIEWER-STATUS.md。

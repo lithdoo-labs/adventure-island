@@ -41,3 +41,25 @@
 设计优先，提交主要在 `docs/product-first/`、`DESIGN.md`、必要的 `components/*/DESIGN.md`，若需修改已有契约必须提出 ADR 而非悄悄重写。输出 65 项产品矩阵、P0–P4 具体合同、ADR、测试夹具计划、来源追溯、Review 闭环。按仓库现行规范跑可用文档/校验/测试，真实记录未执行项；正常 fast-forward push，新 SHA/父 SHA、变更统计及远程 HEAD 逐项回读。
 
 项目仍为“详细产品设计进行中”，不自动 STAGE-READY。成果完成后应明确下一步代码实现批次，而不继续无限制原版逆向。
+
+
+## WP0–WP5 本轮执行记录（2026-11-16）
+
+本会话在开始时重新读取了目标分支真实远程 HEAD；初始远程 SHA 为 d7ad96cb11a697c20fa48e6fd25983b9c39ce708。设计产物以该 SHA 为父提交，不修改原研究分支。
+
+已建立文件：
+- WP0-AUDIT-AND-DECISION-BACKLOG.md
+- REQUIREMENT-CONTRACTS-V1.md / .csv（65/65 唯一 ID）
+- MODULE-CONTRACTS-V1.md
+- ADR-REGISTER.md
+- MAP-COVERAGE-13.csv / PORTAL-GRAPH-13.csv
+- OPENMS-SOURCE-AND-LICENSE-MATRIX.csv
+- TEST-AND-GOLDEN-FIXTURE-PLAN.md
+- IMPLEMENTATION-ROADMAP.md
+- INDEPENDENT-REVIEWER-STATUS.md
+
+真实数据审计：13/13 map struct 与 Portal group；Back/Foothold/Obj/Portal 各 13/13；Tile 9/13、Rope 7/13、Seat 3/13；5 land / 8 water；54 links = 46 内部唯一 + 8 外部；内部正反向可达 13/13。
+
+所有 65 项设计状态仍为 PROPOSED / NOT-APPROVED。ADR-001..009 均待审批。独立 Reviewer 未运行（当前环境无真实 sub-agent 工具），详见 INDEPENDENT-REVIEWER-STATUS.md。未执行本地 npm/browser/E2E 测试；不能声称 PASS。基线 commit 的 GitHub status/workflow 查询为空。
+
+下一步先完成独立 Reviewer 环境与 ADR 审批，再进入 R0 schema/fixture validators；之后 R1 三图垂直切片，R2 13 图完整场景与 Portal graph，R3 V2 动态呈现，R4 后续战斗系统。

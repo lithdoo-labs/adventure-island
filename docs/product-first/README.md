@@ -38,3 +38,24 @@
 - **游戏资产**：不镜像/发布原版游戏客户端、WZ、全量素材、第三方资料包；资源构建基于使用者授权的本地输入。不要因为本地可读取就假定可公开分发。
 - **状态不串用**：新产品设计 `PROPOSED` 与旧 `RE-GAP-STATIC` 属于两套矩阵；此提交不更新历史 Original Claim、Gap 或 Readiness。
 - **明确冲突**：旧 `MAP-SCENE-PLAN-V1.md` §7 只启用四条 Portal 连接，但 P4-09 的目标是 13 图全走廊；必须产出全边清单、端点与闭包外处理决策，不能偷偷扩大旧 enabled 白名单。
+
+
+## WP0–WP5 产品设计细化（2026-11-16）
+
+本轮已建立可审查的工程提案；65 项均保持 PROPOSED / NOT-APPROVED，未声称实现或 CMS079 等价。
+
+- [WP0 审计与决策 backlog](WP0-AUDIT-AND-DECISION-BACKLOG.md)
+- [65 项需求卡（Markdown）](REQUIREMENT-CONTRACTS-V1.md)
+- [65 项需求矩阵（CSV）](REQUIREMENT-CONTRACTS-V1.csv)
+- [P0–P4 模块契约](MODULE-CONTRACTS-V1.md)
+- [ADR Register](ADR-REGISTER.md)
+- [13 图地图覆盖矩阵](MAP-COVERAGE-13.csv)
+- [13 图 Portal Graph](PORTAL-GRAPH-13.csv)
+- [OpenMS 来源与许可证追溯](OPENMS-SOURCE-AND-LICENSE-MATRIX.csv)
+- [Golden Fixture / 测试计划](TEST-AND-GOLDEN-FIXTURE-PLAN.md)
+- [R0–R4 实施路线图](IMPLEMENTATION-ROADMAP.md)
+- [独立 Reviewer 能力限制](INDEPENDENT-REVIEWER-STATUS.md)
+
+实测 Portal graph：54 条非 sentinel 目标记录、46 条内部唯一目标、8 条闭包外目标；内部图正反向可达均为 13/13。旧四门白名单尚未被代码迁移；ADR-001 仍待批准。
+
+独立 sub-agent 能力在本轮环境不可用，Reviewer 状态 NOT-RUN；不得把本轮主 Agent 审计标记为独立 ACCEPT。

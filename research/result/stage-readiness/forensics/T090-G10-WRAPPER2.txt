@@ -1,0 +1,74 @@
+=== Shape2D 0x51407340 (wrapper object ctor, vtable 0x5140C8B4) ===
+51407340  mov eax, 0x5140b608
+51407345  call 0x5140ad20
+5140734A  push ecx
+5140734B  push ebx
+5140734C  push esi
+5140734D  push edi
+5140734E  mov esi, ecx
+51407350  push 0xc
+51407352  xor edi, edi
+51407354  push edi
+51407355  push esi
+51407356  mov dword ptr [ebp - 0x10], esi
+51407359  mov dword ptr [esi], 0x5140c8b4
+5140735F  call 0x5140adb2
+51407364  add esp, 0xc
+51407367  lea ebx, [esi + 0xc]
+5140736A  mov ecx, ebx
+5140736C  mov dword ptr [ebp - 4], edi
+5140736F  call 0x514099e4
+51407374  fldz
+51407376  mov eax, dword ptr [ebp + 8]
+51407379  mov ecx, dword ptr [ebp - 0xc]
+5140737C  mov dword ptr [esi + 0x14], edi
+5140737F  mov dword ptr [esi + 0x1c], edi
+51407382  mov dword ptr [esi + 0x38], edi
+51407385  mov dword ptr [esi + 0x3c], edi
+51407388  mov dword ptr [esi + 0x40], edi
+5140738B  mov dword ptr [esi + 0x30], 0x5140d8f4
+51407392  fstp qword ptr [esi + 0x48]
+51407395  mov dword ptr [esi + 0x20], eax
+51407398  mov eax, dword ptr [ebp + 0xc]
+5140739B  mov dword ptr [esi + 0x2c], edi
+5140739E  mov dword ptr [esi + 0x28], edi
+514073A1  mov dword ptr [esi + 0x54], edi
+514073A4  mov dword ptr [esi + 0x50], edi
+514073A7  mov dword ptr [esi + 0x5c], edi
+514073AA  mov dword ptr [esi + 0x24], eax
+514073AD  pop edi
+514073AE  mov dword ptr [esi], 0x5140d8f0
+514073B4  mov dword ptr [esi + 0x10], 0x5140d8ec
+514073BB  mov eax, esi
+514073BD  mov dword ptr [ebx], 0x5140d8e8
+514073C3  pop esi
+514073C4  pop ebx
+514073C5  mov dword ptr fs:[0], ecx
+514073CC  leave
+514073CD  ret 8
+514073D0  mov eax, 0x5140b61c
+514073D5  call 0x5140ad20
+514073DA  push ecx
+514073DB  push ecx
+514073DC  mov eax, dword ptr [ebp + 8]
+514073DF  push esi
+514073E0  lea esi, [eax - 0x10]
+514073E3  push edi
+514073E4  mov eax, esi
+514073E6  xor edi, edi
+514073E8  cmp eax, edi
+514073EA  mov dword ptr [ebp - 0x10], eax
+514073ED  je 0x514073f9
+514073EF  add eax, 4
+514073F2  push eax
+514073F3  call dword ptr [0x5140c000]
+514073F9  push edi
+514073FA  push edi
+514073FB  mov ecx, esi
+514073FD  mov dword ptr [ebp - 4], edi
+
+EXE call [reg+0x84] sites: 51: ['0x4b29a0', '0x4b2a5d', '0x4b2b1a', '0x4bc9bc', '0x4c6edb', '0x4c7009', '0x4c7100', '0x4c71e5', '0x4c72b0', '0x5767da', '0x5bcafe', '0x5bcb8a', '0x5bcc16', '0x5bcca2', '0x5bcd2e', '0x5df5d5', '0x5e068a', '0x60b1bb', '0x60b2be', '0x60b3ee', '0x60b509', '0x60b629', '0x60c05a', '0x6537d6']
+
+EXE call [reg+0x80] sites: 863: ['0x40207b', '0x4020f0', '0x402177', '0x402202', '0x408b70', '0x408bfb', '0x408c7a', '0x408d16', '0x409aab', '0x409b36', '0x409bb5', '0x409c49', '0x40fe34', '0x40fee5', '0x425e5f', '0x42803a', '0x4280e3', '0x4284b8', '0x437f0b', '0x438081', '0x43f302', '0x43f387', '0x440373', '0x4403fa']
+
+EXE call [reg+0x88] sites: 3: ['0x453214', '0x88215c', '0x9f7e79']

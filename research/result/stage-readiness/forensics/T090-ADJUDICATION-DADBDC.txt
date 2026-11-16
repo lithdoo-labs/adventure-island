@@ -1,0 +1,57 @@
+=== D-A: seeds before the claimed 180 sites ===
+0x40ee4b: e8 e6 64 ff ff 68 b4 00 00 00 51 8b c4 89 65 c8 68 5d 15 00 00
+0x40f595: e8 9c 5d ff ff 68 b4 00 00 00 51 8b c4 89 65 d8 68 5d 15 00 00
+0x410832: e8 ff 4a ff ff 68 b4 00 00 00 51 8b c4 89 65 d4 68 5d 15 00 00
+
+=== D-B: push-120 encoding forms ===
+imm8 (6A 78): 18 | imm32 (68 78 00 00 00): 0
+
+=== D-C: containing function of 0x959493 ===
+head = 0x9573a6
+(function prologue pushes: 3)
+E8 callers of 0x9573a6: 14: ['0x5c031a', '0x95282d', '0x955126', '0x955149', '0x968705', '0x968798', '0x976409', '0x9767ba']
+--- caller 0x5c031a window ---
+  005C0301  push eax
+  005C0302  push dword ptr [esi + 0x44]
+  005C0305  mov dword ptr [ebp - 4], edi
+  005C0308  push ebx
+  005C0309  call 0x76eacd
+  005C030E  mov ecx, dword ptr [esi + 0x10]
+  005C0311  push esi
+  005C0312  push edi
+  005C0313  push edi
+  005C0314  push edi
+  005C0315  push edi
+  005C0316  push eax
+  005C0317  push dword ptr [ebp - 4]
+  005C031A  call 0x9573a6
+--- caller 0x95282d window ---
+  00952818  je 0x95285d
+  0095281A  xor esi, esi
+  0095281C  cmp dword ptr [ebp - 0x14], esi
+  0095281F  je 0x95285f
+  00952821  push esi
+  00952822  push esi
+  00952823  push esi
+  00952824  push esi
+  00952825  lea eax, [ebp - 0x50]
+  00952828  push eax
+  00952829  push esi
+  0095282A  push esi
+  0095282B  mov ecx, ebx
+  0095282D  call 0x9573a6
+--- caller 0x955126 window ---
+  0095510C  mov eax, dword ptr [esi + 0x3c0]
+  00955112  and eax, 0xfffffffe
+  00955115  cmp eax, 0xa
+  00955118  je 0x955140
+  0095511A  push ebx
+  0095511B  push ebx
+  0095511C  push ebx
+  0095511D  push ebx
+  0095511E  lea eax, [ebp - 0x14]
+  00955121  push eax
+  00955122  push ebx
+  00955123  push ebx
+  00955124  mov ecx, esi
+  00955126  call 0x9573a6

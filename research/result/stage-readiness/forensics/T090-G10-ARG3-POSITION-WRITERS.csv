@@ -1,0 +1,11 @@
+caller,N,arg3_class,arg3_provenance,can_execute_Set,notes
+0x5C0342,0x320,object,"esi = containing method this (this_at_Set=[esi+0x10]; string-id [esi+0x44])",YES,"anchored window 0x5C0324-0x5C0342; push esi; push 0x320; push eax(record)"
+0x93E00B,0x3E8,zero,"ebx = 0 (xor ebx,ebx at 0x93DFF8)",NO-unless-unknown-tag,"known-tag record would fault [[0]+0x14]"
+0x959493,0x320,object,"arg3 = [ebp+0x20] of the containing function",YES,"0x959482: push [ebp+0x20]; push 0x320; push [ebp+8]"
+0x959527,0x320,zero,"push 0",NO-unless-unknown-tag,
+0x964E16,0x3E8,zero,"ebx pre-pushed beneath the 0x769B51 call",NO-unless-unknown-tag,"same-map portal-trigger family"
+0x9651CC,0x3E8,zero,"ebx pre-pushed (string-id 0x40413D)",NO-unless-unknown-tag,seat region
+0x965567,0x3E8,zero,"ebx = 0",NO-unless-unknown-tag,seat region
+0x98DC43,0x1F4,zero,"ebx pre-pushed (string-id 0x406849)",NO-unless-unknown-tag,"packet-spawn family; containing code calls 0x43291A ([0xBDD460] getter) at 0x98DC0C then 0x43D092"
+0x990E21,0x3E8,zero,"esi = 0 (xor esi,esi @0x990B42 in fn 0x990B2E)",NO-unless-unknown-tag,"CORRECTS the T089 reviewer table (object reading)"
+0x990E91,0x3E8,zero,"esi = 0 (same function)",NO-unless-unknown-tag,user region

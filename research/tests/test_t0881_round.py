@@ -353,8 +353,9 @@ class EvidenceHashChain(unittest.TestCase):
 
     def test_ledger_counts_unchanged(self):
         # t089 migration: 109->115 claims, 97->103 evidence (C-110..C-115/EV-98..EV-103)
-        self.assertEqual(len(_read(REPO / "research/source-of-truth/claims.csv")), 115)
-        self.assertEqual(len(_read(REPO / "research/source-of-truth/evidence.csv")), 103)
+        # t090 migration: 115->119 claims, 103->107 evidence (C-116..C-119/EV-104..EV-107)
+        self.assertEqual(len(_read(REPO / "research/source-of-truth/claims.csv")), 119)
+        self.assertEqual(len(_read(REPO / "research/source-of-truth/evidence.csv")), 107)
         self.assertEqual(len(_read(REPO / "research/source-of-truth/gaps.csv")), 41)
 
 

@@ -220,5 +220,297 @@ class WP0CGapClosureAudit(unittest.TestCase):
         self.assertNotIn("\ufffd", text)
 
 
+class G39WZForensics(unittest.TestCase):
+    """T090 WP1: original-WZ frame census + engine default facts."""
+
+    CENSUS = FORENSICS / "T090-G39-WZ-FRAME-CENSUS.csv"
+    MATRIX = FORENSICS / "T090-G39-DEFAULT-CONSUMER-MATRIX.csv"
+    DURATIONS = FORENSICS / "T090-G39-PORTAL-DURATIONS.csv"
+
+    @classmethod
+    def setUpClass(cls):
+        _require(cls.CENSUS, cls.MATRIX, cls.DURATIONS)
+        cls.rows = _read_csv(cls.CENSUS)
+        cls.matrix = _read_csv(cls.MATRIX)
+        cls.durations = _read_csv(cls.DURATIONS)
+
+    def test_census_totals(self):
+        self.assertEqual(len(self.rows), 4347)
+        expl = [r for r in self.rows if r["delay_explicit"] == "True"]
+        self.assertEqual(len(expl), 2450)
+        vals = {int(r["delay"]) for r in expl}
+        self.assertEqual(len(vals), 44)
+        self.assertIn(120, vals)      # 120 is ONE of 35 — not universal
+        self.assertIn(4000, vals)
+        self.assertIn(100, vals)
+
+    def test_default_dependent_resources_exist(self):
+        # 225 multi-frame resources with no explicit delay -> consumer default
+        # path genuinely exercised (do NOT normalize to 120)
+        from collections import defaultdict
+        per_res = defaultdict(lambda: [0, 0])
+        for r in self.rows:
+            if not r["resource_path"]:
+                continue
+            per_res[r["resource_path"]][1] += 1
+            if r["delay_explicit"] == "True":
+                per_res[r["resource_path"]][0] += 1
+        multi = [v for v in per_res.values() if v[1] > 1]
+        all_default = [v for v in multi if v[0] == 0]
+        self.assertEqual(len(all_default), 225)
+
+    def test_portal_frames_delayless(self):
+        from collections import defaultdict
+        pv = [r for r in self.rows
+              if r["resource_path"] == "portal/game/pv"]
+        self.assertEqual(len(pv), 8)
+        self.assertTrue(all(r["delay"] == "" for r in pv))
+        for sub, n in (("default/portalStart/", 4), ("default/portalContinue/", 7),
+                       ("default/portalExit/", 3)):
+            fr = [r for r in self.rows
+                  if r["resource_path"] == "portal/game/ph" and r["frame"].startswith(sub)]
+            self.assertEqual(len(fr), n, sub)
+            self.assertTrue(all(r["delay"] == "" for r in fr), sub)
+        # the only explicit portal timing: psh/1
+        expl = [r for r in self.rows if r["consumer"] == "portal/game"
+                and r["delay_explicit"] == "True"]
+        self.assertEqual(sorted(r["delay"] for r in expl), ["1500", "1500"])
+
+    def test_default_matrix_distribution(self):
+        from collections import Counter
+        dist = Counter(r["default_value"] for r in self.matrix)
+        self.assertEqual(dist["120"], 18)
+        self.assertEqual(dist["150"], 2)
+        self.assertEqual(dist["60"], 2)
+        self.assertEqual(dist["180"], 3)
+        self.assertEqual(dist["1000"], 2)
+        # register seeds (ebx/eax/edi/ecx) = 9
+        self.assertEqual(sum(v for k, v in dist.items()
+                             if k in ("ebx", "eax", "edi", "ecx")), 9)
+
+    def test_portal_flat_default_zero(self):
+        r = next(r for r in self.matrix if r["site"] == "0x71A72A")
+        self.assertEqual(r["resolved_default"].split(" ")[0], "0")
+        self.assertIn("0x71A203", r["function_head"])
+        self.assertIn("portal-graphics", r["family"])
+
+    def test_durations_default120_column(self):
+        by = {r["family"]: r for r in self.durations}
+        self.assertEqual(by["pv"]["duration_if_default_120"], "960")
+        self.assertEqual(by["portalStart (ph/default)"]["duration_if_default_120"], "480")
+        self.assertEqual(by["portalContinue (ph/default)"]["duration_if_default_120"], "840")
+        self.assertEqual(by["portalExit (ph/default)"]["duration_if_default_120"], "360")
+        self.assertEqual(by["pv"]["duration_if_default_0"], "0")
+
+    def test_timeline_model_semantics(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "t090_model", REPO / "research/scripts/t090_wp1d_timeline_model.py")
+        m = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(m)
+        # explicit delays accumulate in tick units at default scale
+        tl = m.timeline([120, 130, 250], scale=1000)
+        self.assertEqual(tl["end_timestamps"], [120, 250, 500])
+        # unsigned per-frame div vs signed total idiv: end += delay*scale/1000
+        q, rem = m.frame_advance(1999, 1000)
+        self.assertEqual((q, rem), (1999, 0))
+        q, rem = m.frame_advance(1, 500)      # truncation: 500/1000 = 0
+        self.assertEqual((q, rem), (0, 500))
+        # repeat triage
+        self.assertEqual(m.timeline([10], repeat=5)["mode"], 0x20)
+        self.assertEqual(m.timeline([10], repeat=-1)["mode"], 0)
+        self.assertEqual(m.timeline([10], repeat=-2)["mode"], 0x10)
+        # 32-bit wrap: imul truncates to 32 bits, then unsigned div
+        self.assertEqual(m.frame_advance(0xFFFFFFFF, 1000)[0],
+                         ((0xFFFFFFFF * 1000) % (1 << 32)) // 1000)
+        # non-multiple scale
+        self.assertEqual(m.frame_advance(1000, 1500)[0], 1500)
+
+    def test_animation_scale_default_claim(self):
+        # C-117: accumulator slot +0x110 of the primary table; default 1000
+        import struct
+        data = open(GR2D, "rb").read() if GR2D.exists() else b""
+        if not data:
+            self.skipTest("gr2d not present")
+        _require(GR2D)
+        off = 0x5042E500 - 0x50400000
+        self.assertEqual(struct.unpack("<I", data[off:off + 4])[0], 0x5040B9DE)
+        # the coercion fast path stores arg3 (0x3E8) — bytes at 0x5040283D
+        off2 = 0x5040283D - 0x50400000
+        seq = data[off2:off2 + 0x11]
+        self.assertEqual(seq[0], 0x8B)  # mov eax,[ebp+0x10]
+        # caller pushes 0x3E8 before the call at 0x5040B9F5
+        off3 = 0x5040B9F5 - 0x50400000
+        self.assertEqual(data[off3:off3 + 5], b"\x68\xe8\x03\x00\x00")
+
+
+class G36Slot9CAndLayout(unittest.TestCase):
+    """T090 WP2: +0x9C decode + 13-map layout."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.disasm = FORENSICS / "T090-G36-SLOT9C-DISASM.txt"
+        cls.layout = FORENSICS / "T090-G36-13MAP-LAYOUT.csv"
+        _require(cls.disasm, cls.layout)
+
+    def test_slot9c_body_facts(self):
+        t = self.disasm.read_text(encoding="utf-8")
+        self.assertIn("514086B3", t)
+        self.assertIn("ret 0x34", t)
+        self.assertIn("0xffffff", t)
+        self.assertIn("0x80070057", t)   # E_INVALIDARG
+        # both vector-family tables carry +0x9C = 0x514086b3
+        self.assertIn("+0x9C=0x514086b3", t)
+        # EXE census = 8 sites
+        self.assertIn("sites: 8", t)
+
+    def test_slot9c_vtable_dwords(self):
+        import struct
+        _require(SHAPE)
+        data = SHAPE.read_bytes()
+        for tbl in (0x5140C2F0, 0x5140C0FC):
+            off = tbl - 0x51400000
+            self.assertEqual(struct.unpack("<I", data[off + 0x9C:off + 0xA0])[0],
+                             0x514086B3, hex(tbl))
+
+    def test_layout_record_count(self):
+        rows = _read_csv(self.layout)
+        self.assertEqual(len(rows), 387)
+        fronts = [r for r in rows if r.get("front") == "1"]
+        self.assertEqual(len(fronts), 26)
+        maps = {r["map"] for r in rows}
+        self.assertEqual(len(maps), 13)
+
+
+class G10FilterChainAndSites(unittest.TestCase):
+    """T090 WP4: filter consumer chain + arg3 refinement + residual sites."""
+
+    DOC = FORENSICS / "T090-G10-FILTER-CONSUMERS.md"
+    ARG3 = FORENSICS / "T090-G10-ARG3-POSITION-WRITERS.csv"
+    SITES = FORENSICS / "T090-G10-RESIDUAL-SLOT90-CLASSIFICATION.csv"
+
+    @classmethod
+    def setUpClass(cls):
+        _require(cls.DOC, cls.ARG3, cls.SITES)
+
+    def test_wrapper_chain_claim(self):
+        t = self.DOC.read_text(encoding="utf-8")
+        for fact in ("0x51407340", "0x51408C9A", "0x51406ADC", "0x51406CF7",
+                     "0x51407A34", "0 sites"):
+            self.assertIn(fact, t)
+
+    def test_getter_routing_bytes(self):
+        # X/Y getters branch on [this+0x24]: NULL -> raw field; else resolver
+        _require(SHAPE)
+        data = SHAPE.read_bytes()
+        # GetX 0x5140724A: 8B 44 24 0C ... 8B 4A 24 (mov ecx,[edx+0x24]) ...
+        off = 0x5140724A - 0x51400000
+        body = data[off:off + 0x35]
+        self.assertIn(b"\x8b\x4a\x24", body)          # mov ecx,[edx+0x24]
+        self.assertIn(b"\x8b\x42\x1c", body)          # mov eax,[edx+0x1c]
+        self.assertIn(b"\xe8", body[0x20:])           # call resolver
+        off2 = 0x514074C8 - 0x51400000
+        body2 = data[off2:off2 + 0x35]
+        self.assertIn(b"\x8b\x4a\x24", body2)
+        self.assertIn(b"\x8b\x42\x20", body2)         # mov eax,[edx+0x20]
+
+    def test_commit_creates_wrapper_bytes(self):
+        _require(SHAPE)
+        data = SHAPE.read_bytes()
+        off = 0x51408C9A - 0x51400000
+        body = data[off:off + 0x18]
+        self.assertIn(b"\x8b\x44\x24\x04", body)      # mov eax,[esp+4]
+        self.assertIn(b"\xe8", body)                  # call 0x514072cf
+
+    def test_arg3_table(self):
+        rows = _read_csv(self.ARG3)
+        self.assertEqual(len(rows), 10)
+        zeros = [r for r in rows if r["arg3_class"] == "zero"]
+        objs = [r for r in rows if r["arg3_class"] == "object"]
+        self.assertEqual(len(zeros), 8)
+        self.assertEqual(len(objs), 2)
+        by = {r["caller"]: r for r in rows}
+        # the 0x990E21/0x990E91 correction
+        self.assertIn("esi = 0", by["0x990E21"]["arg3_provenance"])
+        self.assertIn("CORRECTS", by["0x990E21"]["notes"])
+        self.assertIn("esi = 0", by["0x990E91"]["arg3_provenance"])
+        # 0x959493 caller-dependent note
+        self.assertIn("[ebp+0x20]", by["0x959493"]["arg3_provenance"])
+
+    def test_residual_site_classification(self):
+        rows = _read_csv(self.SITES)
+        self.assertEqual(len(rows), 25)
+        from collections import Counter
+        dist = Counter(r["t090_classification"] for r in rows)
+        self.assertEqual(dist["SHARED-WRITE-CONTEXT-POSSIBLE"], 18)
+        self.assertEqual(dist["RECEIVER-OTHER-POSSIBLE"], 7)
+        for r in rows:
+            self.assertTrue(r["reason"].strip(), f"{r['slot90_va']} lacks reason")
+            self.assertIn("INCONCLUSIVE", r["t088_classification"])
+
+    def test_a4_query_census_zero(self):
+        # EXE call [reg+0xA4] census = 0 (all modrm forms) — re-derived here
+        import struct
+        _require(EXE)
+        data = EXE.read_bytes()
+        sites = 0
+        for off in range(0x401000 - 0x400000, 0xBEA000 - 0x400000 - 8):
+            if data[off] != 0xFF:
+                continue
+            modrm = data[off + 1]
+            if (modrm >> 3) & 7 != 2:
+                continue
+            mod = modrm >> 6
+            rm = modrm & 7
+            d = None
+            if rm == 4:
+                if mod == 1:
+                    d = struct.unpack("<b", data[off + 3:off + 4])[0]
+                elif mod == 2:
+                    d = struct.unpack("<i", data[off + 2:off + 6])[0]
+            elif mod == 1:
+                d = struct.unpack("<b", data[off + 2:off + 3])[0]
+            elif mod == 2:
+                d = struct.unpack("<i", data[off + 2:off + 6])[0]
+            if d == 0xA4:
+                sites += 1
+        self.assertEqual(sites, 0)
+
+
+class GapClosureIntegrityT090(unittest.TestCase):
+    """T090: no gap migrated without full conditions; statuses honest."""
+
+    def test_no_status_migration_this_round(self):
+        gaps = {r["gap_id"]: r["status"] for r in _read_csv(SOT / "gaps.csv")}
+        # T090 narrowed but did not close any gap (portal default / arg3
+        # writers / pump phase residuals retained)
+        for gid in ("G10", "G36", "G37", "G39"):
+            self.assertEqual(gaps[gid], "PARTIAL-STATIC", gid)
+        self.assertEqual(gaps["G35"], "CLOSED-STATIC")  # not reopened
+
+    def test_new_claims_registered(self):
+        claims = {r["claim_id"]: r for r in _read_csv(SOT / "claims.csv")}
+        for cid in ("C-116", "C-117", "C-118", "C-119"):
+            self.assertIn(cid, claims)
+            self.assertEqual(claims[cid]["status"], "CLOSED-STATIC")
+            self.assertEqual(claims[cid]["evidence_grade"], "A")
+        ev = {r["evidence_id"] for r in _read_csv(SOT / "evidence.csv")}
+        for eid in ("EV-104", "EV-105", "EV-106", "EV-107"):
+            self.assertIn(eid, ev)
+
+    def test_ledger_counts(self):
+        claims = _read_csv(SOT / "claims.csv")
+        gaps = _read_csv(SOT / "gaps.csv")
+        ev = _read_csv(SOT / "evidence.csv")
+        self.assertEqual(len(claims), 119)
+        self.assertEqual(len(ev), 107)
+        self.assertEqual(len(gaps), 41)
+
+    def test_mapwz_identity_recorded(self):
+        ev = {r["evidence_id"]: r for r in _read_csv(SOT / "evidence.csv")}
+        self.assertEqual(ev["EV-104"]["source_sha256"],
+                         "9e0d2a0fcecac2c99ee3cb15b03c41b5617d7d0637b55fb132f0eeed27155f69")
+
+
 if __name__ == "__main__":
     unittest.main()

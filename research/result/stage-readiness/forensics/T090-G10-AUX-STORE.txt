@@ -1,0 +1,68 @@
+=== Shape2D 0x51407A34 (aux store when [this+0x24]!=0) ===
+51407A34  mov eax, 0x5140b6cc
+51407A39  call 0x5140ad20
+51407A3E  sub esp, 0xc
+51407A41  push ebx
+51407A42  push esi
+51407A43  push edi
+51407A44  mov edi, ecx
+51407A46  lea esi, [edi + 0x14]
+51407A49  mov ecx, esi
+51407A4B  mov dword ptr [ebp - 0x18], esi
+51407A4E  call 0x5140126a
+51407A53  xor ebx, ebx
+51407A55  push ebx
+51407A56  push ebx
+51407A57  push ebx
+51407A58  push ebx
+51407A59  push ebx
+51407A5A  lea eax, [ebp - 0x14]
+51407A5D  push eax
+51407A5E  lea eax, [ebp - 0x10]
+51407A61  push eax
+51407A62  push ebx
+51407A63  push ebx
+51407A64  mov ecx, edi
+51407A66  mov dword ptr [ebp - 4], ebx
+51407A69  call 0x51406adc
+51407A6E  cmp eax, ebx
+51407A70  jge 0x51407a7b
+51407A72  dec dword ptr [esi + 4]
+51407A75  jne 0x51407aa5
+51407A77  mov dword ptr [esi], ebx
+51407A79  jmp 0x51407aa5
+51407A7B  mov eax, dword ptr [ebp + 8]
+51407A7E  cmp eax, ebx
+51407A80  je 0x51407a8a
+51407A82  mov eax, dword ptr [eax]
+51407A84  sub eax, dword ptr [ebp - 0x10]
+51407A87  add dword ptr [edi + 0x20], eax
+51407A8A  mov eax, dword ptr [ebp + 0xc]
+51407A8D  cmp eax, ebx
+51407A8F  je 0x51407a99
+51407A91  mov eax, dword ptr [eax]
+51407A93  sub eax, dword ptr [ebp - 0x14]
+51407A96  add dword ptr [edi + 0x24], eax
+51407A99  mov dword ptr [edi + 0x54], ebx
+51407A9C  dec dword ptr [esi + 4]
+51407A9F  jne 0x51407aa3
+51407AA1  mov dword ptr [esi], ebx
+51407AA3  xor eax, eax
+51407AA5  mov ecx, dword ptr [ebp - 0xc]
+51407AA8  pop edi
+51407AA9  pop esi
+51407AAA  pop ebx
+51407AAB  mov dword ptr fs:[0], ecx
+51407AB2  leave
+51407AB3  ret 8
+51407AB6  push esi
+51407AB7  mov esi, dword ptr [esp + 0xc]
+51407ABB  xor eax, eax
+51407ABD  cmp esi, eax
+51407ABF  jne 0x51407ac8
+51407AC1  mov eax, 0x80004003
+51407AC6  jmp 0x51407aea
+51407AC8  mov edx, dword ptr [esp + 8]
+51407ACC  mov ecx, dword ptr [edx + 0x24]
+51407ACF  cmp ecx, eax
+51407AD1  jne 0x51407adc

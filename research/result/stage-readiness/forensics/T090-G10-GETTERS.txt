@@ -1,0 +1,83 @@
+=== GetX slot+0x20 0x5140724A ===
+5140724A  push esi
+5140724B  mov esi, dword ptr [esp + 0xc]
+5140724F  xor eax, eax
+51407251  cmp esi, eax
+51407253  jne 0x5140725c
+51407255  mov eax, 0x80004003
+5140725A  jmp 0x5140727e
+5140725C  mov edx, dword ptr [esp + 8]
+51407260  mov ecx, dword ptr [edx + 0x24]
+51407263  cmp ecx, eax
+51407265  jne 0x51407270
+51407267  mov eax, dword ptr [edx + 0x1c]
+5140726A  mov dword ptr [esi], eax
+5140726C  xor eax, eax
+5140726E  jmp 0x5140727e
+51407270  push eax
+51407271  push eax
+51407272  push eax
+51407273  push eax
+51407274  push eax
+51407275  push eax
+51407276  push eax
+51407277  push eax
+51407278  push esi
+51407279  call 0x51406adc
+5140727E  pop esi
+5140727F  ret 8
+51407282  push ebp
+51407283  mov ebp, esp
+51407285  mov eax, dword ptr [ebp + 8]
+
+=== GetY slot+0x28 0x514074C8 ===
+514074C8  push esi
+514074C9  mov esi, dword ptr [esp + 0xc]
+514074CD  xor eax, eax
+514074CF  cmp esi, eax
+514074D1  jne 0x514074da
+514074D3  mov eax, 0x80004003
+514074D8  jmp 0x514074fc
+514074DA  mov edx, dword ptr [esp + 8]
+514074DE  mov ecx, dword ptr [edx + 0x24]
+514074E1  cmp ecx, eax
+514074E3  jne 0x514074ee
+514074E5  mov eax, dword ptr [edx + 0x20]
+514074E8  mov dword ptr [esi], eax
+514074EA  xor eax, eax
+514074EC  jmp 0x514074fc
+514074EE  push eax
+514074EF  push eax
+514074F0  push eax
+514074F1  push eax
+514074F2  push eax
+514074F3  push eax
+514074F4  push eax
+514074F5  push esi
+514074F6  push eax
+514074F7  call 0x51406adc
+514074FC  pop esi
+514074FD  ret 8
+51407500  push ebp
+51407501  mov ebp, esp
+51407503  mov eax, dword ptr [ebp + 8]
+
+=== Set immediate path tail 0x5140830E ===
+5140830E  mov eax, dword ptr [ebp + 8]
+51408311  mov ecx, dword ptr [eax + 0x24]
+51408314  cmp ecx, esi
+51408316  jne 0x51408326
+51408318  mov ecx, dword ptr [ebp + 0xc]
+5140831B  mov dword ptr [eax + 0x1c], ecx
+5140831E  mov ecx, dword ptr [ebp + 0x10]
+51408321  mov dword ptr [eax + 0x20], ecx
+51408324  jmp 0x51408333
+51408326  lea eax, [ebp + 0x10]
+51408329  push eax
+5140832A  lea eax, [ebp + 0xc]
+5140832D  push eax
+5140832E  call 0x51407a34
+51408333  xor eax, eax
+51408335  pop edi
+51408336  pop esi
+51408337  leave

@@ -6,7 +6,7 @@
 00769B8E  mov eax, edi
 00769B90  pop edi
 00769B91  mov dword ptr fs:[0], ecx
-00769B98  leave 
+00769B98  leave
 00769B99  ret 4
 00769B9C  push ebp
 
@@ -39,8 +39,8 @@
 005C031F  pop edi
 005C0320  pop esi
 005C0321  pop ebx
-005C0322  leave 
-005C0323  ret 
+005C0322  leave
+005C0323  ret
 005C0324  ret 4
 005C0327  push esi
 005C0328  mov esi, ecx
@@ -57,12 +57,12 @@
 
 === caller window 0x00959493 (0x60 bytes before the call) ===
 00959433  rol dword ptr [ebx + ecx*4], 0x85
-00959437  hlt 
+00959437  hlt
 00959438  call 0x4121943c
 0095943D  add al, 0xff
 0095943F  push eax
 00959440  adc byte ptr [ebx + 0x38852b00], cl
-00959446  hlt 
+00959446  hlt
 
 === caller window 0x00959527 (0x60 bytes before the call) ===
 009594C7  add al, ch

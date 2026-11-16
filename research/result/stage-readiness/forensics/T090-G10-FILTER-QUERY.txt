@@ -1,0 +1,39 @@
+=== EXE call [reg+0xA4] (filter QUERY) sites ===
+0 []
+
+=== EXE call [reg+0xA8] (filter COMMIT) sites (re-verify 3) ===
+3 ['0x43787d', '0x942df7', '0x94a796']
+
+=== Shape2D: slot +0xA4 body 0x51408BED (query) ===
+51408BED  push edi
+51408BEE  mov edi, dword ptr [esp + 0xc]
+51408BF2  test edi, edi
+51408BF4  jne 0x51408bfd
+51408BF6  mov eax, 0x80004003
+51408BFB  jmp 0x51408c40
+51408BFD  mov eax, dword ptr [esp + 8]
+51408C01  push esi
+51408C02  push dword ptr [eax + 0x20]
+51408C05  add eax, 0x24
+51408C08  push dword ptr [eax - 8]
+51408C0B  push eax
+51408C0C  call 0x514072cf
+51408C11  add esp, 0xc
+51408C14  mov esi, eax
+51408C16  push 0x1e0000
+51408C1B  mov ecx, esi
+51408C1D  call 0x51408c44
+51408C22  test eax, eax
+51408C24  je 0x51408c3a
+51408C26  mov eax, dword ptr [eax + 8]
+51408C29  mov dword ptr [edi], eax
+51408C2B  and dword ptr [esi + 0x54], 0
+51408C2F  dec dword ptr [esi + 0x18]
+51408C32  jne 0x51408c3d
+51408C34  and dword ptr [esi + 0x14], 0
+51408C38  jmp 0x51408c3d
+51408C3A  and dword ptr [edi], 0
+51408C3D  xor eax, eax
+51408C3F  pop esi
+51408C40  pop edi
+51408C41  ret 8

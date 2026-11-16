@@ -1,0 +1,33 @@
+call [reg+0x5C] sites: 16
+
+--- 0x4371c3 (anchor None) ---
+
+--- 0x43e777 (anchor None) ---
+
+--- 0x43e974 (anchor None) ---
+
+--- 0x669b84 (anchor None) ---
+
+--- 0x66ad72 (anchor None) ---
+
+--- 0x68cf4e (anchor None) ---
+
+--- 0x68d0ac (anchor None) ---
+
+--- 0x68d43d (anchor None) ---
+
+--- 0x70476c (anchor None) ---
+
+--- 0x704a7a (anchor None) ---
+
+--- 0x706edf (anchor None) ---
+
+--- 0x706fbe (anchor None) ---
+
+--- 0x706ff1 (anchor None) ---
+
+--- 0x7071fd (anchor None) ---
+
+--- 0x707341 (anchor None) ---
+
+--- 0x7073c7 (anchor None) ---

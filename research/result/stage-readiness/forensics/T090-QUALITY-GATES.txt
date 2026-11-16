@@ -1,0 +1,51 @@
+# T090 quality gates — real execution log
+
+## cleanroom
+$ C:\Users\lithd\AppData\Local\Programs\Python\Python314\python.exe research/scripts/generate_cleanroom_deliverables.py
+exit code: 0
+stdout (tail):
+```
+gap stats block regenerated: {'CLOSED-STATIC': 26, 'PARTIAL-STATIC': 8, 'OPEN-STATIC': 6, 'SUPERSEDED': 1} total=41
+clean-room deliverables written to research/result/clean-room/ (claims=119 gaps=41 evidence=107 retracted=11)
+```
+
+## validator
+$ C:\Users\lithd\AppData\Local\Programs\Python\Python314\python.exe research/scripts/validate_reverse_engineering.py
+exit code: 0
+stdout (tail):
+```
+=== validate_reverse_engineering.py (clean-room, fail-closed) ===
+Repository: C:\Users\lithd\Documents\GitHub\adventure-island
+
+CSV total: 440 (parsed 440, strict 7, legacy-width-issues 100)
+MD scanned: 401
+Open Issues rows: 9 | Runtime ids: 9
+Claims: 119 | Gaps: 41 | Evidence: 107
+
+ERRORS: 0
+WARNINGS: 0
+
+RESULT: PASS (0 errors, 0 warnings)
+```
+
+## unittest
+$ C:\Users\lithd\AppData\Local\Programs\Python\Python314\python.exe -m unittest discover -s research/tests -q
+exit code: 0
+stdout (tail):
+```
+```
+stderr (tail, ResourceWarning notes kept verbatim):
+```
+  ev_cc = open(cc_path, encoding='utf-8').read()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:714: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-o9orv7gc\\research\\source-of-truth\\evidence.csv' mode='w' encoding='utf-8'>
+  open(ev_path, 'w', encoding='utf-8', newline='').write(ev + row)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:715: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-o9orv7gc\\research\\result\\clean-room\\EVIDENCE-INDEX.csv' mode='w' encoding='utf-8'>
+  open(cc_path, 'w', encoding='utf-8', newline='').write(ev_cc + row)
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+----------------------------------------------------------------------
+Ran 215 tests in 9.107s
+
+OK
+```

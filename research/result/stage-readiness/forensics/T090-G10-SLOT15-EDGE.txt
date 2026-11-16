@@ -1,0 +1,83 @@
+=== 0x404B07 (GetX wrapper) ===
+00404B07  push ebp
+00404B08  mov ebp, esp
+00404B0A  push ecx
+00404B0B  push esi
+00404B0C  mov esi, ecx
+00404B0E  mov eax, dword ptr [esi]
+00404B10  lea ecx, [ebp - 4]
+00404B13  push ecx
+00404B14  push esi
+00404B15  call dword ptr [eax + 0x20]
+00404B18  test eax, eax
+00404B1A  jge 0x404b28
+00404B1C  push 0xba0378
+00404B21  push esi
+00404B22  push eax
+00404B23  call 0xa6ef0f
+00404B28  mov eax, dword ptr [ebp - 4]
+00404B2B  pop esi
+00404B2C  leave
+00404B2D  ret
+00404B2E  push ebp
+
+=== 0x404B2E (GetY wrapper) ===
+00404B2E  push ebp
+00404B2F  mov ebp, esp
+00404B31  push ecx
+00404B32  push esi
+00404B33  mov esi, ecx
+00404B35  mov eax, dword ptr [esi]
+00404B37  lea ecx, [ebp - 4]
+00404B3A  push ecx
+00404B3B  push esi
+00404B3C  call dword ptr [eax + 0x28]
+00404B3F  test eax, eax
+00404B41  jge 0x404b4f
+00404B43  push 0xba0378
+00404B48  push esi
+00404B49  push eax
+00404B4A  call 0xa6ef0f
+00404B4F  mov eax, dword ptr [ebp - 4]
+00404B52  pop esi
+00404B53  leave
+00404B54  ret
+00404B55  push ebp
+
+=== 0x48AEC3 (slot15 camera read) ===
+0048AEC3  push ebp
+0048AEC4  mov ebp, esp
+0048AEC6  push ecx
+0048AEC7  mov eax, dword ptr [ecx + 0xd4]
+0048AECD  and dword ptr [ebp - 4], 0
+0048AED1  test eax, eax
+0048AED3  push esi
+0048AED4  mov esi, dword ptr [ebp + 8]
+0048AED7  mov dword ptr [esi], eax
+0048AED9  je 0x48aee1
+0048AEDB  mov ecx, dword ptr [eax]
+0048AEDD  push eax
+0048AEDE  call dword ptr [ecx + 4]
+0048AEE1  mov eax, esi
+0048AEE3  pop esi
+0048AEE4  leave
+0048AEE5  ret 4
+0048AEE8  mov eax, 0xa905ec
+0048AEED  call 0xa6fc7c
+0048AEF2  sub esp, 0x1dc
+0048AEF8  push ebx
+0048AEF9  push esi
+0048AEFA  xor ebx, ebx
+0048AEFC  push edi
+0048AEFD  mov dword ptr [ebp - 0x2c], ecx
+0048AF00  mov dword ptr [ebp - 0x14], ebx
+0048AF03  mov dword ptr [ebp - 4], ebx
+0048AF06  mov dword ptr [ebp - 0x1c], ebx
+0048AF09  mov dword ptr [ebp - 0x74], ebx
+0048AF0C  mov dword ptr [ebp - 0x50], ebx
+0048AF0F  mov dword ptr [ebp - 0x54], ebx
+0048AF12  mov dword ptr [ebp - 0x10], ebx
+0048AF15  mov dword ptr [ebp - 0x18], ebx
+0048AF18  mov dword ptr [ebp - 0x48], ebx
+0048AF1B  mov dword ptr [ebp - 0x7c], ebx
+0048AF1E  mov dword ptr [ebp - 0x4c], ebx

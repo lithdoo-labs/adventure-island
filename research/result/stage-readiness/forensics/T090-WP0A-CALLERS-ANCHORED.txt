@@ -42,7 +42,7 @@
 00959449  push eax
 0095944A  call 0xa70b13
 0095944F  pop ecx
-00959450  cdq 
+00959450  cdq
 00959451  push 0x37
 00959453  pop ecx
 00959454  idiv ecx

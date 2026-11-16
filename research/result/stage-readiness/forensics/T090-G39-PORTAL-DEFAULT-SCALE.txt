@@ -1,0 +1,221 @@
+--- EXE 0x71A6C0-0x71A760 (portal delay read region) ---
+0071A6C0  mov dword ptr [ebp - 0x1c], esp
+0071A6C3  push 0xd86
+0071A6C8  push eax
+0071A6C9  call 0x7a48d0
+0071A6CE  mov ecx, eax
+0071A6D0  call 0x406368
+0071A6D5  lea eax, [ebp - 0xd0]
+0071A6DB  push eax
+0071A6DC  lea ecx, [ebp - 0x10]
+0071A6DF  mov byte ptr [ebp - 4], 0xa
+0071A6E3  call 0x40263b
+0071A6E8  mov ecx, eax
+0071A6EA  call 0x403ac7
+0071A6EF  push eax
+0071A6F0  mov byte ptr [ebp - 4], 0x1e
+0071A6F4  call 0x415344
+0071A6F9  pop ecx
+0071A6FA  pop ecx
+0071A6FB  lea ecx, [ebp - 0x18]
+0071A6FE  mov esi, eax
+0071A700  call 0x71bfa5
+0071A705  mov dword ptr [eax + 0x24], esi
+0071A708  lea eax, [ebp - 0xd0]
+0071A70E  push eax
+0071A70F  mov byte ptr [ebp - 4], 0xa
+0071A713  call 0x4029b7
+0071A718  cmp eax, ebx
+0071A71A  pop ecx
+0071A71B  jge 0x71a723
+0071A71D  push eax
+0071A71E  call 0xa6ef01
+0071A723  push ebx
+0071A724  push ecx
+0071A725  mov eax, esp
+0071A727  mov dword ptr [ebp - 0x1c], esp
+0071A72A  push 0x155d
+0071A72F  push eax
+0071A730  call 0x7a48d0
+0071A735  mov ecx, eax
+0071A737  call 0x406368
+0071A73C  lea eax, [ebp - 0xf0]
+0071A742  push eax
+0071A743  lea ecx, [ebp - 0x10]
+0071A746  mov byte ptr [ebp - 4], 0xa
+0071A74A  call 0x40263b
+0071A74F  mov ecx, eax
+0071A751  call 0x403ac7
+0071A756  push eax
+0071A757  mov byte ptr [ebp - 4], 0x20
+0071A75B  call 0x415344
+--- EXE 0x71A5A0-0x71A6C0 ---
+0071A5A0  ret
+0071A5A1  pop ecx
+0071A5A2  jge 0x71a5aa
+0071A5A4  push eax
+0071A5A5  call 0xa6ef01
+0071A5AA  push ecx
+0071A5AB  mov eax, esp
+0071A5AD  mov dword ptr [ebp - 0x1c], esp
+0071A5B0  push 0x5ff
+0071A5B5  push eax
+0071A5B6  call 0x7a48d0
+0071A5BB  mov ecx, eax
+0071A5BD  call 0x406368
+0071A5C2  lea eax, [ebp - 0xa0]
+0071A5C8  push eax
+0071A5C9  lea ecx, [ebp - 0x10]
+0071A5CC  mov byte ptr [ebp - 4], 0xa
+0071A5D0  call 0x40263b
+0071A5D5  mov ecx, eax
+0071A5D7  call 0x403ac7
+0071A5DC  mov esi, dword ptr [ebp - 0x14]
+0071A5DF  mov ecx, eax
+0071A5E1  mov byte ptr [ebp - 4], 0x19
+0071A5E5  call 0x403211
+0071A5EA  mov dword ptr [esi + 0x1c], eax
+0071A5ED  lea eax, [ebp - 0xa0]
+0071A5F3  push eax
+0071A5F4  mov byte ptr [ebp - 4], 0xa
+0071A5F8  call 0x4029b7
+0071A5FD  cmp eax, ebx
+0071A5FF  pop ecx
+0071A600  jge 0x71a608
+0071A602  push eax
+0071A603  call 0xa6ef01
+0071A608  mov eax, dword ptr [ebp + 8]
+0071A60B  lea edi, [eax + 0x130]
+0071A611  mov ecx, edi
+0071A613  call 0x4f746f
+0071A618  push eax
+0071A619  call 0x71e941
+0071A61E  test eax, eax
+0071A620  pop ecx
+0071A621  je 0x71a639
+0071A623  mov esi, dword ptr [ebp - 0x14]
+0071A626  cmp dword ptr [esi + 0x1c], 0x3b9ac9ff
+0071A62D  je 0x71a639
+0071A62F  mov ecx, edi
+0071A631  call 0x4f746f
+0071A636  mov dword ptr [esi + 0x1c], eax
+0071A639  push ecx
+0071A63A  mov eax, esp
+0071A63C  mov dword ptr [ebp - 0x1c], esp
+0071A63F  push 0x600
+0071A644  push eax
+0071A645  call 0x7a48d0
+0071A64A  mov ecx, eax
+0071A64C  call 0x406368
+0071A651  lea eax, [ebp - 0xb0]
+0071A657  push eax
+0071A658  lea ecx, [ebp - 0x10]
+0071A65B  mov byte ptr [ebp - 4], 0xa
+0071A65F  call 0x40263b
+0071A664  mov ecx, eax
+0071A666  call 0x403ac7
+0071A66B  push eax
+0071A66C  lea eax, [ebp - 0x44]
+0071A66F  push eax
+0071A670  mov byte ptr [ebp - 4], 0x1b
+0071A674  call 0x40654e
+0071A679  pop ecx
+0071A67A  pop ecx
+0071A67B  mov eax, dword ptr [eax]
+0071A67D  cmp eax, ebx
+0071A67F  mov byte ptr [ebp - 4], 0x1c
+0071A683  je 0x71a689
+0071A685  mov eax, dword ptr [eax]
+0071A687  jmp 0x71a68b
+0071A689  xor eax, eax
+0071A68B  mov ecx, dword ptr [ebp - 0x14]
+0071A68E  push -1
+0071A690  add ecx, 0x20
+0071A693  push eax
+0071A694  call 0x4674e6
+0071A699  lea ecx, [ebp - 0x44]
+0071A69C  call 0x402fa4
+0071A6A1  lea eax, [ebp - 0xb0]
+0071A6A7  push eax
+0071A6A8  mov byte ptr [ebp - 4], 0xa
+0071A6AC  call 0x4029b7
+0071A6B1  cmp eax, ebx
+0071A6B3  pop ecx
+0071A6B4  jge 0x71a6bc
+0071A6B6  push eax
+0071A6B7  call 0xa6ef01
+0071A6BC  push ebx
+0071A6BD  push ecx
+0071A6BE  mov eax, esp
+
+push 0x155D sites: 36
+--- Gr2D 0x5040BC30-0x5040BD00 (accumulator) ---
+5040BC30  and esi, ecx
+5040BC32  push eax
+5040BC33  lea ecx, [ebp - 0x3c]
+5040BC36  call 0x5040c1e3
+5040BC3B  jmp 0x5040bc16
+5040BC3D  test esi, esi
+5040BC3F  je 0x5040bc59
+5040BC41  mov eax, esi
+5040BC43  mov esi, dword ptr [esi - 0xc]
+5040BC46  mov eax, dword ptr [eax + 4]
+5040BC49  mov ecx, esi
+5040BC4B  add esi, 0x10
+5040BC4E  neg ecx
+5040BC50  sbb ecx, ecx
+5040BC52  and esi, ecx
+5040BC54  add edi, dword ptr [eax + 0xc]
+5040BC57  jmp 0x5040bc3d
+5040BC59  mov eax, edi
+5040BC5B  imul eax, dword ptr [ebp - 0x1c]
+5040BC5F  cdq
+5040BC60  mov ecx, 0x3e8
+5040BC65  idiv ecx
+5040BC67  xor esi, esi
+5040BC69  mov dword ptr [ebp - 0x14], eax
+5040BC6C  xor eax, eax
+5040BC6E  cmp dword ptr [ebx + 0xe4], esi
+5040BC74  mov dword ptr [ebp - 0x18], esi
+5040BC77  sete al
+5040BC7A  cmp eax, esi
+5040BC7C  mov dword ptr [ebp - 0x20], eax
+5040BC7F  je 0x5040bc8c
+5040BC81  mov eax, dword ptr [ebx + 0x24]
+5040BC84  mov eax, dword ptr [eax + 0x328]
+5040BC8A  jmp 0x5040bc95
+5040BC8C  mov eax, dword ptr [ebx + 0xec]
+5040BC92  mov eax, dword ptr [eax + 0x10]
+5040BC95  mov edi, dword ptr [ebx + 0xc8]
+5040BC9B  mov dword ptr [ebp + 8], eax
+5040BC9E  cmp edi, esi
+5040BCA0  je 0x5040bd39
+5040BCA6  mov eax, dword ptr [edi - 0xc]
+5040BCA9  mov edx, eax
+5040BCAB  add eax, 0x10
+5040BCAE  neg edx
+5040BCB0  mov ecx, edi
+5040BCB2  mov esi, dword ptr [ecx + 4]
+5040BCB5  sbb edx, edx
+5040BCB7  and edx, eax
+5040BCB9  cmp dword ptr [ebp - 0x30], esi
+5040BCBC  mov edi, edx
+5040BCBE  jne 0x5040bcc7
+5040BCC0  mov dword ptr [ebp - 0x18], 1
+5040BCC7  mov eax, dword ptr [esi + 0xc]
+5040BCCA  imul eax, dword ptr [ebp - 0x1c]
+5040BCCE  xor edx, edx
+5040BCD0  mov ecx, 0x3e8
+5040BCD5  div ecx
+5040BCD7  lea ecx, [ebx + 0xdc]
+5040BCDD  add dword ptr [ebp + 8], eax
+5040BCE0  call 0x5040c86d
+5040BCE5  test edi, edi
+5040BCE7  mov ecx, eax
+5040BCE9  mov word ptr [ecx], 6
+5040BCEE  je 0x5040bcf5
+5040BCF0  mov eax, dword ptr [esi + 8]
+5040BCF3  jmp 0x5040bcfb
+5040BCF5  mov eax, dword ptr [ebp - 0x38]
+5040BCF8  mov eax, dword ptr [eax + 8]
+5040BCFB  and dword ptr [ecx + 8], 0

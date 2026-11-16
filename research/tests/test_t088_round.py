@@ -226,8 +226,9 @@ class MatrixAndLedgerT088(unittest.TestCase):
 
     def test_counts(self):
         # t089 migration: +C-110..C-115, +EV-98..EV-103 (reviewed T089 round)
-        self.assertEqual(len(self.claims), 115)
-        self.assertEqual(len(self.evidence), 103)
+        # t090 migration: +C-116..C-119, +EV-104..EV-107 (reviewed T090 round)
+        self.assertEqual(len(self.claims), 119)
+        self.assertEqual(len(self.evidence), 107)
         self.assertEqual(len(self.gaps), 41)
 
     def test_new_claims_and_evidence(self):

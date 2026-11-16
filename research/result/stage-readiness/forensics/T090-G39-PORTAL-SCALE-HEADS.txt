@@ -1,0 +1,10 @@
+not found
+
+not found
+=== EXE portal family: prologue candidates below 0x71a5b0 ===
+  0x71a043: mov eax, 0xabcd67 | call 0xa6fc7c | push ecx | push esi
+  0x71a139: mov eax, 0xabcdeb | call 0xa6fc7c | push ecx | push esi
+  0x71a203: mov eax, 0xabcf95 | call 0xa6fc7c | sub esp, 0x164 | push ebx
+  0x71a2e0: mov eax, 0xf04d8d50 | call 0x4053ee | cmp eax, ebx | jge 0x71a2fb
+=== Gr2D accumulator: prologue candidates below 0x5040bc30 ===
+  0x5040b9de: mov eax, 0x5042b858 | call 0x5042a5f0 | sub esp, 0x50 | and dword ptr [ebp - 4], 0

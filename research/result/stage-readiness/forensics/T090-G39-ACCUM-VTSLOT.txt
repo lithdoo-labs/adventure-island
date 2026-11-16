@@ -1,0 +1,16 @@
+=== 0x504027BB default path (fast) 0x5040283d ===
+5040283D  mov eax, dword ptr [ebp + 0x10]
+50402840  mov ecx, dword ptr [ebp + 8]
+50402843  mov dword ptr [ecx], eax
+50402845  xor eax, eax
+50402847  mov ecx, dword ptr [ebp - 0xc]
+5040284A  pop esi
+5040284B  mov dword ptr fs:[0], ecx
+50402852  leave
+50402853  ret
+
+dword 0x5040B9DE occurrences in Gr2D: ['0x5042e500']
+  table 0x5042e2c4 .. 0x5042e520: slot +0x23c (index 143)
+
+--- EXE census: call [reg+0x23c] (FF 90..97 /r + disp8/32) ---
+sites: 0

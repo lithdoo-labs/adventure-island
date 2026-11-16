@@ -1,0 +1,54 @@
+=== Shape2D 0x514072CF (position wrapper ctor) ===
+514072CF  mov eax, 0x5140b5f6
+514072D4  call 0x5140ad20
+514072D9  push ecx
+514072DA  push esi
+514072DB  mov esi, dword ptr [ebp + 8]
+514072DE  cmp dword ptr [esi], 0
+514072E1  jne 0x51407331
+514072E3  mov ecx, 0x51411c38
+514072E8  mov dword ptr [ebp + 8], ecx
+514072EB  call 0x5140126a
+514072F0  and dword ptr [ebp - 4], 0
+514072F4  cmp dword ptr [esi], 0
+514072F7  jne 0x51407322
+514072F9  mov ecx, dword ptr [0x51411c7c]
+514072FF  call 0x5140a18a
+51407304  mov ecx, eax
+51407306  mov dword ptr [ebp - 0x10], ecx
+51407309  test ecx, ecx
+5140730B  mov byte ptr [ebp - 4], 1
+5140730F  je 0x5140731e
+51407311  push dword ptr [ebp + 0x10]
+51407314  push dword ptr [ebp + 0xc]
+51407317  call 0x51407340
+5140731C  jmp 0x51407320
+5140731E  xor eax, eax
+51407320  mov dword ptr [esi], eax
+51407322  dec dword ptr [0x51411c3c]
+51407328  jne 0x51407331
+5140732A  and dword ptr [0x51411c38], 0
+51407331  mov eax, dword ptr [esi]
+51407333  mov ecx, dword ptr [ebp - 0xc]
+51407336  pop esi
+51407337  mov dword ptr fs:[0], ecx
+5140733E  leave
+5140733F  ret
+51407340  mov eax, 0x5140b608
+51407345  call 0x5140ad20
+5140734A  push ecx
+5140734B  push ebx
+5140734C  push esi
+5140734D  push edi
+5140734E  mov esi, ecx
+51407350  push 0xc
+51407352  xor edi, edi
+51407354  push edi
+51407355  push esi
+51407356  mov dword ptr [ebp - 0x10], esi
+51407359  mov dword ptr [esi], 0x5140c8b4
+Traceback (most recent call last):
+  File "C:\Users\lithd\Documents\GitHub\adventure-island\research\scripts\t090_wp4b_wrapper.py", line 59, in <module>
+    print(f"\nEXE call [reg+{name:#x}] sites: {len(s)}: {[hex(x) for x in s][:24]}")
+                            ^^^^^^^^^
+ValueError: Unknown format code 'x' for object of type 'str'

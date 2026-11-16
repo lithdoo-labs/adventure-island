@@ -1,0 +1,109 @@
+=== Shape2D 0x51406ADC ===
+51406ADC  mov eax, 0x5140b5a8
+51406AE1  call 0x5140ad20
+51406AE6  sub esp, 0x10
+51406AE9  push ebx
+51406AEA  push esi
+51406AEB  mov esi, ecx
+51406AED  lea ebx, [esi + 0x14]
+51406AF0  push edi
+51406AF1  mov ecx, ebx
+51406AF3  mov dword ptr [ebp - 0x10], esp
+51406AF6  mov dword ptr [ebp - 0x14], ebx
+51406AF9  mov dword ptr [ebp - 0x18], ebx
+51406AFC  call 0x5140126a
+51406B01  xor edi, edi
+51406B03  cmp dword ptr [esi + 0x54], edi
+51406B06  mov dword ptr [ebp - 4], edi
+51406B09  je 0x51406b15
+51406B0B  mov eax, dword ptr [0x51411c34]
+51406B10  cmp eax, dword ptr [esi + 0x58]
+51406B13  je 0x51406b42
+51406B15  mov eax, dword ptr [ebp + 0x28]
+51406B18  cmp eax, edi
+51406B1A  push 1
+51406B1C  pop ecx
+51406B1D  mov byte ptr [ebp - 4], cl
+51406B20  je 0x51406b31
+51406B22  mov eax, dword ptr [eax]
+51406B24  xor ecx, ecx
+51406B26  cmp dword ptr [0x51411c34], eax
+51406B2C  sete cl
+51406B2F  jmp 0x51406b36
+51406B31  mov eax, dword ptr [0x51411c34]
+51406B36  push ecx
+51406B37  push eax
+51406B38  mov ecx, esi
+51406B3A  call 0x51406cf7
+51406B3F  mov dword ptr [ebp - 4], edi
+51406B42  mov eax, dword ptr [ebp + 8]
+51406B45  cmp eax, edi
+51406B47  je 0x51406b4e
+51406B49  mov ecx, dword ptr [esi + 0x70]
+51406B4C  mov dword ptr [eax], ecx
+51406B4E  mov eax, dword ptr [ebp + 0xc]
+51406B51  cmp eax, edi
+51406B53  je 0x51406b5a
+51406B55  mov ecx, dword ptr [esi + 0x74]
+51406B58  mov dword ptr [eax], ecx
+51406B5A  mov eax, dword ptr [ebp + 0x10]
+51406B5D  cmp eax, edi
+51406B5F  je 0x51406b66
+51406B61  mov ecx, dword ptr [esi + 0x68]
+51406B64  mov dword ptr [eax], ecx
+51406B66  mov eax, dword ptr [ebp + 0x14]
+51406B69  cmp eax, edi
+51406B6B  je 0x51406b72
+51406B6D  mov ecx, dword ptr [esi + 0x6c]
+51406B70  mov dword ptr [eax], ecx
+51406B72  mov eax, dword ptr [ebp + 0x18]
+51406B75  cmp eax, edi
+51406B77  je 0x51406b7e
+51406B79  mov ecx, dword ptr [esi + 0x60]
+51406B7C  mov dword ptr [eax], ecx
+51406B7E  mov eax, dword ptr [ebp + 0x1c]
+51406B81  cmp eax, edi
+51406B83  je 0x51406b8a
+51406B85  mov ecx, dword ptr [esi + 0x64]
+51406B88  mov dword ptr [eax], ecx
+51406B8A  mov edi, dword ptr [ebp + 0x20]
+51406B8D  test edi, edi
+51406B8F  je 0x51406bb1
+51406B91  fld qword ptr [0x5140d8c0]
+51406B97  push ecx
+51406B98  push ecx
+51406B99  fstp qword ptr [esp]
+51406B9C  push ecx
+51406B9D  fld qword ptr [esi + 0x80]
+51406BA3  push ecx
+51406BA4  fstp qword ptr [esp]
+51406BA7  call 0x51406c15
+51406BAC  fstp qword ptr [edi]
+51406BAE  add esp, 0x10
+51406BB1  mov edi, dword ptr [ebp + 0x24]
+51406BB4  test edi, edi
+51406BB6  je 0x51406bd8
+51406BB8  fld qword ptr [0x5140d8c0]
+51406BBE  push ecx
+51406BBF  push ecx
+51406BC0  fstp qword ptr [esp]
+51406BC3  push ecx
+51406BC4  fld qword ptr [esi + 0x88]
+51406BCA  push ecx
+51406BCB  fstp qword ptr [esp]
+51406BCE  call 0x51406c15
+51406BD3  fstp qword ptr [edi]
+51406BD5  add esp, 0x10
+51406BD8  dec dword ptr [ebx + 4]
+51406BDB  jne 0x51406be0
+51406BDD  and dword ptr [ebx], 0
+51406BE0  xor eax, eax
+51406BE2  jmp 0x51406c04
+51406BE4  push dword ptr [ebp - 0x1c]
+51406BE7  call 0x51405b21
+51406BEC  mov dword ptr [ebp + 0x28], eax
+51406BEF  pop ecx
+51406BF0  mov eax, 0x51406bf6
+51406BF5  ret
+51406BF6  mov eax, dword ptr [ebp - 0x14]
+51406BF9  dec dword ptr [eax + 4]

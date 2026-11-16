@@ -1,0 +1,40 @@
+=== 0x71BFA5 (record accessor) 0x71bfa5 ===
+0071BFA5  mov eax, dword ptr [ecx + 4]
+0071BFA8  ret
+0071BFA9  jmp 0x71c043
+0071BFAE  push esi
+0071BFAF  mov esi, ecx
+0071BFB1  cmp dword ptr [esi + 4], 0
+0071BFB5  je 0x71bfc2
+0071BFB7  push 0
+0071BFB9  call 0x71c014
+0071BFBE  and dword ptr [esi + 4], 0
+0071BFC2  push 0
+0071BFC4  call 0x71c10f
+0071BFC9  pop ecx
+0071BFCA  mov dword ptr [eax + 4], 1
+0071BFD1  mov ecx, eax
+0071BFD3  add eax, 0x10
+0071BFD6  neg ecx
+0071BFD8  sbb ecx, ecx
+0071BFDA  and ecx, eax
+0071BFDC  mov dword ptr [esi + 4], ecx
+0071BFDF  pop esi
+0071BFE0  ret
+0071BFE1  mov eax, dword ptr [ecx + 4]
+0071BFE4  test eax, eax
+0071BFE6  je 0x71bffd
+0071BFE8  mov ecx, eax
+0071BFEA  add eax, -0x10
+0071BFED  neg ecx
+0071BFEF  sbb ecx, ecx
+0071BFF1  and ecx, eax
+0071BFF3  add ecx, 4
+0071BFF6  push ecx
+0071BFF7  call dword ptr [0xafe1bc]
+0071BFFD  ret
+0071BFFE  push esi
+0071BFFF  mov esi, ecx
+0071C001  cmp dword ptr [esi + 4], 0
+
+E8 callers of 0x71BFA5: 9: ['0x71a51f', '0x71a587', '0x71a700', '0x71a767', '0x71a7ce', '0x71a835', '0x71a89c', '0x71a98f', '0x71a99a']

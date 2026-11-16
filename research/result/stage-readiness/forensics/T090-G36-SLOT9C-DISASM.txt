@@ -1,0 +1,289 @@
+=== Shape2D 0x514086B3 full body ===
+514086B3  mov eax, 0x5140b7ba
+514086B8  call 0x5140ad20
+514086BD  sub esp, 0x18
+514086C0  push ebx
+514086C1  mov ebx, dword ptr [ebp + 0x24]
+514086C4  push esi
+514086C5  mov eax, 0xffffff
+514086CA  cmp ebx, eax
+514086CC  push edi
+514086CD  mov dword ptr [ebp - 0x10], esp
+514086D0  ja 0x51408769
+514086D6  mov edi, dword ptr [ebp + 0x28]
+514086D9  cmp edi, eax
+514086DB  ja 0x51408769
+514086E1  xor esi, esi
+514086E3  mov dword ptr [ebp - 4], esi
+514086E6  mov dword ptr [ebp + 0x24], esi
+514086E9  cmp word ptr [ebp + 0xc], si
+514086ED  mov byte ptr [ebp - 4], 1
+514086F1  je 0x5140878f
+514086F7  cmp word ptr [ebp + 0xc], 0xa
+514086FC  je 0x5140878f
+51408702  lea eax, [ebp - 0x24]
+51408705  push eax
+51408706  call dword ptr [0x5140c090]
+5140870C  lea eax, [ebp + 0xc]
+5140870F  push eax
+51408710  push 0xd
+51408712  lea ecx, [ebp - 0x24]
+51408715  mov byte ptr [ebp - 4], 2
+51408719  call 0x51405a4b
+5140871E  lea eax, [ebp - 0x1c]
+51408721  push eax
+51408722  lea ecx, [ebp + 0x24]
+51408725  call 0x51405448
+5140872A  cmp eax, esi
+5140872C  jge 0x5140873b
+5140872E  cmp eax, 0x80004002
+51408733  je 0x5140873b
+51408735  push eax
+51408736  call 0x5140ac47
+5140873B  cmp dword ptr [ebp + 0x24], esi
+5140873E  lea eax, [ebp - 0x24]
+51408741  mov byte ptr [ebp - 4], 1
+51408745  push eax
+51408746  jne 0x5140877f
+51408748  call 0x51405818
+5140874D  cmp eax, esi
+5140874F  pop ecx
+51408750  jge 0x51408758
+51408752  push eax
+51408753  call 0x5140ac47
+51408758  mov eax, dword ptr [ebp + 0x24]
+5140875B  and byte ptr [ebp - 4], 0
+5140875F  cmp eax, esi
+51408761  je 0x51408769
+51408763  mov ecx, dword ptr [eax]
+51408765  push eax
+51408766  call dword ptr [ecx + 8]
+51408769  mov eax, 0x80070057
+5140876E  mov ecx, dword ptr [ebp - 0xc]
+51408771  pop edi
+51408772  pop esi
+51408773  mov dword ptr fs:[0], ecx
+5140877A  pop ebx
+5140877B  leave
+5140877C  ret 0x34
+
+=== vtable slot check ===
+table 0x5140c2f0: +0x90=0x5140828f +0x94=0x514083cf +0x98=0x5140847d +0x9C=0x514086b3 +0xA0=0x51408a50
+table 0x5140c0fc: +0x90=0x5140828f +0x94=0x514083cf +0x98=0x5140847d +0x9C=0x514086b3 +0xA0=0x51408a50
+
+=== EXE call [reg+0x9C] census (all modrm forms incl. SIB) ===
+sites: 8: ['0x43759c', '0x4379d4', '0x4b3b0b', '0x4b3ec1', '0x66b1a6', '0x66c0ef', '0x66d6d0', '0x66da86']
+=== Shape2D 0x5140878F.. (fast path / tail of 0x514086B3) ===
+5140878F  mov ecx, dword ptr [0x51411c70]
+51408795  call 0x51409fc8
+5140879A  mov ecx, eax
+5140879C  mov dword ptr [ebp + 0x28], ecx
+5140879F  cmp ecx, esi
+514087A1  mov byte ptr [ebp - 4], 3
+514087A5  je 0x514087ae
+514087A7  call 0x51408856
+514087AC  mov esi, eax
+514087AE  lea eax, [ebp + 0x24]
+514087B1  lea ecx, [esi + 8]
+514087B4  push eax
+514087B5  mov byte ptr [ebp - 4], 1
+514087B9  call 0x514054a8
+514087BE  test eax, eax
+514087C0  jge 0x514087cf
+514087C2  cmp eax, 0x80004002
+514087C7  je 0x514087cf
+514087C9  push eax
+514087CA  call 0x5140ac47
+514087CF  mov eax, dword ptr [ebp + 0x20]
+514087D2  lea ecx, [eax + edi]
+514087D5  push ecx
+514087D6  mov ecx, dword ptr [ebp + 0x1c]
+514087D9  lea edx, [ecx + ebx]
+514087DC  push edx
+514087DD  push eax
+514087DE  push ecx
+514087DF  lea eax, [esi + 0xc]
+514087E2  push eax
+514087E3  call dword ptr [0x5141185c]
+514087E9  lea eax, [ebp + 0x2c]
+514087EC  push 0
+514087EE  push eax
+514087EF  call 0x51408a12
+514087F4  pop ecx
+514087F5  test eax, eax
+514087F7  pop ecx
+514087F8  mov eax, 0x514088db
+514087FD  jne 0x51408804
+514087FF  mov eax, 0x514088a9
+51408804  mov dword ptr [esi + 0x1c], eax
+51408807  mov eax, dword ptr [ebp + 8]
+5140880A  push dword ptr [eax + 0x20]
+5140880D  add eax, 0x24
+51408810  push dword ptr [eax - 8]
+51408813  push eax
+51408814  call 0x514072cf
+51408819  add esp, 0xc
+5140881C  push esi
+5140881D  mov ecx, eax
+5140881F  call 0x5140833b
+51408824  mov eax, dword ptr [ebp + 0x24]
+51408827  and byte ptr [ebp - 4], 0
+5140882B  test eax, eax
+5140882D  je 0x51408835
+5140882F  mov ecx, dword ptr [eax]
+51408831  push eax
+51408832  call dword ptr [ecx + 8]
+51408835  xor eax, eax
+51408837  jmp 0x5140876e
+5140883C  push dword ptr [ebp - 0x14]
+5140883F  call 0x51405b21
+51408844  mov dword ptr [ebp + 0x24], eax
+51408847  pop ecx
+51408848  mov eax, 0x5140884e
+5140884D  ret
+
+=== EXE window before 0x66b1a6 ===
+0066B156  call 0xa6ef01
+0066B15B  mov ecx, dword ptr [ebp + 0xc]
+0066B15E  lea eax, [ebp - 0x64]
+0066B161  push eax
+0066B162  call 0x43fd8c
+0066B167  mov esi, eax
+0066B169  cmp dword ptr [esi], ebx
+0066B16B  mov byte ptr [ebp - 4], 0x27
+0066B16F  jne 0x66b177
+0066B171  push edi
+0066B172  call 0xa6ef01
+0066B177  mov ebx, dword ptr [esi]
+0066B179  sub esp, 0x10
+0066B17C  mov edi, esp
+0066B17E  push dword ptr [ebp - 0x18]
+0066B181  lea esi, [ebp - 0xa4]
+0066B187  push dword ptr [ebp - 0x3c]
+0066B18A  movsd dword ptr es:[edi], dword ptr [esi]
+0066B18B  push dword ptr [ebp - 0x20]
+0066B18E  movsd dword ptr es:[edi], dword ptr [esi]
+0066B18F  push dword ptr [ebp - 0x14]
+0066B192  mov eax, dword ptr [ebx]
+0066B194  movsd dword ptr es:[edi], dword ptr [esi]
+0066B195  movsd dword ptr es:[edi], dword ptr [esi]
+0066B196  sub esp, 0x10
+0066B199  mov edi, esp
+0066B19B  lea esi, [ebp - 0x94]
+0066B1A1  movsd dword ptr es:[edi], dword ptr [esi]
+0066B1A2  movsd dword ptr es:[edi], dword ptr [esi]
+0066B1A3  movsd dword ptr es:[edi], dword ptr [esi]
+0066B1A4  push ebx
+0066B1A5  movsd dword ptr es:[edi], dword ptr [esi]
+0066B1A6  call dword ptr [eax + 0x9c]
+
+=== EXE window before 0x66c0ef ===
+0066C09F  mov byte ptr [ebp - 4], 0x13
+0066C0A3  jne 0x66c0b2
+0066C0A5  push 0x80004003
+0066C0AA  call 0xa6ef01
+0066C0AF  mov eax, dword ptr [ebp - 0x10]
+0066C0B2  mov esi, 0xbe1e50
+0066C0B7  lea edi, [ebp - 0x154]
+0066C0BD  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0BE  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0BF  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0C0  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0C1  sub esp, 0x10
+0066C0C4  mov edi, esp
+0066C0C6  push dword ptr [ebp - 0x24]
+0066C0C9  lea esi, [ebp - 0xc4]
+0066C0CF  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0D0  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0D1  mov ecx, dword ptr [eax]
+0066C0D3  push ebx
+0066C0D4  push dword ptr [ebp - 0x28]
+0066C0D7  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0D8  push dword ptr [ebp - 0x3c]
+0066C0DB  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0DC  sub esp, 0x10
+0066C0DF  mov edi, esp
+0066C0E1  lea esi, [ebp - 0x154]
+0066C0E7  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0E8  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0E9  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0EA  push eax
+0066C0EB  mov dword ptr [ebp - 0x50], eax
+0066C0EE  movsd dword ptr es:[edi], dword ptr [esi]
+0066C0EF  call dword ptr [ecx + 0x9c]
+
+=== EXE window before 0x4379d4 ===
+00437984  lea ecx, [ebp - 0x10]
+00437987  call 0x415cc4
+0043798C  lea ecx, [ebp + 8]
+0043798F  call 0x415cc4
+00437994  mov ecx, dword ptr [ebp - 0xc]
+00437997  pop edi
+00437998  pop esi
+00437999  mov dword ptr fs:[0], ecx
+004379A0  pop ebx
+004379A1  leave
+004379A2  ret 4
+004379A5  push ebp
+004379A6  mov ebp, esp
+004379A8  push ebx
+004379A9  push esi
+004379AA  mov esi, dword ptr [ebp + 0x1c]
+004379AD  push edi
+004379AE  sub esp, 0x10
+004379B1  mov edi, esp
+004379B3  push dword ptr [ebp + 0x18]
+004379B6  movsd dword ptr es:[edi], dword ptr [esi]
+004379B7  push dword ptr [ebp + 0x14]
+004379BA  movsd dword ptr es:[edi], dword ptr [esi]
+004379BB  push dword ptr [ebp + 0x10]
+004379BE  movsd dword ptr es:[edi], dword ptr [esi]
+004379BF  push dword ptr [ebp + 0xc]
+004379C2  movsd dword ptr es:[edi], dword ptr [esi]
+004379C3  mov esi, dword ptr [ebp + 8]
+004379C6  sub esp, 0x10
+004379C9  mov edi, esp
+004379CB  movsd dword ptr es:[edi], dword ptr [esi]
+004379CC  movsd dword ptr es:[edi], dword ptr [esi]
+004379CD  movsd dword ptr es:[edi], dword ptr [esi]
+004379CE  mov ebx, ecx
+004379D0  mov eax, dword ptr [ebx]
+004379D2  push ebx
+004379D3  movsd dword ptr es:[edi], dword ptr [esi]
+004379D4  call dword ptr [eax + 0x9c]
+
+=== EXE window before 0x4b3b0b ===
+004B3ABB  push 0x80004003
+004B3AC0  call 0xa6ef01
+004B3AC5  mov eax, dword ptr [ebp - 0x1c]
+004B3AC8  mov ecx, dword ptr [ebp - 0x58]
+004B3ACB  sub esp, 0x10
+004B3ACE  mov edi, esp
+004B3AD0  lea esi, [ebp - 0x230]
+004B3AD6  movsd dword ptr es:[edi], dword ptr [esi]
+004B3AD7  movsd dword ptr es:[edi], dword ptr [esi]
+004B3AD8  movsd dword ptr es:[edi], dword ptr [esi]
+004B3AD9  movsd dword ptr es:[edi], dword ptr [esi]
+004B3ADA  lea esi, [ecx + ecx + 0xa5]
+004B3AE1  push esi
+004B3AE2  lea esi, [ecx + ecx + 0xd4]
+004B3AE9  push esi
+004B3AEA  push 0x28
+004B3AEC  pop esi
+004B3AED  sub esi, ecx
+004B3AEF  push esi
+004B3AF0  mov edx, dword ptr [eax]
+004B3AF2  push 0x18
+004B3AF4  pop esi
+004B3AF5  sub esi, ecx
+004B3AF7  push esi
+004B3AF8  sub esp, 0x10
+004B3AFB  mov edi, esp
+004B3AFD  lea esi, [ebp - 0x190]
+004B3B03  movsd dword ptr es:[edi], dword ptr [esi]
+004B3B04  movsd dword ptr es:[edi], dword ptr [esi]
+004B3B05  movsd dword ptr es:[edi], dword ptr [esi]
+004B3B06  push eax
+004B3B07  mov dword ptr [ebp - 0x44], eax
+004B3B0A  movsd dword ptr es:[edi], dword ptr [esi]
+004B3B0B  call dword ptr [edx + 0x9c]

@@ -1,0 +1,7 @@
+containing function of 0x990E21/0x990E91: head = 0x990b2e
+  00990B42  xor esi, esi
+
+esi/xor inits in head window:
+  00990B42  xor esi, esi
+  00990B48  mov dword ptr [ebp - 0x34], esi
+  00990C60  mov dword ptr [ebp - 4], esi

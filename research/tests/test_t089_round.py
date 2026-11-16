@@ -348,8 +348,9 @@ class TestLedgerIntegrity(unittest.TestCase):
             ev = list(csv.DictReader(f))
         with open(SOT / "gaps.csv", encoding="utf-8", newline="") as f:
             gaps = list(csv.DictReader(f))
-        self.assertEqual(len(claims), 115)
-        self.assertEqual(len(ev), 103)
+        # t090 migration: 115->119 claims, 103->107 evidence (C-116..C-119/EV-104..EV-107)
+        self.assertEqual(len(claims), 119)
+        self.assertEqual(len(ev), 107)
         self.assertEqual(len(gaps), 41)
         g = {r["gap_id"]: r for r in gaps}
         self.assertEqual(g["G35"]["status"], "CLOSED-STATIC")

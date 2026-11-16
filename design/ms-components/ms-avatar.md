@@ -296,6 +296,16 @@ specialActionClip = {
 
 这属于 Renderer 内部组件协作协议，**不要求 LoomRealm RenderNode/Render Update v1 新增字段**。
 
+### 5.11 尚待讨论的边界
+
+1. **`ms-action` Clip Schema**：动作名、帧、循环边界、零延迟/缺失 delay、资源引用版本；父级共用外观数据（如 `appearance`）与子节点内容如何一致验证。
+2. **Clip 热更新语义已确认（§5.12）**：同名有效 Clip 替换保留已播放时间；one-shot Clip 消失则取消；基础 Clip 缺失仍保留 retained 请求。**待定**：基础 Clip 缺失期间的时间累计、外观与子 Clip 的跨更新版本一致性。
+3. **父子数据通知**：子节点独立 `receiveRenderData()`、名称变化、DOM 增删如何更新 Avatar 索引并排除事件顺序竞态。
+4. **当前外观动作覆盖率与容量**：OpenMS 的预定义 Action 集只是参考，不可将 126 动作直接等同于 CMS079 必须全量传输；测量真实 CMS079 样本后确定适当应用级限制。
+5. **未来精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实。Clock 失效通知 API 留待实施阶段。
+
+以上已确定第二阶段的主要行为和**动作拆为子节点**的组织原则；未冻结完整 `ms-action` Clip Schema 或内部通知 API。
+
 ### 5.12 第二阶段已确认：ms-action Clip 更新与移除
 
 **已确认规则**：`ms-action` 的 Clip 内容变化是**绘制定义热更新**，不是新的 Action 播放指令。只有新的 `render.event("action")` 才会触发一次性动作从头重播。父 Avatar 持有的播放时间 `elapsedMs` 是迁移依据，**不直接继承旧帧号或以新总时长归一化相位百分比**。
@@ -319,16 +329,6 @@ specialActionClip = {
 6. 原有实例同名 Clip 更新允许继承时间；组件重建是新实例，仍只从 retained 基础 Action 初始化，不恢复 transient one-shot。该迁移规则是 **Adventure Island 新组件设计**，不能归因于 OpenMS 原生热更新：OpenMS 的 `EntityAnimation` 支持 seek，而它的换装流程可先准备新 Avatar 再整体替换。
 
 **验收情景**：当前基础动作时序变化不重启、同名 one-shot 更新不重播、one-shot 缩短后立即完成、one-shot 子节点消失/失效立即取消、基础子节点消失不改变 `attrs.action`、非活动动作更新无副作用、异步旧画面不覆盖新 Clip。
-
-### 5.11 尚待讨论的边界
-
-1. **`ms-action` Clip Schema**：动作名、帧、循环边界、零延迟/缺失 delay、资源引用版本；父级共用外观数据（如 `appearance`）与子节点内容如何一致验证。
-2. **Clip 热更新语义已确认（§5.12）**：同名有效 Clip 替换保留已播放时间；one-shot Clip 消失则取消；基础 Clip 缺失仍保留 retained 请求。**待定**：基础 Clip 缺失期间的时间累计、外观与子 Clip 的跨更新版本一致性。
-3. **父子数据通知**：子节点独立 `receiveRenderData()`、名称变化、DOM 增删如何更新 Avatar 索引并排除事件顺序竞态。
-4. **当前外观动作覆盖率与容量**：OpenMS 的预定义 Action 集只是参考，不可将 126 动作直接等同于 CMS079 必须全量传输；测量真实 CMS079 样本后确定适当应用级限制。
-5. **未来精确重放**：现方案接受 transient Event 不重放；必要时另议 retained 相位/动作起始事实。Clock 失效通知 API 留待实施阶段。
-
-以上已确定第二阶段的主要行为和**动作拆为子节点**的组织原则；未冻结完整 `ms-action` Clip Schema 或内部通知 API。
 
 ## 6. 外观数据、动作子节点与资源所有权
 

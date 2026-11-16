@@ -382,7 +382,7 @@ domain.update({
 
 **边界**：
 
-1. 只是在既定时间推进策略上增加“缺少 Clip 不能阻止应有的时钟推进”，**不擅自决定 one-shot 覆盖时基础 Action 是否并行计时**：若该情景此前的 Player 策略将基础时钟挂起，就不在缺失期间额外推进。这项覆盖下的基础时钟策略另行裁决。
+1. 缺少 Clip 不阻止基础动作**本应进行的**时间推进；但**D01 已确认 one-shot 覆盖期间冻结基础动作 `elapsedMs`**，因此覆盖时即使基础 Clip 缺失也不额外累计；恢复和重选按照 §5.17 处理。
 2. 不能在 Clip 缺失时复用已失效的旧 Clip 帧假装当前动作有效；应记录缺失诊断并等待有效定义、资源和绘制上下文。Clip 恢复不导致自动选择新的业务 Action。
 3. 基础 Action 名确实变化时遵循原有 retained 动作选择规则；**重复投影同名 `attrs.action` 不重启**。缺失后的恢复只是动作定义变化，不等于新动作事件。
 4. 计算继续使用 Render Clock 提供的未暂停时间；不引入 Component 自己的墙钟补偿，也不借用 Subsystem 的战斗权威时间戳。
@@ -715,12 +715,12 @@ data: {
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 - [LoomRealm Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)
 
-**验证状态**：新 `ms-avatar` / `ms-action` 仅为设计 Draft；没有新增实现、Schema Validator、Chromium 测试或真实 CMS079 像素一致性验收。旧版历史测试不自动证明新 ABI 通过。
+**验证状态**：新 `ms-avatar` / `ms-action` 仅为设计 Draft；I01–I05 已选实施方案，但**没有新增实现、Schema Validator、Chromium PoC 或真实 CMS079 像素一致性验收**。旧版历史测试不自动证明新 ABI 通过。
 
 
-## 10. 剩余事项总清单（ms-avatar / ms-action）
+## 10. 已确认设计与剩余实施/验证清单（ms-avatar / ms-action）
 
-**范围**：12 项 D 系列设计方向现已全部选定（D02/D05/D06/D07/D11 本轮确认，§6.6–§6.10）；**不是**最终逐字段 Frozen ABI。仍保留 **5 项实施接口机制（I01–I05）、4 项真实验证/迁移工作（V01–V04）**，以及下面五项设计的尚待测量、字段校验子事项。P0＝优先验证；P1＝实现/Validator 前落实；P2＝性能验收/迁移。
+**范围**：12 项 D 系列架构方向已确认（§5–§6），**I01–I05 的实现方案本轮已确认**（§11）；不是最终字段级 Frozen ABI，也不表示源码、PoC 或浏览器验证已完成。仍需 **5 项实现/PoC 验证、4 项素材/性能/迁移工作（V01–V04）**，以及已选设计方向对应的字段/数值收口。P0＝优先验证；P1＝实现/Validator 前落实；P2＝性能验收/迁移。
 
 **已确认项索引**：D01（§5.17）、D03（§5.18）、D04（§5.19）、D08/D09/D10/D12（§6.1–§6.4）；**本轮 D02（§6.6）、D05（§6.7）、D06（§6.8）、D07（§6.9）、D11（§6.10）**。OpenMS GMS083 是架构参考，真实 CMS079 的正/零/负/缺失 delay、图集裁剪像素一致性、资源容量上限需 V01/V03 验证，不把候选 JSON 示例当成已发布的 ABI。
 
@@ -734,15 +734,15 @@ data: {
 | D07 | Adapter 生成含 move/rotate/flip/showFace、origin/anchors/遮挡和 sprite 裁切引用的已合成帧 | 详细 Layer Schema、atlas source 与逻辑锚点像素等价、异常遮挡、Canvas 安全界限 | §6.9；旧 avatar-model + V01/V03 像素验收 | P1 |
 | D11 | 可触发 Clip 预先发布，按部件/装备集离线打 atlas；父 Avatar 按需整页加载并共享缓存 | 实际图集分组/页面尺寸、每 Clip/全 Avatar JSON 与内存预算、请求并发与预读策略 | §6.10；V01/V03 对比逐小图 vs atlas 网络/内存/首帧成本 | P0 |
 
-### 10.2 原则已定、仍须实现接口 / 竞态行为的事项
+### 10.2 I01–I05 已选实施方案，尚待源码/PoC 验证
 
-| ID | 议题 | 待落实的机制 | 推荐实施方式 | 优先级 |
+| ID | 议题 | 待编码与验收的接口边界 | **已确认的实施方案** | 优先级 |
 | --- | --- | --- | --- | --- |
-| I01 | **父子通知和同步查询 API** | 本地变更事件名称/载荷、只读 Clip getter、子节点 attrs/移动/删除/重挂的监听与解绑、跨父级迟到通知防护；原则已在 §5.15 确认  | 用组件内部同步变更通知 + 只读 Clip 快照 getter；父级只接纳当前直接子节点，标脏不立即画图，Event 入口同步刷新；MutationObserver 辅助结构变化。 | P1 |
-| I02 | **首次挂载与原子换装的呈现门闩** | `connectedCallback` 后如何识别所需数据已交付、父/子 `receiveRenderData` 交错时如何重建一致组合、绘制及 Action Event 入口如何避免临时混画；局部就绪与同次 Domain 原子发布已在 §5.13、§5.16 确认  | 绘制/Event 前构建与验证当前父数据 + 子 Clip 的一致性快照；未就绪时不绘制混合帧，数据回调只标脏。以真实 WebProjector 浏览器测试定下投影结束/调度细节。 | P0 |
-| I03 | **Render Clock 的组件内部完整接口** | provider 获取、对象失效通知、订阅/解绑、暂停/恢复的 delta 计算与跨父级切换；稳定对象身份、继承回退、显式暂停及 DOM 断连规则已定  | 稳定 `getRenderClock()` 返回对象 + 可取消订阅 + 明确 provider 失效通知；pause 不能回退本地，切换仅重设采样基准，不丢失相位。 | P1 |
-| I04 | **播放器及异步资源生命周期的具体算法** | Clip 替换时 seek、缺 Clip 继续计时、one-shot 取消、异步 epoch/Abort、图片缓存 pin/unpin、被移除资源释放；产品行为已在 §5.4–§5.16 确认  | 分离纯时间定位器与资源 Painter；Clip、Action、外观/实例变化提升内部 epoch，拒绝过期图片；共享图片缓存 pin/unpin 与可取消读入。 | P1 |
-| I05 | **验证器、限制与诊断接口落地** | 父级/Clip 字段闭集、合法组合、字节与图集页容量边界及 D12 错误码/输出接口的具体形式 | 父级/Clip 独立 Validator + 组合 Validator，D12 确认的分类/清除过期画面变成稳定诊断 API；像素未就绪继续计时，限制由 V01/V03 实测决定。 | P1 |
+| I01 | **父子通知和同步查询 API** | 本地变更事件名称/载荷、只读 Clip getter、子节点 attrs/移动/删除/重挂的监听与解绑、跨父级迟到通知防护；原则已在 §5.15 确认 | 内部同步通知 + 只读 Clip 快照；父级只接受当前直接子节点，Event 入口同步查询并拒绝重名/迁移后的陈旧通知（§11.1）；私有方法名待代码冻结 | P1 |
+| I02 | **首次挂载与原子换装的呈现门闩** | `connectedCallback` 后如何识别所需数据已交付、父/子 `receiveRenderData` 交错时如何重建一致组合、绘制及 Action Event 入口如何避免临时混画；局部就绪与同次 Domain 原子发布已在 §5.13、§5.16 确认 | 延迟绘制 + 当前父数据/目标 Clip 同步快照校验，不完整 fail closed；单次 Domain 原子发布，先做最小真实 WebProjector 浏览器 PoC（§11.2）；必要时增加内部可验证完成门闩 | P0 |
+| I03 | **Render Clock 的组件内部完整接口** | provider 获取、对象失效通知、订阅/解绑、暂停/恢复的 delta 计算与跨父级切换；稳定对象身份、继承回退、显式暂停及 DOM 断连规则已定 | 最近有效祖先 Clock，稳定 provider + 可取消订阅 + 失效通知；暂停绝不回退本地，换源只重设采样基准保留相位（§11.3） | P1 |
+| I04 | **播放器及异步资源生命周期的具体算法** | Clip 替换时 seek、缺 Clip 继续计时、one-shot 取消、异步 epoch/Abort、图片缓存 pin/unpin、被移除资源释放；产品行为已在 §5.4–§5.16 确认 | 纯 AnimationPlayer、AvatarPainter、共享 atlas ResourceCache 分离；epoch/Abort/解码前后门禁/并发/pin-finally 与 Canvas 复用（§11.4） | P1 |
+| I05 | **验证器、限制与诊断接口落地** | 父级/Clip 字段闭集、合法组合、字节与图集页容量边界及 D12 错误码/输出接口的具体形式 | 父级数据 / 单 Clip / 父子组合三级 Validator；D12 fail closed 和诊断字段，预算数值待 CMS079 实测（§11.5） | P1 |
 
 ### 10.3 实现前必须完成的证据与迁移工作
 
@@ -755,4 +755,73 @@ data: {
 
 **非当前必做事项**：transient Event 的跨新实例精确重放已明确接受为**不保证**；除非未来提出必须恢复技能途中相位的新需求，不在当前 V1 设计中额外增加 retained 起始时间/动作序号。跨多个 Domain/提交的分阶段换装也**不属于当前支持范围**，将来确需才另议版本化与显式激活机制。
 
-**更新后的建议实施顺序**：**I02 最小 WebProjector 投影竞态 PoC + V01（CMS079 时序/atlas 真实数据）→ I01（父子通知）→ I05（字段 Validator、诊断和预算）→ I03/I04（Clock/Player/图集缓存）→ V02/V03（浏览器、像素、网络与内存验收）→ V04（并行迁移）**。12 项产品方向不再重新投票，但 D02/D05/D06/D07/D11 的字段级数值仍需证据，且 I02 是关键架构风险。
+**已确认实施顺序**：**I02 最小真实 WebProjector 投影竞态 PoC + V01（CMS079 时序/atlas 证据）→ I01（父子通知）→ I05（Validator/诊断/容量）→ I03/I04（Clock/Player/整页图集缓存）→ V02/V03（浏览器/像素/性能）→ V04（并行迁移）**。方案见 §11，仍需实际验证；D02/D05/D06/D07/D11 的候选字段值域和预算必须用真实数据收口。
+
+## 11. I01–I05 已确认实施方案（尚未实现和验证）
+
+**状态与范围**：本节选定五项内部实现方案和最小 PoC 验收方向，**不是**已经完成的功能，也**不是**新的 LoomRealm RenderNode / Render Event ABI。具体私有方法签名、诊断枚举及容量数字仍要在 PoC、Validator 和 CMS079 样本测试中固定。I02 优先，因为父子投影竞态若不成立，其他模块不能保证换装一致性。
+
+### 11.1 I01：子动作只读快照 + 同步变化通知
+
+- `ms-action` 在自己的 `receiveRenderData()` 内完成数据接收、闭集校验与状态**先替换**，包括 `pending / valid / invalid`；失败时不能继续暴露旧有效 Clip 为当前数据。随后向当前直接父 `ms-avatar` **同步发出 Renderer 私有通知**。通知只让动作索引/画面快照失效，不触发 `render.event`、不回写 RenderNode、不立即绘制。
+- `ms-action` 向父级提供**只读 Clip 快照 getter**，例如候选 `getClipSnapshot() -> {status, name, clip, localRevision}`；对象对调用方不可变，`localRevision` 只用于同组件缓存失效，**不是**发布到 RenderNode 的 `clip-version`。
+- 父级只接受**当前 DOM 直接子节点**的通知：收到通知时和使用缓存前核对 `event.target.parentElement === avatar`、`tagName`、动作名的唯一性以及当前连接/持有关系。重名只使冲突动作无效，不能随 DOM 顺序任选其一。子节点迁移/删除后的迟到通知应忽略；订阅和本地索引随父级断连/重挂清理或重建。
+- `MutationObserver` 仅辅助发现添加、移除、重排和属性变化，不能观察子组件私有 Clip 的更新。绘制时通常按 dirty 标记重建所需索引；**Action Event 到达时要同步枚举直接子节点并读取目标 Clip**，不依赖 Observer 是否先运行。
+
+**尚待编码定稿**：通知事件名/详细 payload、只读 getter 的实际字段、失效诊断接口。用同名变更、重名冲突、跨父级迁移、独立 Clip 热更新与紧随其后的 Event 测试确认。
+
+### 11.2 I02：首次挂载及原子换装的呈现门闩（首个 PoC）
+
+**选用“延迟绘制、同步查询最终父子组合”**。固定 LoomRealm WebProjector 当前在一次 `reconcile(view)` 内先处理结构/attrs，随后依次对各元素尝试 `receiveRenderData()`；整个该函数是同步执行的，但**没有向业务 Web Component 暴露一个专用的“该事务所有子节点都交付成功”回调**。Render Store 的同次 Domain 原子提交不代表每个业务 Clip 都完成了校验，callback 抛错也会计为 delivery attempt。
+
+1. **写入时**：父与子各自校验、保存本地最新状态，触发 dirty 和 paint 请求，但**不在 `attributeChangedCallback`、`connectedCallback`、`receiveRenderData` 或子通知内部直接绘制**。同一同步调用栈里的多次状态改变可合并到一轮后续绘制；不能将 microtask 延迟本身解释为跨 Domain/跨提交的事务证明。
+2. **绘制前**：父组件同步检查自己已交付且有效的共享 `appearance / sprites / expressions`，从当前直接子节点查询**当前所需 Action** 的有效 Clip、动作名唯一性、全部 sprite/zOrder 引用可解析性及当前 DOM 归属。组合无效、尚未交付或因回调错误残留旧状态时**不绘制混合帧并清理旧画面**。不需要等其他未使用 Action 全部有效（`5.16）。
+3. **Event 到达时**：立即按当前 DOM 直接子元素和已验证 Clip 重新查验所请求动作及共享外观组合；符合既定条件才触发 one-shot，不符合则当场丢弃、不缓存/补播。**Clip 存在但图集尚未解码**不属于无效；开始时间轴后只在像素可用时绘制当下帧。
+4. **换装更新范围**：Adapter 必须在同一个 Domain 的单次 `update() / replace()` 中发布父数据、所有受影响子 Clip 和相关 retained attrs；Adapter 先验证不变的 Clip 对新外观可复用。即使父子更新在一次提交中，也不得靠旧 Clip 的“恰好引用到合法 sprite”当作跨版本证明；如组合状态不足以确定事务完整性，**fail closed 并以 PoC 验证是否需要额外的 Renderer 内部批次/投影完成信号**，不擅自新增公共 `appearance-version`。
+5. **异步绘制**：每次共享外观、活动 Clip 或结构变化使旧绘制 epoch 失效；资源完成回调重新检查有效快照后才能提交像素。
+
+**最小真实浏览器 PoC 验收矩阵（I02-P0）**：
+
+| 用例 | 必须验证的结果 |
+| --- | --- |
+| 首挂：父组件已连接、子节点尚无数据 | 不把空壳 `ms-action` 当作有效 Clip；所需 Clip 可用后开始绘制，不等其他动作 |
+| 同一 Domain 原子换装：父数据 + 两个子 Clip 更新 | 回调先后不产生新外观/旧动作的混合 Canvas 帧，最终组合才绘制 |
+| 更新紧邻 Action Event | 事件同步读取最新目标 Clip；有效就接纳，不存在/无效立即丢弃 |
+| 某个子 Clip 无效或 `receiveRenderData()` 抛错 | 该次状态不得默默保留旧有效定义参与新装备；错误可定位、不能混画 |
+| `replace()` 删除/增加/迁移动作子节点 | 只接受当前直接子节点，已移除节点的迟到通知不污染索引 |
+| 新图集慢解码、旧图集随后完成 | 旧 epoch 不覆盖新画面；有效 Clip 的时钟不因图片下载等待而停止 |
+
+**成功条件**不只是“观察到一次后续 paint”：必须证明当前 LoomRealm WebProjector 回调交付时序、可用性检测和快照校验能支撑上述场景。若 PoC 找到无法识别的混合中间状态，应先补充 **Renderer 内部可验证的投影完成门闩**或调整组件数据交付机制，再讨论是否需要扩展协议；不能静默降低 D08/D12 和 `5.13 的一致性要求。
+
+### 11.3 I03：稳定 Render Clock Provider 与生命周期
+
+- 优先绑定**最近有效的祖先 Provider**，无有效 Provider 才使用 Avatar 本地 Clock。推荐候选内部能力：`getRenderClock()`、稳定时钟实例/单调时间采样、`subscribe(listener) -> unsubscribe`，以及明确的 provider **失效通知**。实际签名尚未冻结，不作为 LoomRealm Core API。
+- Provider 处于有效**显式暂停**状态时必须继续使用它，**不能**把无 tick 判定为失效并启用本地时间。采样统一采用当前有效 Render Clock 未暂停的经过时间。
+- DOM 断连时冻结身体/表情/one-shot，解绑回调并取消绘制；**同一实例重挂**重新寻找最近有效 Provider、重置上一采样基准而保留全部已存相位；新建元素按 retained 初态初始化而不恢复 transient Event。
+- Provider 真正失效、祖先改变或重挂时，只重新绑定时间源、重设采样基准，不凭新时钟绝对数值跳过动作帧；分离“暂停”与“时钟失效”诊断。未显式暂停的后台/RAF gap 按既有时间一致性规则推进。
+
+### 11.4 I04：AnimationPlayer / AvatarPainter / AvatarResourceCache 分层
+
+| 内部模块 | 单一职责 |
+| --- | --- |
+| `AnimationPlayer` | 基础/one-shot/表情的 `elapsedMs`、冻结/恢复、Clip 替换 seek、repeat/hold 与 Event 生命周期；无网络/Canvas 依赖 |
+| `AvatarPainter` | 输入经校验的外观 + 当前帧快照，处理 origin/anchors/zOrder/镜像、Canvas 合成与完整帧提交；不选择业务 Action |
+| `AvatarResourceCache` | 用 `namespace/key/contentVersion` 去重整页 atlas 的读取/解码、受控并发、活跃资源 pin/unpin、过期与 LRU 释放 |
+
+- Avatar 共享缓存必须跨多个 Clip/表情复用同一个图集页；取消某动作时不得取消**其他有效绘制仍在使用的同页**。每次 Action/Clip/外观/实例变化提升 paint epoch，异步结果提交前检查 epoch、组件连接和绘制快照仍有效。
+- `AbortController` 可取消在途资源读取；**已经启动的 `createImageBitmap()` 不能假设可以同步终止**。解码前（含排队取到解码槽位后）和解码完成后都检查过期状态，控制并发，不启动已经取消的排队任务。
+- 同一绘制轮次使用 `try/finally` 成对释放 pin，异常、取消、正常完成共用释放路径；合成 Canvas 在像素尺寸/DPR 未变时可复用，避免不必要重新分配。所有资源预算须随 V01/V03 实测确定。
+- Event 缺 Clip 直接丢弃，Clip 有效但图片缺失按当前 Clock 继续计时；更新同名 Clip 保留 `elapsedMs`，one-shot 期间基础时间冻结（D01），不为动画添加新业务权威。
+
+### 11.5 I05：三级 Validator、fail-closed 与可定位诊断
+
+1. **Avatar Data Validator**：分别验证父级共享 `appearance / sprites / expressions` 的字段闭集、类型、引用唯一性、atlas 全页身份及表情数据，拒绝非法顶层值。
+2. **Action Clip Validator**：严格验证单动作 `formatVersion`、loop/hold/repeat 边界、非负有限帧时长、layer 变换、源坐标及动作名冲突；错误 Clip 立刻标无效，不复用先前有效 Clip 假装新版本。
+3. **Composition Validator**：绘制/Event 前验证目标 Clip 的每个 sprite 引用可解析到当前父级 atlas、页内源矩形有效、zOrder/锚点/遮挡组合正确，当前父子状态能够证明是完整一致的有效呈现快照。资源内容返回后另做 `contentVersion`、MIME、解码图集尺寸验证。
+
+诊断沿用 D12 已确认类别：`NOT_READY`、`ACTION_MISSING`、`ACTION_INVALID`、`DUPLICATE_ACTION`、`PIXELS_PENDING`、`CONTENT_CONFLICT`、`CONTENT_INVALID`、`APPEARANCE_INVALID`（**具体码名仍候选**）。至少提供 Avatar key、动作名、资源三元身份、错误阶段及预期/实际摘要；同一持续错误避免每帧刷屏。**无效当前组合应清理旧像素，不做业务动作回退；图片未就绪与格式非法要区分**。
+
+边界和预算分开测：单 Clip 及全 Avatar 的序列化字节/节点/帧/层上界，图集页尺寸、Content 请求及解码像素内存、排队并发和 Canvas 设备像素安全限制。旧版 `32 Actions / 256 KiB` 不是新组件硬限制；V01/V03 未取得证据前**不预设**新硬数字。
+
+**验证状态**：上述 I01–I05 为批准的实施方案及验收方向，仍缺实际新组件源码、Validator、WebProjector 真实浏览器 PoC 和 CMS079 像素性能验证，**不得宣称 I02 已通过或新 ABI 已冻结**。
+

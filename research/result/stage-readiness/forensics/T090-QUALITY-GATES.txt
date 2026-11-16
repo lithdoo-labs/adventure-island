@@ -38,14 +38,14 @@ stderr (tail, ResourceWarning notes kept verbatim):
 ```
   ev_cc = open(cc_path, encoding='utf-8').read()
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
-C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:714: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-o9orv7gc\\research\\source-of-truth\\evidence.csv' mode='w' encoding='utf-8'>
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:714: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-s780ulir\\research\\source-of-truth\\evidence.csv' mode='w' encoding='utf-8'>
   open(ev_path, 'w', encoding='utf-8', newline='').write(ev + row)
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
-C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:715: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-o9orv7gc\\research\\result\\clean-room\\EVIDENCE-INDEX.csv' mode='w' encoding='utf-8'>
+C:\Users\lithd\Documents\GitHub\adventure-island\research\tests\test_validate_reverse_engineering.py:715: ResourceWarning: unclosed file <_io.TextIOWrapper name='C:\\Users\\lithd\\AppData\\Local\\Temp\\t085tests-s780ulir\\research\\result\\clean-room\\EVIDENCE-INDEX.csv' mode='w' encoding='utf-8'>
   open(cc_path, 'w', encoding='utf-8', newline='').write(ev_cc + row)
 ResourceWarning: Enable tracemalloc to get the object allocation traceback
 ----------------------------------------------------------------------
-Ran 215 tests in 9.107s
+Ran 215 tests in 8.752s
 
 OK
 ```

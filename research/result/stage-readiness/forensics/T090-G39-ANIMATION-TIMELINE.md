@@ -32,7 +32,7 @@ original prose said 222000000]).
 | back ani=0 (static, single canvas) | 190 | 0 (n/a — not animated) | — |
 | portal/game | 91 | 2 | 1500×2 (only `psh/1/portalStart/0` and `psh/1/portalExit/0`, with a0/a1 fades) |
 
-- **35 distinct explicit delay values** (100 … 4000). The value 120 is just one
+- **44 distinct [t090 phase-4 R1a] explicit delay values** (100 … 4000). The value 120 is just one
   of them — normalizing every frame to 120 ms is REFUTED by the resource data.
 - **329 multi-frame animated resources**: 99 all-frames-explicit,
   **225 with NO explicit delay on any frame** (they genuinely rely on the

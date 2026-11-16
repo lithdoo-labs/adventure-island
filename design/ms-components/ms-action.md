@@ -86,9 +86,24 @@ LoomRealm RenderNode.children
 
 **强制中断和资源边界**：`one-shot-enabled=false` 继续具有立即清除的优先权；图片尚未下载/解码不算 Clip 无效，动画照常计时。新的 `render.event("action")` 才是新的 one-shot 播放指令。父 Avatar 必须让旧的异步绘制请求过期，不能把更早的旧画面绘出。
 
-**投影一致性**：父 Avatar 的动作查询必须以当前有效、已校验的子节点 Clip 为准，不能只依赖异步 DOM 观察通知。跨多个 Render Update 更新父级外观与子 Clip 时，版本匹配与发布原子性的业务策略待独立确定；单个微任务的批量绘制不能假装版本已经匹配。
+**投影一致性**：父 Avatar 的动作查询必须以当前有效、已校验的子节点 Clip 为准，不能只依赖异步 DOM 观察通知。**已确认换装必须在同一次 Domain 原子提交中发布所有父子关联变化**（§3.2）；跨多个 Render Update 分批发布关联外观变更不符合首版约定。单个微任务的批量绘制不能假装版本已经匹配。
 
 该规则属于新组件的 LoomRealm 数据组织方案；OpenMS `EntityAnimation.seek()` 可以参考时间定位，但 OpenMS 换装通常准备整个新 Avatar 并替换，不是上游对 `ms-action` 节点热更新。
+
+### 3.2 已确认：换装时的原子发布与父子组合校验
+
+`ms-action` 能独立热更新，**但一次换装引发的父级共享外观信息及受影响的子 Clip 变化，必须在同一个 LoomRealm Domain 的一次原子提交中发布**。
+
+- 仅更新已有子节点 `data.clip`，且无换装依赖时：可以单独 `RenderDomain.update()`。
+- 换装后动作节点集合不变：一次 `RenderDomain.update()` **同时更新** `ms-avatar.data` 的共享外观字段和全部受影响的 `ms-action.data.clip`；未更改的 Clip 也应由 Adapter 验证对新外观仍可复用。
+- 换装涉及新增、删除、移动子节点：一次 `RenderDomain.replace()` 发布完整新树；`update()` 不能修改 `children`。
+- 换装需要更新 `attrs.action` 或 `one-shot-enabled` 时，也应放进同一次提交；换装前先准备、验证可供播放的全部定义，不得把换装拆成多个可观察的中间发布。
+
+**Store 原子性 ≠ Web Component 回调原子性**：LoomRealm 对同一次 Render Update 的最终 Domain Store 状态原子提交，但 `ms-avatar` 和每个 `ms-action` 都独立接收 `receiveRenderData()`。父 Avatar 必须验证当前已投影的共享外观 + 所需有效 Clip **构成完整一致的组合**，才允许绘制或接受依赖新外观的 Action Event；不能让某个子组件率先收到数据便立即混合绘制。具体通知与投影结束检测仍待实现方案确认。
+
+**首版不增加同步用 `appearance-version` 或 `clip-version` 字段**；图像的 `contentVersion` 是 Content 资源身份，不承担换装事务编号。不同提交/不同 Domain 的分阶段换装不受本方案支持；将来确有必要时再设计显式版本/激活机制。
+
+已确定的 §3.1 热更新规则不变：同名有效 Clip 更新保留 `elapsedMs`，one-shot Clip 删除则取消；图片未就绪不会让 Clip 失效或阻塞动画时钟。
 
 ## 4. 数据规模与发布语义
 
@@ -98,7 +113,7 @@ LoomRealm RenderNode.children
 - 已存在的 `ms-action` 可用 `RenderDomain.update({ nodes: [{ key, data: { set: { clip } } }] })` 更新；`data.set` 替换的是对应子节点 `data` 的**顶层属性**，不是修改父节点的 `children`。
 - **增加、移除、重新排列子节点**需要通过 `RenderDomain.replace()` 更新 authoritative tree；`RenderDomain.update()` 无法更改 `key/tag/children`。
 - 即使拆为子节点，初始 Snapshot 仍携带完整当前树；`replace()` 是全树结构提交，不自动按需传输某一子节点。未来若需真正延迟传输、共享跨角色 Clip 或独立资源发布，需要另行设计，不能声称当前子树已经具备这些能力。
-- 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。
+- 各个 `ms-action` 的 Clip 仍需应用级帧数、图层、字节、资源引用上界及诊断。是否采用旧版具体数值需要真实 CMS079 样本测量后决定。**换装需按 §3.2 把关联更新放入一次原子提交，不得跨提交逐步替换动作。**
 - 当前外观可触发的动作应**预先发布对应子节点**，不要在施放技能的 Event 到达后才尝试创建 Clip；具体动作清单与数据体积的产品策略尚待验证。
 
 ## 5. 与 OpenMS 的对应关系
@@ -123,8 +138,8 @@ LoomRealm RenderNode.children
 
 1. `ms-action` 的具体字段 ABI：动作名、Clip 版本、循环区间和帧列表。
 2. 父子通知与快照投影顺序、重挂/移除时清理逻辑；包括不同 Action 重名的错误处理。
-3. **已确认 (§3.1)** 同名 Clip 热更新保留 `elapsedMs`，失效 one-shot 取消；**待定** 基础 Clip 缺失期间的累计时间、跨外观版本的匹配规则。
-4. 父级 `appearance` 与每个 Action Clip 的共用 zOrder/资源引用、版本一致性与缓存容量。
+3. **已确认 (§3.1、§3.2)** 同名 Clip 热更新保留 `elapsedMs`，失效 one-shot 取消；换装使用同次原子发布；**待定** 基础 Clip 缺失期间的累计时间。
+4. 父级共享外观与各 Clip 的具体 zOrder/资源引用组合校验算法、投影结束信号、缓存容量；**不新增**用于换装同步的 `appearance-version`。
 5. CMS079 实际外观动作范围与序列化开销，是否需要另一层共享数据压缩。
 
 **验证状态**：仅为设计 Draft；`ms-action` 尚无实现、Validator、浏览器投影和实资源验收。不得据此声称 LoomRealm Core ABI 已变更或旧版 `cms-actor` 被替换。

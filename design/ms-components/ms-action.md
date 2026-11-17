@@ -154,9 +154,9 @@ interface LayerV1 {
 - sprite 必须精确引用父级 data.sprites.items 中存在的逻辑小图 ID。
 - z 必须精确出现在父级 data.appearance.zOrder。
 - origin 是小图内部与布局计算出的部件原点对齐的像素坐标；它不因图集位置变化而变化。
-- anchors 中的向量相对该 Layer 的 origin。锚点匹配优先级固定为 navel → neck → hand → brow → handMove。
+- anchors 中的向量相对该 Layer 的 origin；最多 8 个锚点，名称非空且 UTF-8 长度不超过 32 字节。锚点匹配优先级固定为 navel → neck → hand → brow → handMove。
 - 若 anchors 缺省或为空，Layer 使用身体原点；若非空但找不到任何与已建立锚点表共同的名称，父 Painter 跳过该 Layer 并报告 LAYER_ANCHOR_MISSING。
-- 同一 Layer 的 priority 和 tag 必须同时存在或同时缺省。两者均缺省表示该层不参与 slot occlusion；参与 CMS079 遮挡的部件不得由 Adapter 省略这两个字段来绕过校验。
+- 同一 Layer 的 priority 和 tag 必须同时存在或同时缺省。priority 必须是安全整数；tag 必须是非空、无重复字符串数组，最多 32 项，每个 token 为 1–8 UTF-8 字节。两者均缺省表示该层不参与 slot occlusion；参与 CMS079 遮挡的部件不得由 Adapter 省略这两个字段来绕过校验。
 - priority 是 Adapter 从 CMS079 槽位事实解析出的整数优先级；tag 是有序 slot token 数组。Renderer 只执行既定遮挡算法，不读取源 WZ metadata。
 - z 为 face 的 Layer 不参与 slot occlusion。
 - Layer 不携带 width/height、Content resource identity 或 atlas source；小图尺寸和 source 都由父级 sprite item 提供。
@@ -266,7 +266,7 @@ Clip Validator 至少拒绝：
 - 非整数或负 durationMs、非法 rotate/flip/showFace/move；
 - 未知 playback mode、repeatFrom 越界、循环区间总时长为零；
 - 空/重复 layer id、缺失 sprite/z、z 不在父级 zOrder；
-- 非有限 origin/anchor 坐标、非法 priority/tag 配对；
+- 非有限或超出运行配置坐标范围的 move/origin/anchor 坐标、非法 priority/tag 配对、空/重复/超长 slot token；
 - 超出当前组件运行配置的字节、帧、Layer、锚点或字符串预算。
 
 Clip 只验证 sprite ID 的语法；sprite 是否存在、source 是否落在当前父级图集页、contentVersion 和实际解码尺寸由父级组合/资源 Validator 验证。

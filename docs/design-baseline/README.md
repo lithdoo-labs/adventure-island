@@ -8,16 +8,18 @@ This branch is in a **design reset**, not a new runtime implementation phase.
 
 - `ms-avatar` and `ms-action` remain the only current, reviewable component design candidates.
 - Their existing fields, data shapes, playback semantics and parent/child relationship are preserved in this cleanup. They are **not approved, frozen, normative or implemented**.
+- A new [World Rendering Architecture discussion draft](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) has been added for review. It is **not** an approved Scene ABI, world draw-order contract or implementation instruction.
 - No complete Scene ABI, world draw-order contract, Camera, Movement, Portal, cross-component Renderer service or production scene root is currently approved.
 - The LoomRealm Submodule remains pinned to `93648192323bf5f57996b7b54cbae641d8a53fdb`. This cleanup does not change the gitlink or add game code to LoomRealm.
 
 ## 2. Read these documents first
 
 1. [Current design summary](../../DESIGN.md) — current scope, status and approval gates.
-2. [ms-avatar candidate](../../design/ms-components/ms-avatar.md) — current avatar design candidate; unchanged interface.
-3. [ms-action candidate](../../design/ms-components/ms-action.md) — current action Clip design candidate; unchanged interface.
-4. [MS component index](../../design/ms-components/README.md) — status of candidate component documents and archived architecture proposals.
-5. [Legacy runtime boundary](../../components/README.md) — what remains executable and why it is not the new baseline.
+2. [World Rendering Architecture draft](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) — current discussion draft for unified world ordering; not approved or normative.
+3. [ms-avatar candidate](../../design/ms-components/ms-avatar.md) — current avatar design candidate; unchanged interface.
+4. [ms-action candidate](../../design/ms-components/ms-action.md) — current action Clip design candidate; unchanged interface.
+5. [MS component index](../../design/ms-components/README.md) — status of candidate component documents and architecture proposals.
+6. [Legacy runtime boundary](../../components/README.md) — what remains executable and why it is not the new baseline.
 
 ## 3. Legacy executable path
 
@@ -47,14 +49,15 @@ The Portal Graph currently records 54 non-sentinel target entries: 46 unique in-
 
 The CMS079 WZ→FSDB report remains bounded by its own evidence. It explicitly records unresolved decodes and a confirmed converter omission; do not summarize it as lossless full-client conversion or complete client integrity.
 
-## 5. Archived proposals — not implementation instructions
+## 5. Current discussion draft and archived proposals — not implementation instructions
 
+- [World Rendering Architecture — OpenMS-guided Draft](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md): current discussion draft for the separation of semantic component topology from the unified World Display List. It records OpenMS/GMS083 reference behavior separately from CMS079 evidence and unresolved questions. It is **not approved, frozen, normative or implemented**.
 - [OpenMS-Guided Product-First archive](../product-first/README.md): 65 requirement proposals, ADR-001..016, module contracts and roadmap. None is approved by this reset.
 - [Scene / RenderNode architecture proposal](../../design/ms-components/RENDERNODE-ARCHITECTURE.md): global Draw List, `ms-world-layer`, `ms-entity`, ProjectionBatch, decoded-resource cache, RenderClockProvider and Domain topology are candidate ideas only.
 - [Historical RenderNode audit](../../design/ms-components/RENDERNODE-BASELINE-AUDIT.md): read-only snapshot against an earlier HEAD; not an independent acceptance review.
 - [Legacy project-level RenderNode ABI](../../components/RENDER-NODE-ABI-V1.md) and [MapScenePlanV1](../../components/MAP-SCENE-PLAN-V1.md): retained for the legacy runtime only.
 
-None of these documents should be treated as a current architectural MUST. In particular, the fixed LoomRealm pin does not provide a RenderProjectionBatch API merely because a proposal describes one.
+None of these documents should be treated as a current architectural MUST. In particular, the fixed LoomRealm commit does not provide a RenderProjectionBatch API merely because a proposal describes one.
 
 ## 6. Gates before implementation
 

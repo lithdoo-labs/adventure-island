@@ -6,8 +6,8 @@
 
 This branch is in a **design reset**, not a new runtime implementation phase.
 
-- `ms-avatar` and `ms-action` remain the only current, reviewable component design candidates.
-- Their existing fields, data shapes, playback semantics and parent/child relationship are preserved in this cleanup. They are **not approved, frozen, normative or implemented**.
+- `ms-avatar` and `ms-action` remain the only **previously preserved detailed V1 component candidates**. Six additional **stage-one discussion drafts** now cover `ms-scene-view`, `ms-map-back`, `ms-map-batch`, `ms-world-item`, `ms-map-object`, and `ms-portal-visual`; these are not newly approved or frozen component contracts.
+- The existing `ms-avatar` / `ms-action` fields, data shapes, playback semantics and parent/child relationship are preserved. All eight labels remain **unapproved, unfrozen, non-normative and unimplemented**. The stage scope is six base candidates (including `ms-action` under Avatar V1) plus two conditional candidates.
 - The [World Rendering Architecture discussion draft](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) now explores **DOM + Multi-Canvas composition**: one depth ordering contract, LoomRealm-managed Paint Unit elements, bounded static Canvas batches, and independent Avatar/NPC/Mob/Obj surfaces. It **replaces the earlier cross-component Renderable registration / single-world-compositor direction**, but remains **not** an approved Scene ABI, draw-order contract, or implementation instruction.
 - No complete Scene ABI, world draw-order contract, Camera, Movement, Portal, cross-component Renderer service or production scene root is currently approved.
 - The LoomRealm Submodule remains pinned to `93648192323bf5f57996b7b54cbae641d8a53fdb`. This cleanup does not change the gitlink or add game code to LoomRealm.
@@ -15,11 +15,12 @@ This branch is in a **design reset**, not a new runtime implementation phase.
 ## 2. Read these documents first
 
 1. [Current design summary](../../DESIGN.md) — current scope, status and approval gates.
-2. [DOM + Multi-Canvas World Rendering draft](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) — current discussion draft for mixed DOM/Canvas Paint Units and unified world depth ordering; not approved or normative.
-3. [ms-avatar candidate](../../design/ms-components/ms-avatar.md) — current avatar design candidate; unchanged interface.
-4. [ms-action candidate](../../design/ms-components/ms-action.md) — current action Clip design candidate; unchanged interface.
-5. [MS component index](../../design/ms-components/README.md) — status of candidate component documents and architecture proposals.
-6. [Legacy runtime boundary](../../components/README.md) — what remains executable and why it is not the new baseline.
+2. [Stage-one Custom Element tree and occlusion matrix](../../design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md) — eight proposed tags, stage necessity, real DOM tree and map/Avatar occlusion; not approved.
+3. [DOM + Multi-Canvas World Rendering draft](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) — current discussion draft for mixed DOM/Canvas Paint Units and unified world depth ordering; not approved or normative.
+4. [MS component index and all six new single-component drafts](../../design/ms-components/README.md) — complete first-stage dossier index.
+5. [ms-avatar candidate](../../design/ms-components/ms-avatar.md) — retained detailed avatar design, unchanged interface.
+6. [ms-action candidate](../../design/ms-components/ms-action.md) — retained detailed Clip design, unchanged interface.
+7. [Legacy runtime boundary](../../components/README.md) — historical executable path, not the new ABI.
 
 ## 3. Legacy executable path
 
@@ -51,6 +52,7 @@ The CMS079 WZ→FSDB report remains bounded by its own evidence. It explicitly r
 
 ## 5. Current discussion draft and archived proposals — not implementation instructions
 
+- [Stage-one component tree, occlusion and scope](../../design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md): eight proposed Custom Elements with independent linked design documents; stage scope 6 base + 2 conditional; **not approved**.
 - [World Rendering Architecture — DOM + Multi-Canvas (OpenMS-guided Draft)](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md): current discussion draft for one depth ordering model and multiple independently stacked DOM/Canvas Paint Units, with safe static batching and no second cross-component registration authority. It separates OpenMS/GMS083 reference behavior from CMS079 evidence. It is **not approved, frozen, normative or implemented**.
 - [OpenMS-Guided Product-First archive](../product-first/README.md): 65 requirement proposals, ADR-001..016, module contracts and roadmap. None is approved by this reset.
 - [Scene / RenderNode architecture proposal](../../design/ms-components/RENDERNODE-ARCHITECTURE.md): global Draw List, `ms-world-layer`, `ms-entity`, ProjectionBatch, decoded-resource cache, RenderClockProvider and Domain topology are candidate ideas only.
@@ -64,7 +66,7 @@ None of these documents should be treated as a current architectural MUST. In pa
 Before building a new scene or renderer, obtain explicit review and record decisions for:
 
 1. scene root and render-domain lifecycle;
-2. world drawable representation and deterministic cross-object depth ordering;
+2. world drawable representation, stage-one Custom Element tree, Canvas depth-safe batching and deterministic cross-object ordering;
 3. ms-avatar surface composition and ownership;
 4. Content versus decoded-resource cache ownership, leases, budgets and disposal;
 5. Render Clock versus Simulation Clock;

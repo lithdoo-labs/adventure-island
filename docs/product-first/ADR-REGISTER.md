@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # Adventure Island Product-First ADR Register
 
 > 所有 ADR 当前状态均为 PROPOSED。记录建议裁决，不代表已获产品批准或已经实现。批准人、日期和实施 SHA 在正式审批后填写。

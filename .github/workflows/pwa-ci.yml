@@ -1,4 +1,4 @@
-name: Adventure Island PWA CI
+name: Adventure Island Legacy PWA Compatibility CI
 
 on:
   pull_request:
@@ -48,7 +48,7 @@ concurrency:
 
 jobs:
   canonical-game-and-pwa-staging:
-    name: Canonical Game, real PWA staging and Chromium
+    name: Legacy CMS-* runtime compatibility, PWA staging and Chromium
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:

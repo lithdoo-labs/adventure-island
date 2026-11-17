@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # Independent Reviewer — 执行能力限制与复核交接
 
 > **状态：NOT-RUN / BLOCKED。**

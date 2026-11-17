@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # 主 Agent 设计审查总结（非独立 Reviewer 结论）
 
 > 结论类别：主 Agent 静态设计审计 / 工程化提案。**不是独立 Reviewer ACCEPT**。独立 Reviewer 状态仍为 NOT-RUN / BLOCKED。

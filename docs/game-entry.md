@@ -1,3 +1,5 @@
+> **旧运行路径说明（2026-11-17）：** 本文描述的根目录 Game Entry / PWA 是 Legacy Compatibility Runtime，不是 ms-avatar/ms-action 或新 Scene 架构的实现。当前设计状态见 [Design Baseline Reset](./design-baseline/README.md)。
+
 # 根目录统一 Game Entry（PWA 迁移阶段 3A / 4B；Base → Adventure Map 切片）
 
 > 适用范围：仓库根目录的 canonical Game Package 入口（`game.json`、`launch.pwa.json`、

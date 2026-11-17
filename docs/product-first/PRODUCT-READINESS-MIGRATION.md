@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # 产品验收与研究 Readiness 双轨迁移规则
 
 > 本文件只约束新分支 `docs/product-first/` 的**产品设计管理**，不修改 `research/source-of-truth` 或旧 Stage Readiness 枚举。

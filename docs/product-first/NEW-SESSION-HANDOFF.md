@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # 新会话接续指引（OpenMS-Guided Product-First）
 
 > 这是给新的主 Agent 会话的长期交接文档。新会话先回读 GitHub 真实分支 HEAD，不把本文件的 SHA 当成永远最新。

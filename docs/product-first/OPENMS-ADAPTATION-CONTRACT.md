@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # OpenMS 行为参考 → Adventure Island 产品契约（DRAFT）
 
 > 目标：使用 OpenMS（https://github.com/tensorfish/openms @ `07994de02756356e3e025e3aca9e79433898d2c8`）提供可证伪的行为候选，而不是拷贝 GPL 代码。冻结 ABI 不变；任何冲突采用 ADR 审批。

@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # 产品验收、Golden Fixture 与确定性回放计划
 
 > 状态：TEST DESIGN / NOT EXECUTED。这里定义可执行验收，不声称本轮已运行游戏测试或浏览器 E2E。

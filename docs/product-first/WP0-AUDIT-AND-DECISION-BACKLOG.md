@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # WP0 — 现有设计审计与决策 backlog
 
 > 状态：主 Agent 静态审计；不是产品批准、实现证明或独立 Reviewer 结论。基线为 design/openms-guided-product-first 在执行开始时的远程 HEAD d7ad96cb11a697c20fa48e6fd25983b9c39ce708。

@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史提案 / 非现行规范。** 本文保留用于追溯；不代表当前产品批准、实现或架构要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # Adventure Island 地图游戏运行时 — 产品模块契约 V1
 
 > 状态：PROPOSED，等待产品/架构审批。定义工程接口与行为，不代表功能已实现。OpenMS 参考固定为 GMS083 commit 07994de02756356e3e025e3aca9e79433898d2c8；数值/算法引用不是 CMS079 等价声明。

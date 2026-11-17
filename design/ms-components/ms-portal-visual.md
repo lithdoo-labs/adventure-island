@@ -52,3 +52,61 @@ ms-portal-visual 是普通的 Renderer-only Paint Unit：显示 Portal 静态图
 5. 若后续 phase 动画启用，补充播放时序、帧资源及 30/60/120Hz 回放检查。
 
 历史需求参考：[归档 R1 路线图](../../docs/product-first/IMPLEMENTATION-ROADMAP.md)（NON-NORMATIVE，不是当前批准的产品合同）。
+
+## 7. RenderNode ABI V1 — Static Portal Artwork
+
+> 首阶段仅定义**静态可见 Portal 外观**；Portal 命中、tm/tn、cooldown、same/cross-map 传送都由 Field Subsystem 负责，与本 Visual Element 是否存在完全分离。通用类型见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。
+
+### 7.1 attrs 完整闭集
+
+`world-x`、`world-y`、`stack-rank`、`visible` 均为必需。世界位置是 Portal 视觉自身的逻辑锚点；深度排名由 Subsystem Render Projection 给出，不能因为 Portal 是触发器就始终强制前景。
+
+对于 **CMS079 Portal 视觉深度尚没有可信统一证据** 的资源，不能通过猜测 CSS rank 声称严格等价；可以使用合成测试证明组件能力，而实际地图必须在深度证据/产品策略批准之后发布可见内容。无外观 Portal 不需要此节点。
+
+### 7.2 data 完整闭集
+
+~~~ts
+interface PortalVisualDataV1 {
+  formatVersion: 1;
+  sceneEpoch: string;
+  visualId: string;           // presentation identity；不是 tm/tn/目的地图标识
+  phase: "static";           // V1 只允许 static；动画 phase 后续另立 ABI
+  image: ImageRegionV1;
+  draw: StaticDrawV1;
+}
+~~~
+
+示例：
+
+~~~json
+{
+  "key": "portal-visual:field-epoch-1:entrance",
+  "tag": "ms-portal-visual",
+  "attrs": { "world-x": "240", "world-y": "180", "stack-rank": "50", "visible": "true" },
+  "data": {
+    "formatVersion": 1, "sceneEpoch": "field-epoch-1", "visualId": "portal-art:entrance", "phase": "static",
+    "image": {
+      "resource": { "namespace": "map", "key": "examples/portal/static.png", "contentVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+      "pageWidth": 32, "pageHeight": 64,
+      "source": { "x": 0, "y": 0, "w": 32, "h": 64 }
+    },
+    "draw": { "origin": [16, 64], "flip": false, "opacity": 255 }
+  },
+  "children": []
+}
+~~~
+
+资源 ID、尺寸、位置和 rank 都是合成示例，不宣称存在此实际 Portal 资源。真实图片必须有来源、资源闭包和可见性验收。
+
+### 7.3 层级、更新和生命周期
+
+- children 必须为空；根层级是 ms-scene-view 直属的独立 Paint Unit。无需 ms-world-item 再包一层，避免双重外部深度宿主。
+- 静态图片可以用 img 或局部 Canvas，按照 sourceRect 裁剪、origin 对齐、flip/opacity 绘制；在 Canvas/Shadow DOM 内部不包含碰撞区域或交互传送逻辑。
+- 位置、显隐与 rank 更新走 attrs Update；更换图像/phase 等需要有效 V1 data 完整更新，不能接收未知非静态 phase。
+- 视觉渲染事件的进入/离开动画、闪烁提示、phase v2 尚不属于本 V1；该组件不得发送业务逆向事件，也不得在 DOM pointer/up 时决定传送。
+- 当 Portal 没有视觉显示要求时，Subsystem 仍保留真实 Portal 数据并可正常传送；删除视觉节点不代表 Portal 业务生命周期结束。场景关闭时停止图像读取，旧 epoch 回调失效。
+
+### 7.4 专项验证
+
+同一地图可见/不可见 Portal 的 Gameplay 等价；视觉在 Actor 前后的真实深度验证；合成图片错误与旧 epoch 资源晚到；无 Portal Visual 时完整传送；动画 phase 数据被明确拒绝而不是假装实现。
+

@@ -1,6 +1,6 @@
 # Adventure Island RenderNode ABI v1
 
-> **历史状态：Frozen / Normative for the legacy cms-* runtime only；对当前新设计 NON-NORMATIVE。** 本文中的冻结仅约束旧 cms-* 兼容运行路径，不约束 ms-avatar / ms-action 或未来 Scene 设计。客户端画面一致性：PARTIALLY VERIFIED。 本文冻结本仓库的产品接口和 MVP 行为，不代表所有原始客户端绘制语义均已逆向确认。新组件可以在后续版本扩展，但不得静默改变本文已有字段的名称、类型、含义、生命周期或树顺序；未验证的产品选择必须在相应条款中明确标注。
+> **历史状态：Frozen / Normative for the legacy cms-* runtime only；对当前新设计 NON-NORMATIVE。** 本文中的冻结仅约束旧 cms-* 兼容运行路径，不约束 ms-avatar / ms-action 或未来 Scene 设计。客户端画面一致性：PARTIALLY VERIFIED。 本文冻结本仓库的产品接口和 MVP 行为，不代表所有原始客户端绘制语义均已逆向确认。旧 cms-* 组件在本 v1 兼容范围内不得静默改变本文已有字段的名称、类型、含义、生命周期或树顺序；任何新组件/新场景架构应独立审查和版本化，不由本文预先约束。
 >
 > 基线：LoomRealm gitlink `93648192323bf5f57996b7b54cbae641d8a53fdb`。
 >

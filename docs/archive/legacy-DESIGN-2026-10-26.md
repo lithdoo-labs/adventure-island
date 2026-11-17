@@ -1,3 +1,5 @@
+> **历史档案提示（2026-11-17）：** 本文是旧版 DESIGN.md 的存档副本；其中“现行方向”“不可破坏”等表述仅代表当时状态，已由当前 [Design Baseline Reset](../design-baseline/README.md) 取代。保留本文件仅用于历史追溯。
+
 # Adventure Island — OpenMS-Guided Product-First 设计与历史基线
 
 > 状态：Draft，供复核后改写

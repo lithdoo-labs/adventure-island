@@ -494,7 +494,7 @@ JSON 字节测量使用有界计数器，超过预算即停止，不先构造无
 
 - [旧 cms-actor 实施说明](../../components/cms-actor/IMPLEMENTATION.md)
 - [旧 cms-actor Avatar Model](../../components/cms-actor/src/avatar-model.mjs)
-- [Frozen RenderNode ABI v1](../../components/RENDER-NODE-ABI-V1.md)
+- [旧 cms-* RenderNode ABI v1（仅历史比较）](../../components/RENDER-NODE-ABI-V1.md)
 - [LoomRealm Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 - [LoomRealm Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)
 - [LoomRealm WebProjector implementation](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/packages/renderer/src/internal/web-projector.ts)

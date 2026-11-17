@@ -106,7 +106,13 @@ interface PortalVisualDataV1 {
 - 视觉渲染事件的进入/离开动画、闪烁提示、phase v2 尚不属于本 V1；该组件不得发送业务逆向事件，也不得在 DOM pointer/up 时决定传送。
 - 当 Portal 没有视觉显示要求时，Subsystem 仍保留真实 Portal 数据并可正常传送；删除视觉节点不代表 Portal 业务生命周期结束。场景关闭时停止图像读取，旧 epoch 回调失效。
 
-### 7.4 专项验证
+### 7.4 OpenMS Portal 参考和能力差异
+
+固定 OpenMS 的 [portal-presentation.js](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/world/portal-presentation.js) 明确将可见 Portal 的 Artwork 与 Portal Travel Gate 解耦：type 10/11 的可见性变化使用 portalStart → portalContinue → portalExit → hidden，分别涉及单次与循环动作；Portal 选择区域由独立业务侧条件判断。[docs/ingame-portals.md](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/ingame-portals.md) 记录 type 2/4/7 的 pv 循环及 type 10/11 的 ph/psh 特例。
+
+**本 V1 仅支持 phase=static，是本阶段的有意缩小范围，不等于已复现上述原版 Portal 视觉。** 如果三图目标出现需要 pv/ph/psh 动作的可见 Portal，不能用一帧图像宣称完整呈现：应先补充 Portal Visual V2 Clip/phase 状态机、Clock 以及 CMS079 兼容证据，或明确将该地图视觉项目标记为尚未完成。Portal **Gameplay 功能**仍不应等待视觉动画完成。
+
+### 7.5 专项验证
 
 同一地图可见/不可见 Portal 的 Gameplay 等价；视觉在 Actor 前后的真实深度验证；合成图片错误与旧 epoch 资源晚到；无 Portal Visual 时完整传送；动画 phase 数据被明确拒绝而不是假装实现。
 

@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史验证/研究快照；结论仅适用于报告记录的样本、机器、日期与基线。** 当前设计入口：[Design Baseline Reset](./design-baseline/README.md)。
+
 # CMS079 client inventory of the runner `/shared` directory
 
 Discovery-only inspection performed on 2026-11-04. `/shared` was treated as read-only

@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：旧 cms-* 组件资料；仅用于 Legacy Compatibility Runtime，不是 ms-avatar/ms-action 的实现或新设计规范。** 当前设计入口：[Design Baseline Reset](../../docs/design-baseline/README.md)。
+
 # cms-avatar-layer
 
 > 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准；本文记录人物容器的产品职责和证据边界。

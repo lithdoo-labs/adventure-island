@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：旧 cms-* 组件资料；仅用于 Legacy Compatibility Runtime，不是 ms-avatar/ms-action 的实现或新设计规范。** 当前设计入口：[Design Baseline Reset](../../docs/design-baseline/README.md)。
+
 # cms-actor 部署与注册
 
 > 把 `cms-actor` 交给 LoomRealm 正式加载所需的全部产物、MIME 与步骤。不修改 LoomRealm 冻结接口。

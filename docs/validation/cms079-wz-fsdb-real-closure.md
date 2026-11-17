@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史验证/研究快照；结论仅适用于报告记录的样本、机器、日期与基线。** 当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # CMS079 WZ → FSDB 真实闭环验收
 
 日期：2026-11-06。集成分支 `feat/cms079-pr1-migration`，基线 `origin/main` `9af28d89e47bf95786464a1bb50714aa833cebcc`。LoomRealm pin 未改：`93648192323bf5f57996b7b54cbae641d8a53fdb`。

@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史迁移/审查/验证快照。** 本文只代表其记录日期和当时分支/环境的结果，不是当前设计批准或当前 CI 结果。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # research 隔离与 LoomRealm PWA 工程验证报告（Issue #38）
 
 > 验证类型：本地只读验证 + 既有测试执行。除本报告外未修改、未新增任何文件；未执行 git commit / push / gh 发布操作。

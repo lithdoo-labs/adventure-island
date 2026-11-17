@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史迁移/审查/验证快照。** 本文只代表其记录日期和当时分支/环境的结果，不是当前设计批准或当前 CI 结果。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # Adventure Island 迁移计划（Issue Agent 单一入口 + PWA）
 
 基线 commit：`b61eec1897ae47db1eeaf0c7645d90f041e1090c`；提出日期：2026-11-04。

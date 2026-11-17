@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史迁移/审查/验证快照。** 本文只代表其记录日期和当时分支/环境的结果，不是当前设计批准或当前 CI 结果。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # 2026-11-09 Adventure Field 设计评审修订
 
 > 状态：修订已写入草案、RenderNode ABI 说明、MapScenePlanV1 和四个地图组件 DESIGN。  

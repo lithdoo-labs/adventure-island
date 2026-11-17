@@ -4,6 +4,8 @@
 > **实现状态：未实现。** 新组件尚无实现；CMS079 样本、真实 WebProjector 集成、像素与性能验收仍待执行。本文中的 Renderer 内部批次能力属于待核验集成提案，不是固定 LoomRealm commit 已提供的 API。  
 > 组件：**ms-avatar**；动作数据子组件：[ms-action](./ms-action.md)。旧 **cms-actor** 仅作为迁移和算法参考，不是新组件 ABI。
 
+> **首阶段集成指引（非规范）：** 在 [Field 组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md) 中，本组件作为 `ms-world-item` 的直接子视觉组件，其外层世界位置和 stack-rank 不进入此处的 Avatar V1 attrs。该链接仅解释现阶段场景组合，不修改本 V1 的字段、时钟、纸娃娃算法或未解决的 ProjectionBatch 提案。
+
 ## 1. 目标、职责与非目标
 
 **ms-avatar** 是 Renderer 内的局部纸娃娃呈现器。它消费已经解析、验证、可绘制的角色外观数据和动作 Clip，维护本地视觉播放状态，并将当前身体帧、表情和装备合成为完整画面。

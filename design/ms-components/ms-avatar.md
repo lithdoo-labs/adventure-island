@@ -90,7 +90,7 @@ V1 只接受以下四个 retained 字符串属性。属性值不做大小写折�
 
 - 每次有效 Event 都从第 0 帧启动一次性覆盖；同名 Event 也重启。
 - 新 Event 替换当前 one-shot；one-shot-enabled=false 优先级最高，禁用期间忽略 Event。
-- 目标 Clip 缺失、无效、重名或不能与当前共享外观组成有效组合时，立即丢弃 Event，不缓存、不等待后续 replace 补播。
+- 目标 Clip 缺失、无效、重名或不能与当前共享外观组成有效组合时，立即丢弃 Event，不缓存、不等待后续 replace 补播；无效 Event 不得打断当前正在播放的有效 one-shot。只有通过校验的新 Event 才替换当前 one-shot。
 - Clip 有效但图片未下载/解码时，Event 仍在 Renderer 接收时开始计时；图片就绪时只绘制届时的当前帧。
 - Event 是 transient、可能丢失且不重放。新建组件实例只从 retained 状态恢复基础 Action，不恢复旧 one-shot。
 - 不增加 action-seq、action.cancel 或 retained 技能状态。
@@ -136,6 +136,8 @@ interface AvatarDataV1 {
 }
 ~~~
 
+表达式帧复用 ms-action.md 定义的 LayerV1 几何与资源引用字段；表达式 Layer 使用身体帧建立的锚点表，不创建新的身体锚点。
+
 ### 3.1 appearance
 
 V1 的 appearance 只包含共享 zOrder。它是 Adapter 从当前角色外观解析出的角色内部绘制层序，顺序为**前景到背景**；Painter 反向绘制，即背景先画、前景后画。
@@ -151,7 +153,7 @@ V1 的 appearance 只包含共享 zOrder。它是 Adapter 从当前角色外观�
 
 - pages 的每个条目代表一张**真实合成的图集页**，包含完整 Content 资源身份及解码后预期的整页宽高。
 - items 的每个条目代表一个逻辑小图，指向一个 page 和页内 source 裁剪矩形。小图宽高由 source.w/h 得出，不另存重复尺寸。
-- source.x/y 是非负整数；source.w/h 是正整数；矩形必须落在声明的页面尺寸内，解码后还要再次检查实际边界。
+- page.width/height 必须是正整数。source.x/y 是非负整数；source.w/h 是正整数；矩形必须落在声明的页面尺寸内，解码后还要再次检查实际边界。
 - resource.contentVersion 使用 Content 返回的精确版本；V1 格式为 sha256: 加 64 位小写十六进制字符。namespace、key 必须是合法 Content 身份。
 - 同一页可以被多个动作、多个帧及表情重复引用；缓存按完整资源身份去重。
 - V1 图集打包**不旋转小图、不裁掉透明边缘、不做 trim**。图集坐标只影响 source，不改变小图逻辑尺寸、origin 或 anchors。
@@ -400,7 +402,7 @@ ms-avatar 是身体 Action、表情和装备图片的唯一逻辑资源所有者
 ### 9.3 异步绘制和完整帧提交
 
 - Player 时间推进不能等待网络、图片解码或 Canvas 绘制 Promise。
-- 每次父 data、活动 Clip、表达或实例生命周期变化都会使旧 paint epoch 失效。
+- 每次父 data、活动 Clip、表情或实例生命周期变化都会使旧 paint epoch 失效。
 - 资源返回时重新读取当前 Player 状态，绘制当下帧；旧异步请求不得提交它最初捕获的过期帧。
 - 一帧的全部可见 Layer 资源就绪后才提交完整合成；不得先画身体、再迟到补画武器/头发造成半套外观。
 - 同一有效组合内的新帧像素尚未就绪时，可保留上一张完整提交帧，直到当前帧完整可画；若父子组合无效或外观/Clip 身份已变化，必须清除旧画面，不能把旧装备显示成新状态。

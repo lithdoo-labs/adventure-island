@@ -1,7 +1,7 @@
 # ms-action — Avatar 动作数据子组件设计 V1
 
-> **设计状态：V1 设计基线已收口。** 本文是 [ms-avatar](./ms-avatar.md) 的组成契约；字段、播放规则、父子通知和更新语义均为规范性设计。  
-> **实现状态：未完成。** 当前没有新 ms-action Custom Element、完整 Validator 或真实 WebProjector 集成测试。CMS079 数据与容量仍须按 ms-avatar 第 13 节验收。
+> **设计状态：可审查候选基线；未批准、未冻结、非现行规范。** 本文保留为 [ms-avatar](./ms-avatar.md) 的组成设计候选；字段、播放规则、父子通知和更新语义没有在本次清理中重定义。  
+> **实现状态：未实现。** 当前没有新 ms-action Custom Element、完整 Validator 或真实 WebProjector 集成测试。CMS079 数据与容量仍须按 ms-avatar 第 13 节验收。
 
 ## 1. 定位与职责
 
@@ -25,7 +25,9 @@ ms-action 是 ms-avatar 的**数据型直接子组件**。一个实例表示一�
 
 **所有动作时间轴、图片资源和最终绘制权均归父 ms-avatar。**
 
-## 2. RenderNode ABI
+## 2. RenderNode transport shape
+
+本节描述的是 LoomRealm 上游 RenderNode 传输形状，不是旧 Adventure Island `cms-*` 项目级 ABI；本候选不依赖 `components/RENDER-NODE-ABI-V1.md`。
 
 ms-action 必须是一个 ms-avatar 的直接子节点。V1 节点形状：
 
@@ -297,7 +299,7 @@ Clip 只验证 sprite ID 的语法；sprite 是否存在、source 是否落在�
 - ms-avatar 是播放、资源与绘制权威。
 - RenderNode key、Action name、Clip localRevision 和 Content contentVersion 是四种不同身份，不互相替代。
 - Clip 的 playback 描述基础播放；Event 的 once 是父 Player 的运行时覆盖模式。
-- 新组件设计已收口；Renderer 内部投影批次门闩、CMS079 转换正确性、容量数值和像素/性能结论仍须工程验收。
+- 本文仍是可审查候选设计，尚未批准或冻结；Renderer 内部投影批次门闩、CMS079 转换正确性、容量数值和像素/性能结论仍须工程验收。
 
 参考：  
 - [ms-avatar V1](./ms-avatar.md)  

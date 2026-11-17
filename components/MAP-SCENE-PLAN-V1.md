@@ -1,3 +1,5 @@
+> **Legacy scope (2026-11-17):** This Draft schema is retained only for the existing cms-* compatibility runtime. It is not the current map/scene contract and must not constrain new design work. See [Design Baseline Reset](../docs/design-baseline/README.md).
+
 # MapScenePlanV1
 
 > 状态：Draft / 逻辑契约。本文是构建期 Adapter、Field Runtime 和 Bundle Builder 对一张地图的共同 schema。  

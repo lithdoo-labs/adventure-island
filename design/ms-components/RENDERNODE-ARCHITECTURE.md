@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：探索性架构提案 / NON-NORMATIVE。** 本文保留 Scene ABI v2、Draw List、ms-world-layer、ProjectionBatch、decoded cache、RenderClockProvider 与 Domain 拓扑的推演过程；所有方案均未获批准，不是实施指令。当前基线见 [Design Baseline Reset](../../docs/design-baseline/README.md)。
+
 # RenderNode 总体架构与 Scene ABI v2 设计
 
 > 设计状态：**PROPOSED，等待 ADR 审批与独立 Reviewer。**

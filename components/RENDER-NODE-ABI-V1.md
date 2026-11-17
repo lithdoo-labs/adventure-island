@@ -1,12 +1,12 @@
 # Adventure Island RenderNode ABI v1
 
-> **状态：Frozen / Normative（Adventure Island 产品接口）；客户端画面一致性：PARTIALLY VERIFIED。** 本文冻结本仓库的产品接口和 MVP 行为，不代表所有原始客户端绘制语义均已逆向确认。新组件可以在后续版本扩展，但不得静默改变本文已有字段的名称、类型、含义、生命周期或树顺序；未验证的产品选择必须在相应条款中明确标注。
+> **历史状态：Frozen / Normative for the legacy cms-* runtime only；对当前新设计 NON-NORMATIVE。** 本文中的冻结仅约束旧 cms-* 兼容运行路径，不约束 ms-avatar / ms-action 或未来 Scene 设计。客户端画面一致性：PARTIALLY VERIFIED。 本文冻结本仓库的产品接口和 MVP 行为，不代表所有原始客户端绘制语义均已逆向确认。新组件可以在后续版本扩展，但不得静默改变本文已有字段的名称、类型、含义、生命周期或树顺序；未验证的产品选择必须在相应条款中明确标注。
 >
 > 基线：LoomRealm gitlink `93648192323bf5f57996b7b54cbae641d8a53fdb`。
 >
 > 上游规范：[Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)、[Web Presentation API v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v1.md)、[Web Presentation Config v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-config-v1.md)。
 
-本文使用 MUST / MUST NOT / SHOULD / MAY 表达规范强度。本文是 Adventure Island 的产品级组件契约，不复制或修改 LoomRealm 的底层协议。
+本文使用 MUST / MUST NOT / SHOULD / MAY 表达规范强度。本文是旧 cms-* 运行路径的产品级组件契约，不复制或修改 LoomRealm 的底层协议；不得将其作为新设计的默认 ABI。
 
 2026-11-09 目标修订：`locomotion` 增加 `prone` 与 `swim`。`stand`、`walk`、`jump` 的含义不变，五字段和标签集合不变，不另起主版本。`swim` 的画面映射写在 5.6。
 

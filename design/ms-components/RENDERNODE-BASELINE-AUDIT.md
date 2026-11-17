@@ -1,3 +1,5 @@
+> **历史审计快照（2026-11-17）。** 本文审计基线为旧提交 `07624ffc869f914f93f18af1467b96e32294faf8`，不是当前 HEAD；未获独立 Reviewer 批准，不构成当前架构 ACCEPT。仅作只读溯源。当前状态见 [Design Baseline Reset](../../docs/design-baseline/README.md)。
+
 # RenderNode 架构基线审计与冲突清单
 
 > 审计状态：**已完成基线读取；结论未获独立 Reviewer 批准。**

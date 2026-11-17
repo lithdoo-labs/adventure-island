@@ -1,7 +1,7 @@
 # ms-avatar — 纸娃娃角色呈现组件设计 V1
 
-> **设计状态：V1 设计基线已收口。** 本文是 Adventure Island 的规范性组件设计；字段、状态机、数据所有权、父子协作和失败语义以本文为准。  
-> **实现状态：未完成。** 新组件尚未实现；CMS079 样本、真实 WebProjector 集成、像素与性能验收仍须按第 13 节执行。设计收口不代表实现通过，也不代表 LoomRealm 公共 ABI 已发布。  
+> **设计状态：可审查候选基线；未批准、未冻结、非现行规范。** 本文保留当前字段、状态机、数据所有权、父子协作和失败语义作为讨论基线；不宣称它们已成为产品级公共 API。  
+> **实现状态：未实现。** 新组件尚无实现；CMS079 样本、真实 WebProjector 集成、像素与性能验收仍待执行。本文中的 Renderer 内部批次能力属于待核验集成提案，不是固定 LoomRealm commit 已提供的 API。  
 > 组件：**ms-avatar**；动作数据子组件：[ms-action](./ms-action.md)。旧 **cms-actor** 仅作为迁移和算法参考，不是新组件 ABI。
 
 ## 1. 目标、职责与非目标
@@ -22,7 +22,7 @@
 
 ## 2. LoomRealm 边界与 RenderNode 形状
 
-ms-avatar 和 ms-action 使用现有 RenderNode 五字段：**key / tag / attrs / data / children**。V1 不增加 LoomRealm RenderNode、Render Update 或 RenderEvent 公共字段。
+ms-avatar 和 ms-action 候选节点使用 LoomRealm 上游 RenderNode 五字段：**key / tag / attrs / data / children**。这是平台传输形状，不等同于旧项目级 [cms-* ABI](../../components/RENDER-NODE-ABI-V1.md)。本候选不增加 LoomRealm RenderNode、Render Update 或 RenderEvent 公共字段。
 
 ms-avatar 节点形状：
 
@@ -503,4 +503,4 @@ JSON 字节测量使用有界计数器，超过预算即停止，不先构造无
 - [OpenMS Animation Timing](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation-timing.js)
 - [OpenMS EntityAnimation](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation.js)
 
-**最终状态声明：** V1 组件设计基线已收口；ms-avatar / ms-action 的公共 RenderNode 形状和行为契约以这两份文档为准。实现、Renderer 内部投影门闩、CMS079 事实验证和性能验收仍未完成，必须按 V01–V04 留痕，不得把设计完成写成测试通过。
+**当前状态声明：** 本文是 ms-avatar 的可审查设计候选，不是已批准或冻结的规范。本文描述的字段与行为在本次清理中未被重定义；实现、Renderer 内部投影批次、CMS079 事实验证和性能验收仍未完成，必须按 V01–V04 留痕，不得把设计审查状态写成实现通过。

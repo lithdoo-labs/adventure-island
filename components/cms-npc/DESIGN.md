@@ -1,3 +1,5 @@
+> **Legacy scope (2026-11-17):** This `cms-*` component design is retained only for the existing Legacy Compatibility Runtime. It is not normative for new `ms-*` design or implementation. See [Design Baseline Reset](../../docs/design-baseline/README.md).
+
 # cms-npc
 
 > **状态：Future / ABI 未冻结。** 本文是来源与职责草案；`cms-npc` 不属于 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 的 MVP 标签契约。实现前必须单独冻结 attrs/data/events schema。

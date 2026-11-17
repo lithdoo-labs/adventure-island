@@ -1,3 +1,5 @@
+> **Legacy scope (2026-11-17):** This `cms-*` component design is retained only for the existing Legacy Compatibility Runtime. It is not normative for new `ms-*` design or implementation. See [Design Baseline Reset](../../docs/design-baseline/README.md).
+
 # cms-back
 
 > 公共 RenderNode attrs/data/children ABI 以 [RENDER-NODE-ABI-V1.md](../RENDER-NODE-ABI-V1.md) 为准。支持范围以 [MAP-SCENE-PLAN-V1.md](../MAP-SCENE-PLAN-V1.md) 为准。

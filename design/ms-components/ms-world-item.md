@@ -54,7 +54,7 @@ ms-scene-view
 ## 5. 更新、生命周期和失败
 
 - 高频 x/y 走已有节点的 RenderDomain.update；仅更新宿主 transform，不触发内层 Canvas 重绘。
-- action/expression 等由内层 ms-avatar 单独接收；一次换装的多节点一致性问题仍受当前 Avatar V1 的待验证边界约束，不能宣称已经有上游批次接口。
+- action/expression 等由内层 ms-avatar 单独接收；一次换装的多节点一致性问题仍受当前 Avatar 文档 的待验证边界约束，不能宣称已经有上游批次接口。
 - depth 改变只更新 stack-rank 或由 Subsystem 按需要重排 Paint Unit；如果静态 batch 深度断点规划不足，**不允许世界宿主自行拆分 Canvas**。
 - 结构替换通过 RenderDomain.replace，复用仍存活的稳定 key；删除过的 key 在同一 Domain 生命周期不能随意复活。
 - 宿主断连/重连不应改变 Subsystem 的 Actor；本组件不接收攻击命中、死亡裁决或业务输入。
@@ -66,13 +66,13 @@ ms-scene-view
 2. 同一个 Obj 在 Player 不同 Foothold depth 时从前景变后景；不依赖 screen-Y。
 3. Camera 平移、resize、DPR 下 Actor 足点与地图 Foothold 视觉对齐。
 4. 同深度多个 Actor（合成 fixture）tie-order 稳定；world-item 不创建新的协作 registry。
-5. map replace /断连/重连后 key 和视觉相位符合 [Avatar V1](./ms-avatar.md) 约束。
+5. map replace /断连/重连后 key 和视觉相位符合 [ms-avatar](./ms-avatar.md) 约束。
 
 OpenMS 参考：[Actor depth 与 tie-order](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)。
 
 ## 7. RenderNode ABI — Actor World Host
 
-> 本节明确 Stage-1 唯一玩家视觉对象的候选 ABI；共享整数排序、Resource/场景 epoch 语义见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。不修改现有 [ms-avatar V1](./ms-avatar.md)。
+> 本节明确 Stage-1 唯一玩家视觉对象的候选 ABI；共享整数排序、Resource/场景 epoch 语义见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。不修改现有 [ms-avatar](./ms-avatar.md)。
 
 ### 7.1 attrs 完整闭集
 
@@ -100,7 +100,7 @@ ms-world-item 不接收 RenderEvent，也不调用 `emitCustomEvent()`。Avatar 
 
 
 
-首阶段必须**恰有一个**直属子节点，tag 为 `ms-avatar`；该 Avatar 按既有 V1 候选文档拥有自己的零到多个 `ms-action` 直接子节点。ms-world-item **不得**改变 Avatar 既有 attrs/data/children 契约，不承诺 Avatar 的 ProjectionBatch 已由平台实现。
+首阶段必须**恰有一个**直属子节点，tag 为 `ms-avatar`；该 Avatar 按既有组件文档拥有自己的零到多个 `ms-action` 直接子节点。ms-world-item **不得**改变 Avatar 既有 attrs/data/children 契约，不承诺 Avatar 的 ProjectionBatch 已由平台实现。
 
 ~~~json
 {
@@ -205,7 +205,7 @@ ms-world-item 不接收 RenderEvent，也不调用 `emitCustomEvent()`。Avatar 
 }
 ~~~
 
-**注意**：该示例包含满足 ms-avatar/ms-action V1 基础结构的合成 stand1 Clip 与示例图集引用，资源 key 和 PNG 内容均**未实际提供**，因此这不是已可绘制的地图 Avatar 验收结果。真实图片尺寸、锚点、slot occlusion、资源 closure 和 ProjectionBatch 限制仍以既有 Avatar V1 验收门为准。
+**注意**：该示例包含满足 当前 ms-avatar/ms-action 组件结构的合成 stand1 Clip 与示例图集引用，资源 key 和 PNG 内容均**未实际提供**，因此这不是已可绘制的地图 Avatar 验收结果。真实图片尺寸、锚点、slot occlusion、资源 closure 和 ProjectionBatch 限制仍以既有 Avatar 文档的验收门为准。
 
 ### 7.4 投影与局部 DOM
 

@@ -62,7 +62,7 @@ ms-map-back 表示一个**可参与世界排序的 Back 绘制单元**，既可�
 
 ## 8. RenderNode ABI — Back / Front Back
 
-> 本节为可审查的 V1 候选形状。共享坐标、资源、rank 和错误语义见 [Field Paint Unit ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。GMS083 深度公式只是来源证据，Renderer 消费已经算出的 rank。
+> 本节为可审查的 当前候选形状。共享坐标、资源、rank 和错误语义见 [Field Paint Unit ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。GMS083 深度公式只是来源证据，Renderer 消费已经算出的 rank。
 
 ### 8.1 attrs 完整闭集
 

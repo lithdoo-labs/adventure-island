@@ -116,5 +116,5 @@ interface MapObjectData {
 
 ### 7.4 错误与首阶段测试
 
-拒绝未知 data 字段、资源内容身份不匹配/非法裁剪、异常原点、无效坐标、重复 placementId 和与 Batch 的重复输出；资源失败仅影响呈现和场景 ready 策略，不触发 Portal 或模拟回滚。测试覆盖前景树/后景树、透明像素、图片加载顺序无关的 tie-order、Camera/DPR、节点断连和地图 epoch 切换。
+拒绝未知 data 字段、资源内容身份不匹配/非法裁剪、异常原点、无效坐标、重复 placementId 和与 Batch 的重复输出；资源失败仅影响呈现和场景 ready 策略，不触发 Portal 或模拟回滚。测试覆盖前景树/后景树、透明像素、图片加载顺序无关的 tie-order、Camera/DPR、节点断连和地图结构替换与节点断连。
 

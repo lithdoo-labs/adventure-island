@@ -113,7 +113,7 @@ connected/disconnected → stop/rebind local clock and cancel/ignore stale work
 - Canvas 内部多条 placement 必须构成对本阶段全部**可达独立**世界深度均安全的连续排序区间；对某个未来 Actor 的深度插入点不安全就切批或抽为独立 Obj。
 - 静态 Canvas 批次中没有局部 Canvas 像素能越过其他兄弟 Paint Unit：不能给同一 Canvas 的前半图和后半图设不同 CSS z-index。
 - 各 RenderNode 组件不可相互注册 Renderable，也不可自行重排 LoomRealm managed Light DOM；所有兄弟位置/排序由 Subsystem 投影并由 WebProjector 展示。
-- 同一提交跨多个不同节点 attrs/data 没有提供保证可观察到原子画面的 WebProjector Canvas barrier。场景可见性/转换门闩尚须真实验证；Avatar V1 提出的 ProjectionBatch 仍是未实现的集成提案。
+- 同一提交跨多个不同节点 attrs/data 没有提供保证可观察到原子画面的 WebProjector Canvas barrier。场景可见性/转换门闩尚须真实验证；Avatar 文档提出的 ProjectionBatch 仍是未实现的集成提案。
 
 ## 5. OpenMS 与 CMS079 来源边界
 

@@ -56,7 +56,7 @@
 - 已有场景根的 attrs/data 变化可走 RenderDomain.update；增删/重排 children 必须 RenderDomain.replace。
 - Domain retained commit 原子并不保证所有子 Canvas 已完成资源解码/像素提交；场景过渡必须有明确的可见性策略。**不得声称 LoomRealm 已支持 ProjectionBatch。**
 - 断连时停止私有 visual-only 工作并使过期异步回调失效；重连需从最新 retained 状态恢复而非重放旧 Portal 事件。
-- 如果提供 RenderClockProvider，仅是候选业务侧 Renderer-local service，必须与现有 [ms-avatar Clock V1](./ms-avatar.md) 契约一致；不可取代 Simulation Clock。
+- 如果提供 RenderClockProvider，仅是候选业务侧 Renderer-local service，必须与现有 [ms-avatar Clock](./ms-avatar.md) 契约一致；不可取代 Simulation Clock。
 
 ## 6. 禁止越界
 
@@ -74,7 +74,7 @@
 
 ## 8. RenderNode ABI — 具体候选契约
 
-> 本节为可实现/可评审的 V1 **proposal**，是第 3 节概念输入的具体化；与 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md) 一同解释。没有修改 LoomRealm 五字段格式。
+> 本节为可实现/可评审的 当前 **proposal**，是第 3 节概念输入的具体化；与 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md) 一同解释。没有修改 LoomRealm 五字段格式。
 
 ### 8.1 attrs 完整闭集
 
@@ -103,7 +103,7 @@ interface SceneViewData {
 
 
 
-首阶段只允许直属标签 `ms-map-back`、`ms-map-batch`、`ms-map-object`、`ms-world-item`、`ms-portal-visual`。数量依地图内容决定；`ms-world-item` 下面必须是当前 V1 的 `ms-avatar`（其后才能有 `ms-action[]`）。不允许直接嵌套玩家到 `ms-map-batch`，也不为所有地图组件添加一个封闭 ms-map 父层。新增子组件必须复审并直接更新当前闭集，不做 Schema 版本协商。
+首阶段只允许直属标签 `ms-map-back`、`ms-map-batch`、`ms-map-object`、`ms-world-item`、`ms-portal-visual`。数量依地图内容决定；`ms-world-item` 下面必须是现有 `ms-avatar`（其后才能有 `ms-action[]`）。不允许直接嵌套玩家到 `ms-map-batch`，也不为所有地图组件添加一个封闭 ms-map 父层。新增子组件必须复审并直接更新当前闭集，不做 Schema 版本协商。
 
 ~~~json
 {

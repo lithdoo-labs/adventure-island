@@ -68,7 +68,7 @@ ms-scene-view
 
 ## 7. RenderNode ABI — 静态 Canvas Batch
 
-> 本节把第 3 节候选输入落为可验证的 V1 JSON 形状；尚非获批的 ABI。通用 ResourceRef/stack-rank/状态见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。
+> 本节把第 3 节候选输入落为可验证的 当前 JSON 形状；尚非获批的 ABI。通用 ResourceRef/stack-rank/状态见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。
 
 ### 7.1 attrs 完整闭集
 
@@ -107,7 +107,7 @@ interface MapBatchData {
 - 整体 Batch 是可与其他 Paint Units 比较的**一个** stack-rank。所有内部 placement 的顺序必须在全部可达动态插入深度下形成连续安全区间；跨入者必须触发 Batch Planner 拆分，不能只更改这个 Canvas 的 z-index。
 - 所有 page/item 引用必须存在，SourceRect 不越界；placement world anchor 与 image origin 计算左上位置 `(x-originX,y-originY)`，镜像时以 anchor 为中心而不是凭空修改足点。
 - bounds 必须覆盖各 placement 在批次中实际可能绘制的区域，且 Canvas 尺寸/总像素有业务配置限额。需要裁剪时按 world rect 做局部 Canvas 坐标偏移，不能清空画布后丢失未加载条目。
-- V1 只允许静态图像；动画 Obj flow、frame clock、Tile 材质动态替换需要新能力方案，不能静默取第一帧。
+- 当前仅允许静态图像；动画 Obj flow、frame clock、Tile 材质动态替换需要新能力方案，不能静默取第一帧。
 
 ### 7.3 最小 RenderNode 示例
 

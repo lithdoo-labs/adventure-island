@@ -43,7 +43,7 @@ StreamScene 还允许注册独立 world Container，并在场景刷新时保留�
 
 ### 2.2 OpenMS 逆向得到的深度规则
 
-OpenMS 的 [docs/client-evidence.md](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md) 记录了 GMS083 深度表达式。令 **B = -0x40000000**；该证据将更大的深度解释为更靠后的绘制层级（实际视觉前后关系应按其 Renderer 约定理解）。
+OpenMS 的 [docs/client-evidence.md](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md) 记录了 GMS083 深度表达式。令 **B = -0x40000000**；该证据将 depth 作为原版层级排序值。数值的前后含义必须结合原版 Renderer 的比较方向和实际绘制顺序解释，本草案不只凭数值大小推断遮挡方向。
 
 | 对象 | GMS083 参考深度表达式 |
 |---|---|

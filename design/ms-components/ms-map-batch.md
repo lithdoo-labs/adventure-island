@@ -1,4 +1,6 @@
 # ms-map-batch — 静态 Tile / Obj 深度安全 Canvas 批次（首阶段设计草案）
+> **契约维护：不做组件 ABI / Schema 版本管理。** 字段和行为变化直接更新本文件与实现，不设置 `formatVersion` / `schemaVersion`，不做版本协商、兼容分支或迁移。ResourceRef 的 `contentVersion` 是 LoomRealm Content 资源身份，不是组件版本。
+
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需；不冻结最大 Canvas 尺寸、实际批次数量或静态 Batch Planner 算法。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md)、[架构草案](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)。
@@ -23,7 +25,7 @@ ms-map-batch 代表**一个可独立叠放的静态地图绘制批次**，内部
 
 | 输入语义 | 说明 |
 | --- | --- |
-| batch id / sceneEpoch / region id | 稳定身份、资源代际和可释放范围 |
+| batch id / region id | 稳定身份、资源代际和可释放范围 |
 | world bounds / pixel bounds / origin | Canvas 有限尺寸、像素放置和局部裁剪 |
 | ordered placement records | Tile、Obj 的已解析图像引用、几何、alpha/flip、排序结果 |
 | depth interval / stack-rank | 将 Canvas 作为一个 Paint Unit 与 Actor 相互排序 |
@@ -51,7 +53,7 @@ ms-scene-view
 
 - 借助 Presentation Resource Client 加载版本化数据，组件内解码缓存和租约为 Renderer-local。
 - 一个资源缺失、数据不合法或超预算时记录准确的 batch / placement / resource diagnostic，不默默跳过必需的实体并宣称整图成功。
-- 遇到 sceneEpoch 变更、元素断连、window teardown，取消/失效过期绘制、释放缓存和时钟订阅（静态组件原则上不需时钟）。
+- 遇到 RenderNode key 变更、元素断连、window teardown，取消/失效过期绘制、释放缓存和时钟订阅（静态组件原则上不需时钟）。
 - 占用内存应按 Canvas 像素总量 + 解码位图测量；不应无界地每个 placement 新建 Canvas。
 
 ## 6. 验收门
@@ -64,9 +66,9 @@ ms-scene-view
 
 来源：[OpenMS depth evidence](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)、[旧 CMS079 tileKey/objKey](../../components/cms-map-layer/DESIGN.md)。
 
-## 7. RenderNode ABI V1 — 静态 Canvas Batch
+## 7. RenderNode ABI — 静态 Canvas Batch
 
-> 本节把第 3 节候选输入落为可验证的 V1 JSON 形状；尚非获批的 ABI。通用 ResourceRef/stack-rank/状态见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。
+> 本节把第 3 节候选输入落为可验证的 V1 JSON 形状；尚非获批的 ABI。通用 ResourceRef/stack-rank/状态见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。
 
 ### 7.1 attrs 完整闭集
 
@@ -75,19 +77,17 @@ ms-scene-view
 ### 7.2 data 完整闭集
 
 ~~~ts
-interface MapBatchDataV1 {
-  formatVersion: 1;
-  sceneEpoch: string;
+interface MapBatchData {
   batchId: string;
   bounds: { x: number; y: number; w: number; h: number }; // world rect；w/h positive integer
   sprites: {
     pages: Record<string, {
-      resource: ResourceRefV1;
+      resource: ResourceRef;
       width: number; height: number; // positive integer; decoder must match
     }>;
     items: Record<string, {
       page: string;                  // key in pages
-      source: SourceRectV1;
+      source: SourceRect;
       origin: [number, number];      // placement local anchor
     }>;
   };
@@ -113,11 +113,11 @@ interface MapBatchDataV1 {
 
 ~~~json
 {
-  "key": "batch:field-epoch-1:region0:band0",
+  "key": "batch:map222000000:region0:band0",
   "tag": "ms-map-batch",
   "attrs": { "stack-rank": "20", "visible": "true" },
   "data": {
-    "formatVersion": 1, "sceneEpoch": "field-epoch-1", "batchId": "region0:band0",
+    "batchId": "region0:band0",
     "bounds": { "x": 0, "y": 0, "w": 32, "h": 32 },
     "sprites": {
       "pages": {
@@ -138,7 +138,7 @@ interface MapBatchDataV1 {
 
 ### 7.4 更新与资源原子性
 
-- children 必须为空；没有 Renderer→Subsystem 业务事件。图片加载完成仅触发该组件自己的局部 Canvas 构建。
+- children 必须为空；incoming RenderEvent：无；outgoing `emitCustomEvent()`：无。图片加载完成仅触发该组件自己的局部 Canvas 构建，不作为业务事件。
 - unchanged static data 不重绘。Canvas DPR/尺寸、资源版本或 placements 变化时，先验证新完整 data，准备离屏临时表面，待所有**该批次**必需图像解码成功后一次切换到新 Canvas 内容；资源失败不得显示一半旧图一半新图。
 - Camera x/y 更新由父级 world-plane transform 处理，Canvas 不重画；Batch bounds/placements 的世界坐标必须使其内屏幕像素与 ms-avatar 保持对齐。
 - 变更 placements 但保留 Batch 身份可用 top-level data.set；若是分裂为两个 RenderNode，旧 Batch 要么继续保留并更新其内容、要么删除并用**新 key**发布新的节点；严禁同一 scene 中同时画到 batch 和 ms-map-object。

@@ -1,4 +1,6 @@
 # ms-portal-visual — Portal 可见外观（首阶段设计草案）
+> **契约维护：不做组件 ABI / Schema 版本管理。** 字段和行为变化直接更新本文件与实现，不设置 `formatVersion` / `schemaVersion`，不做版本协商、兼容分支或迁移。ResourceRef 的 `contentVersion` 是 LoomRealm Content 资源身份，不是组件版本。
+
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段**仅在目标地图有可见 Portal 外观需求时启用**；Portal 触发与场景迁移功能本身**不依赖这个标签**。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md) 与 [ms-scene-view](./ms-scene-view.md)。
@@ -20,7 +22,7 @@ ms-portal-visual 是普通的 Renderer-only Paint Unit：显示 Portal 静态图
 
 | 语义 | 说明 |
 | --- | --- |
-| portal visual presentation id / sceneEpoch | 视觉身份和代际；与业务目标 map/tn 身份区分 |
+| portal visual presentation id | 视觉身份和代际；与业务目标 map/tn 身份区分 |
 | world x/y、origin、flip、visibility | 只用于显示定位及局部变换 |
 | static frame/resource refs | 版本化资源/当前帧；无必要的业务 destination |
 | stack-rank / validated visual-depth policy | 若画面需要与 Obj、Avatar 交错，使用 Subsystem 已确定的排序 |
@@ -40,7 +42,7 @@ ms-portal-visual 是普通的 Renderer-only Paint Unit：显示 Portal 静态图
 
 - 场景替换时旧 Portal DOM 随 RenderNode 生命周期移除，旧动画/加载请求停止或失效。
 - 非关键装饰资源缺失需明确记录并允许 Gameplay Portal 工作；关键显示要求若被产品审批则在呈现准备阶段阻止宣称完整画面，二者按产品验收政策区分。
-- 同地图 Portal 迁移不应错误更换 sceneEpoch；该行为来自 Subsystem，不由视觉标签控制。
+- 同地图 Portal 迁移的业务语义完全由 Subsystem 控制，不由视觉标签推断或管理场景代际。
 - 视觉组件不主动注册一个全局 Portal 列表，也不将事件直接发送到 Portal Subsystem。
 
 ## 6. 验收
@@ -53,9 +55,9 @@ ms-portal-visual 是普通的 Renderer-only Paint Unit：显示 Portal 静态图
 
 历史需求参考：[归档 R1 路线图](../../docs/product-first/IMPLEMENTATION-ROADMAP.md)（NON-NORMATIVE，不是当前批准的产品合同）。
 
-## 7. RenderNode ABI V1 — Static Portal Artwork
+## 7. RenderNode ABI — Static Portal Artwork
 
-> 首阶段仅定义**静态可见 Portal 外观**；Portal 命中、tm/tn、cooldown、same/cross-map 传送都由 Field Subsystem 负责，与本 Visual Element 是否存在完全分离。通用类型见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。
+> 首阶段仅定义**静态可见 Portal 外观**；Portal 命中、tm/tn、cooldown、same/cross-map 传送都由 Field Subsystem 负责，与本 Visual Element 是否存在完全分离。通用类型见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。
 
 ### 7.1 attrs 完整闭集
 
@@ -66,13 +68,11 @@ ms-portal-visual 是普通的 Renderer-only Paint Unit：显示 Portal 静态图
 ### 7.2 data 完整闭集
 
 ~~~ts
-interface PortalVisualDataV1 {
-  formatVersion: 1;
-  sceneEpoch: string;
+interface PortalVisualData {
   visualId: string;           // presentation identity；不是 tm/tn/目的地图标识
-  phase: "static";           // V1 只允许 static；动画 phase 后续另立 ABI
-  image: ImageRegionV1;
-  draw: StaticDrawV1;
+  phase: "static";           // 当前仅支持静态外观
+  image: ImageRegion;
+  draw: StaticDraw;
 }
 ~~~
 
@@ -80,11 +80,11 @@ interface PortalVisualDataV1 {
 
 ~~~json
 {
-  "key": "portal-visual:field-epoch-1:entrance",
+  "key": "portal-visual:map222000000:entrance",
   "tag": "ms-portal-visual",
   "attrs": { "world-x": "240", "world-y": "180", "stack-rank": "50", "visible": "true" },
   "data": {
-    "formatVersion": 1, "sceneEpoch": "field-epoch-1", "visualId": "portal-art:entrance", "phase": "static",
+    "visualId": "portal-art:entrance", "phase": "static",
     "image": {
       "resource": { "namespace": "map", "key": "examples/portal/static.png", "contentVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
       "pageWidth": 32, "pageHeight": 64,
@@ -98,13 +98,13 @@ interface PortalVisualDataV1 {
 
 资源 ID、尺寸、位置和 rank 都是合成示例，不宣称存在此实际 Portal 资源。真实图片必须有来源、资源闭包和可见性验收。
 
-### 7.3 层级、更新和生命周期
+### 7.3 RenderEvent、层级、更新和生命周期
 
-- children 必须为空；根层级是 ms-scene-view 直属的独立 Paint Unit。无需 ms-world-item 再包一层，避免双重外部深度宿主。
+- children 必须为空；incoming RenderEvent：无；outgoing `emitCustomEvent()`：无。根层级是 ms-scene-view 直属的独立 Paint Unit。无需 ms-world-item 再包一层，避免双重外部深度宿主。
 - 静态图片可以用 img 或局部 Canvas，按照 sourceRect 裁剪、origin 对齐、flip/opacity 绘制；在 Canvas/Shadow DOM 内部不包含碰撞区域或交互传送逻辑。
 - 位置、显隐与 rank 更新走 attrs Update；更换图像/phase 等需要有效 V1 data 完整更新，不能接收未知非静态 phase。
 - 视觉渲染事件的进入/离开动画、闪烁提示、phase v2 尚不属于本 V1；该组件不得发送业务逆向事件，也不得在 DOM pointer/up 时决定传送。
-- 当 Portal 没有视觉显示要求时，Subsystem 仍保留真实 Portal 数据并可正常传送；删除视觉节点不代表 Portal 业务生命周期结束。场景关闭时停止图像读取，旧 epoch 回调失效。
+- 当 Portal 没有视觉显示要求时，Subsystem 仍保留真实 Portal 数据并可正常传送；删除视觉节点不代表 Portal 业务生命周期结束。场景关闭时停止图像读取，旧节点异步回调取消或忽略。
 
 ### 7.4 OpenMS Portal 参考和能力差异
 

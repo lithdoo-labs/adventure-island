@@ -8,13 +8,13 @@
 
 ## 0. 首阶段组件树及独立文档入口
 
-当前阶段按“地图 + Back/Tile/Obj + 玩家 Avatar + Camera + Movement + Portal”三图闭环提出 **8 个 Custom Element 标签候选**，其具体树、前后遮挡关系、阶段范围及未决问题，统一参见 **[Field 首阶段组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md)**。六个新组件的具体 attrs/data/children 与 ResourceRef/stack-rank 公共规则已写入 **[Field Paint Unit ABI V1 共享候选契约](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)**；各组件详情见下表。
+当前阶段按“地图 + Back/Tile/Obj + 玩家 Avatar + Camera + Movement + Portal”三图闭环提出 **8 个 Custom Element 标签候选**，其具体树、前后遮挡关系、阶段范围及未决问题，统一参见 **[Field 首阶段组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md)**。六个新组件的具体 attrs/data/children 与 ResourceRef/stack-rank 公共规则已写入 **[Field Paint Unit ABI 共享候选契约](./FIELD-PAINT-UNIT-ABI-DRAFT.md)**；各组件详情见下表。
 
 | 基础必需标签（6 个） | 按场景需要的标签（2 个） |
 | --- | --- |
 | [ms-scene-view](./ms-scene-view.md)、[ms-map-back](./ms-map-back.md)、[ms-map-batch](./ms-map-batch.md)、[ms-world-item](./ms-world-item.md)、[ms-avatar](./ms-avatar.md)、[ms-action](./ms-action.md) | [ms-map-object](./ms-map-object.md)、[ms-portal-visual](./ms-portal-visual.md) |
 
-ms-avatar 和 ms-action 已有独立的详细 V1 候选文档，本轮不改其 ABI。其余六份为本轮新增的**未批准阶段设计草案**。Portal 业务传送不依赖 Portal 视觉标签；ms-action 的独立标签必要性仅在现有 Avatar V1 父子设计下成立。过去的 R1/R2 路线图已归档，不因本表重新批准。
+ms-avatar 和 ms-action 已有独立组件文档；组件契约变更直接更新对应文档，不做 ABI 版本管理。其余六份为本轮新增的**未批准阶段设计草案**。Portal 业务传送不依赖 Portal 视觉标签；ms-action 的独立标签必要性仅在现有 Avatar V1 父子设计下成立。过去的 R1/R2 路线图已归档，不因本表重新批准。
 
 ## 1. 架构约束和目标
 
@@ -28,7 +28,14 @@ ms-avatar 和 ms-action 已有独立的详细 V1 候选文档，本轮不改其 
 
 LoomRealm 固定提交为 [93648192323bf5f57996b7b54cbae641d8a53fdb](https://github.com/lithdoo/loom-realm/tree/93648192323bf5f57996b7b54cbae641d8a53fdb)。上游 RenderNode 仍是五字段 `key / tag / attrs / data / children`。Domain zIndex 不等于游戏对象世界深度，也不保证跨 Subsystem 可任意交错叠放。
 
-### 1.2 设计目标
+### 1.2 组件契约维护与 LoomRealm 通道
+
+- 组件 ABI / Schema 不做版本管理：不设置 `formatVersion`、`schemaVersion` 或场景代际字段；不做版本协商、兼容分支或迁移。字段调整直接更新组件对应文档与投影实现。
+- `ResourceRef.contentVersion` 仅用于 LoomRealm Content 资源完整性读取，满足 `resource(namespace, key, expectedContentVersion)`；它不是组件版本字段，必须保留。
+- `attrs` 是 retained string map，经 Custom Element attribute lifecycle 更新；`data` 是 retained JSON object，`receiveRenderData()` 收到完整当前对象；RenderEvent 是不保证重放的瞬时消息；`emitCustomEvent()` 是受 InputGate 约束的反向输入出口。
+- 六个新场景视觉组件当前均无 incoming RenderEvent、无 outgoing `emitCustomEvent()`；Avatar 的 `action` RenderEvent 直接投递给 Avatar key，不通过 DOM 冒泡。
+
+### 1.3 设计目标
 
 1. **遮挡正确性第一**：Tile、Obj、前景 Back、玩家、Mob、NPC、Drop、效果使用可比较的世界排序结果；禁止固定“整张地图在 Avatar 下方”或只做 Y-sort。
 2. **DOM 负责独立组合**：Avatar、NPC、Mob、大型/特殊 Obj 可以拥有独立节点、Shadow DOM 与局部 Canvas；不强制所有画面落在单一 Canvas。
@@ -68,7 +75,7 @@ GMS083 参考深度（令 `B = -0x40000000`）：
 ~~~text
 Field Subsystem（权威 Simulation / World / Camera Intent）
   └─ World Render Projection
-       ├─ stable scene epoch + RenderNode identities
+       ├─ RenderNode identities（scene root key + fresh child keys）
        ├─ world placement + action/expression + resource refs
        ├─ normalized depth + deterministic tie order
        └─ planned static batches / independent paint units
@@ -278,7 +285,7 @@ CMS079 绘制事实 + 游戏权威 Actor/Foothold state
 
 ## 8. 闭环：场景进入、切换、失败和资源清理
 
-- **Subsystem authority**：进入地图时准备确定性的世界呈现投影、scene epoch、资源引用和关键 Paint Unit 结构，然后通过同一 World Domain 的更新/替换发布；Simulation 不等待 Canvas 绘制确认来决定 gameplay 结果。
+- **Subsystem authority**：进入地图时准备确定性的世界呈现投影、scene identity / RenderNode key lifecycle、资源引用和关键 Paint Unit 结构，然后通过同一 World Domain 的更新/替换发布；Simulation 不等待 Canvas 绘制确认来决定 gameplay 结果。
 - **LoomRealm**：机械创建/更新/删除当前节点，保证同 live identity 的节点复用与重连语义；不承诺 Canvas 资源已经到达。
 - **Business presentation**：各 Paint Unit 验证输入、按需读取 Content、解码、局部缓存和重绘；旧异步回调不得更新当前 epoch 以外的节点。
 - **地图转场**：必须定义场景级可见性门闩，避免旧图/新图/部分 Canvas 半成品共同可见。但这只是 Renderer-local presentation gate；不另造全局协议或声称 LoomRealm 提供 ProjectionBatch。其具体 ready 判定、遮罩与失败显示尚待验证。

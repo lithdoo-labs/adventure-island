@@ -1,4 +1,6 @@
 # ms-action — Avatar 动作数据子组件设计 V1
+> **契约维护：不做组件 ABI / Schema 版本管理。** 后续字段与行为调整直接修订本组件文档和实现，不引入 `formatVersion`、`schemaVersion`、兼容分支或迁移。文中“V1”仅用于识别当前历史设计基线，不是运行时版本字段。父级 ResourceRef 的 `contentVersion` 仍是 LoomRealm Content API 要求的资源内容身份。
+
 
 > **设计状态：可审查候选基线；未批准、未冻结、非现行规范。** 本文保留为 [ms-avatar](./ms-avatar.md) 的组成设计候选；字段、播放规则、父子通知和更新语义没有在本次清理中重定义。  
 > **实现状态：未实现。** 当前没有新 ms-action Custom Element、完整 Validator 或真实 WebProjector 集成测试。CMS079 数据与容量仍须按 ms-avatar 第 13 节验收。
@@ -31,7 +33,7 @@ ms-action 是 ms-avatar 的**数据型直接子组件**。一个实例表示一�
 
 本节描述的是 LoomRealm 上游 RenderNode 传输形状，不是旧 Adventure Island `cms-*` 项目级 ABI；本候选不依赖 `components/RENDER-NODE-ABI-V1.md`。
 
-ms-action 必须是一个 ms-avatar 的直接子节点。V1 节点形状：
+ms-action 必须是一个 ms-avatar 的直接子节点。当前节点形状：
 
 ~~~json
 {
@@ -42,7 +44,6 @@ ms-action 必须是一个 ms-avatar 的直接子节点。V1 节点形状：
   },
   "data": {
     "clip": {
-      "formatVersion": 1,
       "playback": { "mode": "loop" },
       "frames": [
         {
@@ -77,16 +78,17 @@ ms-action 必须是一个 ms-avatar 的直接子节点。V1 节点形状：
 - 区分大小写、精确匹配；不 trim、不做 Unicode 或大小写归一化、不猜测别名。
 - 同一个 Avatar 下必须唯一。重名时该名称 DUPLICATE_ACTION，父级不得按 DOM 顺序任选一个；其他不冲突动作仍可用。
 - name 是动作逻辑身份；RenderNode key 是节点身份。不能在同一个 live key 上改名。改名必须删除旧节点并用 fresh key 创建新节点，通过一次 RenderDomain.replace() 发布。
-- V1 的 attrs 闭集只有 name；额外 attrs 属于 ACTION_INVALID。
+- 当前 attrs 闭集只有 name；额外 attrs 属于 ACTION_INVALID。
 
 ### 2.2 data 与 children
 
 - data 顶层闭集只有 clip，必须存在且通过 Clip Validator。
 - receiveRenderData() 接收完整当前 data，不是局部嵌套 Patch。
 - children 必须为空；不允许在 Action 内再嵌套 Action 或 Layer RenderNode。
+- ms-action 不接收 incoming RenderEvent，也不调用 outgoing `emitCustomEvent()`；一次性 action Event 由父 ms-avatar 接收。
 - 初次投影尚未收到 data 时为 pending；投影完成后仍缺少 clip 属于 invalid，不能把空壳视为有效动作。
 
-## 3. Clip V1 Schema
+## 3. Clip Data Schema
 
 Clip 是 Adapter 已经解析、可以直接播放的绘制定义。它不携带 PNG、WZ 路径、Content 资源身份或业务动作状态。
 
@@ -98,9 +100,7 @@ type Playback =
   | { mode: "hold" }
   | { mode: "suffix-loop"; repeatFrom: number };
 
-interface ClipV1 {
-  formatVersion: 1;
-
+interface Clip {
   playback: Playback;
 
   frames: Array<{
@@ -111,11 +111,11 @@ interface ClipV1 {
     flip?: boolean;              // 默认 false
     showFace?: boolean;          // 默认 true
 
-    layers: LayerV1[];
+    layers: Layer[];
   }>;
 }
 
-interface LayerV1 {
+interface Layer {
   id: string;
   sprite: string;                // 父 ms-avatar.data.sprites.items 的逻辑 ID
   z: string;                     // 父 ms-avatar.data.appearance.zOrder 中的名称
@@ -204,7 +204,7 @@ type ClipSnapshot =
       status: "valid";
       name: string;
       localRevision: number;
-      clip: Readonly<ClipV1>;
+      clip: Readonly<Clip>;
     };
 
 interface MsActionElement extends HTMLElement {
@@ -212,7 +212,7 @@ interface MsActionElement extends HTMLElement {
 }
 ~~~
 
-- localRevision 只在当前 HTMLElement 生命周期内单调递增，用于父级缓存失效；不是 RenderNode 字段、不是 clip-version，不用于换装事务。
+- localRevision 只在当前 HTMLElement 生命周期内单调递增，用于父级缓存失效；它是组件内部缓存失效计数，不是 RenderNode 字段或组件 ABI 版本，也不用于换装事务。
 - 快照必须深只读；父 Avatar 不得原地修改 Clip。
 - receiveRenderData(fullData) 必须先解析并验证，再原子替换本地快照状态。
 - 新 data 无效、缺少 clip 或版本不支持时，状态变为 invalid；不得继续暴露上一份有效 Clip 冒充当前定义。
@@ -265,7 +265,7 @@ ms-action 执行单 Clip Validator，父 Avatar 执行父子组合 Validator。
 
 Clip Validator 至少拒绝：
 
-- 未知或缺失字段、非 V1 formatVersion；
+- 未知或缺失字段；
 - 非对象 clip、空 frames、非数组 layers；
 - 非整数或负 durationMs、非法 rotate/flip/showFace/move；
 - 未知 playback mode、repeatFrom 越界、循环区间总时长为零；

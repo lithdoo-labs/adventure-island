@@ -1,4 +1,6 @@
 # ms-map-object — 独立地图 Obj Paint Unit（首阶段设计草案）
+> **契约维护：不做组件 ABI / Schema 版本管理。** 字段和行为变化直接更新本文件与实现，不设置 `formatVersion` / `schemaVersion`，不做版本协商、兼容分支或迁移。ResourceRef 的 `contentVersion` 是 LoomRealm Content 资源身份，不是组件版本。
+
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。本阶段**按内容与遮挡需要启用**；并非每个静态 Obj 都要有独立 DOM。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md)、[ms-map-batch](./ms-map-batch.md)。
@@ -27,7 +29,7 @@ OpenMS/GMS083 地图 Obj 参考深度：`B + 2000 + layer*30000 + obj.z`，而�
 
 | 输入语义 | 含义 |
 | --- | --- |
-| placementId / authored index / sceneEpoch | 稳定放置身份、局部代际；不得随图片网络完成顺序变化 |
+| placementId / authored index | 稳定放置身份、局部代际；不得随图片网络完成顺序变化 |
 | world position、origin、mirror、alpha | 美术定位与变换；保持原始锚点 |
 | resource ref / texture frame | 经 Adapter 处理的资源；允许普通 img 或局部 Canvas |
 | stack-rank | 与地图批次、Avatar 等共享的世界叠放整数 |
@@ -49,7 +51,7 @@ ms-scene-view
 ## 5. 资源、更新、生命周期
 
 - 静态 Obj 加载成功后可一直保持自己的 decoded image；Camera 移动通过公共 world-plane transform，不重新解码图片。
-- 图片解码晚到时先核对 sceneEpoch/contentVersion，过期回调不得提交到新场景。
+- 图片解码晚到时先核对 RenderNode key / Content ResourceRef，过期回调不得提交到新场景。
 - 若由静态批次升级为独立对象，Render Projection 负责旧批次数据更新和新 DOM key 的结构发布；不能同一帧重复绘制同一 placement。
 - 无图片、超预算、错误 origin/opacity、Renderer 断连均要有诊断与清理，不得改变地图业务 state。
 - 本阶段不强制支持动画 Obj flow；出现 flow 数据时应按已审批能力选择独立的动画组件或明确 unsupported，不能静默画第一帧冒充完整实现。
@@ -63,9 +65,9 @@ ms-scene-view
 
 来源：[OpenMS Map depth](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)。
 
-## 7. RenderNode ABI V1 — Independent Static Obj
+## 7. RenderNode ABI — Independent Static Obj
 
-> 本阶段仅静态 Obj 的独立 Paint Unit；其他复杂 flow 动画尚不在本 ABI。共享 ResourceRef、坐标、rank、错误与生命周期见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。
+> 本阶段仅静态 Obj 的独立 Paint Unit；其他复杂 flow 动画尚不在本 ABI。共享 ResourceRef、坐标、rank、错误与生命周期见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。
 
 ### 7.1 attrs 完整闭集
 
@@ -74,12 +76,10 @@ ms-scene-view
 ### 7.2 data 完整闭集
 
 ~~~ts
-interface MapObjectDataV1 {
-  formatVersion: 1;
-  sceneEpoch: string;
+interface MapObjectData {
   placementId: string;          // 场景内唯一；不得同时在 ms-map-batch 中出现
-  image: ImageRegionV1;        // 完整 Content 资源及裁剪矩形
-  draw: StaticDrawV1;          // origin/flip/opacity
+  image: ImageRegion;        // 完整 Content 资源及裁剪矩形
+  draw: StaticDraw;          // origin/flip/opacity
 }
 ~~~
 
@@ -87,11 +87,11 @@ interface MapObjectDataV1 {
 
 ~~~json
 {
-  "key": "obj:field-epoch-1:layer3:14",
+  "key": "obj:map222000000:layer3:14",
   "tag": "ms-map-object",
   "attrs": { "world-x": "512", "world-y": "192", "stack-rank": "40", "visible": "true" },
   "data": {
-    "formatVersion": 1, "sceneEpoch": "field-epoch-1", "placementId": "obj:layer3:14",
+    "placementId": "obj:layer3:14",
     "image": {
       "resource": { "namespace": "map", "key": "examples/object/tree.png", "contentVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
       "pageWidth": 64, "pageHeight": 96,
@@ -107,7 +107,7 @@ interface MapObjectDataV1 {
 
 ### 7.3 结构、绘制、更新
 
-- children 必须为空，不能再嵌套地图 Canvas 或 Avatar；不处理业务 RenderEvent，也不调用 emitCustomEvent。
+- children 必须为空，不能再嵌套地图 Canvas 或 Avatar；incoming RenderEvent：无；outgoing `emitCustomEvent()`：无。位置、显隐、排序和图片定义均由 retained attrs/data 表达。
 - 宿主可以在 Shadow DOM 中呈现一个 image/Canvas，但外部始终是一个可与 ms-world-item 交错的 Paint Unit；opacity 与 flip 只作用于这个局部 Obj。
 - world-x/y、stack-rank 和 visible 的改变走 attrs Update；与同一 Obj 的图像/SourceRect/alpha 变更走 top-level data Update，并在 receiveRenderData 完整验证后处理。
 - 静态内容下载解码完成后原则上无需跟随 Camera 重新画；公共 world-plane CSS transform 统一移动本 Obj。
@@ -116,5 +116,5 @@ interface MapObjectDataV1 {
 
 ### 7.4 错误与首阶段测试
 
-拒绝未知 data 字段、非法资源版本/裁剪、异常原点、无效坐标、重复 placementId 和与 Batch 的重复输出；资源失败仅影响呈现和场景 ready 策略，不触发 Portal 或模拟回滚。测试覆盖前景树/后景树、透明像素、图片加载顺序无关的 tie-order、Camera/DPR、节点断连和地图 epoch 切换。
+拒绝未知 data 字段、资源内容身份不匹配/非法裁剪、异常原点、无效坐标、重复 placementId 和与 Batch 的重复输出；资源失败仅影响呈现和场景 ready 策略，不触发 Portal 或模拟回滚。测试覆盖前景树/后景树、透明像素、图片加载顺序无关的 tie-order、Camera/DPR、节点断连和地图 epoch 切换。
 

@@ -1,4 +1,6 @@
 # ms-scene-view — Field 世界呈现根（首阶段设计草案）
+> **契约维护：不做组件 ABI / Schema 版本管理。** 字段和行为变化直接更新本文件与实现，不设置 `formatVersion` / `schemaVersion`，不做版本协商、兼容分支或迁移。ResourceRef 的 `contentVersion` 是 LoomRealm Content 资源身份，不是组件版本。
+
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需；本文不是已批准的组件 ABI。
 > 总体关系见 [首阶段组件树](./FIELD-COMPONENT-TREE-DRAFT.md)；深度和绘制原则见 [World Rendering Architecture](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)。
@@ -28,18 +30,19 @@
 - 不能使用分类包装层将全部地图节点或所有角色包成互相不可穿插的 stacking context。子元素自身的 Shadow DOM 和局部 Canvas 可以独立。
 - world-plane 的绝对定位、containing block、slot flattening、DPR、Camera 取整及坐标原点为**浏览器集成验证项**，不是凭该树自动保证。
 
-## 3. 候选数据输入（非冻结 ABI）
+## 3. attrs / data / event 契约
 
-| 输入语义 | 权威/来源 | 呈现作用 |
+| 通道 | 当前字段/内容 | 责任 |
 | --- | --- | --- |
-| sceneEpoch / 当前地图呈现身份 | Field Subsystem Render Projection | 隔离旧场景资源回调和局部缓存 |
-| camera / viewport 状态 | Subsystem 提供 Camera Intent；浏览器提供视口像素信息 | 世界→屏幕变换和裁剪 |
-| renderVisible / transition state | 游戏呈现策略 | 场景切换时阻止半成品画面外露 |
-| 子节点列表及排序 | 同一个 World RenderDomain 的 RenderNode tree | LoomRealm 托管的 DOM 结构和 Paint Unit 身份 |
+| attrs | `camera-x`、`camera-y`、`visible` | Subsystem 发布 Camera 左上角坐标和场景显隐；根的 World Plane 只应用一次 Camera transform |
+| data | `mapId`、`pixelSnap` | 当前地图呈现身份与固定像素取整策略；不包含组件版本或场景代际字段 |
+| children | 直属 Paint Unit RenderNode 子树 | LoomRealm 管理结构、顺序与节点身份 |
+| incoming RenderEvent | 无 | Camera 和显隐都是 retained attrs，不是瞬时事件 |
+| outgoing `emitCustomEvent()` | 无 | 视觉组件不向 Subsystem 回报绘制或资源完成 |
 
-上述只是字段**语义**；具体 attrs/data 名称、Camera 插值、资源就绪协议、Scene key/epoch 更新规则均未冻结。节点须使用 LoomRealm 固定五字段 RenderNode，不新增自定义平台 Render message。
+`pixelSnap` 是当前组件固定行为，不作为可协商字段。Camera 插值和跟随决策仍由 Subsystem 决定；节点继续使用 LoomRealm 固定五字段 RenderNode，不新增平台 Render message。
 
-## 4. 遮挡和绘制
+## 4. 遮挡和绘制/
 
 - 根本身不拥有世界 depth；每个直属 Paint Unit 拥有由 Subsystem 投影的确定性 stack-rank。
 - world-plane 的 DOM 层叠是**最终视觉合成**：来自静态 Canvas 的像素、独立 Obj、Avatar 本地 Canvas 按宿主层叠排序。
@@ -61,7 +64,7 @@
 
 ## 7. 首阶段验收与未决
 
-1. 三图进入/离开、同图传送和跨图切换时 DOM identity、sceneEpoch、旧资源回调隔离。
+1. 三图进入/离开、同图传送和跨图切换时 DOM identity、RenderNode key、旧资源回调隔离。
 2. slotted 静态 Canvas、ms-world-item、独立 Obj 的 stacking context 能真实交错，前景不会被父组截断。
 3. Camera 滚动时静态地图不整张重绘；resize、DPR、像素采样与裁剪正确。
 4. 慢图像解码、缺文件、投影失败时不出现旧/新地图混合；具体 visible/ready gate 策略待审查。
@@ -69,9 +72,9 @@
 
 上游依据：[WebProjector](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/packages/renderer/src/internal/web-projector.ts)、[Render Update](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)。
 
-## 8. RenderNode ABI V1 — 具体候选契约
+## 8. RenderNode ABI — 具体候选契约
 
-> 本节为可实现/可评审的 V1 **proposal**，是第 3 节概念输入的具体化；与 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md) 一同解释。没有修改 LoomRealm 五字段格式。
+> 本节为可实现/可评审的 V1 **proposal**，是第 3 节概念输入的具体化；与 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md) 一同解释。没有修改 LoomRealm 五字段格式。
 
 ### 8.1 attrs 完整闭集
 
@@ -86,26 +89,29 @@
 ### 8.2 data 完整闭集
 
 ~~~ts
-interface SceneViewDataV1 {
-  formatVersion: 1;
-  sceneEpoch: string;         // 本次地图可视代际；非空、对地图切换生成新值
+interface SceneViewData {
+  RenderNode key: string;         // 本次地图可视代际；非空、对地图切换生成新值
   mapId: string;              // 十进制地图 ID；非空，按当前 map allowlist 校验
   pixelSnap: "round";        // 本版仅一种量化策略，后续策略另行版本化
 }
 ~~~
 
-`sceneEpoch` 不是 LoomRealm generation，也不是资源 contentVersion；同图 Portal 移动一般保留，同一场景的 Camera/position 帧更新不产生新 epoch。新的跨图资源阶段必须变更 epoch，并保证新子节点 key 的 one-shot 生命周期约束。
+场景身份由 RenderDomain / RenderNode key 与结构生命周期表达，不额外设置场景代际字段。跨图切换时，Subsystem 通过结构提交移除旧子树并为新子树分配未使用过的 key；组件通过断连取消资源读取，并在绘制提交前核对当前资源身份。
 
-### 8.3 children 闭集
+### 8.3 RenderEvent 与 children 闭集
 
-首阶段只允许直属标签 `ms-map-back`、`ms-map-batch`、`ms-map-object`、`ms-world-item`、`ms-portal-visual`。数量依地图内容决定；`ms-world-item` 下面必须是当前 V1 的 `ms-avatar`（其后才能有 `ms-action[]`）。不允许直接嵌套玩家到 `ms-map-batch`，也不为所有地图组件添加一个封闭 ms-map 父层。用于额外未来组件的扩展必须版本化/复审。
+本组件不接收 RenderEvent，也不调用 `emitCustomEvent()`。Camera 和 visible 是 retained attrs；不使用瞬时事件。
+
+
+
+首阶段只允许直属标签 `ms-map-back`、`ms-map-batch`、`ms-map-object`、`ms-world-item`、`ms-portal-visual`。数量依地图内容决定；`ms-world-item` 下面必须是当前 V1 的 `ms-avatar`（其后才能有 `ms-action[]`）。不允许直接嵌套玩家到 `ms-map-batch`，也不为所有地图组件添加一个封闭 ms-map 父层。新增子组件必须复审并直接更新当前闭集，不做 Schema 版本协商。
 
 ~~~json
 {
   "key": "scene:world",
   "tag": "ms-scene-view",
   "attrs": { "camera-x": "0", "camera-y": "0", "visible": "true" },
-  "data": { "formatVersion": 1, "sceneEpoch": "field-epoch-1", "mapId": "222000000", "pixelSnap": "round" },
+  "data": { "mapId": "222000000", "pixelSnap": "round" },
   "children": []
 }
 ~~~
@@ -118,12 +124,12 @@ interface SceneViewDataV1 {
 - 特殊 Back 通过继承这些 CSS 属性抵消公共平移，使用其自己的 viewport-relative view-x/view-y；在 Chromium 中验收 computed transform、slot inheritance、包含块和 CSS stack。
 - `visible=false` 仅隐藏本场景画面；不由 Element 自己发布结构变更。重新显示必须遵循资源/场景可见性策略。
 - Attrs 顺序写入时组件可在一次微任务/下一绘制机会合并读取，避免独立 x/y 采样造成中间态；不会把 DOM 数据回写 Subsystem。
-- 同 mapEpoch 的 Camera update 推荐仅改变 attrs；新地图同时更换 data 与 children 则使用一次权威 Domain 结构提交；**局部图片资源的 ready 仍是异步**，场景可见性 gate 需专项实现。
+- Camera update 推荐仅改变 attrs；新地图同时更换 data 与 children 则使用一次权威 Domain 结构提交；**局部图片资源的 ready 仍是异步**，场景可见性 gate 需专项实现。
 
 ### 8.5 验收
 
 - 只有根允许没有 stack-rank；新子节点均拥有唯一 stack-rank。
 - 更新 Camera 不触发静态地图全量 Canvas 重画；地图像素与玩家足点一致。
 - 保证 ms-map-back 在 Camera 移动时正确抵消/执行背景视差，而非 Camera 双重扣减。
-- MapId/sceneEpoch 非法或未知字段均 fail closed；新旧图异步回调不得交叉。
+- MapId/RenderNode key 非法或未知字段均 fail closed；新旧图异步回调不得交叉。
 

@@ -1,4 +1,6 @@
 # ms-map-back — 背景与前景 Back Paint Unit（首阶段设计草案）
+> **契约维护：不做组件 ABI / Schema 版本管理。** 字段和行为变化直接更新本文件与实现，不设置 `formatVersion` / `schemaVersion`，不做版本协商、兼容分支或迁移。ResourceRef 的 `contentVersion` 是 LoomRealm Content 资源身份，不是组件版本。
+
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需：先覆盖目标地图中实际使用的静态/基础 Back；动态和复杂视差功能按单独能力门推进。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md) 与 [World Rendering Architecture](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)。
@@ -27,7 +29,7 @@ ms-map-back 表示一个**可参与世界排序的 Back 绘制单元**，既可�
 | resource reference / animation frames | 获取已解析的图片资源；不得在 Renderer 再解析 WZ |
 | origin、位置、flip、alpha | 像素对齐和画面合成 |
 | type、rx、ry、cx、cy、repeat | 视差、平铺、滚动与间距规则（按来源验证后启用） |
-| stack-rank、sceneEpoch | 外层 DOM 排序及旧异步回调隔离 |
+| stack-rank | 外层 DOM 排序；异步回调由当前 RenderNode key、ResourceRef 和取消信号管理 |
 | Camera 视觉状态 | 根据 Back 类型求可见重复区域 |
 
 业务字段的具体 attrs/data 形状未冻结。Back 可以是 Canvas，也可以是独立图片宿主；不得使 Shadow DOM 内部元素突破宿主的外部 stack-rank。
@@ -58,9 +60,9 @@ ms-map-back 表示一个**可参与世界排序的 Back 绘制单元**，既可�
 
 来源：[OpenMS Background/Camera evidence](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)、[旧 Map 背景研究](../../components/cms-map-layer/DESIGN.md)。
 
-## 8. RenderNode ABI V1 — Back / Front Back
+## 8. RenderNode ABI — Back / Front Back
 
-> 本节为可审查的 V1 候选形状。共享坐标、资源、rank 和错误语义见 [Field Paint Unit ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。GMS083 深度公式只是来源证据，Renderer 消费已经算出的 rank。
+> 本节为可审查的 V1 候选形状。共享坐标、资源、rank 和错误语义见 [Field Paint Unit ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。GMS083 深度公式只是来源证据，Renderer 消费已经算出的 rank。
 
 ### 8.1 attrs 完整闭集
 
@@ -73,9 +75,7 @@ ms-map-back 表示一个**可参与世界排序的 Back 绘制单元**，既可�
 ### 8.2 data 完整闭集
 
 ~~~ts
-interface MapBackDataV1 {
-  formatVersion: 1;
-  sceneEpoch: string;
+interface MapBackData {
   placementId: string;
   front: boolean;           // authored front，决定投影侧 depth 规则；不由组件设 rank
   source: {
@@ -83,8 +83,8 @@ interface MapBackDataV1 {
     rx: number; ry: number;
     cx: number; cy: number;
   };
-  image: ImageRegionV1;     // 完整 Content ResourceRef + 页宽高 + source
-  draw: StaticDrawV1;       // origin/flip/opacity；全帧透明边缘不得被任意 trim
+  image: ImageRegion;     // 完整 Content ResourceRef + 页宽高 + source
+  draw: StaticDraw;       // origin/flip/opacity；全帧透明边缘不得被任意 trim
 }
 ~~~
 
@@ -92,11 +92,11 @@ interface MapBackDataV1 {
 
 ~~~json
 {
-  "key": "back:field-epoch-1:0",
+  "key": "back:map222000000:0",
   "tag": "ms-map-back",
   "attrs": { "stack-rank": "10", "visible": "true", "view-x": "0", "view-y": "0" },
   "data": {
-    "formatVersion": 1, "sceneEpoch": "field-epoch-1", "placementId": "back:0", "front": false,
+    "placementId": "back:0", "front": false,
     "source": { "type": 0, "rx": 0, "ry": 0, "cx": 0, "cy": 0 },
     "image": {
       "resource": { "namespace": "map", "key": "examples/back/0.png", "contentVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
@@ -110,9 +110,9 @@ interface MapBackDataV1 {
 
 示例图片资源身份为**占位结构演示**，不宣称该 Content key 实际存在，也不说明 OpenMS 图片存储格式。
 
-### 8.3 更新、状态与错误
+### 8.3 RenderEvent、更新、状态与错误
 
-- children 必须为空；任何业务 Render Event 均不属于本 V1；自身不触发逆向 InputGate 事件。
+- children 必须为空；incoming RenderEvent：无；outgoing `emitCustomEvent()`：无。背景位置、显隐和排序均由 retained attrs/data 表达。
 - view-x/view-y/visible/stack-rank 走已有节点 attrs Update，不重复下载、解码静态图片。
 - source/image/draw 改变时使用 top-level data.set 更换完整成员；`receiveRenderData` 收到完整 data，先验证、再用缓存或异步重画。
 - 新 Content 解码未完成时保持 hidden/pending，旧 epoch 回调丢弃；必须有 SOURCE-EMPTY / SOURCE-ABSENT / RESOURCE-MISSING 外层业务分类，Element 不应凭缺文件猜测“透明背景”。

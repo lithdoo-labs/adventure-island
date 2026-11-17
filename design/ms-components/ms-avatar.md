@@ -1,4 +1,6 @@
 # ms-avatar — 纸娃娃角色呈现组件设计 V1
+> **契约维护：不做组件 ABI / Schema 版本管理。** 后续字段与行为调整直接修订本组件文档和实现，不引入 `formatVersion`、`schemaVersion`、兼容分支或迁移。文中“V1”仅用于识别当前历史设计基线，不是运行时版本字段。`ResourceRef.contentVersion` 仍是 LoomRealm Content API 要求的资源内容身份。
+
 
 > **设计状态：可审查候选基线；未批准、未冻结、非现行规范。** 本文保留当前字段、状态机、数据所有权、父子协作和失败语义作为讨论基线；不宣称它们已成为产品级公共 API。  
 > **实现状态：未实现。** 新组件尚无实现；CMS079 样本、真实 WebProjector 集成、像素与性能验收仍待执行。本文中的 Renderer 内部批次能力属于待核验集成提案，不是固定 LoomRealm commit 已提供的 API。  
@@ -39,7 +41,6 @@ ms-avatar 节点形状：
     "one-shot-enabled": "true"
   },
   "data": {
-    "formatVersion": 1,
     "appearance": {
       "zOrder": ["weapon", "hair", "face", "head", "body"]
     },
@@ -88,7 +89,7 @@ V1 只接受以下四个 retained 字符串属性。属性值不做大小写折�
 }
 ~~~
 
-事件数据闭集为一个非空 action 字符串。事件只作用于当前精确目标 Avatar；它不是业务技能成功、命中或冷却的证明。
+事件数据闭集为一个非空 action 字符串。事件只作用于当前精确目标 Avatar；它不是业务技能成功、命中或冷却的证明。Avatar 不调用 outgoing `emitCustomEvent()`；播放或绘制完成不向 Subsystem 回报。
 
 - 每次有效 Event 都从第 0 帧启动一次性覆盖；同名 Event 也重启。
 - 新 Event 替换当前 one-shot；one-shot-enabled=false 优先级最高，禁用期间忽略 Event。
@@ -97,16 +98,14 @@ V1 只接受以下四个 retained 字符串属性。属性值不做大小写折�
 - Event 是 transient、可能丢失且不重放。新建组件实例只从 retained 状态恢复基础 Action，不恢复旧 one-shot。
 - 不增加 action-seq、action.cancel 或 retained 技能状态。
 
-## 3. 父级共享 data V1
+## 3. 父级共享 data
 
-ms-avatar.data 的顶层字段闭集为 **formatVersion / appearance / sprites / expressions**。未知顶层字段、缺失必需字段或错误版本均拒绝该份父数据。
+ms-avatar.data 的顶层字段闭集为 **appearance / sprites / expressions**。未知顶层字段或缺失必需字段均拒绝该份父数据；组件 data 不携带 Schema 版本字段。
 
 ~~~ts
 type Point = [number, number];
 
-interface AvatarDataV1 {
-  formatVersion: 1;
-
+interface AvatarData {
   appearance: {
     // 前景 → 背景；必须非空、无重复
     zOrder: string[];
@@ -132,13 +131,13 @@ interface AvatarDataV1 {
   expressions: Record<string, {
     frames: Array<{
       durationMs: number;
-      layers: LayerV1[];
+      layers: Layer[];
     }>;
   }>;
 }
 ~~~
 
-表达式帧复用 ms-action.md 定义的 LayerV1 几何与资源引用字段；表达式 Layer 使用身体帧建立的锚点表，不创建新的身体锚点。
+表达式帧复用 ms-action.md 定义的 Layer 几何与资源引用字段；表达式 Layer 使用身体帧建立的锚点表，不创建新的身体锚点。
 
 ### 3.1 appearance
 
@@ -156,7 +155,7 @@ V1 的 appearance 只包含共享 zOrder。它是 Adapter 从当前角色外观�
 - pages 的每个条目代表一张**真实合成的图集页**，包含完整 Content 资源身份及解码后预期的整页宽高。
 - items 的每个条目代表一个逻辑小图，指向一个 page 和页内 source 裁剪矩形。小图宽高由 source.w/h 得出，不另存重复尺寸。
 - page.width/height 必须是正整数。source.x/y 是非负整数；source.w/h 是正整数；矩形必须落在声明的页面尺寸内，解码后还要再次检查实际边界。
-- resource.contentVersion 使用 Content 返回的精确版本；V1 格式为 sha256: 加 64 位小写十六进制字符。namespace、key 必须是合法 Content 身份。
+- resource.contentVersion 使用 LoomRealm Content 返回的精确内容身份，格式为 sha256: 加 64 位小写十六进制字符；这是平台资源读取要求，不是组件 Schema 版本。namespace、key 必须是合法 Content 身份。
 - 同一页可以被多个动作、多个帧及表情重复引用；缓存按完整资源身份去重。
 - V1 图集打包**不旋转小图、不裁掉透明边缘、不做 trim**。图集坐标只影响 source，不改变小图逻辑尺寸、origin 或 anchors。
 - 要绘制整张页面时也使用完整页对应的 sprite item，例如 source={x:0,y:0,w:page.width,h:page.height}；Clip 不直接携带原始图片 URL 或 PNG 字节。

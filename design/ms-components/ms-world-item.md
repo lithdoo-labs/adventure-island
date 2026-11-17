@@ -1,4 +1,6 @@
 # ms-world-item — 世界实体定位与深度宿主（首阶段设计草案）
+> **契约维护：不做组件 ABI / Schema 版本管理。** 字段和行为变化直接更新本文件与实现，不设置 `formatVersion` / `schemaVersion`，不做版本协商、兼容分支或迁移。ResourceRef 的 `contentVersion` 是 LoomRealm Content 资源身份，不是组件版本。
+
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需；具体字段/schema 和是否必须单独成标签，仍待审查。
 > 本标签主要承载玩家 Avatar，未来可复用到 NPC/Mob；见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md)。
@@ -33,7 +35,7 @@ ms-scene-view
 
 | 输入 | 责任与约束 |
 | --- | --- |
-| stable actor presentation id / sceneEpoch | Subsystem Render Projection 赋予；不从 DOM 顺序推断 |
+| stable actor presentation id | Subsystem Render Projection 赋予；不从 DOM 顺序推断 |
 | world x/y + anchor convention | Subsystem 世界状态与已解析的美术锚点；必须固定足点/原点定义 |
 | stack-rank（整数） | 同一 World Domain 的全局排序结果；包含 depth 与 tie-break 语义 |
 | visibility / optional visual transform | 只影响宿主呈现，不修改业务实体是否存在 |
@@ -56,7 +58,7 @@ ms-scene-view
 - depth 改变只更新 stack-rank 或由 Subsystem 按需要重排 Paint Unit；如果静态 batch 深度断点规划不足，**不允许世界宿主自行拆分 Canvas**。
 - 结构替换通过 RenderDomain.replace，复用仍存活的稳定 key；删除过的 key 在同一 Domain 生命周期不能随意复活。
 - 宿主断连/重连不应改变 Subsystem 的 Actor；本组件不接收攻击命中、死亡裁决或业务输入。
-- 无效坐标、非整数 rank、不可定位的 anchor、sceneEpoch 错配应有组件诊断，拒绝渲染错误定位而不捏造缺省值。
+- 无效坐标、非整数 rank、不可定位的 anchor、RenderNode key 错配应有组件诊断，拒绝渲染错误定位而不捏造缺省值。
 
 ## 6. 首阶段验收
 
@@ -68,9 +70,9 @@ ms-scene-view
 
 OpenMS 参考：[Actor depth 与 tie-order](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)。
 
-## 7. RenderNode ABI V1 — Actor World Host
+## 7. RenderNode ABI — Actor World Host
 
-> 本节明确 Stage-1 唯一玩家视觉对象的候选 ABI；共享整数排序、Resource/场景 epoch 语义见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。不修改现有 [ms-avatar V1](./ms-avatar.md)。
+> 本节明确 Stage-1 唯一玩家视觉对象的候选 ABI；共享整数排序、Resource/场景 epoch 语义见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)。不修改现有 [ms-avatar V1](./ms-avatar.md)。
 
 ### 7.1 attrs 完整闭集
 
@@ -84,23 +86,25 @@ OpenMS 参考：[Actor depth 与 tie-order](https://github.com/tensorfish/openms
 ### 7.2 data 完整闭集
 
 ~~~ts
-interface WorldItemDataV1 {
-  formatVersion: 1;
-  sceneEpoch: string;
+interface WorldItemData {
   actorVisualId: string;  // stable presentation identity，非 server actor id 强制透传
-  anchor: "feet";         // 首版只接受 feet；其他 anchor 要另行版本化
+  anchor: "feet";         // 当前只接受 feet
 }
 ~~~
 
-RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisualId` 在当前场景中不得重复。actorVisualId 与 RenderNode key 不等价，也不是 ContentVersion。Canvas 局部原点到 feet 的对齐由 ms-avatar 内部的 source origin/anchor 设计承担；若 Avatar 和外层 feet 对齐不确定，不允许静默做中心对齐。
+RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisualId` 在当前场景中不得重复。actorVisualId 是 Subsystem 的角色呈现身份，RenderNode key 是节点身份；两者不是 Content 内容身份。Canvas 局部原点到 feet 的对齐由 ms-avatar 内部的 source origin/anchor 设计承担；若 Avatar 和外层 feet 对齐不确定，不允许静默做中心对齐。
 
-### 7.3 children 完整约束
+### 7.3 RenderEvent 与 children 完整约束
+
+ms-world-item 不接收 RenderEvent，也不调用 `emitCustomEvent()`。Avatar 的一次性动作事件必须直接投递给 `ms-avatar` 的 RenderNode key；RenderEvent 不通过 DOM 冒泡传递。
+
+
 
 首阶段必须**恰有一个**直属子节点，tag 为 `ms-avatar`；该 Avatar 按既有 V1 候选文档拥有自己的零到多个 `ms-action` 直接子节点。ms-world-item **不得**改变 Avatar 既有 attrs/data/children 契约，不承诺 Avatar 的 ProjectionBatch 已由平台实现。
 
 ~~~json
 {
-  "key": "actor-host:player:field-epoch-1",
+  "key": "actor-host:player:local",
   "tag": "ms-world-item",
   "attrs": {
     "world-x": "100",
@@ -109,14 +113,12 @@ RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisual
     "visible": "true"
   },
   "data": {
-    "formatVersion": 1,
-    "sceneEpoch": "field-epoch-1",
     "actorVisualId": "player:local",
     "anchor": "feet"
   },
   "children": [
     {
-      "key": "avatar:player:field-epoch-1",
+      "key": "avatar:player:local",
       "tag": "ms-avatar",
       "attrs": {
         "action": "stand1",
@@ -125,7 +127,6 @@ RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisual
         "one-shot-enabled": "true"
       },
       "data": {
-        "formatVersion": 1,
         "appearance": {
           "zOrder": [
             "body"
@@ -168,14 +169,13 @@ RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisual
       },
       "children": [
         {
-          "key": "avatar:player:field-epoch-1:stand1",
+          "key": "avatar:player:local:stand1",
           "tag": "ms-action",
           "attrs": {
             "name": "stand1"
           },
           "data": {
             "clip": {
-              "formatVersion": 1,
               "playback": {
                 "mode": "loop"
               },
@@ -217,7 +217,7 @@ RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisual
 
 ### 7.5 失败与生命周期
 
-world-x/y 非法、重复 rank、错误 anchor、错误子标签、sceneEpoch 失配都应产生准确诊断并隐藏**当前非法的呈现单元**，不阻塞 Subsystem Simulation。断连/重连时不迁移 Avatar 的游戏 Actor authority；Player 在同地图换深度时保持 host/Avatar stable key 和 DOM 实例。
+world-x/y 非法、重复 rank、错误 anchor、错误子标签、RenderNode key 失配都应产生准确诊断并隐藏**当前非法的呈现单元**，不阻塞 Subsystem Simulation。断连/重连时不迁移 Avatar 的游戏 Actor authority；Player 在同地图换深度时保持 host/Avatar stable key 和 DOM 实例。
 
 ### 7.6 最小验收
 

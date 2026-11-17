@@ -6,20 +6,23 @@
 >
 > 参见 [DOM + Multi-Canvas 世界渲染架构](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)、[设计基线](../../docs/design-baseline/README.md)。
 
-## 0. ABI V1 文档与状态
+## 0. ABI 文档与无版本管理约定
 
-本树现在具有可逐项审查的 **RenderNode ABI V1 候选**：共享字段在 [Field Paint Unit ABI V1](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)，新增六个组件的 exact attrs/data/children、JSON 示例、更新语义、错误处理分别位于各自文档的 **RenderNode ABI V1** 节。此前已设计完成的 [ms-avatar](./ms-avatar.md) 和 [ms-action](./ms-action.md) V1 **不重新定义、不重写其既有接口**。
+本树列出的八个组件均有独立设计文档；六个新场景组件的共享字段规则见 [Field Paint Unit ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)，各自的 attrs/data/event/children、JSON 示例、更新语义和错误处理位于对应组件文档。既有 [ms-avatar](./ms-avatar.md) 与 [ms-action](./ms-action.md) 的组件职责和播放模型仍以各自文档为准。
 
 共同约定：
 
-- 所有节点仍使用 LoomRealm 的 `key / tag / attrs / data / children` 五字段；`attrs` 仅 string map，`data` 仅 plain JSON。
-- `ms-scene-view` 使用 `camera-x` / `camera-y` / `visible`，data 为 sceneEpoch/mapId/pixelSnap；它是唯一 Stage-1 World root，**不是**世界深度排序单元。
+- 所有节点使用 LoomRealm 的 `key / tag / attrs / data / children` 五字段；`attrs` 是 string map，`data` 是 plain JSON object。
+- **不做组件 Schema / ABI 版本管理**：组件 data 不包含 `formatVersion`、`schemaVersion` 或场景代际字段；不做版本协商、兼容分支或迁移。字段调整直接更新当前组件文档及投影实现。
+- LoomRealm Content `contentVersion` 保留在 ResourceRef 中，因为固定 `PresentationResourceClient.resource(namespace, key, expectedContentVersion)` 要求该内容身份；它不是组件 ABI 版本字段。
+- `ms-scene-view` 使用 `camera-x` / `camera-y` / `visible`，data 为 `mapId` / `pixelSnap`；它是唯一 Stage-1 World root，**不是**世界深度排序单元。
 - 直属世界 Paint Units 必须拥有全域唯一 `stack-rank`；其它高频属性分别是 `world-x/world-y`（Actor、独立 Obj、Portal）或 `view-x/view-y`（Back）。
 - 静态 Atlas/Page 的 ResourceRef 必须带 namespace/key/contentVersion，不能传输私有 URL 或原始 WZ 数据。`ms-map-batch` 是有序 Tile/Obj placement 的安全连续区间，内部不产生独立 DOM。
-- `ms-world-item` 首阶段**必须恰好有一个 ms-avatar 直接子节点**；ms-avatar 保留它的 ms-action 数据子树；ms-map-back、ms-map-batch、ms-map-object、ms-portal-visual 的 children 为空。
+- `ms-world-item` 首阶段必须恰好有一个 `ms-avatar` 直接子节点；ms-avatar 保留自己的 ms-action 数据子树；其余地图视觉组件 children 为空。
+- attrs 通过 attribute lifecycle 响应；data 回调接收完整 retained object；RenderEvent 是不保证重放的瞬时消息。六个新场景视觉组件当前均不接收 incoming RenderEvent，也不调用 outgoing `emitCustomEvent()`。
 - 构造时先 context/DOM/attrs 后 data，不能凭 connectedCallback 判断画面 ready；LoomRealm retained commit 不保证多个异步 Canvas 同帧完成，场景可见性门闩仍是待实现的集成问题。
 
-本表是**可审查的接口提案，不等于已经通过 CMS079 验证或浏览器 E2E**。地图深度比较、Back type1–4、Portal phase 和完整场景切换 ready gate 等仍需单独验收。
+本表是可审查的设计草案，不等于已经通过浏览器 E2E。CMS079 排序与尚未闭合的 Back / Portal 动态视觉行为按各自证据边界验收。
 
 ## 1. 本阶段 8 个候选标签及独立设计文档
 
@@ -29,14 +32,14 @@
 | `ms-map-back` | **基础必需** | [ms-map-back](./ms-map-back.md) | Back 图片/Canvas；独立 Paint Unit |
 | `ms-map-batch` | **基础必需** | [ms-map-batch](./ms-map-batch.md) | Tile/Obj 的有限尺寸静态 Canvas；整体参与深度 |
 | `ms-world-item` | **基础必需** | [ms-world-item](./ms-world-item.md) | Avatar 外层定位、显隐、stack-rank，独立 Paint Unit |
-| `ms-avatar` | **基础必需** | [ms-avatar V1](./ms-avatar.md) | 纸娃娃局部 Canvas；外部由 ms-world-item 排序 |
-| `ms-action` | **在现有 Avatar V1 ABI 下必需** | [ms-action V1](./ms-action.md) | Clip 数据子元素，无 Canvas、不参与世界深度 |
+| `ms-avatar` | **基础必需** | [ms-avatar](./ms-avatar.md) | 纸娃娃局部 Canvas；外部由 ms-world-item 排序 |
+| `ms-action` | **在现有 Avatar ABI 下必需** | [ms-action](./ms-action.md) | Clip 数据子元素，无 Canvas、不参与世界深度 |
 | `ms-map-object` | **按独立 Obj/遮挡需求启用** | [ms-map-object](./ms-map-object.md) | 独立图片/Canvas；可在 Avatar 前/后 |
 | `ms-portal-visual` | **按可见 Portal 需求启用** | [ms-portal-visual](./ms-portal-visual.md) | Portal 图片/局部 Canvas；业务传送不依赖它 |
 
 其中六项“基础必需”只是**满足现有 ms-avatar/ms-action 候选接口和本阶段场景实验的工作范围建议**，并非必须永远保留六个公共标签。若未来将 Action Clip 合并入 Avatar 的单节点数据，ms-action 的标签必要性应单独调整，不影响动画功能。
 
-已经存在的 [ms-avatar V1](./ms-avatar.md) 和 [ms-action V1](./ms-action.md) 两份候选文档**保持原有字段、状态机与父子关系**；本轮仅为另外六个标签建新文档，不悄悄改动旧 ABI。
+已经存在的 [ms-avatar](./ms-avatar.md) 和 [ms-action](./ms-action.md) 两份候选文档**保持原有字段、状态机与父子关系**；本轮仅为另外六个标签建新文档，不悄悄改动旧 ABI。
 
 ## 2. 逻辑树 vs 实际浏览器视觉树
 
@@ -211,12 +214,12 @@ Simulation Clock **仅属于 Subsystem**。Renderer-local Render Clock 只负责
 2. **核心遮挡**：同一地图中 Avatar 在前/后 Obj 间切换，Front Back 与普通 Back 的真实前后层级；不依赖 Y-sort。
 3. **Canvas 不重复重绘**：Camera / Avatar x/y 改变时静态 Batch 不全场重画；Avatar 自身动作帧只改其局部 Canvas。
 4. **静态批次规划**：使用 CMS079 目标地图检验可达深度断点、批次数量/Canvas 总像素和动态插入策略；CMS079 depth/tie 未验证不得冻结。
-5. **资源及失败**：异步 Map/Avatar decode、资源缺失、Portal 切图失败、同图跳点、sceneEpoch、组件重连、Window teardown。
+5. **资源及失败**：异步 Map/Avatar decode、资源缺失、Portal 切图失败、同图跳点、RenderNode key 生命周期、组件重连、Window teardown。
 6. **浏览器验证**：PWA 与 Hostra 两端相同注册、浏览器截图/像素对照、布局/合成/内存预算与可复现 E2E。
 
 ## 7. 设计状态和资料来源
 
-本阶段由 8 个**候选标签**组成：6 个基础必需（其中 ms-action 的必要性依赖当前 Avatar V1 结构）+ 2 个按内容需求启用。只有 ms-avatar / ms-action 已有详细、可审查的 V1 单组件草案；本次新建的六份组件文件与本树均是**未批准的首阶段提案**，不是正式 RenderNode ABI。
+本阶段由 8 个**候选标签**组成：6 个基础必需（其中 ms-action 的必要性依赖当前 Avatar 结构）+ 2 个按内容需求启用。只有 ms-avatar / ms-action 已有详细、可审查的 V1 单组件草案；本次新建的六份组件文件与本树均是**未批准的首阶段提案**，不是正式 RenderNode ABI。
 
 - [现行设计基线](../../docs/design-baseline/README.md)
 - [旧 R1/R2 需求路线图（已归档）](../../docs/product-first/IMPLEMENTATION-ROADMAP.md)

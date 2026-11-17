@@ -8,7 +8,7 @@
 
 - `ms-avatar` 与 `ms-action` 是当前唯一保留的可审查组件候选基线，见 [ms-avatar](./design/ms-components/ms-avatar.md) 和 [ms-action](./design/ms-components/ms-action.md)。
 - 两份组件文档的现有字段、播放语义和父子关系在本轮不改；它们不是已批准或冻结的公共 API，也没有对应的新组件实现。
-- 新增了 [World Rendering Architecture — OpenMS-guided Draft](./design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md)，供讨论统一 World Display List、跨对象深度排序和 LoomRealm 集成边界。它**不是已批准的 Scene / Renderer 架构**，也不冻结 CMS079 深度公式。
+- [World Rendering Architecture — DOM + Multi-Canvas (OpenMS-guided Draft)](./design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) 已更新为 **统一世界深度排序 + LoomRealm 管理 DOM + 多张静态批次 Canvas + 独立 Avatar/NPC/Mob/Obj Paint Unit** 的讨论方向，撤回跨组件 Renderable 注册/单一场景 Canvas 的默认前提。它**不是已批准的 Scene / Renderer 架构**，也不冻结 CMS079 深度公式。
 - 除上述候选文档和讨论草案外，当前没有获批的场景树、世界绘制排序、Camera、Movement、Portal、Render Clock、共享解码缓存或 Projection Batch 架构。
 - LoomRealm 仍固定在 `93648192323bf5f57996b7b54cbae641d8a53fdb`；本轮不改 Submodule，不假设上游已经提供任何尚未存在的能力。
 
@@ -18,7 +18,7 @@
 |---|---|
 | `design/ms-components/ms-avatar.md` | 可审查候选设计；未批准、未冻结、未实现 |
 | `design/ms-components/ms-action.md` | 可审查候选设计；未批准、未冻结、未实现 |
-| `design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md` | OpenMS-guided 世界呈现讨论草案；未批准、未冻结、未实现 |
+| `design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md` | DOM + Multi-Canvas 世界呈现讨论草案；统一深度排序与独立绘制单元；未批准、未冻结、未实现 |
 | `design/ms-components/RENDERNODE-ARCHITECTURE.md` | 探索性提案档案；不构成当前架构决策 |
 | `design/ms-components/RENDERNODE-BASELINE-AUDIT.md` | 指定旧 HEAD 的只读审计快照；非当前基线 |
 | `components/RENDER-NODE-ABI-V1.md` | 仅供旧 `cms-*` 运行路径兼容；不约束新设计 |
@@ -61,7 +61,7 @@
 - 父子组件投影一致性及 LoomRealm 集成点；
 - PWA 与 Hostra 的注册、脚本顺序、错误处理和一致性验收。
 
-`WORLD-RENDERING-ARCHITECTURE-DRAFT.md` 当前仅提出统一 World Display List、独立 World Depth Resolver 和 Compositor 的讨论模型。它没有批准任何 CMS079 深度常数、tie-break 规则、Renderable ABI、批处理策略或 LoomRealm 上游改动。未经证据审计、明确审批和真实测试，不得直接作为实施要求。
+`WORLD-RENDERING-ARCHITECTURE-DRAFT.md` 当前仅提出 **统一世界排序 + DOM 多绘制单元 + 多 Canvas 安全深度合批** 的讨论模型。它没有批准任何 CMS079 深度常数、tie-break 规则、Custom Element/RenderNode ABI、Canvas 预算、批处理策略或 LoomRealm 上游改动。未经证据审计、明确审批和真实 WebProjector 浏览器测试，不得直接作为实施要求.
 
 ## 6. 不变约束
 

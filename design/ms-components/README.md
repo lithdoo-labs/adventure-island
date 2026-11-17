@@ -13,14 +13,14 @@
 
 ## 当前讨论草案
 
-- [World Rendering Architecture — OpenMS-guided Draft](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)：讨论组件语义树与 World Display List 分离、统一世界深度排序、Renderable 粒度、Compositor 和 LoomRealm 集成边界。**仅供讨论，未批准、未冻结、未实现**；其中 OpenMS/GMS083 公式不是 CMS079 事实，必须逐项验证。
+- [World Rendering Architecture — DOM + Multi-Canvas (OpenMS-guided Draft)](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)：当前讨论方向为 **统一深度排序 + LoomRealm 管理 DOM + 多 Canvas 静态批次 + 独立 Avatar/NPC/Mob/Obj Paint Units**。按深度插入点与 Region 划分静态批次，保留单个角色局部合成，禁止通过跨组件 Renderable Registry 复刻 OpenMS StreamScene。**仅供讨论，未批准、未冻结、未实现**；OpenMS/GMS083 公式不代表 CMS079 事实。
 
 ## 非现行架构提案
 
 - [RenderNode / Scene ABI v2 探索提案](./RENDERNODE-ARCHITECTURE.md)：归档的候选架构，不是批准的实施方案。
 - [RenderNode 基线审计快照](./RENDERNODE-BASELINE-AUDIT.md)：针对旧 HEAD 的只读审计，不是当前分支的独立验收。
 
-其中的 `ms-scene-view`、`ms-world-layer`、`ms-entity`、全局 Draw List、RenderProjectionBatch、共享 decoded cache、RenderClockProvider 和 World/UI/Overlay Domain 拓扑均未获批准。固定 LoomRealm commit 未提供的能力不得被描述为现有 API。
+归档提案中的单一世界 Canvas 绘制端、`ms-world-layer`、`ms-entity`、全局 Draw List、RenderProjectionBatch、共享 decoded cache、RenderClockProvider 和 Domain 拓扑均未获批准。**当前草案虽然继续讨论 `ms-scene-view` 名称，但已转向 DOM + Multi-Canvas Paint Unit 结构，不继承上述单 Canvas 和注册机制**。固定 LoomRealm commit 未提供的能力不得被描述为现有 API.
 
 ## 当前入口
 

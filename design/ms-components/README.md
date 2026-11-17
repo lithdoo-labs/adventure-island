@@ -1,35 +1,23 @@
-# MS 组件设计
+# MS 组件设计候选
 
-> 状态：**ms-avatar / ms-action V1 设计基线已收口；尚未实现。**
-> Scene ABI v2 总体架构目前为 PROPOSED，不是 Frozen。
-> LoomRealm gitlink：93648192323bf5f57996b7b54cbae641d8a53fdb。
-> OpenMS GMS083 参考：07994de02756356e3e025e3aca9e79433898d2c8。
+> **当前状态：可审查候选，不是已批准或冻结的规范。** 本目录只保留 `ms-avatar` 与 `ms-action` 两份组件设计作为当前讨论基线；不代表已有实现或完整场景架构。
 
-## 目录约定
+## 组件候选
 
-- 新组件标签统一使用 ms- 前缀。
-- 一个组件一个独立设计文件。
-- 每个组件必须定义 attrs/data/children/Event/生命周期/资源/Clock/Validator/容量/失败策略。
-- 不就地修改 Frozen cms-* ABI v1。
-- 新 Scene ABI v2 仍使用 LoomRealm RenderNode 五字段，不增加 props/state/style/events/resources 等平级字段。
-- OpenMS 仅作 GMS083 行为参考；不得把其 PixiJS 结构直接变成业务 ABI，也不得把 GMS083 行为写成 CMS079 证据。
-
-## 设计基线
-
-| 组件 | 文档 | 设计状态 | 实现状态 |
+| 组件 | 文档 | 当前定位 | 实现状态 |
 |---|---|---|---|
-| ms-avatar | [ms-avatar.md](./ms-avatar.md) | V1 设计基线已收口 | 未实现；CMS079 样本、浏览器集成、像素/性能验收未完成 |
-| ms-action | [ms-action.md](./ms-action.md) | V1 设计基线已收口 | 未实现；Clip Validator 和真实 WebProjector 集成未完成 |
+| ms-avatar | [ms-avatar.md](./ms-avatar.md) | 纸娃娃合成与播放的候选设计基线 | 未实现；无新 Custom Element、完整 Validator 或真实浏览器验收 |
+| ms-action | [ms-action.md](./ms-action.md) | Avatar 的动作 Clip 数据子组件候选设计 | 未实现；无新 Custom Element、完整 Validator 或真实浏览器验收 |
 
-不要重新讨论 ms-avatar / ms-action V1 的公开 attrs/data/children 和播放规则，除非出现可复现矛盾或新工程证据。
+本轮不重定义上述两份文档中的字段、播放语义或父子关系。它们保持可审查状态，不标记为 Frozen / Normative；任何接口调整都应以可复现矛盾、CMS079 新证据或真实工程约束为依据。
 
-## 总体架构
+## 非现行架构提案
 
-- [RenderNode 基线审计](./RENDERNODE-BASELINE-AUDIT.md)
-- [RenderNode 总体架构与 Scene ABI v2](./RENDERNODE-ARCHITECTURE.md)
+- [RenderNode / Scene ABI v2 探索提案](./RENDERNODE-ARCHITECTURE.md)：归档的候选架构，不是批准的实施方案。
+- [RenderNode 基线审计快照](./RENDERNODE-BASELINE-AUDIT.md)：针对旧 HEAD 的只读审计，不是当前分支的独立验收。
 
-当前 Proposed 目标树包含 ms-scene-view、ms-back、ms-world-layer、ms-entity；这些组件尚未拥有冻结的独立 ABI。
+其中的 `ms-scene-view`、`ms-world-layer`、`ms-entity`、全局 Draw List、RenderProjectionBatch、共享 decoded cache、RenderClockProvider 和 World/UI/Overlay Domain 拓扑均未获批准。固定 LoomRealm commit 未提供的能力不得被描述为现有 API。
 
-## 实施阻塞
+## 当前入口
 
-ms-avatar V1 要求 Renderer 内部 RenderProjectionBatch begin/end 通知。固定 LoomRealm commit 尚未提供该能力。必须先完成 LoomRealm 内部设计和批准；不得通过增加 RenderNode 字段或扩展 WebPresentationContext 绕过。
+请先阅读 [当前设计基线](../../docs/design-baseline/README.md)。旧 `cms-*` 运行时、项目级 RenderNode ABI v1 与 MapScenePlanV1 仅保留兼容用途，见 [components 目录说明](../../components/README.md)。

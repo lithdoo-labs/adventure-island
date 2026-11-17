@@ -1,88 +1,53 @@
 # Adventure Island
 
-**Adventure Island** 是一个基于 [LoomRealm](https://github.com/lithdoo/loom-realm) 的 CMS079 风格游戏项目。仓库根目录用于正式游戏设计、运行时代码、平台入口和自动化测试；客户端逆向研究只作为开发参考，统一归档在 `research/`。
+> **当前状态：Design Baseline Reset（2026-11-17）。** 本仓库已将旧 `cms-*` 产品架构降为历史兼容路径。现行设计入口是 [DESIGN.md](./DESIGN.md) 与 [设计基线说明](./docs/design-baseline/README.md)。
 
-## 项目方向
+Adventure Island 是一个基于 [LoomRealm](https://github.com/lithdoo/loom-realm) 的 CMS079 风格游戏研究与产品项目。CMS079 逆向证据、OpenMS 行为参考和本地 WZ/FSDB 转换资料继续保留；它们是事实与候选输入，不自动构成新产品接口。
 
-项目保留并重新实现 CMS079 中有价值的玩法行为，同时基于 LoomRealm 设计新的游戏机制。正式运行时的权威逻辑由本项目的 Subsystem、Game Library 和 Shared State 持有；LoomRealm 提供运行平台，不在 Submodule 内开发本游戏的业务代码。
+## 当前设计基线
 
-当前设计基线见 [DESIGN.md](./DESIGN.md)。
+- `ms-avatar` 与 `ms-action` 是当前唯一保留的可审查组件候选基线。两份文档尚未批准、冻结或实现；本轮不重定义其字段和行为。
+- 当前没有获批的完整 Scene ABI、World Draw List、Camera、Movement、Portal 或跨组件 Renderer 服务契约。相关提案只供审查，不得默认实施。
+- LoomRealm Submodule 固定在 `93648192323bf5f57996b7b54cbae641d8a53fdb`。本次清理不修改该 gitlink，也不向 Submodule 写入游戏代码。
+- OpenMS 固定参考 `07994de02756356e3e025e3aca9e79433898d2c8`，其 GPL-3.0 代码不因参考行为而获得复制或集成许可。
 
-## PWA / Hostra 工程参考
+## 旧运行路径（保留用于兼容，不是新基线）
 
-平台入口以 LoomRealm 固定版本的 Game Package 与平台启动边界为准；新版框架使用 [通用 PWA Builder](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/apps/pwa/scripts/build-bundle.mjs)，不再依赖已迁出的 `examples/PokeMan/` 目录，也不复制 PokeMan 玩法：
+根目录 `game.json`、`launch.*.json`、`presentation.json`、`systems/base`、`systems/adventure-map` 和 `components/cms-*` 仍组成可复现的旧 PWA 垂直切片。它目前加载 `cms-actor` classic script，并继续由既有测试与 PWA CI 做兼容性回归。
 
-- `game.json`：声明 Game Package 的初始 Subsystem 和输入。
-- `launch.pwa.json` / `launch.hostra.json`：分别描述平台安装根中的模块入口。
-- `subsystems/`：平台安装根可解析的 Subsystem 模块。
-- `presentation.json`、`presentation/`：呈现资源入口。
-- `package.json`、`test/`：依赖、构建和测试边界。
+这条路径不是 ms-avatar/ms-action 的实现，也不是新 Scene 架构的前置依赖。除兼容性修复外，不在旧 `cms-*` ABI 上扩展新产品功能。旧代码与契约保留在原路径，避免破坏历史测试和可复现性；其规范效力仅限旧路径。
 
-Adventure Island 的正式代码放在本仓库；`loom-realm/` 只作为固定版本的 Git Submodule 依赖。当前 Submodule gitlink 为 `93648192323bf5f57996b7b54cbae641d8a53fdb`，未经单独依赖升级任务不得修改。
+## 目录职责
 
-## 正式工程目录
-
-| 路径 | 职责 |
+| 路径 | 当前定位 |
 |---|---|
-| `game.json`、`launch.*.json`、`presentation.json` | 仓库根目录的 canonical Game Entry（`base` → `adventure-map`） |
-| `subsystems/` | 平台安装根的 Subsystem 薄绑定（shim） |
-| `components/` | 游戏画面与交互 Web Components |
-| `libs/` | 本游戏复用的领域库和运行时逻辑 |
-| `systems/` | LoomRealm Subsystem 实现（`base`、`adventure-map`，及 legacy smoke 夹具） |
-| `content/` | 游戏内容模型、导入规范与构建边界（`[FSDB]adventure` 为唯一 Avatar 素材源） |
-| `apps/pwa/`、`apps/hostra/` | legacy Smoke 隔离测试夹具，不再是正式应用入口 |
-| `tests/` | 仓库级自动化测试 |
-| `docs/` | 工程流程、CI 与 Agent 使用说明 |
-| `DESIGN.md` | 正式游戏设计、系统取舍和阶段目标 |
-| `loom-realm/` | LoomRealm 固定版本 Submodule，只读依赖 |
+| `design/ms-components/ms-avatar.md`、`ms-action.md` | 可审查的组件候选设计；未批准、未冻结、未实现 |
+| `design/ms-components/RENDERNODE-ARCHITECTURE.md` | 已归档的 Scene/Renderer 探索提案；非现行架构 |
+| `components/` | 旧 `cms-*` 兼容实现及历史 ABI/Plan 文档 |
+| `systems/`、`subsystems/`、根 manifests | 旧 PWA 垂直切片及兼容性测试入口 |
+| `research/` | CMS079 逆向任务、证据、参考资料与分析脚本；只读研究资产 |
+| `docs/product-first/` | 2026-11-16 产品设计提案档案；全部未批准 |
+| `docs/design-baseline/` | 当前唯一设计基线与状态说明 |
+| `loom-realm/` | 固定版本的 LoomRealm Git Submodule |
 
-## 研究资料隔离
+## 研究资产保留规则
 
-所有已提交的逆向任务、分析结果、参考材料和分析脚本统一放在 [research/](./research/README.md)：
+保留 CMS079 的 claims/evidence/gaps、13 张地图覆盖审计、Portal Graph、OpenMS 来源与许可证矩阵、CMS079 WZ→FSDB 真实闭环报告及原始研究目录。它们不得被改写成产品批准、全量无损或客户端完整可用的结论。原始客户端、WZ 和全量 FSDB 仍只存在于使用者本地。
 
-- `research/task/`：逆向研究任务书。
-- `research/result/`：结构化证据、结论和索引。
-- `research/reference/`：外部参考项目、符号和来源说明。
-- `research/scripts/`：Ghidra、IDA、协议和资源分析辅助脚本。
-- `research/glm-work/`：历史研究计划、阶段状态、临时分析脚本与结果。
+## 旧 PWA 兼容性验证
 
-研究资料是设计参考，不是正式运行时依赖。正式代码不得从 `research/` 导入模块，也不得把原始客户端或全量 WZ / FSDB 资源提交到仓库。
-
-根目录现行的 AI Coding 入口只有 `scripts/issue_agent/`，由 Issue 上的 `/agent start` 和 `/agent revise` 驱动。旧 Design PR Agent 三个 Actions 和 `scripts/agent/` 已停用并删除。
-
-- `task/dev/`：旧 Design PR 任务说明（待归档至 `research/task/dev/`，不再触发 AI Coding）。
-- `glm-work/`：本地研究 Runner 启动配置（待归档至 `research/glm-work/bootstrap/`）。
-- `research/**`：逆向研究档案，不允许 Issue Agent 的代码补丁修改。
-
-完整工程及 PWA 迁移阶段见 [迁移计划](./docs/migration/2026-11-04-issue-agent-and-pwa.md)。
-
-本地原始客户端只允许放在 `.raw/`，临时解压和工作产物放在 `.work/`；两者均为本地目录，不应提交。
-
-## GitHub Issue Agent
-
-本仓库支持 Issue 驱动的 OpenCode 2 本地 Runner。操作方式、权限边界、Session 持久化和故障恢复见 [docs/issue-agent.md](./docs/issue-agent.md)。Agent 生成的 PR 必须人工审核，不自动合并。
-
-## 本地 PWA Staging 与独立 CI
-
-canonical Game Entry 为 `base` → `adventure-map`：`npm run pwa:bundle` 从两个
-`systems/*` 实现编译自包含 executable、只读发布 `content/[FSDB]adventure` 的单角色
-闭包与派生 bootstrap AvatarPlan Record、发布 Controls 与 cms-actor 两份 classic
-script；`npm run pwa:staging` 在检查精确 Gitlink、真实通用 Builder 和编译依赖后，
-生成 `dist/staging/adventure-island/`。该目录只是本地构建产物，**不是线上服务**。
-升级后首次验证可执行：
+以下命令验证的是旧兼容运行路径，不是新设计基线的实现验收：
 
 ```bash
-npm ci --no-audit --no-fund                       # 根工作区（esbuild + 框架 workspace 链接）
+npm ci --no-audit --no-fund
 npm ci --prefix loom-realm --no-audit --no-fund
-npm run build:game-common-controls-input --prefix loom-realm
-npm run pwa:bundle
-npm run build:bundle --prefix loom-realm --workspace @loomrealm/pwa -- \
-  --bundle "$PWD/dist/adventure-island-installation-bundle.json" \
-  --app-id adventure-island --base-path /pwa/adventure-island/ \
-  --output-dir "$PWD/dist/staging/adventure-island"
-npm run build --prefix loom-realm --workspace @loomrealm/game-launcher-hostra
 npm test
+npm run pwa:bundle
 npm run pwa:staging
 ```
 
-`.github/workflows/pwa-ci.yml` 在 GitHub-hosted Runner 中独立编译 LoomRealm，强制执行无跳过的根测试、真实 staging 及 Chromium/Service Worker E2E（Base → Map → Actor、可信键盘输入、Resize）。构建与部署必须分离；本阶段不启动 Docker、生产端口或 Pokeman 服务。详见 [Game Entry 与 PWA Bundle](./docs/game-entry.md)。
+GitHub Actions 的 PWA 工作流同样只表示旧运行路径兼容性。当前会话未执行本地 npm、Chromium 或 E2E 测试；不得据此宣称本次清理已通过运行测试。
+
+## Issue Agent
+
+仓库现有 Issue Agent 操作方式与权限边界见 [docs/issue-agent.md](./docs/issue-agent.md)。研究目录仍不允许 Issue Agent 自动修改。

@@ -1,53 +1,25 @@
-# Web Component
+# Components — Legacy Compatibility Runtime
 
-第一阶段的画面组件。子系统持有渲染树，Web Projector 按标签创建元素。元素只画当前副本，不决定人物走到哪、场景有没有切换。
+> **状态：Legacy / Non-normative for the current design baseline.** 本目录中的 `cms-*` 组件与 ABI 文档仅用于维护和复现旧 PWA 兼容运行路径。当前设计入口见 [设计基线](../docs/design-baseline/README.md)。
 
-> **2026-11-16 产品设计转向：** 当前组件设计受 [OpenMS-Guided Product-First](../docs/product-first/README.md) 和 [适配契约](../docs/product-first/OPENMS-ADAPTATION-CONTRACT.md) 约束。采用 OpenMS 的行为参考不代表直接移植 PixiJS 或绕过 InputGate/RenderDomain。Frozen ABI 和 MapScenePlanV1 当前 schema 保持有效；涉及冲突须另行 ADR/版本审批。
+## 旧组件路径
 
-**公共接口规范：** [Adventure Island RenderNode ABI v1](./RENDER-NODE-ABI-V1.md) 已冻结，统一定义 RenderNode 五字段、Custom Element receiver、资源引用和 MVP 组件的 attrs/data/children/events。各组件 DESIGN 说明来源数据与画法，不得覆盖该 ABI。
+旧运行树由 `cms-scene-view`、`cms-back`、`cms-map-layer`、`cms-avatar-layer`、`cms-actor` 和 `cms-portal` 等标签组成。根目录 `presentation.json` 仍注册 `cms-actor` classic script；旧 PWA 测试继续覆盖该路径。
 
-资料有两处：
+- [旧 RenderNode ABI v1](./RENDER-NODE-ABI-V1.md)：仅对旧 `cms-*` 树保持历史兼容效力，不约束新设计。
+- [旧 MapScenePlanV1](./MAP-SCENE-PLAN-V1.md)：旧 Adapter / Field Runtime 的历史逻辑 Plan 草案。
+- [cms-actor](./cms-actor/DESIGN.md) 与 [实施说明](./cms-actor/IMPLEMENTATION.md)：既有实现，不是 ms-avatar 的实现。
+- 其他 `cms-*` 组件设计：旧运行路径的历史设计资料。
 
-- 当前产品树来自 [研究任务 023](../research/task/023-third-party-wz-parser-cross-validation.md) 的地图合成：远景，0 到 7 层的物件和瓦片，然后是生命体、反应堆、传送门，最后是近景。这是产品顺序。客户端 Tile、Obj 和背景的加载键见 [地图逆向状态](../research/result/map/MAP-REVERSE-STATUS.md)，比较方向仍待逆向。立足线和绳梯只作为编辑辅助线，不进正式画面。逻辑记录见 [MAP-SCENE-PLAN-V1.md](./MAP-SCENE-PLAN-V1.md)。
-- 人物插层的历史笔记来自 [研究任务 050](../research/task/050-subsystem-semantic-deep-recovery-master-campaign.md)。`FieldDispatcher+0x24` 尚未在当前客户端映像里复核。MVP 仍把人物容器放在八层地图之后，这是产品约定。
+## 当前可审查的组件候选
 
-## 渲染树
+- [ms-avatar V1](../design/ms-components/ms-avatar.md)
+- [ms-action V1](../design/ms-components/ms-action.md)
 
-```text
-cms-scene-view
-├── cms-back              back 里 front=0 的远景，每个背景一个
-├── cms-map-layer         地图层 0 到 7。瓦片和物件是层上的数组
-├── cms-avatar-layer
-│   └── cms-actor
-├── cms-npc               life 里 type=n。第一阶段不放
-├── cms-reactor           第一阶段不放
-├── cms-seat              第一阶段不放
-├── cms-portal            可见出口，彼此并列
-└── cms-back              back 里 front=1 的近景
-```
+这两份文档保留其现有字段和行为作为审查基线，但尚未批准、冻结或实现。它们不继承旧 `cms-*` 的产品级 ABI。不要通过改标签名、复用旧 AvatarPlan 或把 ms-avatar 塞入旧 cms-avatar-layer 来假设迁移兼容。
 
-换场景时替换远景、地图层、NPC、反应堆、座位和出口。`cms-scene-view`、`cms-avatar-layer` 与 `cms-actor` 的 key 保持不变；地图专属节点 key 使用单调递增的 `sceneEpoch`，遵守 Render Update v1 的 one-shot key 规则。第一阶段的树只有远景、地图层、人物层和出口。`cms-npc`、`cms-reactor`、`cms-seat` 当前仅有来源/职责草案，不属于已冻结的 RenderNode ABI v1；启用前必须补齐各自的闭合 attrs/data/event schema 与测试。
+## 维护规则
 
-## 组件
-
-| 目录 | 标签 | 第一阶段 |
-|---|---|---|
-| [cms-scene-view](./cms-scene-view/DESIGN.md) | `cms-scene-view` | 镜头和场景范围 |
-| [cms-back](./cms-back/DESIGN.md) | `cms-back` | 远景和近景 |
-| [cms-map-layer](./cms-map-layer/DESIGN.md) | `cms-map-layer` | 层 0 到 7 |
-| [cms-avatar-layer](./cms-avatar-layer/DESIGN.md) | `cms-avatar-layer` | 人物所在的层 |
-| [cms-actor](./cms-actor/DESIGN.md) | `cms-actor` | 纸娃娃。走、站、跳、蹲；游泳在姿态还原前画 `fly`。技能和普攻只播一遍，然后回到当前移动 |
-| [cms-npc](./cms-npc/DESIGN.md) | `cms-npc` | 不放。`life` 里 `type=n` 的对话 |
-| [cms-reactor](./cms-reactor/DESIGN.md) | `cms-reactor` | 不放。箱子、开关、花的点击和受击 |
-| [cms-seat](./cms-seat/DESIGN.md) | `cms-seat` | 不放。坐下的坐标 |
-| [cms-portal](./cms-portal/DESIGN.md) | `cms-portal` | 有游戏帧才画的出口。童话村这条路线的四扇门没有画面，切换在 Field Runtime |
-
-## 不做成组件的东西
-
-- 立足线、绳梯。碰撞数据。需要看的时候由 `cms-scene-view` 画辅助线。
-- 单个瓦片、单个物件。瓦片是像素放置数组 `tiles`。物件是放置数组 `objs`，字段含画面和 `zM`，不是点击目标。全库条数以 [MAP-DATA-EXTRACTION.md](../research/result/map/MAP-DATA-EXTRACTION.md) 为准，不在这里冻结。
-- 物件上的交互不由物件组件接收。走进场景由 Field Runtime 做传送判定，有游戏帧时才由 [cms-portal](./cms-portal/DESIGN.md) 画出口。对话用 [cms-npc](./cms-npc/DESIGN.md)，打或点箱子、开关、花用 [cms-reactor](./cms-reactor/DESIGN.md)，坐下用 [cms-seat](./cms-seat/DESIGN.md)。`reactor` 和 `name` 留在逻辑记录，不进入视觉 ABI。详见 [cms-map-layer](./cms-map-layer/DESIGN.md)。
-- 怪物。同在 `life`，但是 `type=m`。第一阶段不放进树，也还没有单独目录。
-- 方向键。沿用 LoomRealm 的 `game-controls-input`，不放在本目录。
-
-`apps/pwa/` 和 `apps/hostra/` 加载同一套组件。
+- 旧组件只接受必要的兼容性修复；不以它们作为新功能的默认扩展点。
+- 不从旧 ABI 推导新 Scene、World Layer、Camera 或 Entity 的接口。
+- 新组件实现前先完成 [设计基线说明](../docs/design-baseline/README.md) 中的审批门和上游能力核验。

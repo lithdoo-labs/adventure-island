@@ -1,204 +1,69 @@
-# Adventure Island — OpenMS-Guided Product-First 设计与历史基线
+# Adventure Island — 当前设计基线
 
-> 状态：Draft，供复核后改写
-> 记录日期：2026-10-26
-> 研究对象：国服冒险岛 CMS v079
-> 运行平台：LoomRealm（本仓库 submodule `loom-realm`）
+> **状态：Design Baseline Reset；记录日期：2026-11-17。** 本文取代旧版 DESIGN.md 的现行规范地位。旧文完整保存在 [历史设计档案](./docs/archive/legacy-DESIGN-2026-10-26.md)。
 
-> **2026-11-16 现行方向（产品级决定）：** 以 Adventure Island 的可玩功能、13 张目标地图和可执行验收为准。OpenMS（GMS083）是优先行为/算法参考；CMS079 逆向研究继续作为保留的历史事实与可选兼容资料，不再成为每项功能都必须先完整逆向的前置条件。  
-> **不可破坏：** Frozen `components/RENDER-NODE-ABI-V1.md`、LoomRealm pinned `93648192323bf5f57996b7b54cbae641d8a53fdb`、资源访问及输入/状态权威。  
-> 本次新设计入口：[总览](docs/product-first/README.md) · [适配契约](docs/product-first/OPENMS-ADAPTATION-CONTRACT.md) · [65 项需求迁移](docs/product-first/PRODUCT-READINESS-MIGRATION.md) · [逐项矩阵](docs/product-first/REQUIREMENT-ADOPTION-MATRIX.csv)。  
-> 以下 2026-10-26 的“按 079 行为”“两张合成地图为第一阶段”等表述保留为历史基线；与现行产品方向冲突时，以上 Product-First 设计优先。**详细产品规格尚待逐项批准，不能把转向等同于已经 Stage-Ready。**
+## 1. 当前状态
 
-## 0. 现行产品决定与边界
+本轮是设计与仓库边界清理，不是新 Renderer、Scene ABI 或游戏功能实现。
 
-1. **产品交付优先：** 以 13 图的资源载入、场景绘制、移动、Camera、Portal 往返及故障恢复的确定性测试定义功能就绪，不要求事先恢复全部 CMS079 汇编。
-2. **两套状态独立：** 109 Claims / 97 Evidence / 41 Gaps 及旧 65 项 P0–P4 Readiness 保持历史原义。新 `docs/product-first/` 仅记录产品规格及批准流程，不以“采用 OpenMS”将原版 Gap 标为 CLOSED。
-3. **只借行为不直接复制 GPL 代码：** OpenMS GPL-3.0；未经专项法律/许可证审查，禁止直接复制、集成其 GPL 模块。WZ/游戏素材仅由使用者本地合法来源导入，不分发资源包。
-4. **架构适配：** Field Runtime/Subsystem 与 Shared State 是状态权威；InputGate 接收输入；Render Projection 转换到既定 `cms-*` 标签。不得用 PixiJS/OpenMS 直接替换现有 ABI。
-5. **依赖图和冲突先裁决：** 旧 MapScenePlanV1 四条 Portal enabled 白名单与 13 图 P4-09 全联通冲突； Camera 焦点/deadzone、物理 Tick、缺帧策略和传送冷却也要有具体 ADR 与测试。
-6. **测试范围：** 原始 CMS079 客户端继续 STATIC-ONLY、不得启动；本项目合成夹具、PWA/Hostra、产品功能 E2E 可运行和测试。
+- `ms-avatar` 与 `ms-action` 是当前唯一保留的可审查组件候选基线，见 [ms-avatar](./design/ms-components/ms-avatar.md) 和 [ms-action](./design/ms-components/ms-action.md)。
+- 两份组件文档的现有字段、播放语义和父子关系在本轮不改；它们不是已批准或冻结的公共 API，也没有对应的新组件实现。
+- 除上述候选文档外，当前没有获批的场景树、世界绘制排序、Camera、Movement、Portal、Render Clock、共享解码缓存或 Projection Batch 架构。
+- LoomRealm 仍固定在 `93648192323bf5f57996b7b54cbae641d8a53fdb`；本轮不改 Submodule，不假设上游已经提供任何尚未存在的能力。
 
-## 1. 文档职责
+## 2. 现行与非现行资料
 
-本文记录产品改造决策与历史复核结论，现行策略以第 0 节及所链接的 Product-First 文档为准。逆向证据统一归档在 `research/task/` 与 `research/result/`。玩法实现落在本仓库的 game library 与 Subsystem；LoomRealm 的 `examples/PokeMan` 仅作平台结构参考，不在 LoomRealm Submodule 中添加本游戏代码。本文不写协议字段或函数地址。
-
-决策改变时直接改本文，并在文末复核记录里留一行。
-
-## 2. 目标
-
-本项目是改造学习研究项目。公开部分是玩法逻辑、机制实验和本地构建工具。本项目不提供素材包下载。打包编译时，由使用者在本地准备自己的 079 CMS 客户端。
-
-研究核心是保留旧玩法，并在此基础上优化机制，看怎样更好玩。旧客户端和旧服务端协议是行为对照。游戏运行时的权威在 LoomRealm 的 Subsystem 与 Shared State。
-
-留下移动、技能和地图，作为旧玩法的基线。升级、任务以及同类进度系统自己开发，这是第一批要重做的机制。之后若优化留下的系统，从 079 的行为改起，并在复核记录里写明改动和预期体验。
-
-| 留下，按 079 的行为做 | 自己开发 |
+| 资料 | 当前效力 |
 |---|---|
-| 移动：立足线、行走、跳跃、受击位移 | 升级：经验、等级曲线、升级收益 |
-| 技能：释放、命中、冷却、增益，以及由此产生的伤害 | 任务，以及同类的目标与奖励结构 |
-| 地图：分层、立足线、传送门、出生点、怪物与 NPC 的摆放方式 | 技能如何解锁、点数如何获得 |
+| `design/ms-components/ms-avatar.md` | 可审查候选设计；未批准、未冻结、未实现 |
+| `design/ms-components/ms-action.md` | 可审查候选设计；未批准、未冻结、未实现 |
+| `design/ms-components/RENDERNODE-ARCHITECTURE.md` | 探索性提案档案；不构成当前架构决策 |
+| `design/ms-components/RENDERNODE-BASELINE-AUDIT.md` | 指定旧 HEAD 的只读审计快照；非当前基线 |
+| `components/RENDER-NODE-ABI-V1.md` | 仅供旧 `cms-*` 运行路径兼容；不约束新设计 |
+| `components/MAP-SCENE-PLAN-V1.md` | 旧运行路径的历史 Plan 草案；不约束新场景模型 |
+| `docs/product-first/` | 2026-11-16 的需求、ADR、路线图提案档案；未批准 |
+| `research/` 与 `docs/validation/` | 保留的研究和验收证据；按原报告的范围解释 |
 
-移动、技能、地图是同一类系统：人在场地上怎么动、怎么打、地图怎么连。升级和任务是另一类：角色为什么变强、玩家下一步做什么。后一类不从 079 的任务脚本和经验表移植。
+## 3. 旧运行路径边界
 
-技能的释放效果留下。技能点、转职和解锁条件属于升级体系，归自己开发。地图的运行机制留下。哪一张图因为哪一个任务才打开，归自己的任务设计。
+仓库根目录的 Game Entry 当前仍以 `base → adventure-map` 运行，并通过 `presentation.json` 注册 `cms-actor`。对应 `cms-*` 组件、RenderNode ABI v1、MapScenePlanV1 和 PWA/Chromium 测试全部保留。
 
-## 3. 2026-10-26 复核
+这套代码被定义为 Legacy Compatibility Runtime：
 
-对照 LoomRealm 当前产品与本仓库 Task 001–061 的结果。
+1. 可以继续构建和运行，用于复现既有结果与防止历史回归。
+2. 其 CI 通过只证明该兼容路径通过，不证明 ms 组件、Scene ABI 或新产品功能已实现。
+3. 除必要的兼容性修复外，不向旧 `cms-*` 接口添加新产品能力。
+4. 新设计不得依赖旧的 Adventure Island `cms-*` ABI 或 MapScenePlanV1。LoomRealm 自身的 Render Update / Web Presentation API 是独立的上游平台协议，不应与旧项目级 ABI 混为一谈。
 
-### 3.1 平台能承接的部分
+## 4. 保留的研究与技术资产
 
-LoomRealm 把逻辑运行时和 Desktop / PWA 物理组合拆开。CMS 游戏包沿用这条链：
+以下内容继续保留，供未来设计逐项引用，不自动升级为产品决定：
 
-- Main 持有会话、帧和输入目标
-- Shared State 持有角色、位置、背包、装备、任务等会话事实
-- Content 持有只读的地图、怪物和物品定义
-- Renderer 与输入负责呈现和操作
-- 对话库可以后接 NPC 对话
+- CMS079 逆向研究的 Claims / Evidence / Gaps、任务报告和来源索引；
+- 13 张目标地图的覆盖矩阵及 Portal Graph（54 条非 sentinel 记录、46 条内部唯一目标、8 条闭包外目标；图统计不等于运行时启用许可）；
+- OpenMS GMS083 的来源路径、固定 SHA 与 GPL-3.0 许可证追溯；
+- CMS079 WZ→FSDB 真实转换闭环及已知异常报告；
+- LoomRealm 固定版本的 API 与平台能力审计。
 
-具体游戏用 Game Package 声明逻辑拓扑。先例是 LoomRealm `examples/PokeMan` 的 `game.json` 加 subsystem。
+任何结论仍受原始报告的样本范围、证据等级和本地数据可访问性约束。不得把静态闭包、样本覆盖或旧测试结果表述为全客户端完整性、全量无损或新组件验收。
 
-### 3.2 现有游戏库接不住 CMS 场地
+## 5. 进入下一轮实现前的审批门
 
-`@loomrealm-game/map` 是 RMXP 格子地图：三层 Table、通行格、地形标签。普通行走 250 毫秒，一次方向输入得到 `blocked`、`walk` 或 `jump` 之一。CMS 场地是像素坐标、重力和立足线。Task 060 抽出 359,124 段立足线、4,259 张地图、18,339 个传送门、3,174 个 NPC 刷新点和 30,827 个怪物刷新点。
+实现新场景或新 Renderer 前，必须先形成单独可审查的架构决策，至少覆盖：
 
-`@loomrealm-game/battle` 是 1 对 1、200 毫秒 Tick 的独立战斗。CMS 的攻击、受伤和怪物移动发生在同一张场地上。
+- 场景 root、Domain 生命周期及地图切换事务；
+- 世界空间 drawable 模型与确定性跨对象绘制顺序；
+- ms-avatar 如何向场景 Renderer 提供可合成画面；
+- Content / decoded-resource 的所有权、缓存、租约与释放；
+- Render Clock 与 Simulation Clock 的边界；
+- 父子组件投影一致性及 LoomRealm 集成点；
+- PWA 与 Hostra 的注册、脚本顺序、错误处理和一致性验收。
 
-结论：新建场地 game library，由它持有立足线、跳跃、传送和同图行动体。格子地图库和独立战斗库继续服务它们自己的游戏。CMS 不改这两套库的权威模型。
+`RENDERNODE-ARCHITECTURE.md` 中的 ms-world-layer、ProjectionBatch、RenderClockProvider、Scene ABI v2 和 Domain 拓扑都只是候选方案。未经明确审批、上游兼容性核验和真实测试，不得直接作为实施要求。
 
-### 3.3 协议留在研究侧
+## 6. 不变约束
 
-Task 055–056 已用合成客户端走通登录、选角、频道跳转和进图，并核对聊天、移动、表情。opcode 词汇是 148 个 c2s 加 217 个 s2c。这些结果用来核对进图之后世界上有什么，不把旧封包栈做成新游戏的运行时。
-
-Task 053 的真实客户端登录后捕获停在保护器边界。改造不依赖补上这次捕获。
-
-### 3.4 函数命名进度不阻塞第一阶段
-
-Ghidra 反编译了 52,326 个函数。Task 059 报告的有意义覆盖率是 92.7%，其中高置信命名约 176 个。Task 060 的后续提交把分类覆盖写到 95.3%，书面报告仍以 92.7% 为据。覆盖率主要是形态分类，还不是游戏概念命名。
-
-Task 061 写出了伤害公式、伤害上限和 MP 成长，处理器伪代码 19 个，知识图谱 88 条边，低于该任务书自己的完成线（至少 5 条公式、100 个处理器、1,000 条边）。Task 062 部分收口了三类缺口：112 个发送点里 66 个有类或调用证据，46 个没有静态痕迹；100 个未命名虚类里 57 个归为运算，33 个仍不确定；70 个 locator 字段对齐到了服务端变量名，其余约 306 个还没有包映射。
-
-第一阶段只需要人物、两张场景、立足线和场景跳转。这些结构在 Task 060 的地图结果里已经有对应物。怪物刷新留到下一阶段。
-
-## 4. 仓库分工
-
-| 位置 | 职责 |
-|---|---|
-| 仓库根目录 | 正式游戏设计、平台入口、Components、Libraries、Subsystems 与测试 |
-| `research/` | CMS079 逆向任务、证据、参考资料和分析脚本；仅作设计参考 |
-| `task/dev/` | 旧 Design PR Agent 的 CI 任务规格，保持原路径 |
-| `docs/` | CI / Agent 操作文档 |
-| `components/` | Web Component |
-| `libs/` | 库 |
-| `systems/` | 子系统 |
-| `apps/pwa/` | PWA 平台入口工程 |
-| `apps/hostra/` | Hostra 平台入口工程 |
-| `loom-realm/packages` | 会话、状态、内容、渲染、输入 |
-
-人物、地图和场景跳转写在 `components/`、`libs/`、`systems/`。两个平台的入口分别写在 `apps/pwa/` 和 `apps/hostra/`。LoomRealm 提供运行平台。不往 `loom-realm/packages`、`game-libs` 或 `examples` 里加这款游戏的代码。
-
-研究仓库与游戏代码都不提交客户端、WZ 或素材包。可玩内容只在使用者本机的打包过程中生成。
-
-## 5. 素材与构建边界
-
-本项目不提供素材包下载，也不把客户端、WZ 或从中抽出的全量地图、装备、字符串放进仓库或发布物。
-
-可玩打包在使用者本机完成：
-
-```text
-本项目的逻辑、规则与导入工具
-        +
-使用者本地自行准备的 079 CMS 客户端
-        ↓
-本地导入
-        ↓
-只存在于该机器上的游戏内容
-```
-
-导入结果留在本地构建目录，格式是 LoomRealm 的 FSDB。转换规则见 [content/cms_design.md](content/cms_design.md)。仓库和自动化测试使用小型合成夹具，只验证移动和地图运行库。Task 060 的全量地图只作本地研究证据。
-
-留下的系统以 079 的行为为基线，再按体验实验逐项优化。自己开发的升级和任务不从 079 的经验表或任务脚本移植。地图系统留下的是数据结构与运行规则：立足线、分层、传送门、出生点和刷新点如何工作。使用者客户端里的地图，只在该使用者自己的打包过程中被读取。
-
-技能伤害的基线公式是：
-
-```text
-最大基础伤害 = (主属性 × 5 + 副属性) × 武器攻击 ÷ 100
-```
-
-武器与主副属性的对应关系、199,999 的基础上限，记在 `research/result/task061-game-formulas.md`。优化这条公式属于机制实验：改之前先记下 079 的原值，改完在复核记录里写体验假设。经验曲线不在这条公式里。Task 061 的经验曲线一节是空的，升级系统本来就要自己设计，不把补全这条曲线当作研究缺口。
-
-## 6. 第一阶段
-
-第一阶段只做人物和地图：一个简单人物在场景里移动，并且能从一个场景跳到另一个场景。
-
-- 一个人物。能走、能跳。外观是纸娃娃：肤色、头、脸型、表情、头发、装备
-- 两张合成场景。每张有立足线、出生点
-- 场景跳转。场景 A 的出口把人物送到场景 B 的落点，再沿出口回到 A
-- 画面跟着人物，能看出当前在哪一张场景
-- `apps/pwa/` 与 `apps/hostra/` 只挂基础输入、人物和地图
-
-完成标准：Desktop 上人物从场景 A 的出生点走到出口，进入场景 B，并且出现在 B 的落点。当前场景和人物位置由地图运行库持有。Renderer 只显示副本。
-
-这一阶段用合成夹具验证运行库。面向游玩的打包仍由使用者本地自备 079 CMS 客户端，本项目不附带素材。这一阶段不包含怪物、技能、升级、任务、登录协议和多人。
-
-画面组件见 `components/README.md`。瓦片和物件都放在 `cms-map-layer` 的数组里。交互各自有目录：`cms-portal` 走进去换场景，`cms-npc` 对话，`cms-reactor` 打或点，`cms-seat` 坐下。第一阶段只把出口放进树。
-
-## 7. 之后的顺序
-
-运行库先用合成夹具跑通。可玩打包读取使用者本地的 079 CMS 客户端。自己开发的系统另写规则，不从 079 填表。
-
-留下的系统：
-
-1. 人物与地图。就是第 6 节：场景内移动和场景跳转。其后补上分层和更完整的传送门图。
-2. 地图上的怪物与刷新点。怪物在立足线上行动，位置由地图权威更新。
-3. 技能与增益。在同一场地权威里结算，不切到独立战斗场景。伤害公式用第 5 节那一条。
-4. 装备上影响技能和移动的那一层属性。背包的其余规则若只服务升级和奖励，归自己开发。
-
-自己开发的系统：
-
-1. 升级。经验从哪来、升级给出什么，由本作定义。
-2. 任务与目标。NPC 对话可以后接对话库，任务状态进 Shared State，任务内容不移植 079。
-3. 技能解锁与点数获得。接在升级系统上，不接在 079 的转职表上。
-
-## 8. 待复核
-
-- 场地库的名字和目录
-- 怪物行动放在场地本地状态，还是也写入 Shared State
-- 两张合成场景的尺寸、出生点和跳转落点
-- 装备栏整体算留下的技能输入，还是只留下攻击力、移速这类喂给技能和移动的属性
-- 队伍、公会、现金商城这类还没点名的系统，默认归自己开发，直到某一次复核把其中一项划回留下的一侧
-
-## 9. 复核记录
-
-| 日期 | 修订 | 结论 |
-|---|---|---|
-| 2026-11-16 | OpenMS-Guided 产品转向 | 冻结 ABI 与历史逆向台账不变；未来以 65 项需求及 13 图可执行验收为中心开展独立产品设计。 |
-| 2026-10-26 | 初稿 | 新建场地库。协议与官方资源留在研究侧。第一刀是一张合成小镇场地。 |
-| 2026-10-26 | 补记 Task 062 | 发送点、虚类和字段对齐只是部分完成。不改变第一刀范围。 |
-| 2026-10-26 | 系统取舍 | 留下移动、技能、地图的 079 行为。升级、任务及同类进度系统自己开发。 |
-| 2026-10-26 | 项目定位与素材 | 改造学习研究项目。不提供素材包下载。打包时使用者自备 079 CMS 客户端。核心是保留旧玩法并优化机制。 |
-| 2026-10-26 | 第一阶段范围 | 只做人物与地图：简单人物在场景中移动，并在两张场景之间跳转。怪物、技能留到后面。 |
-| 2026-10-26 | 代码目录 | `components/` 放 Web Component，`libs/` 放库，`systems/` 放子系统。 |
-| 2026-10-26 | 平台入口 | `apps/pwa/` 与 `apps/hostra/` 分别放两个平台的入口工程。 |
-| 2026-10-26 | 物件不单独交互 | 瓦片和物件留在地图层数组里。点击和碰撞落在传送门、NPC、反应堆、座位上。 |
-| 2026-10-26 | 四类交互目录 | `cms-portal`、`cms-npc`、`cms-reactor`、`cms-seat`。第一阶段只挂出口。 |
-| 2026-10-26 | 人物纸娃娃 | `cms-actor` 按身体帧画肤色、头、脸型、表情、头发和装备。锚点对齐，`zmap` 决定叠放，`vslot` 决定遮挡。 |
-| 2026-10-26 | 技能动作单次播放 | 普攻和技能按身体动作播完一遍，结束时回到当前的走、站或跳。不循环，也不停在最后一帧。 |
-| 2026-10-26 | 施法走渲染事件 | 挥砍和施法是 `receiveRenderEvent` 的 `action`。它不进入 `RenderNode.data`。 |
-| 2026-10-26 | 人物 attrs 与 data | `cms-actor` 的坐标、朝向、移动、肤色、脸、头发、表情、装备都在 `data`。`attrs` 先空着。 |
-| 2026-10-26 | 人物标量改放 attrs | 坐标、朝向、移动、肤色、脸、头发、表情各是一条属性。装备列表是 `data` 里的数组，整份替换。 |
-| 2026-10-26 | 其余组件的字段 | 标量进属性，边界、瓦片、物件和辅助线进 `data`。瓦片的 `z` 在图集画布上，放置项是 `zM`。出口画面用 `MapHelper` 的 `pv`。反应堆补状态号。 |
-| 2026-10-26 | 装备改放属性 | `cms-actor` 的 `equips` 是一条逗号分隔的属性。`data` 为空。 |
-| 2026-10-26 | WZ 转 FSDB | 地图信息进 `struct.Map`，放置进按地图编号分组的 JSONL，画布像素进 PNG 资源。锚点和 `z` 留在记录里。链接图只写 `link`。 |
-| 2026-10-26 | WZ 全包转入 | 16 个 WZ 包都进 FSDB。地图补上 info 标量、物理常数、区域和活动节点。物品、字符串、怪物、技能、声音、效果、界面、变身和骑宠一并写入。 |
-| 2026-10-26 | FSDB 缩样 | `content/cms_design.md` 用射手村记下转换后的目录、地图 JSON、分组 JSONL、图集、物理常数和身体画布。 |
-
-
-## 10. Product-First 运行时设计细化（2026-11-16）
-
-本轮在 docs/product-first/ 建立 65 项完整产品需求卡、P0–P4 模块契约、ADR Register、13 图资源覆盖与 Portal graph、OpenMS 来源/许可证矩阵、Golden Fixture 验收计划和 R0–R4 路线图。所有需求仍为 PROPOSED / NOT-APPROVED；这批文档是工程提案，不代表功能已经实现，也不改变 CMS079 Canonical Claim/Evidence/Gap。
-
-关键数据审计：目标 13 图中 5 张 land、8 张 water；54 条非 sentinel Portal links 中 46 条内部唯一、8 条外部；内部 graph 正反向均 13/13 可达。旧四门白名单需按 ADR-001 迁移。Frozen RenderNode ABI v1 与 LoomRealm pin 保持不变。
-
-独立 Reviewer sub-agent 在本轮执行环境不可用，Reviewer 结论为 NOT-RUN；本轮没有独立盲审或对抗审，不得标为最终 ACCEPT。详见 docs/product-first/INDEPENDENT-REVIEWER-STATUS.md。
+- 不运行原始 CMS079 客户端；不把客户端、WZ 或全量 FSDB/素材提交到 Git。
+- 不复制或 vendoring OpenMS GPL-3.0 源码；行为参考必须独立实现并记录来源。
+- 不修改 LoomRealm Submodule，除非另有明确依赖升级任务。
+- 保留历史研究和旧运行路径，不能把归档等同于删除或抹除历史。

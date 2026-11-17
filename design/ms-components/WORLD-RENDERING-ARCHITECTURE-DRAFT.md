@@ -8,7 +8,7 @@
 
 ## 0. 首阶段组件树及独立文档入口
 
-当前阶段按“地图 + Back/Tile/Obj + 玩家 Avatar + Camera + Movement + Portal”三图闭环提出 **8 个 Custom Element 标签候选**，其具体树、前后遮挡关系、阶段范围及未决问题，统一参见 **[Field 首阶段组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md)**。
+当前阶段按“地图 + Back/Tile/Obj + 玩家 Avatar + Camera + Movement + Portal”三图闭环提出 **8 个 Custom Element 标签候选**，其具体树、前后遮挡关系、阶段范围及未决问题，统一参见 **[Field 首阶段组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md)**。六个新组件的具体 attrs/data/children 与 ResourceRef/stack-rank 公共规则已写入 **[Field Paint Unit ABI V1 共享候选契约](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)**；各组件详情见下表。
 
 | 基础必需标签（6 个） | 按场景需要的标签（2 个） |
 | --- | --- |

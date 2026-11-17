@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史实施/设计资料。** 本文记录旧运行路径或当时的实施提案，不是当前新架构的实施要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # Adventure Field & Map Scene Runtime 设计草案
 
 > **状态：Draft。** 2026-11-09 评审已经收口绘制契约。完成定义是从童话村走到中央广场、商店街和动物园这条走廊上的行走、跳跃、蹲下、游泳、攻击、下跳、坐下和爬绳，以及走廊上的换图。跳跃分成陆地跳、水中跳和下跳。走廊一共 13 张图，名单在第 1.3 节。交付物是整条 `base` → `adventure-map` 进程，包括内容闭包、物理、移动和换图，不只是地图组件。这些功能还没有实现。客户端证据在 [MAP-MOTION-REVERSE.md](../../research/result/map/MAP-MOTION-REVERSE.md)。尚未接入的清单在第 12 节。

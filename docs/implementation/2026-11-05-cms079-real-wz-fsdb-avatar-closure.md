@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史实施/设计资料。** 本文记录旧运行路径或当时的实施提案，不是当前新架构的实施要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # CMS079 真实资源闭环：WZ → FSDB → LoomRealm Content API → cms-actor
 
 > 状态：Issue Agent 实施任务书（2026-11-05）

@@ -1,3 +1,5 @@
+> **归档状态（2026-11-17）：历史实施/设计资料。** 本文记录旧运行路径或当时的实施提案，不是当前新架构的实施要求。当前设计入口：[Design Baseline Reset](../design-baseline/README.md)。
+
 # loom-realm Render ABI 冻结建议（Round 3 终版）
 
 日期: 2026-11-13。依据三轮 R13 静态证据闭合。

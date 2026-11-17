@@ -8,6 +8,8 @@
 
 - `ms-avatar` 与 `ms-action` 是当前唯一保留的可审查组件候选基线，见 [ms-avatar](./design/ms-components/ms-avatar.md) 和 [ms-action](./design/ms-components/ms-action.md)。
 - 两份组件文档的现有字段、播放语义和父子关系在本轮不改；它们不是已批准或冻结的公共 API，也没有对应的新组件实现。
+- 新增六份单组件讨论草案，并为首阶段 8 个标签建立独立组件树说明；这些文件均未批准、未冻结、未实现。
+- [首阶段 Custom Element 组件树与遮挡关系](./design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md)：建议 **8 个标签（6 个基础、2 个按需）**，包括六份新增单组件草案及两份既有 ms-avatar/ms-action V1 候选；完整索引见 [MS 组件目录](./design/ms-components/README.md)。
 - [World Rendering Architecture — DOM + Multi-Canvas (OpenMS-guided Draft)](./design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) 已更新为 **统一世界深度排序 + LoomRealm 管理 DOM + 多张静态批次 Canvas + 独立 Avatar/NPC/Mob/Obj Paint Unit** 的讨论方向，撤回跨组件 Renderable 注册/单一场景 Canvas 的默认前提。它**不是已批准的 Scene / Renderer 架构**，也不冻结 CMS079 深度公式。
 - 除上述候选文档和讨论草案外，当前没有获批的场景树、世界绘制排序、Camera、Movement、Portal、Render Clock、共享解码缓存或 Projection Batch 架构。
 - LoomRealm 仍固定在 `93648192323bf5f57996b7b54cbae641d8a53fdb`；本轮不改 Submodule，不假设上游已经提供任何尚未存在的能力。
@@ -19,6 +21,8 @@
 | `design/ms-components/ms-avatar.md` | 可审查候选设计；未批准、未冻结、未实现 |
 | `design/ms-components/ms-action.md` | 可审查候选设计；未批准、未冻结、未实现 |
 | `design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md` | DOM + Multi-Canvas 世界呈现讨论草案；统一深度排序与独立绘制单元；未批准、未冻结、未实现 |
+| `design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md` | 首阶段组件树、地图/Avatar 遮挡关系、范围及测试门；未批准 |
+| `design/ms-components/ms-scene-view.md` / `ms-map-back.md` / `ms-map-batch.md` / `ms-world-item.md` / `ms-map-object.md` / `ms-portal-visual.md` | 六份新增单组件讨论草案；未批准、未冻结、未实现 |
 | `design/ms-components/RENDERNODE-ARCHITECTURE.md` | 探索性提案档案；不构成当前架构决策 |
 | `design/ms-components/RENDERNODE-BASELINE-AUDIT.md` | 指定旧 HEAD 的只读审计快照；非当前基线 |
 | `components/RENDER-NODE-ABI-V1.md` | 仅供旧 `cms-*` 运行路径兼容；不约束新设计 |
@@ -54,7 +58,7 @@
 实现新场景或新 Renderer 前，必须先形成单独可审查的架构决策，至少覆盖：
 
 - 场景 root、Domain 生命周期及地图切换事务；
-- 世界空间 drawable 模型与确定性跨对象绘制顺序；
+- 首阶段组件树、DOM Paint Unit / Canvas 安全批次与确定性跨对象遮挡顺序；
 - ms-avatar 如何向场景 Renderer 提供可合成画面；
 - Content / decoded-resource 的所有权、缓存、租约与释放；
 - Render Clock 与 Simulation Clock 的边界；

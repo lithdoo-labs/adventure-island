@@ -63,3 +63,88 @@ ms-scene-view
 5. 新深度断点引发的 Batch 结构替换/新 key 规则真实运行通过。
 
 来源：[OpenMS depth evidence](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)、[旧 CMS079 tileKey/objKey](../../components/cms-map-layer/DESIGN.md)。
+
+## 7. RenderNode ABI V1 — 静态 Canvas Batch
+
+> 本节把第 3 节候选输入落为可验证的 V1 JSON 形状；尚非获批的 ABI。通用 ResourceRef/stack-rank/状态见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。
+
+### 7.1 attrs 完整闭集
+
+仅 `stack-rank`（必需、唯一、正整数）和 `visible`（必需、true/false）。Batch 的 world origin、绘制列表和 atlas 内容**不**靠每 Tile DOM attrs 承载；静态批次的画面整体位于同一个 World Plane 中。
+
+### 7.2 data 完整闭集
+
+~~~ts
+interface MapBatchDataV1 {
+  formatVersion: 1;
+  sceneEpoch: string;
+  batchId: string;
+  bounds: { x: number; y: number; w: number; h: number }; // world rect；w/h positive integer
+  sprites: {
+    pages: Record<string, {
+      resource: ResourceRefV1;
+      width: number; height: number; // positive integer; decoder must match
+    }>;
+    items: Record<string, {
+      page: string;                  // key in pages
+      source: SourceRectV1;
+      origin: [number, number];      // placement local anchor
+    }>;
+  };
+  placements: Array<{
+    placementId: string;            // unique in scene, and not duplicated as ms-map-object
+    kind: "tile" | "obj";
+    sprite: string;                 // key in sprites.items
+    x: number; y: number;           // world anchor location
+    flip: boolean;
+    opacity: number;                // integer 0..255
+    order: { depth: number; tieOrder: number }; // safe integers; strictly ordered tuple
+  }>;
+}
+~~~
+
+- `placements` 数组顺序是**从背景到前景的真实绘制顺序**，必须按 `(order.depth, order.tieOrder)` 严格递增；至少一条，禁止 duplicate placementId。`depth` 是本游戏已验证的 world ordering value，**不是 zIndex**；`tieOrder` 保留静态 authored 顺序，不受资源完成时间影响。
+- 整体 Batch 是可与其他 Paint Units 比较的**一个** stack-rank。所有内部 placement 的顺序必须在全部可达动态插入深度下形成连续安全区间；跨入者必须触发 Batch Planner 拆分，不能只更改这个 Canvas 的 z-index。
+- 所有 page/item 引用必须存在，SourceRect 不越界；placement world anchor 与 image origin 计算左上位置 `(x-originX,y-originY)`，镜像时以 anchor 为中心而不是凭空修改足点。
+- bounds 必须覆盖各 placement 在批次中实际可能绘制的区域，且 Canvas 尺寸/总像素有业务配置限额。需要裁剪时按 world rect 做局部 Canvas 坐标偏移，不能清空画布后丢失未加载条目。
+- V1 只允许静态图像；动画 Obj flow、frame clock、Tile 材质动态替换需要新能力方案，不能静默取第一帧。
+
+### 7.3 最小 RenderNode 示例
+
+~~~json
+{
+  "key": "batch:field-epoch-1:region0:band0",
+  "tag": "ms-map-batch",
+  "attrs": { "stack-rank": "20", "visible": "true" },
+  "data": {
+    "formatVersion": 1, "sceneEpoch": "field-epoch-1", "batchId": "region0:band0",
+    "bounds": { "x": 0, "y": 0, "w": 32, "h": 32 },
+    "sprites": {
+      "pages": {
+        "p0": { "resource": { "namespace": "map", "key": "examples/static-atlas.png", "contentVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000" }, "width": 32, "height": 32 }
+      },
+      "items": { "tile0": { "page": "p0", "source": { "x": 0, "y": 0, "w": 32, "h": 32 }, "origin": [0, 0] } }
+    },
+    "placements": [
+      { "placementId": "tile:0:0", "kind": "tile", "sprite": "tile0", "x": 0, "y": 0,
+        "flip": false, "opacity": 255, "order": { "depth": 19990, "tieOrder": 0 } }
+    ]
+  },
+  "children": []
+}
+~~~
+
+示例 `depth=19990` 仅演示去掉 OpenMS GMS083 共用偏移后的一个参考数量；不得拿来当作 CMS079 冻结常数。资源 key 为占位例子。真实 world depth 编码需与所有 Paint Unit 使用同一深度体系，不能部分去 B、部分保留 B。
+
+### 7.4 更新与资源原子性
+
+- children 必须为空；没有 Renderer→Subsystem 业务事件。图片加载完成仅触发该组件自己的局部 Canvas 构建。
+- unchanged static data 不重绘。Canvas DPR/尺寸、资源版本或 placements 变化时，先验证新完整 data，准备离屏临时表面，待所有**该批次**必需图像解码成功后一次切换到新 Canvas 内容；资源失败不得显示一半旧图一半新图。
+- Camera x/y 更新由父级 world-plane transform 处理，Canvas 不重画；Batch bounds/placements 的世界坐标必须使其内屏幕像素与 ms-avatar 保持对齐。
+- 变更 placements 但保留 Batch 身份可用 top-level data.set；若是分裂为两个 RenderNode，旧 Batch 要么继续保留并更新其内容、要么删除并用**新 key**发布新的节点；严禁同一 scene 中同时画到 batch 和 ms-map-object。
+- Batch 层面的完整画面原子不等于世界全部 Canvas 同帧原子；Scene visible gate 仍需专门设计。
+
+### 7.5 错误/验收
+
+不允许空 pixels 静默代替缺少 PNG、非法 sourceRect、未知 kind、重复 id、非法 depth/tie、越界坐标、超预算的 Canvas。测试包含 Avatar 可插入的安全断点、Front Back、静态 Batch 内 Tile/Obj 混绘、Region 晚加载、换图、DPR/Viewport 下 alpha/flip。
+

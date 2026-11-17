@@ -6,6 +6,16 @@
 >
 > 本文不修改 [ms-avatar](./ms-avatar.md)、[ms-action](./ms-action.md) 既有候选 ABI，不改变 LoomRealm Submodule，也不批准 CMS079 深度公式、标签集合或实现方案。
 
+## 0. 首阶段组件树及独立文档入口
+
+当前阶段按“地图 + Back/Tile/Obj + 玩家 Avatar + Camera + Movement + Portal”三图闭环提出 **8 个 Custom Element 标签候选**，其具体树、前后遮挡关系、阶段范围及未决问题，统一参见 **[Field 首阶段组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md)**。
+
+| 基础必需标签（6 个） | 按场景需要的标签（2 个） |
+| --- | --- |
+| [ms-scene-view](./ms-scene-view.md)、[ms-map-back](./ms-map-back.md)、[ms-map-batch](./ms-map-batch.md)、[ms-world-item](./ms-world-item.md)、[ms-avatar](./ms-avatar.md)、[ms-action](./ms-action.md) | [ms-map-object](./ms-map-object.md)、[ms-portal-visual](./ms-portal-visual.md) |
+
+ms-avatar 和 ms-action 已有独立的详细 V1 候选文档，本轮不改其 ABI。其余六份为本轮新增的**未批准阶段设计草案**。Portal 业务传送不依赖 Portal 视觉标签；ms-action 的独立标签必要性仅在现有 Avatar V1 父子设计下成立。过去的 R1/R2 路线图已归档，不因本表重新批准。
+
 ## 1. 架构约束和目标
 
 ### 1.1 不变的 LoomRealm 边界

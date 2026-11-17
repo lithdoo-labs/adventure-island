@@ -3,6 +3,8 @@
 > **设计状态：可审查候选基线；未批准、未冻结、非现行规范。** 本文保留为 [ms-avatar](./ms-avatar.md) 的组成设计候选；字段、播放规则、父子通知和更新语义没有在本次清理中重定义。  
 > **实现状态：未实现。** 当前没有新 ms-action Custom Element、完整 Validator 或真实 WebProjector 集成测试。CMS079 数据与容量仍须按 ms-avatar 第 13 节验收。
 
+> **首阶段集成指引（非规范）：** 在 [Field 组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md) 中，`ms-action` 仍是 `ms-avatar` 的直接子数据节点；不独立绘制、不参与世界 Canvas/DOM 深度排序。该链接不修改现有 V1 Clip 或父子接口，后续可单独审查是否需要长期保留独立标签。
+
 ## 1. 定位与职责
 
 ms-action 是 ms-avatar 的**数据型直接子组件**。一个实例表示一个具名身体 Action，保存一份渲染就绪的 Clip。

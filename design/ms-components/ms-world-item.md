@@ -102,26 +102,110 @@ RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisual
 {
   "key": "actor-host:player:field-epoch-1",
   "tag": "ms-world-item",
-  "attrs": { "world-x": "100", "world-y": "200", "stack-rank": "30", "visible": "true" },
-  "data": { "formatVersion": 1, "sceneEpoch": "field-epoch-1", "actorVisualId": "player:local", "anchor": "feet" },
+  "attrs": {
+    "world-x": "100",
+    "world-y": "200",
+    "stack-rank": "30",
+    "visible": "true"
+  },
+  "data": {
+    "formatVersion": 1,
+    "sceneEpoch": "field-epoch-1",
+    "actorVisualId": "player:local",
+    "anchor": "feet"
+  },
   "children": [
     {
       "key": "avatar:player:field-epoch-1",
       "tag": "ms-avatar",
-      "attrs": { "action": "stand1", "facing": "right", "expression": "default", "one-shot-enabled": "true" },
+      "attrs": {
+        "action": "stand1",
+        "facing": "right",
+        "expression": "default",
+        "one-shot-enabled": "true"
+      },
       "data": {
         "formatVersion": 1,
-        "appearance": { "zOrder": ["body"] },
-        "sprites": { "pages": {}, "items": {} },
-        "expressions": { "default": { "frames": [{ "durationMs": 0, "layers": [] }] } }
+        "appearance": {
+          "zOrder": [
+            "body"
+          ]
+        },
+        "sprites": {
+          "pages": {
+            "p0": {
+              "resource": {
+                "namespace": "map",
+                "key": "examples/avatar/p0.png",
+                "contentVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+              },
+              "width": 32,
+              "height": 32
+            }
+          },
+          "items": {
+            "body.stand1.0": {
+              "page": "p0",
+              "source": {
+                "x": 0,
+                "y": 0,
+                "w": 32,
+                "h": 32
+              }
+            }
+          }
+        },
+        "expressions": {
+          "default": {
+            "frames": [
+              {
+                "durationMs": 0,
+                "layers": []
+              }
+            ]
+          }
+        }
       },
-      "children": []
+      "children": [
+        {
+          "key": "avatar:player:field-epoch-1:stand1",
+          "tag": "ms-action",
+          "attrs": {
+            "name": "stand1"
+          },
+          "data": {
+            "clip": {
+              "formatVersion": 1,
+              "playback": {
+                "mode": "loop"
+              },
+              "frames": [
+                {
+                  "durationMs": 100,
+                  "layers": [
+                    {
+                      "id": "body",
+                      "sprite": "body.stand1.0",
+                      "z": "body",
+                      "origin": [
+                        16,
+                        32
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "children": []
+        }
+      ]
     }
   ]
 }
 ~~~
 
-**注意**：上面 Avatar 子节点仅作结构形状示例，未带合法 stand1 子 Clip；它是**pending/不允许被验收为完整 Avatar 画面**的例子，不应据此宣称 Avatar V1 验证成功。实际播放所需的全部 ms-action 数据必须依照已经完成的 V1 文档提供。
+**注意**：该示例包含满足 ms-avatar/ms-action V1 基础结构的合成 stand1 Clip 与示例图集引用，资源 key 和 PNG 内容均**未实际提供**，因此这不是已可绘制的地图 Avatar 验收结果。真实图片尺寸、锚点、slot occlusion、资源 closure 和 ProjectionBatch 限制仍以既有 Avatar V1 验收门为准。
 
 ### 7.4 投影与局部 DOM
 

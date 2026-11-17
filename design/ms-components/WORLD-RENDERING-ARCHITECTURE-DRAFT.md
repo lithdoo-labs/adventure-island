@@ -1,342 +1,331 @@
-# World Rendering Architecture — OpenMS-guided Draft
+# World Rendering Architecture — DOM + Multi-Canvas（OpenMS-guided Draft）
 
-> **状态：讨论草案（Draft for discussion）。未批准、未冻结、非规范、未实现。**
-> 本文用于继续讨论新一代场景呈现架构，不替换 **ms-avatar / ms-action** 候选设计，也不授权修改旧 **cms-\*** 运行路径。
-> **核心假设：组件语义树与世界绘制树必须分离。** 所有需要相互遮挡的世界对象进入同一个 World Display List，由统一的 World Depth Resolver 和 Compositor 决定最终顺序。
+> **状态：讨论草案 / 非规范 / 未批准 / 未冻结 / 未实现。** 2026-11-17 设计方向更新；替换本文件之前的“单一 World Compositor + 各 Collection 注册 Renderable”候选结构。
+>
+> **本次明确的方向：统一世界排序，不统一 Canvas。** 由 Field Subsystem 产生权威视觉状态及跨对象深度顺序；LoomRealm 将 RenderNode 机械投影为 DOM；同一 World Depth Plane 内交错排列可独立叠放的 Paint Units。静态地图采用多个 Canvas 批次，Avatar/NPC/Mob/独立场景物件采用独立 Custom Element 或局部 Canvas。
+>
+> 本文不修改 [ms-avatar](./ms-avatar.md)、[ms-action](./ms-action.md) 既有候选 ABI，不改变 LoomRealm Submodule，也不批准 CMS079 深度公式、标签集合或实现方案。
 
-## 1. 问题与设计目标
+## 1. 架构约束和目标
 
-冒险岛地图不是“背景层 → Tile 层 → Obj 层 → 角色层”的固定叠层。地图 Tile、地图 Obj、前景 Back、玩家、Mob、NPC、Drop 和部分 Effect 可能在同一深度空间中交错。角色还会随当前 Foothold 的 layer/group 改变深度；NPC 名称等附属元素又需要跟随所属 Actor，而不是无条件置顶。
+### 1.1 不变的 LoomRealm 边界
 
-因此，按组件类型各自绘制到独立 Canvas，再按固定顺序叠加，会丢失跨类型遮挡关系。仅按屏幕 Y 排序也不成立。
+- **Subsystem 进程**：Simulation Clock、移动和 Foothold 接触、业务实体、状态生命周期、业务 Camera Intent；游戏 Render Projection 将这些权威事实与经验证的静态地图呈现事实转换为 RenderDomain/RenderNode。
+- **LoomRealm**：Render Update v1、Renderer Store、WebProjector、RenderNode identity、managed Light DOM 的创建/移动/删除，以及 Presentation Resource Client、Render Event/InputGate。
+- **Adventure Island 的业务 Custom Elements**：只消费呈现状态；负责局部图片/Canvas/Shadow DOM、视觉动画、资源解码和非权威缓存。不得自行模拟移动/碰撞/传送、决定业务状态，或向 LoomRealm Store 反向同步 DOM。
+- **视觉时钟**可以在 Renderer 内驱动 Sprite 帧和表现性插值，但不是 Simulation Clock，也不能以动画完成决定战斗/传送结果。
+- 不建立第二个全局 Renderable Registry、跨组件运行时协调协议、World Renderer 服务定位器、LoomRealm 尚不存在的 ProjectionBatch API。**OpenMS 的 PixiJS Container 组织是绘制排序的行为参考，不是 LoomRealm 的运行时模板。**
 
-本草案的目标：
+LoomRealm 固定提交为 [93648192323bf5f57996b7b54cbae641d8a53fdb](https://github.com/lithdoo/loom-realm/tree/93648192323bf5f57996b7b54cbae641d8a53fdb)。上游 RenderNode 仍是五字段 `key / tag / attrs / data / children`。Domain zIndex 不等于游戏对象世界深度，也不保证跨 Subsystem 可任意交错叠放。
 
-1. 组件树表达数据所有权、生命周期和业务语义，不决定世界像素绘制顺序。
-2. 地图 Placement 与动态 Actor 保留可独立排序的 Renderable 身份。
-3. 所有需要相互遮挡的对象进入同一个世界深度排序空间。
-4. 深度计算由独立 Resolver 负责；不把 OpenMS 的 GMS083 公式直接当成 CMS079 事实。
-5. 保留批量绘制优化空间，但批处理不得破坏对象之间的深度插入点。
-6. 与固定版本 LoomRealm 的真实 Web Presentation 能力相容，不虚构上游 API。
+### 1.2 设计目标
 
-非目标：本草案不定义 Movement、Foothold 物理、碰撞、Mob AI、Portal 业务规则、完整资源 ABI、最终 Canvas/WebGL 后端，也不批准任何新组件接口。
+1. **遮挡正确性第一**：Tile、Obj、前景 Back、玩家、Mob、NPC、Drop、效果使用可比较的世界排序结果；禁止固定“整张地图在 Avatar 下方”或只做 Y-sort。
+2. **DOM 负责独立组合**：Avatar、NPC、Mob、大型/特殊 Obj 可以拥有独立节点、Shadow DOM 与局部 Canvas；不强制所有画面落在单一 Canvas。
+3. **静态地图批量 Canvas**：只在不破坏其他 Paint Unit 深度插入点的范围内合批，且可以按 Region/资源驻留进一步拆分。
+4. **更新局部化**：Camera、位置、动画帧、深度变化、静态块加载分别更新其必要的节点/表面，避免每帧重绘整张地图。
+5. **语义稳定**：RenderNode 的 key/生命周期归 LoomRealm；Canvas 是组件内部实现，绘制批次不是新的平台 authority。
+6. **证据边界**：OpenMS 提供 GMS083 的已恢复行为参考，CMS079 事实仍需按来源和样本逐项验证。
 
-## 2. OpenMS 参考事实
+## 2. OpenMS：必须带入设计的绘制事实
 
-参考仓库：[tensorfish/openms](https://github.com/tensorfish/openms)，固定参考提交 [07994de02756356e3e025e3aca9e79433898d2c8](https://github.com/tensorfish/openms/tree/07994de02756356e3e025e3aca9e79433898d2c8)。OpenMS 参考路径为 GMS083 时代客户端逆向与实现，**不是 CMS079 的规范来源**。
+参考 OpenMS 固定提交 [07994de02756356e3e025e3aca9e79433898d2c8](https://github.com/tensorfish/openms/tree/07994de02756356e3e025e3aca9e79433898d2c8)：
 
-### 2.1 StreamScene：统一场景显示列表
+- [StreamScene](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/stream-scene.js) 收集 Region、动态 Entity 和独立 world Container，并以 `zIndex`、`depthOrder` 对统一显示列表排序。深度变化时 `setEntityDepth()` 调整已有显示位置；不是每帧重建 Sprite，也不是按 Y 排序。
+- [EntityAnimation](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation.js) 一个 Entity 持有持久 Container / Sprite pool；角色身体、装备、表情在 **Actor 自己的局部组**内合成，整个 Actor 组才参与世界排序。
+- [原版深度逆向证据](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md) 明确 Tile、Obj、Back、玩家、Mob、NPC、Drop 有各自表达式；同深度比较 Renderer serial；Actor 名称/功能标记属于 Actor-relative 显示关系，不是永远置顶的独立 UI。
 
-关键实现：
+GMS083 参考深度（令 `B = -0x40000000`）：
 
-- [client/src/rendering/stream-scene.js](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/stream-scene.js)
-- [client/src/rendering/animation.js](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation.js)
-- [client/src/character/field-avatar.js](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/field-avatar.js)
+| 对象 | GMS083 证据表达式 |
+| --- | --- |
+| Tile | `B + 19990 + layer*30000 - tile.zM*10 + tileCanvas.z` |
+| Obj | `B + 2000 + layer*30000 + obj.z` |
+| Back（front=0） | `B - 128000 + index*1000` |
+| Front Back（front!=0） | `B + 272000 + index*1000` |
+| 普通 Mob | `B + 29991 + (layer*3000-group)*10` |
+| NPC | `B + 29995 + (layer*3000-group)*10` |
+| 本地 Player | `B + 29992 + (activeController?5:0) + (layer*3000-group)*10` |
+| Drop | `B + 29999 + (layer*3000-group)*10` |
+| Combat Number / MISS / LevelUp | `B + 398500` |
 
-OpenMS 的 StreamScene 使用统一的 PixiJS 根 Container。场景刷新时收集 actor region、已加载 region 和动态 Entity，将 Entity Container 按 **container.zIndex**、再按 **container.depthOrder** 排序，然后放入同一个根容器。地图对象与角色不是各自固定在独立的最终叠层中。
+这些公式是 **OpenMS/GMS083 的行为证据，不是 CMS079 的正式公式**。比较方向、初始静态创建次序、Boss/特殊控制器和其他视觉特例仍有证据边界。尤其 Tile 的 `zM` 是负乘数且需保留 Canvas `z`；不可直接当成 Obj 的 `z`。
 
-EntityAnimation 为一个 Entity 持有独立 Container；Container 的 zIndex 来自 Entity 深度，depthOrder 来自稳定顺序字段。角色内部的身体、头发、脸、武器和装备 Sprite 则留在该角色 Container 内部，由角色自己的 Painter 处理。
+本项目旧 [cms-map-layer 资料](../../components/cms-map-layer/DESIGN.md) 记录有限 CMS079 样本的 `tileKey = canvasZ + 10*(layer*3000-zM)-1073721834` 和 `objKey = layer*30000+z-1073739824`，但比较方向、tie-break、跨 Actor 统一深度仍未闭合。独立行为实现不得复制 OpenMS GPL-3.0 源码。
 
-角色深度变化时，**setEntityDepth()** 更新 Entity 的深度和顺序序号，并同步移动逻辑 Entity 列表及实际显示列表中的 Container。它不是每帧对全部对象重新排序，也不是按 Y 坐标排序。
-
-StreamScene 还允许注册独立 world Container，并在场景刷新时保留、重新加入和统一排序。只有诊断几何等明确的检查覆盖层才使用始终置顶的 overlay。角色替换时，field-avatar.js 保留原 Container 的深度、顺序和显示位置，并迁移附属 presentation children。
-
-### 2.2 OpenMS 逆向得到的深度规则
-
-OpenMS 的 [docs/client-evidence.md](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md) 记录了 GMS083 深度表达式。令 **B = -0x40000000**；该证据将 depth 作为原版层级排序值。数值的前后含义必须结合原版 Renderer 的比较方向和实际绘制顺序解释，本草案不只凭数值大小推断遮挡方向。
-
-| 对象 | GMS083 参考深度表达式 |
-|---|---|
-| Tile | **B + 19990 + layer*30000 - tile.zM*10 + tileCanvas.z** |
-| Obj | **B + 2000 + layer*30000 + obj.z** |
-| Back（front=0） | **B - 128000 + index*1000** |
-| Front Back（front!=0） | **B + 272000 + index*1000** |
-| 普通 Mob | **B + 29991 + (layer*3000-group)*10** |
-| NPC | **B + 29995 + (layer*3000-group)*10** |
-| 本地玩家 | **B + 29992 + (activeController ? 5 : 0) + (layer*3000-group)*10** |
-| Drop | **B + 29999 + (layer*3000-group)*10** |
-| Combat Number / MISS / LevelUp | **B + 398500** |
-
-这些规则至少证明：Tile 的 zM 带负向乘数，且必须保留 Tile Canvas 的 z；Obj 使用自己的 placement z；前景 Back 可以位于 Actor 前方；Player、Mob、NPC、Drop 的深度存在不同偏移；世界深度不是简单的 Y。
-
-OpenMS 的证据还记录：
-
-- 同深度不是按世界 Y 排序。原版 Renderer 比较相关 Overlay ancestor 的深度，再比较 Renderer serial。
-- 静态对象的初始顺序使用 authored extraction order；原生客户端最初创建顺序仍有未证明之处。动态插入或深度变化会获得新的递增 serial。
-- 玩家 Foothold 指针位于独立字段；普通跳跃期间保留最近接触的 layer/group。初始未接触时有单独默认处理。
-- 普通 Mob 公式有 controller mode、Boss 模板等特殊分支，不能把普通公式推广到所有 Mob。
-- 普通 NPC name/function overlay 使用相对深度，并挂在 Actor layer 内；它不应穿透更高的地图/前景 artwork。
-- Damage/MISS 等事件使用独立 world root，避免同一永久容器中的插入顺序错误。
-
-以上均是 OpenMS/GMS083 参考事实。**本项目不得直接复制其 GPL-3.0 源码，也不得将这些常数或特殊分支未经 CMS079 验证写入新实现。** 可独立实现经过验证的行为，并记录来源与证据链。
-
-## 3. CMS079 现有证据与边界
-
-本仓库旧地图组件资料 [components/cms-map-layer/DESIGN.md](../../components/cms-map-layer/DESIGN.md) 记录了有限 CMS079 样本中的字段：
-
-- Tile placement：x/y/u/no/zM；Tile 资源画布另有 z。
-- Obj placement：x/y/z/f/zM，其中 Obj z 与 Tile Canvas z 不是同一字段。
-- 该文档记录的旧加载键为：
-  - **tileKey = canvasZ + 10 * (layer * 3000 - zM) - 1073721834**
-  - **objKey = layer * 30000 + z - 1073739824**
-- 旧文档明确指出：比较方向、相同键次序仍待逆向；旧 MVP 没有把人物插入 Obj 深度带。
-- 该地图字段审计覆盖 21 张实质地图样本，不代表整个 CMS079 客户端。
-
-这些记录是需要保留和复核的 CMS079 证据，不等于已经得到完整的跨对象绘制契约。尤其不能只把旧 tileKey / objKey 套入新 Renderer：还需要确认其与角色、Foothold、Front Back、NPC、Mob、Drop 的共同数值空间、比较方向和 tie-break 规则。
-
-CMS079 的 WZ→FSDB 转换报告还记录了未解码项和已确认的转换遗漏。任何地图字段结论必须标注样本范围、来源和缺口，不得宣称全客户端无损覆盖。
-
-## 4. 两套树：语义组件树与 World Display List
-
-### 4.1 Semantic Component Tree
-
-这是 LoomRealm RenderNode 表达的业务/呈现组件关系，回答“谁拥有数据、资源和生命周期”。以下只是候选组织，不是已批准的 tag ABI：
+## 3. 三层结构：权威投影、DOM Paint Units、局部绘制
 
 ~~~text
-Field World RenderDomain
-└── ms-field-scene
-    ├── ms-map
-    ├── ms-avatar
-    │   ├── ms-action
-    │   └── ms-action
-    ├── ms-mob-collection
-    ├── ms-npc-collection
-    ├── ms-reactor-collection
-    ├── ms-portal-collection
-    ├── ms-drop-collection
-    ├── ms-projectile-collection
-    ├── ms-effect-collection
-    └── ms-speech-collection
+Field Subsystem（权威 Simulation / World / Camera Intent）
+  └─ World Render Projection
+       ├─ stable scene epoch + RenderNode identities
+       ├─ world placement + action/expression + resource refs
+       ├─ normalized depth + deterministic tie order
+       └─ planned static batches / independent paint units
+                   │ RenderDomain.replace / update / emit
+                   ▼
+LoomRealm Renderer Store → WebProjector（机械 Light DOM 投影）
+                   │
+                   ▼
+ms-scene-view（Viewport / World Depth Plane / slot）
+  ├─ ms-map-back            （图片或背景 Canvas）
+  ├─ ms-map-batch           （静态 Tile+Obj Canvas）
+  ├─ ms-world-item          （外层 transform + stack-rank）
+  │   └─ ms-avatar         （独立局部 Canvas）
+  │       └─ ms-action[]   （当前候选：Clip 数据节点）
+  ├─ ms-map-object          （独立 Obj <img> / Canvas）
+  ├─ ms-map-batch           （另一静态区间 Canvas）
+  ├─ ms-world-item
+  │   └─ ms-npc            （独立图片或 Canvas；Actor 附属标记）
+  ├─ ms-world-item
+  │   └─ ms-mob            （独立图片或 Canvas）
+  ├─ ms-map-animation       （动画 Obj / Back 的独立 Paint Unit）
+  ├─ ms-world-effect        （独立世界深度的效果）
+  └─ ms-map-back            （Front Back；具体顺序来自真实 depth）
 
-HUD RenderDomain
-└── ms-hud
-    ├── ms-status-panel
-    ├── ms-exp-bar
-    ├── ms-hotbar
-    ├── ms-chat
-    └── ms-minimap
+HUD RenderDomain（独立的屏幕空间、非世界遮挡）
+  └─ ms-hud
 ~~~
 
-Collection 是数据/生命周期管理边界，不代表它的所有成员要合并成一个最终绘制对象。ms-mob-collection 可以拥有多个 MobVisual，每个 MobVisual 分别注册自己的 Renderable。
+**上图列举的是代表性节点类别，并不是固定垂直图层或真实地图顺序。** 同一个 `ms-scene-view` 的直属 Paint Unit 节点必须能够按已验证的 `(depth, tieOrder)` 任意穿插。
 
-### 4.2 World Display List
+### 3.1 Paint Unit 是什么
 
-这是 ms-field-scene 内部维护的绘制对象集合，不是第二套 LoomRealm RenderNode，也不要求每个 Placement 创建 DOM 元素：
+Paint Unit = **参与外部世界遮挡排序的最小可独立叠放表面**，可以是：
+
+- 一个 DOM Custom Element（NPC、Avatar、大型静态 Obj）；
+- 一个内部 Canvas 的宿主元素（某个静态地图深度批次）；
+- 一个 Actor-relative 组合组（Avatar + 符合该组深度语义的附属标记）。
+
+Paint Unit **不是**等价于单张图片、单帧 Sprite 或 LoomRealm 的公共 RenderNode 新类型。每个 Avatar 的内部 zOrder/slot occlusion 在局部 Canvas 完成；世界排序只处理其外层 Paint Unit。
+
+### 3.2 候选 Custom Element 结构
+
+| Tag 候选 | 外部职责 | 内部实现候选 | 默认独立世界排序 |
+| --- | --- | --- | --- |
+| `ms-scene-view` | 一个 World Domain 的根；视口、世界坐标平面与裁剪 | Shadow DOM，内部 `world-plane` 与 `slot` | 根本身不参与地图内部排序 |
+| `ms-map-back` | Back / Front Back 的独立深度及视差数据 | 图片或受限背景 Canvas，重复/滚动可局部实现 | 是 |
+| `ms-map-batch` | 一个深度安全区间/空间区块的静态绘制数据 | 缓存 Canvas，Tile 与 Obj 可混合 | 是 |
+| `ms-map-object` | 需要独立深度、更新或特殊合成的 Obj | `img` 或局部 Canvas | 是 |
+| `ms-map-animation` | 独立时间轴的 Obj/Back 动画 | 图片帧或局部 Canvas | 是 |
+| `ms-world-item` | Actor 等的世界位置、Depth Rank、显隐 | 只管理宿主 positioning/transform/stack | 是 |
+| `ms-avatar` | 纸娃娃动作、表情、装备的局部合成 | Shadow DOM + Canvas | 由外层 `ms-world-item` 排序 |
+| `ms-action` | 现有候选 Action Clip 定义和验证 | 无独立绘制 | 否 |
+| `ms-npc` | NPC 的动作及局部附属标记 | 图片 / Canvas + 必要局部 DOM | 由外层 `ms-world-item` 排序 |
+| `ms-mob` | Mob 动作、受击、死亡等视觉状态 | 图片或 Canvas | 由外层 `ms-world-item` 排序 |
+| `ms-reactor` / `ms-portal-visual` | 有独立可见外观的 Reactor/Portal | 图片或 Canvas；无视觉 Portal 不建节点 | 通常是 |
+| `ms-world-effect` | 需要独立 world depth 的特效/数字等 | DOM / Canvas，按真实效果类别细分 | 是 |
+| `ms-effect-batch` | 大量可安全共排的短时图元 | 局部 Canvas | 是 |
+| `ms-hud` | Screen-space UI | 普通 DOM/Canvas | 不进入 World Depth Plane |
+
+- **不默认建立 `ms-map` 作为包住全部地图绘制节点的 stacking context。** Map 是内容/逻辑模型；视觉上的 Tile、Obj、Back 与 Actor 必须可以互相穿插。
+- **不默认建立 `ms-mob-collection` / `ms-npc-collection` 作为最终画面父容器。** 同类 Actor 可能被不同静态 Obj 分隔；集合属于 Subsystem 投影/数据侧，不是总 Canvas 或不可穿透的外层 DOM。
+- 稠密 projectile/drop/effect 是否从单实例 DOM 升级为有限的 `ms-effect-batch`，由可见数量、深度交错和测量决定，不因实体类型自动成批。
+- NPC name/function 等需保留 Actor-relative 层级；具有独立世界根深度的伤害数字等不能不加区分地塞进 NPC DOM 或一个永远置顶的全局 Overlay。
+
+## 4. 具体 Canvas 划分与批次策略
+
+### 4.1 不采用固定六层叠图
+
+绘制单元分成**六种更新/绘制类别**：Back、静态地图批次、独立场景 Obj、Actor 局部画面、效果单元、HUD。它们并非“六张按固定顺序叠放的 Canvas”。真实 World 平面里可同时有多个 `ms-map-batch`、`ms-map-object` 和 Actor 宿主。
+
+### 4.2 Static Batch Planner（投影/内容准备阶段）
+
+将 Back/Tile/Obj placement 按 CMS079 证据规范化为静态绘制记录 `(placementId, depth, tieOrder, bounds, resourceRef, geometry)`；根据可达的 Actor Depth Plane、独立 Obj / effect 插入点以及 Region 空间范围，形成**可以正确独立叠放的静态批次**。运行时 Canvas 仅消费已经确定的批次及其资源。
+
+合批顺序：
+
+1. **先排序**：所有需要相互遮挡的对象共用一套经 CMS079 验证的世界顺序；不得按“Tile 全部一组、Obj 全部一组”预先打包。
+2. **再检查插入点**：若某动态 Actor 可能需要插入静态绘制序列中间，必须在该深度断点拆分静态绘制批次，或者将少数相关 Obj 独立化。
+3. **再按空间区块拆分**：避免全地图尺寸 Canvas，Region/区块需要保留静态 authored tieOrder，异步加载先后不得决定排序。
+4. **再考虑更新频率和资源**：静态内容预栅格化；动画 Back/Obj 独立局部刷新；相同深度且不破坏插入关系时允许混合 Tile/Obj。
+5. **最后以实测优化**：Canvas 数量、Canvas 总像素、显存/内存、重绘面积、Layer 合成成本、DOM 节点与排序更新成本都需要预算。
+
+**基础安全条件**：同 Canvas 的记录在最终绘制序列中连续，并且运行中不会有需要插入其内部的独立 Paint Unit。更激进的基于像素不重叠/活动范围的合批需要独立证明。不能把多个不同深度 Obj 画在一张整体 Canvas，再试图只改它的 CSS z-index 表达内部穿插。
+
+**示例（GMS083 值去掉共同 B，仅示意）**：
+
+| 单元 | 示例 depth | 可能的 Paint Unit |
+| --- | ---: | --- |
+| Back index0 | -128000 | 背景 Canvas |
+| Layer2 Obj z12 | 62012 | 静态 Batch A |
+| Layer2 Tile zM0/canvas.z2 | 79992 | 静态 Batch A |
+| Layer2 NPC group1 | 89985 | NPC DOM |
+| Layer2 active Player group0 | 89997 | Avatar DOM |
+| Layer3 Obj z14 | 92014 | 静态 Batch B |
+| Front Back index0 | 272000 | 前景 Back Canvas |
+
+若运行时出现 depth=70000 的独立 Actor，原 Batch A 的两个项目不再满足连续性：**须提前按可插入深度设计安全边界，或作一次受控的批次结构替换**。不能仅靠修改 Batch A 的 z-index 修正。该表非 CMS079 事实，不据此承诺真实地图只需要两张静态 Canvas。
+
+### 4.3 Canvas 大小与内容生命周期
+
+- `ms-map-batch` 持有有限尺寸的像素缓存，与世界区块关联，优先避免全地图画布；Canvas DPR、缩放、裁剪、origin 都是呈现局部问题。
+- Camera 移动优先通过公共 World Plane 的 transform 移动静态内容，不应强制每像素移动都重绘所有静态 Canvas。
+- 背景视差/重复/auto-scroll 需要本地变换与 Camera 输入，**不能假设所有 Back 共享普通世界对象的平移函数**；即使变换特殊，Back 的最终宿主仍需占有正确的世界堆叠位置。
+- `ms-avatar` 内部只在身体/表情/装备帧变化时重绘局部 Canvas；世界位移由 `ms-world-item` 承担，避免重复合成纸娃娃。
+- 资源读取走 LoomRealm Presentation Resource Client；已解码缓存、租约、过期回调和 Window teardown 的释放必须有明确 Owner，不新造平台 AssetManager。
+- 小规模 NPC / 静态独立 Obj 不必强制创建 Canvas；能用图片和局部 DOM 完成的场景可直接利用浏览器合成。
+
+## 5. DOM、Shadow DOM、Slot 与堆叠语义
+
+### 5.1 场景根的候选内部结构
+
+~~~html
+<ms-scene-view>
+  #shadow-root
+    <div class="viewport">
+      <div class="world-plane"><slot></slot></div>
+    </div>
+</ms-scene-view>
+~~~
+
+LoomRealm WebProjector 独占管理的是 **RenderNode Light DOM 的节点、attrs、data 与 children**。场景根的 Shadow DOM 中的普通 `slot` 只是展示这些直属 Light DOM Paint Units；不可自行拆卸/重排 LoomRealm managed children，或借由 MutationObserver 构建另一份权威拓扑。
+
+候选投影：
+
+~~~html
+<ms-scene-view>
+  <ms-map-back></ms-map-back>
+  <ms-map-batch></ms-map-batch>
+  <ms-world-item><ms-avatar><ms-action></ms-action></ms-avatar></ms-world-item>
+  <ms-map-object></ms-map-object>
+  <ms-map-batch></ms-map-batch>
+  <ms-world-item><ms-npc></ms-npc></ms-world-item>
+  <ms-world-item><ms-mob></ms-mob></ms-world-item>
+  <ms-map-back></ms-map-back>
+</ms-scene-view>
+~~~
+
+这只是候选静态形状；实际数量、排序和可见性由 Subsystem 的 Render Projection 负责。**必须在真实 Chromium/WebProjector 下验证 slotted 直接子元素、绝对定位 containing block、z-index 和 Shadow DOM 的扁平树叠放效果。**
+
+### 5.2 单一 World Depth Plane，Paint Unit 为可排序同级
+
+- `ms-scene-view` 内部 `viewport` 裁剪，`world-plane` 负责统一 Camera transform。场景平面可以形成**共同** stacking context。
+- 所有需要跨类型穿插的 Paint Unit 必须在这个世界深度平面中作为可比较的**同级叠放项**参与排序；不要在其上方新增按实体类型分组且带 `transform / opacity / isolation / contain / z-index` 的封闭 stacking context。
+- Avatar 的 `ms-world-item` 是一个整体叠放项；它的 `ms-avatar` Shadow DOM / Canvas 内部可以独立管理装备、身体和局部特效，但这些局部子层不会跨越外层与前景地图 Obj 穿插。
+- `ms-npc` 的名称与任务标识如果必须随 Actor 被前景 Obj 遮挡，默认留在 NPC 外层组之内；确有独立深度语义的效果须提升为**另一个同级 Paint Unit**，并由 Subsystem 投影身份和关系。
+- `ms-map` 可以存在于非视觉数据模型中，但**不得作为所有地图绘制节点的封闭 z-index 视觉容器**，以免其子节点无法跨父级与 Avatar 交错。
+
+### 5.3 z-index 如何表达 (depth, tieOrder)
+
+不能把原始 `depth` 和 `tieOrder` 直接拼成浮点数、使用 CSS 小数 z-index 或仅依赖 DOM Y 顺序。
+
+建议由 Subsystem Render Projection 给当前 World Paint Units 生成**经确定性排序后的安全整数堆叠序号**（候选 `stack-rank`），同时保留必要的规范化 depth/tie 信息用于审计：
 
 ~~~text
-WorldDisplayList
-├── BackRenderable[]
-├── TilePlacementRenderable[]
-├── ObjPlacementRenderable[]
-├── AvatarRenderable
-├── MobRenderable[]
-├── NpcRenderable[]
-├── ReactorRenderable[]
-├── PortalRenderable[]
-├── DropRenderable[]
-├── ProjectileRenderable[]
-├── WorldEffectRenderable[]
-└── ActorAttachedRenderable[]
+CMS079 绘制事实 + 游戏权威 Actor/Foothold state
+  → normalize world depth
+  → deterministic tie-break
+  → ordered Paint Units
+  → stack-rank (integer)
+  → Custom Element host CSS z-index
 ~~~
 
-所有需要互相遮挡的对象进入同一排序空间。RenderNode 的父子顺序、组件注册顺序、Collection 类型和 DOM 顺序都不能代替 World Depth Resolver。
+`stack-rank` 是 Adventure Island 的候选业务字段，**不是新增 LoomRealm RenderNode / RenderDomain 字段**。可能使用稀疏序号以减少深度变化时的重编号，但必须保证整数可表示范围与同深度顺序正确；不能承诺单 Actor 变层永远只有一次属性更新。
 
-### 4.3 Renderable 的概念字段
+必须区分：**Subsystem 决定业务呈现顺序；Custom Element 只执行已收到的排序值**。元素不得自己通过查找旁边的 DOM 节点推断 Foothold 或决定谁在前面。
 
-以下是讨论模型，不是最终 TypeScript ABI：
+## 6. RenderNode 发布与局部更新
 
-| 字段 | 意义 |
-|---|---|
-| id | 稳定的显示对象身份；不能依赖数组下标或网络完成顺序 |
-| kind | Back / Tile / Obj / Avatar / Mob / NPC / Drop / Effect 等类别 |
-| owner | 负责该对象资源与生命周期的组件/子系统 |
-| depth | Resolver 产生的、可跨类别比较的世界深度 |
-| tieOrder | 同深度时确定性排序的次序 |
-| transform | 世界位置、朝向、缩放等显示变换 |
-| root | 该对象在 Compositor 中的绘制根或绘制批次句柄 |
-| visibility | 当前可见性与生命周期状态 |
+### 6.1 不同更新频率的边界
 
-不得将角色内部的身体部件拆成世界级 Renderable。ms-avatar 先在自身局部空间完成纸娃娃布局、zOrder 和 slot occlusion，再以一个完整 Avatar Group 进入 World Display List。
+| 状态变化 | Render 投影候选 | 只需更新的浏览器表面 |
+| --- | --- | --- |
+| Camera 位置 | `ms-scene-view` existing attrs/data | World Plane transform；静态 Canvas 不必重绘 |
+| Player/NPC/Mob x/y | 对应 `ms-world-item` existing attrs/data | 外层 transform；内部 Canvas 保持 |
+| Player action/expression | 对应 `ms-avatar` existing attrs / RenderEvent | Avatar AnimationPlayer/局部 Canvas |
+| Avatar 换装 | 现有 ms-avatar/action 的受约束更新事务 | 局部组合资源与完整帧提交 |
+| NPC 自身换帧 | Renderer-local 视觉播放 | NPC 自己的图片/Canvas |
+| Actor world depth 改变 | `ms-world-item` stack-rank | CSS stacking；必要时更新相关批次结构 |
+| 普通 Tile/Obj 不变 | 不必发布每 Tile RenderNode | 已缓存 `ms-map-batch` Canvas |
+| Region 可见集合变化 | 一次结构 replace 或现有批次数据更新 | 只增删/更新相关静态批次 |
+| 短时大量效果 | 表现事件或稳定的批次 retained 状态（需防重放规则） | 相关 effect DOM/Canvas，不全场刷新 |
 
-## 5. 候选组件职责
+初版不得用每 Tile/每 Sprite 的 RenderNode 来增加高频 DOM/JSON 成本，也不得假设 LoomRealm WebProjector 对所有无变化节点的宿主属性都完全零写入；需要在真实负载中测量一次 Domain patch 引发的 reconcile 成本。
 
-| 候选组件 | 职责 | 进入 World Display List 的粒度 |
-|---|---|---|
-| ms-field-scene | Camera、世界坐标变换、Region 呈现驻留、Display List、Depth Resolver、Compositor | 不把整个场景压成一个不可交错的绘制层 |
-| ms-map | 地图资源与 Placement 数据、地图区域和静态对象生命周期 | Back、Tile placement、Obj placement 按可遮挡粒度分别注册 |
-| ms-avatar | 角色纸娃娃合成、动作、表情、装备内部遮挡 | 每个角色一个完整组合组 |
-| ms-mob-collection | Mob 视觉实例的创建、更新和释放 | 每个 Mob 一个独立组 |
-| ms-npc-collection | NPC 动画、附属标识和实例生命周期 | 每个 NPC 一个独立组；附属标识按 Actor 规则处理 |
-| ms-reactor-collection | Reactor 状态对应的视觉呈现 | 每个 Reactor 独立组；深度规则待 CMS079 验证 |
-| ms-portal-collection | Portal 可见呈现 | 每个可见 Portal 独立组；逻辑目标不等于必须绘制 |
-| ms-drop-collection | Drop 图像、动画与世界位置 | 每个 Drop 独立组 |
-| ms-projectile-collection | 飞行物及其轨迹视觉 | 按独立飞行物/效果身份排序 |
-| ms-effect-collection | 世界位置效果、Actor 附属效果、战斗数字等 | 按效果语义选择 Actor-relative 或独立 world root |
-| ms-speech-collection | NPC/Actor 对话气泡 | 独立管理生命周期与锚点；具体深度策略待验证 |
+### 6.2 LoomRealm API 的约束
 
-### 5.1 Map 不得以整层 Canvas 丢失深度插入点
+- `RenderDomain.update()` 用于已有节点的 attrs 和 data 顶层成员，不是任意 children patch。
+- 插入/删除/重排 RenderNode children 需 `RenderDomain.replace()` 发布新树；这不等于必须重建所有同身份的 HTMLElement。
+- 同一 Domain 的 retained commit 原子，**不等于多个 Custom Element 的 Canvas 解码/绘制在同一帧原子可见**。
+- RenderNode key 是同一 Domain 生命周期内的 one-shot 身份。批次拆分后不得删除旧 key 又复用旧 key；新批次有新的 identity，更新已有批次内容则在允许的同一节点 key 下更新 data。
+- Presentation Resource 使用 Content 的版本化引用，资源返回时应重新检查当前实例/场景 epoch，不能把旧地图异步图像绘制进新地图。
+- RenderEvent 是瞬态的、不保证 replay；持久可见状态必须从 retained RenderNode 恢复。组件的私有播放相位不是游戏业务权威。
 
-ms-map 可以批量管理 Tile 和 Obj，也可以使用视口尺寸的 Canvas / GPU batch，但不能把所有 Tile 或所有 Obj 无条件合成一张不可拆分的世界大图，再把它作为单个 Renderable。否则 Avatar 无法插入地图 Placement 之间，前景 Obj 也无法正确遮挡角色。
+## 7. 性能边界：不只追求更少 Canvas
 
-允许的优化方向是：先按真实绘制顺序形成 Display List，再只合并**排序后连续、且中间不需要其他 Renderable 插入**的绘制项。批次必须保留足够的深度和身份信息，以便深度变化时拆分或重建。
+性能指标至少包括：
 
-### 5.2 Actor 附属对象不能一律置顶
+1. 可见 Paint Unit/Custom Element 数量和更新频率。
+2. 可见 Canvas 数、最大单张尺寸、总像素、解码后的图集驻留内存。
+3. Camera 滚动时静态 Canvas 重绘次数与 transform/合成成本。
+4. 高频 Actor 移动和深度变化时 Render patch、WebProjector reconcile、style/layout/paint/composite 耗时。
+5. 场景进入/换图的首个完整画面时间、资源加载/取消、Region 滚动驻留与内存峰值。
+6. 多 NPC、多个 Mob、密集 Drop/Effect 的最差情况；不能假设每个独立 Canvas 或每个 DOM 都免费。
+7. DPR、像素舍入、图片采样与 CSS transform 的一致性，避免角色与地图相对抖动。
 
-NPC name/function、Quest Marker、Speech Bubble、Damage Number、LevelUp 和技能效果不是同一种 Overlay：
+优化的次序：**先保证正确深度插入与可理解的组件边界，后基于真实 profiling 合并/拆分 Canvas**。不要预先把 8 个 Map Layer 固定映射为 8 张 Canvas，也不要把世界强迫合成为 1 张 Canvas。
 
-- 跟随 Actor 的标识应锚定 Actor，并按经验证的相对深度/变换处理。
-- 世界位置效果应有自己的 world depth 和生命周期。
-- 需要穿过地图前景的 HUD 才进入独立 UI/HUD 层。
-- 不得因为方便就把所有名称、气泡、伤害数字和效果塞进永远置顶的全局 Overlay Canvas。
+## 8. 闭环：场景进入、切换、失败和资源清理
 
-OpenMS 的 NPC label 与独立 Damage/MISS root 仅作为分类参考；CMS079 的具体规则仍需验证。
+- **Subsystem authority**：进入地图时准备确定性的世界呈现投影、scene epoch、资源引用和关键 Paint Unit 结构，然后通过同一 World Domain 的更新/替换发布；Simulation 不等待 Canvas 绘制确认来决定 gameplay 结果。
+- **LoomRealm**：机械创建/更新/删除当前节点，保证同 live identity 的节点复用与重连语义；不承诺 Canvas 资源已经到达。
+- **Business presentation**：各 Paint Unit 验证输入、按需读取 Content、解码、局部缓存和重绘；旧异步回调不得更新当前 epoch 以外的节点。
+- **地图转场**：必须定义场景级可见性门闩，避免旧图/新图/部分 Canvas 半成品共同可见。但这只是 Renderer-local presentation gate；不另造全局协议或声称 LoomRealm 提供 ProjectionBatch。其具体 ready 判定、遮罩与失败显示尚待验证。
+- **关闭/替换**：Custom Element 解除视觉时钟订阅，取消/忽略未完成资源、释放本地 Canvas/纹理引用；Renderer Window teardown 的资源能力按 LoomRealm 生命周期失效。
+- **多 RenderNode 更新**：父子订阅存在混合可观察状态的可能；现有 ms-avatar 使用的 ProjectionBatch 仅是未批准提案，不能在本草案里作为已存在的上游保障。先通过最小真实 WebProjector spike 验证是否需要调整 ms-avatar 的数据组合边界。
 
-## 6. World Depth Resolver
+## 9. CMS079 待验问题与最小浏览器验证
 
-WorldDepthResolver 是新架构的关键边界。它把各来源的原始事实转换成统一可比较的 depth + tieOrder，不负责物理计算，也不通过屏幕 Y 猜测遮挡。
+### 9.1 需要先核实的游戏呈现事实
 
-### 6.1 输入
+- CMS079 Tile Canvas `z`、Tile `zM`、Obj `z`、Back `front` 及各类别的比较方向。
+- Player/Mob/NPC 与 Foothold layer/group 的联系、跳跃保留深度与特殊实体深度。
+- 静态 authored tie-order、动态插入/深度变化序号及不同 Region 载入顺序。
+- 任务标记、NPC 名称、Speech Bubble、Damage Number、LevelUp、技能效果的相对层级。
+- 一张具体目标地图的**最大可插入 Actor depth 断点**与最终静态 Canvas 数量；不能仅凭 GMS083 公式推断 CMS079 性能。
 
-- 地图：map layer、Tile 的 zM、Tile Canvas z、Obj placement z、Back front 和顺序字段。
-- Actor：当前位置对应的 Foothold contact layer/group、Actor 类型、必要的控制器/状态标志。
-- 其他对象：各自经过 CMS079 证据确认的深度输入。
-- 稳定次序：静态 authored placement 顺序、动态创建/深度变更序号及必要的局部次序。
+### 9.2 必须可复现的 DOM + Multi-Canvas spike
 
-Resolver 只消费 Field Runtime 已确定的 Foothold 接触事实；不自己实现 Foothold 求交、移动、跳跃或碰撞。
+1. 两块静态 Canvas 中间插入独立 Avatar DOM；Avatar 可以从 Obj 前方移到后方而静态 Canvas 无需整张重画。
+2. 同一大 Obj 使用独立 DOM 遮挡 NPC；NPC 名称随 NPC 被正确遮挡，不穿透前景。
+3. Tile + Obj 混合静态批次，跨可达深度断点正确拆分；检验插入新的深度值时无错误叠放。
+4. 不同 worldDepth、相同 depth/tie 的多个实体在增删、深度更新、Region 资源慢加载时保持确定性。
+5. Camera 移动只更新公共 World Plane；背景视差/重复仍正确，静态 Canvas 命中缓存。
+6. `ms-world-item` 与 `ms-avatar` 的 nested RenderNode 实际在 WebProjector 中更新；Slot、Shadow DOM、CSS stacking context 不隔离所需穿插关系。
+7. Map replace、Avatar 换装、Canvas 资源晚到、节点断连/重新连接、Window teardown、unknown tag fail-closed 的正确表现与清理。
+8. 同一场景记录 DOM/Canvas 数量、Canvas 总像素、内存峰值、render patch 频次、主线程耗时和每帧绘制成本。
 
-### 6.2 输出与排序要求
+通过这些实验之前，不冻结 `stack-rank` 具体 schema、静态切分算法、Canvas 最大尺寸、paint unit 数量预算或组件注册形态。
 
-1. 所有参与世界遮挡的对象必须映射到同一个可比较深度空间。
-2. 明确并冻结“深度增大”对应的前后关系，避免不同类别各自解释。
-3. 深度相同必须有确定 tie-break；不能退化为 Y-sort、DOM 顺序或网络加载完成顺序。
-4. 静态地图对象的 tie seed 应由稳定的源顺序/提取顺序产生；Region 异步加载先后不得改变画面。
-5. 动态对象插入或深度改变时，是否分配新 serial、是否保留旧 tieOrder，需通过 CMS079 证据和画面验收确定。
-6. Actor 在 Foothold layer/group 改变时更新深度；跳跃期间是否保留最后接触的 layer/group、初始无接触的默认值，必须以 CMS079 验证。
-7. 各类对象的特殊深度偏移必须逐类证明。不得把普通 Mob 规则推广到 Boss、特殊 Controller、Reactor 或 Effect。
+## 10. 尚未批准的决定（明确禁止暗中固化）
 
-### 6.3 当前不冻结的内容
+- 完整 tag 集合、`ms-world-item` 是否单独作为 Custom Element、`attrs/data` exact schema、Dom slot / CSS 具体机制；
+- Canvas 2D、图片/CSS 还是 WebGL，静态 Batch Planner 的最终优化算法；
+- 按 depth 赋予 z-index 还是发布绝对 stack-rank 的最终编码；
+- `ms-avatar` 与 `ms-action` 的现有候选接口是否需要修订，ProjectionBatch 替代方案；
+- Renderer-local 时钟、decoded cache 共享边界、场景 ready/转场策略；
+- CMS079 全量深度算法与 Pixel parity；
+- 任何 LoomRealm API 扩展、Submodule 升级或旧 `cms-*` 运行时变更。
 
-本草案不冻结任何 CMS079 深度常数、偏移、比较方向、tie-break、Foothold 默认值、特殊 Mob 规则或前景 Back 规则。OpenMS 表格仅作为待验证假设来源。
+## 11. 参考资料
 
-## 7. World Compositor 与场景生命周期
-
-候选数据流：
-
-~~~text
-LoomRealm RenderNode Tree
-        │
-        ▼
-Adventure Island component adapters
-        │ register / update / remove
-        ▼
-World Display List
-        │
-        ▼
-World Depth Resolver
-        │ depth + tieOrder
-        ▼
-World Compositor
-        │
-        ├── Camera / world-to-screen transform
-        ├── stable ordering
-        ├── safe contiguous batching
-        └── viewport clipping / presentation
-~~~
-
-ms-field-scene 持有统一世界呈现根。Map、Avatar、Mob、NPC 等子系统注册、更新和注销自己的 Renderable；Compositor 统一排序后输出。组件拥有的资源和对象生命周期仍由各自 owner 管理，场景负责协调注册与最终绘制，不应无故夺取资源所有权。
-
-Region streaming 只改变对象驻留集合，不改变静态对象的 authored tie seed。Region 卸载时注销其 Renderable；动态 Actor 的深度更新应能增量维护排序列表与实际显示顺序。是否采用全量排序、局部插入、平衡树或其他数据结构属于性能设计，须在真实规模测量后决定。
-
-Camera 负责世界到屏幕的变换和视口裁剪，不参与对象深度语义。超大地图不应默认生成一张全世界尺寸 Canvas；先采用视口级绘制和可验证的资源预算，再根据测量决定空间分块。
-
-## 8. LoomRealm 固定版本的集成边界
-
-本分支 LoomRealm 固定在 [93648192323bf5f57996b7b54cbae641d8a53fdb](https://github.com/lithdoo/loom-realm/tree/93648192323bf5f57996b7b54cbae641d8a53fdb)。
-
-固定版本的 [WebPresentationContext](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/packages/renderer/src/internal/web-projector.ts) 提供 resources 和 emitCustomEvent()；WebProjector 还向元素交付 receiveRenderContext()、receiveRenderData() 和 receiveRenderEvent()。它没有提供可直接注入子组件的 WorldRenderer、WorldDisplayList 或 Renderable 注册 API。
-
-WebProjector 保留 RenderNode 的 DOM 父子关系，并按当前投影拓扑放置根元素；这不等于提供跨多个 RenderDomain 的扁平游戏世界 Display List。需要相互穿插的地图与 Actor 绘制对象不能仅靠多个独立 Domain 的根顺序实现。
-
-因此：
-
-- 暂以一个 Field World RenderDomain 承载需要互相遮挡的世界组件作为讨论方向；HUD 等不参与世界遮挡的界面可另设 Domain。
-- World Display List 是 Adventure Island 内部呈现机制，不是新增 LoomRealm 公共字段。
-- 组件间注册协议、父子协作方式、绘制根挂载点尚未决定。必须基于固定版本真实能力设计并做集成测试。
-- 不得声称 LoomRealm 已提供 WorldRenderer、ProjectionBatch 或全局 Renderer 单例；不得因草案需要而静默升级 Submodule。
-- 若最终确需上游新增能力，应作为单独的 LoomRealm 集成提案审查，而不是在业务组件中伪造平台 API。
-
-## 9. 与现有 ms-avatar / ms-action 的边界
-
-现有 [ms-avatar.md](./ms-avatar.md) 的角色内部锚点布局、zOrder、slot occlusion、动作播放和资源管理仍是局部角色合成职责。ms-avatar 不负责地图 Obj 与角色之间的世界深度排序。
-
-本草案只要求 Avatar 在合成完成后向场景提供一个完整、可定位、可参与世界排序的 Renderable Group。具体是 Canvas、纹理、DOM 内部绘制根还是其他 surface，尚未决定，必须结合 LoomRealm 投影生命周期、资源所有权和目标浏览器测试确定。
-
-ms-action 仍只是 Action Clip 数据子组件，不进入 World Display List。
-
-本草案不修改这两份文档的字段、状态机或父子 ABI。
-
-## 10. 关键待验证问题
-
-| # | 问题 | 需要的证据 / 验收 |
-|---|---|---|
-| 1 | CMS079 Tile / Obj / Back 的深度公式、比较方向与前后关系是什么？ | 原始 CMS079 客户端静态/动态路径、WZ 样本、可复现的遮挡场景 |
-| 2 | 旧 tileKey / objKey 与跨对象深度空间如何对应？ | 复核旧加载键、排序比较器、Tile Canvas z、Obj z 与 Actor 深度 |
-| 3 | Player 的 Foothold layer/group 如何决定深度？ | 平地、斜坡、跳跃、下落、初始无接触和跨 Foothold 场景 |
-| 4 | Mob、NPC、Drop、Reactor、Portal、Projectile 的深度是否各异？ | 逐类源码/数据证据；普通 Mob 与 Boss/特殊 Controller 分开验证 |
-| 5 | Back front、Obj、Tile 能否互相穿插？ | 前景树、屋檐、桥体、平台、遮挡角色的像素级样本 |
-| 6 | 同深度时采用什么稳定 tie-break？ | 静态源顺序、动态插入、深度变化、Region 异步加载/卸载回归 |
-| 7 | NPC 名称、Quest Marker、Speech Bubble、Damage Number 如何归属？ | 跟随、翻转、前景遮挡、独立事件重叠的画面测试 |
-| 8 | LoomRealm 固定版本下如何安全注册与释放 Renderable？ | WebProjector 实际集成 spike；不得依赖未提供的 API |
-| 9 | Canvas / WebGL batching 的安全边界和预算是什么？ | 目标地图、最大可见对象数、内存、帧时、重建成本测量 |
-
-## 11. 最低视觉验收矩阵
-
-新 World Renderer 在进入实现批准前，至少需要以下可复现画面测试：
-
-- 角色在同一棵树、柱子或建筑前后移动，前景 Obj 能正确遮挡身体，而不是整层压在角色前或后。
-- 角色与 Tile / Obj 交错；不能只验证角色永远位于地图上方或下方。
-- 角色从不同 Foothold layer/group 经过，包含斜坡、跳跃、下落和重新接触。
-- 两个 Mob 分处同一前景对象的前后，彼此深度独立。
-- NPC 的名称/功能标识跟随 NPC，但不会穿透更高的地图前景。
-- Front Back 确实可以遮挡 Actor；普通 Back 仍保持正确背景关系。
-- Drop、Projectile、Damage Number、MISS、LevelUp 和世界 Effect 分别验证所属深度平面。
-- 同深度多个对象的顺序在刷新、异步 Region 加载、卸载和动态更新后保持确定。
-- Avatar 换装/替换不丢失世界深度、显示顺序和 Actor 附属 presentation。
-- 视口移动、跨 Region 和资源慢加载不产生整层闪烁、错误遮挡或永久置顶对象。
-
-测试应保留原始输入、地图/对象身份、期望前后关系和截图/像素差异。不能只以“看起来差不多”验收。
-
-## 12. 明确不做的决定
-
-本草案当前**没有**决定：
-
-- 最终 RenderNode tag 名称、attrs/data schema 和 Collection ABI；
-- 最终 World Display List 数据结构及排序复杂度；
-- CMS079 深度常数和 tie-break 规则；
-- 是否每个 Placement 使用独立 Sprite、Container、Canvas 还是 GPU instance；
-- Avatar 的最终输出 surface；
-- Effect、Speech、Nameplate 的全部具体深度规则；
-- 组件注册协议或 LoomRealm 上游改动；
-- 新 Scene 的生产入口、Camera、资源缓存和 Render Clock ABI。
-
-这些内容必须在证据审计、架构取舍和可复现验收后分别决策。
-
-## 13. 参考资料
-
-### OpenMS（GMS083 参考；GPL-3.0，仅作行为证据，不复制源码）
+### OpenMS（GMS083 行为参考；GPL-3.0，不能复制源码）
 
 - [StreamScene](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/stream-scene.js)
 - [EntityAnimation](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/rendering/animation.js)
 - [Field Avatar replacement](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/client/src/character/field-avatar.js)
-- [Client evidence: Map draw ordering / Camera / backgrounds](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)
+- [Client depth/camera evidence](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)
+
+### LoomRealm（固定版本）
+
+- [Subsystem / Render architecture](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/10-architecture/rendering-system.md)
+- [WebProjector implementation](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/packages/renderer/src/internal/web-projector.ts)
+- [Web Presentation API v3](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v3.md)
+- [Render Update v1](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/render-update-v1.md)
 
 ### Adventure Island / CMS079
 
-- [Legacy cms-map-layer design and sample limitations](../../components/cms-map-layer/DESIGN.md)
-- [CMS079 client inventory](../../docs/cms079-shared-inventory.md)
-- [Design Baseline Reset](../../docs/design-baseline/README.md)
-
-### LoomRealm（本分支固定版本）
-
-- [WebProjector implementation](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/packages/renderer/src/internal/web-projector.ts)
-- [Web Presentation API v3](https://github.com/lithdoo/loom-realm/blob/93648192323bf5f57996b7b54cbae641d8a53fdb/doc/15-contracts/web-presentation-api-v3.md)
+- [ms-avatar candidate](./ms-avatar.md)、[ms-action candidate](./ms-action.md)
+- [旧 cms-map-layer 设计与样本限制](../../components/cms-map-layer/DESIGN.md)
+- [当前设计基线](../../docs/design-baseline/README.md)

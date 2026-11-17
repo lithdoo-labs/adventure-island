@@ -1,6 +1,6 @@
 # MS 组件设计候选
 
-> **当前状态：可审查候选，不是已批准或冻结的规范。** 本目录只保留 `ms-avatar` 与 `ms-action` 两份组件设计作为当前讨论基线；不代表已有实现或完整场景架构。
+> **当前状态：可审查候选，不是已批准或冻结的规范。** 本目录保留 `ms-avatar` 与 `ms-action` 两份组件设计作为当前组件候选基线；另有一份 World Rendering 架构讨论草案，但它不构成已批准的 Scene / Renderer 架构。
 
 ## 组件候选
 
@@ -10,6 +10,10 @@
 | ms-action | [ms-action.md](./ms-action.md) | Avatar 的动作 Clip 数据子组件候选设计 | 未实现；无新 Custom Element、完整 Validator 或真实浏览器验收 |
 
 本轮不重定义上述两份文档中的字段、播放语义或父子关系。它们保持可审查状态，不标记为 Frozen / Normative；任何接口调整都应以可复现矛盾、CMS079 新证据或真实工程约束为依据。
+
+## 当前讨论草案
+
+- [World Rendering Architecture — OpenMS-guided Draft](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)：讨论组件语义树与 World Display List 分离、统一世界深度排序、Renderable 粒度、Compositor 和 LoomRealm 集成边界。**仅供讨论，未批准、未冻结、未实现**；其中 OpenMS/GMS083 公式不是 CMS079 事实，必须逐项验证。
 
 ## 非现行架构提案
 

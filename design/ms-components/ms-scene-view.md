@@ -42,7 +42,7 @@
 
 `pixelSnap` 是当前组件固定行为，不作为可协商字段。Camera 插值和跟随决策仍由 Subsystem 决定；节点继续使用 LoomRealm 固定五字段 RenderNode，不新增平台 Render message。
 
-## 4. 遮挡和绘制/
+## 4. 遮挡和绘制
 
 - 根本身不拥有世界 depth；每个直属 Paint Unit 拥有由 Subsystem 投影的确定性 stack-rank。
 - world-plane 的 DOM 层叠是**最终视觉合成**：来自静态 Canvas 的像素、独立 Obj、Avatar 本地 Canvas 按宿主层叠排序。
@@ -64,7 +64,7 @@
 
 ## 7. 首阶段验收与未决
 
-1. 三图进入/离开、同图传送和跨图切换时 DOM identity、RenderNode key、旧资源回调隔离。
+1. 三图进入/离开、同图传送和跨图切换时 DOM identity、子节点 key 生命周期和旧资源回调取消。
 2. slotted 静态 Canvas、ms-world-item、独立 Obj 的 stacking context 能真实交错，前景不会被父组截断。
 3. Camera 滚动时静态地图不整张重绘；resize、DPR、像素采样与裁剪正确。
 4. 慢图像解码、缺文件、投影失败时不出现旧/新地图混合；具体 visible/ready gate 策略待审查。
@@ -90,9 +90,8 @@
 
 ~~~ts
 interface SceneViewData {
-  RenderNode key: string;         // 本次地图可视代际；非空、对地图切换生成新值
   mapId: string;              // 十进制地图 ID；非空，按当前 map allowlist 校验
-  pixelSnap: "round";        // 本版仅一种量化策略，后续策略另行版本化
+  pixelSnap: "round";        // 当前固定取整策略
 }
 ~~~
 

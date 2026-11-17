@@ -45,7 +45,7 @@ ms-map-back 表示一个**可参与世界排序的 Back 绘制单元**，既可�
 - 静态 Back 完成资源准备后优先保留位图/局部 Canvas；Camera 变更一般更新变换/重复区间，不重复解码。
 - 需要滚动帧的 Back 由 Renderer-local visual clock 推进，不向 Field Subsystem 写回游戏时间。
 - 对超大平铺背景按当前 viewport 限制重复份数，不申请地图总尺寸的无限 Canvas。
-- 图像晚到、场景 epoch 失效、DOM 断连时拒绝过期绘制并释放租约；不改变游戏业务状态。
+- 图像晚到、当前节点输入变化、DOM 断连时拒绝过期绘制并释放租约；不改变游戏业务状态。
 
 ## 6. 禁止越界
 
@@ -79,7 +79,7 @@ interface MapBackData {
   placementId: string;
   front: boolean;           // authored front，决定投影侧 depth 规则；不由组件设 rank
   source: {
-    type: 0;                // 首阶段只收敛原版 type0；其他 type = SCHEMA_UNSUPPORTED
+    type: 0;                // 首阶段只收敛原版 type0；其他 type = UNSUPPORTED_CAPABILITY
     rx: number; ry: number;
     cx: number; cy: number;
   };
@@ -115,10 +115,10 @@ interface MapBackData {
 - children 必须为空；incoming RenderEvent：无；outgoing `emitCustomEvent()`：无。背景位置、显隐和排序均由 retained attrs/data 表达。
 - view-x/view-y/visible/stack-rank 走已有节点 attrs Update，不重复下载、解码静态图片。
 - source/image/draw 改变时使用 top-level data.set 更换完整成员；`receiveRenderData` 收到完整 data，先验证、再用缓存或异步重画。
-- 新 Content 解码未完成时保持 hidden/pending，旧 epoch 回调丢弃；必须有 SOURCE-EMPTY / SOURCE-ABSENT / RESOURCE-MISSING 外层业务分类，Element 不应凭缺文件猜测“透明背景”。
-- 若存在 type1..4、无关原版 Back 属性或要求动态滚动的素材，不能默默把它当作 type0；需提交扩展 ABI 后单独验收。
+- 新 Content 解码未完成时保持 hidden/pending，过期资源回调取消或忽略；必须有 SOURCE-EMPTY / SOURCE-ABSENT / RESOURCE-MISSING 外层业务分类，Element 不应凭缺文件猜测“透明背景”。
+- 若存在 type1..4、无关原版 Back 属性或要求动态滚动的素材，不能默默把它当作 type0；需直接修订当前组件契约并单独验收。
 
 ### 8.4 专项测试
 
-普通 Back / Front Back 深度、同深度序号、alpha/flip/origin、Camera 与 viewport 修正、不同 DPR、未知 type、contentVersion mismatch、资源取消、跨图相同 placementId 新 epoch。
+普通 Back / Front Back 深度、同深度序号、alpha/flip/origin、Camera 与 viewport 修正、不同 DPR、未知 type、contentVersion mismatch、资源取消、跨图后新节点 key 与旧节点断连。
 

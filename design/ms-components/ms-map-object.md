@@ -62,3 +62,59 @@ ms-scene-view
 4. 大量 Obj 不无条件 DOM 化；对比批次和独立节点的成本并记录预算。
 
 来源：[OpenMS Map depth](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)。
+
+## 7. RenderNode ABI V1 — Independent Static Obj
+
+> 本阶段仅静态 Obj 的独立 Paint Unit；其他复杂 flow 动画尚不在本 ABI。共享 ResourceRef、坐标、rank、错误与生命周期见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。
+
+### 7.1 attrs 完整闭集
+
+`world-x`、`world-y`、`stack-rank`、`visible`，均为必需。world-x/y 是 Obj authored world anchor，不是左上角；z-index 使用投影完成的独立 Paint Unit stack-rank。不能使用 y-sort，也不能直接从 Obj.z 设置 CSS rank。
+
+### 7.2 data 完整闭集
+
+~~~ts
+interface MapObjectDataV1 {
+  formatVersion: 1;
+  sceneEpoch: string;
+  placementId: string;          // 场景内唯一；不得同时在 ms-map-batch 中出现
+  image: ImageRegionV1;        // 完整 Content 资源及裁剪矩形
+  draw: StaticDrawV1;          // origin/flip/opacity
+}
+~~~
+
+`image.pageWidth/pageHeight` 必须与真实解码图像尺寸相符；`image.source` 必须完整落在页内。`draw.origin` 的值相对 source 小图，不得自动去透明边或让浏览器重新锚点居中。`flip` 为围绕 origin 的水平镜像，`opacity` 为整数 0..255。
+
+~~~json
+{
+  "key": "obj:field-epoch-1:layer3:14",
+  "tag": "ms-map-object",
+  "attrs": { "world-x": "512", "world-y": "192", "stack-rank": "40", "visible": "true" },
+  "data": {
+    "formatVersion": 1, "sceneEpoch": "field-epoch-1", "placementId": "obj:layer3:14",
+    "image": {
+      "resource": { "namespace": "map", "key": "examples/object/tree.png", "contentVersion": "sha256:0000000000000000000000000000000000000000000000000000000000000000" },
+      "pageWidth": 64, "pageHeight": 96,
+      "source": { "x": 0, "y": 0, "w": 64, "h": 96 }
+    },
+    "draw": { "origin": [32, 96], "flip": false, "opacity": 255 }
+  },
+  "children": []
+}
+~~~
+
+示例中的图片 key、绘制尺寸、layer 都是**演示性占位数据**；不是当前 CMS079 地图的真实 placement/PNG。
+
+### 7.3 结构、绘制、更新
+
+- children 必须为空，不能再嵌套地图 Canvas 或 Avatar；不处理业务 RenderEvent，也不调用 emitCustomEvent。
+- 宿主可以在 Shadow DOM 中呈现一个 image/Canvas，但外部始终是一个可与 ms-world-item 交错的 Paint Unit；opacity 与 flip 只作用于这个局部 Obj。
+- world-x/y、stack-rank 和 visible 的改变走 attrs Update；与同一 Obj 的图像/SourceRect/alpha 变更走 top-level data Update，并在 receiveRenderData 完整验证后处理。
+- 静态内容下载解码完成后原则上无需跟随 Camera 重新画；公共 world-plane CSS transform 统一移动本 Obj。
+- 同一 placementId **恰属一个可见提供方**，由 Map Render Projection 在 ms-map-batch 与 ms-map-object 之间择一；若切换策略涉及新节点，发布新 key 而不是复用删除过的 key。局部 DOM 不能自行解除另一静态 Batch 的内容。
+- 如果单张 Obj 在不同 Actor layer 之间必须改变遮挡关系，只更新 Actor/Obj 的 stack-rank；大多数静态 Obj 不需要重新 rasterize。
+
+### 7.4 错误与首阶段测试
+
+拒绝未知 data 字段、非法资源版本/裁剪、异常原点、无效坐标、重复 placementId 和与 Batch 的重复输出；资源失败仅影响呈现和场景 ready 策略，不触发 Portal 或模拟回滚。测试覆盖前景树/后景树、透明像素、图片加载顺序无关的 tie-order、Camera/DPR、节点断连和地图 epoch 切换。
+

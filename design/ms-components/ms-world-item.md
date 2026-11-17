@@ -67,3 +67,75 @@ ms-scene-view
 5. map replace /断连/重连后 key 和视觉相位符合 [Avatar V1](./ms-avatar.md) 约束。
 
 OpenMS 参考：[Actor depth 与 tie-order](https://github.com/tensorfish/openms/blob/07994de02756356e3e025e3aca9e79433898d2c8/docs/client-evidence.md)。
+
+## 7. RenderNode ABI V1 — Actor World Host
+
+> 本节明确 Stage-1 唯一玩家视觉对象的候选 ABI；共享整数排序、Resource/场景 epoch 语义见 [共享 ABI](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)。不修改现有 [ms-avatar V1](./ms-avatar.md)。
+
+### 7.1 attrs 完整闭集
+
+`world-x`、`world-y`、`stack-rank`、`visible`，全部**必需**，精确使用共享 ABI 中的非指数有限十进制数字、正整数排名和布尔字符串语法。
+
+- world-x/world-y 是**Actor 的世界锚点**，本阶段 anchor 类型只允许 `feet`，不是 Sprite 左上角、NPC 图片矩形中心或 viewport 坐标。
+- 外层将 world-x/y 定位到共享 World Plane；所有 Camera 偏移只在 ms-scene-view 中扣除一次。
+- stack-rank 已融合深度与 tie-order，ms-world-item 不得按 y 重新排序，也不得读取 Foothold、layer/group 作模拟推断。
+- visible 是视觉显隐，而不是该 Actor 的业务存在标志。
+
+### 7.2 data 完整闭集
+
+~~~ts
+interface WorldItemDataV1 {
+  formatVersion: 1;
+  sceneEpoch: string;
+  actorVisualId: string;  // stable presentation identity，非 server actor id 强制透传
+  anchor: "feet";         // 首版只接受 feet；其他 anchor 要另行版本化
+}
+~~~
+
+RenderNode key 在同一 Domain 内必须唯一且符合 one-shot；`actorVisualId` 在当前场景中不得重复。actorVisualId 与 RenderNode key 不等价，也不是 ContentVersion。Canvas 局部原点到 feet 的对齐由 ms-avatar 内部的 source origin/anchor 设计承担；若 Avatar 和外层 feet 对齐不确定，不允许静默做中心对齐。
+
+### 7.3 children 完整约束
+
+首阶段必须**恰有一个**直属子节点，tag 为 `ms-avatar`；该 Avatar 按既有 V1 候选文档拥有自己的零到多个 `ms-action` 直接子节点。ms-world-item **不得**改变 Avatar 既有 attrs/data/children 契约，不承诺 Avatar 的 ProjectionBatch 已由平台实现。
+
+~~~json
+{
+  "key": "actor-host:player:field-epoch-1",
+  "tag": "ms-world-item",
+  "attrs": { "world-x": "100", "world-y": "200", "stack-rank": "30", "visible": "true" },
+  "data": { "formatVersion": 1, "sceneEpoch": "field-epoch-1", "actorVisualId": "player:local", "anchor": "feet" },
+  "children": [
+    {
+      "key": "avatar:player:field-epoch-1",
+      "tag": "ms-avatar",
+      "attrs": { "action": "stand1", "facing": "right", "expression": "default", "one-shot-enabled": "true" },
+      "data": {
+        "formatVersion": 1,
+        "appearance": { "zOrder": ["body"] },
+        "sprites": { "pages": {}, "items": {} },
+        "expressions": { "default": { "frames": [{ "durationMs": 0, "layers": [] }] } }
+      },
+      "children": []
+    }
+  ]
+}
+~~~
+
+**注意**：上面 Avatar 子节点仅作结构形状示例，未带合法 stand1 子 Clip；它是**pending/不允许被验收为完整 Avatar 画面**的例子，不应据此宣称 Avatar V1 验证成功。实际播放所需的全部 ms-action 数据必须依照已经完成的 V1 文档提供。
+
+### 7.4 投影与局部 DOM
+
+- ms-world-item 宿主是 world-plane 下的同级 Paint Unit（非唯一全局容器）；其自身负责 CSS 绝对定位和 stack-rank，内部 ms-avatar 的 Shadow DOM 不突破本宿主深度。
+- 高频 world-x/y、stack-rank/visible 改变通过一个已存在节点的 attrs Update，不应重绘 Avatar Canvas。
+- 玩家动作/装备改变直接更新 ms-avatar/ms-action，不能由 world-item 冒充业务动画播放者。
+- 同一个 HTMLElement 的部分 attrs 被 WebProjector 依序设置，内部显示必须等待合法四字段完成并在同一绘制机会读取组合快照，避免先取 x 再取旧 y；不能向 managed attr 写回当前插值。
+- children 的变化须来自 Subsystem 的 Domain 结构提交；宿主不能自行添加任意 NPC/世界数字子节点。未来 NPC/Mob 外层是否复用该标签另行扩展 children 允许集。
+
+### 7.5 失败与生命周期
+
+world-x/y 非法、重复 rank、错误 anchor、错误子标签、sceneEpoch 失配都应产生准确诊断并隐藏**当前非法的呈现单元**，不阻塞 Subsystem Simulation。断连/重连时不迁移 Avatar 的游戏 Actor authority；Player 在同地图换深度时保持 host/Avatar stable key 和 DOM 实例。
+
+### 7.6 最小验收
+
+Actor x/y 改变而 Canvas 不换帧；Foothold 深度改动引发 CSS 前后变化；Avatar 单独换装不改变坐标；跨 Map replace 不重用已删 key；Camera/DPR 下 feet 锚点稳定。
+

@@ -22,6 +22,7 @@
 | `design/ms-components/ms-action.md` | 可审查候选设计；未批准、未冻结、未实现 |
 | `design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md` | DOM + Multi-Canvas 世界呈现讨论草案；统一深度排序与独立绘制单元；未批准、未冻结、未实现 |
 | `design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md` | 首阶段组件树、地图/Avatar 遮挡关系、范围及测试门；未批准 |
+| `design/ms-components/FIELD-PAINT-UNIT-ABI-V1-DRAFT.md` | 六个新组件的共享 RenderNode ABI V1 候选（字段、ResourceRef、rank、生命周期），不修改 LoomRealm 或 Avatar/Action V1；未批准 |
 | `design/ms-components/ms-scene-view.md` / `ms-map-back.md` / `ms-map-batch.md` / `ms-world-item.md` / `ms-map-object.md` / `ms-portal-visual.md` | 六份新增单组件讨论草案；未批准、未冻结、未实现 |
 | `design/ms-components/RENDERNODE-ARCHITECTURE.md` | 探索性提案档案；不构成当前架构决策 |
 | `design/ms-components/RENDERNODE-BASELINE-AUDIT.md` | 指定旧 HEAD 的只读审计快照；非当前基线 |

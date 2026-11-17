@@ -33,7 +33,7 @@
 
 ## 与 LoomRealm 和旧设计的关系
 
-六份新增组件文档的具体 attrs/data/event/children 形状统一遵循 [Field Paint Unit ABI V1](./FIELD-PAINT-UNIT-ABI-DRAFT.md)，OpenMS/GMS083 是行为参考；CMS079 排序和 Portal 动态视觉按当前证据状态分别验收。所有示例 ResourceRef 均是示意，不代表真实 Content 资源已存在。
+六份新增组件文档的具体 attrs/data/event/children 形状统一遵循 [Field Paint Unit ABI](./FIELD-PAINT-UNIT-ABI-DRAFT.md)，OpenMS/GMS083 是行为参考；CMS079 排序和 Portal 动态视觉按当前证据状态分别验收。所有示例 ResourceRef 均是示意，不代表真实 Content 资源已存在。
 
 LoomRealm 固定 RenderNode 五字段 `key / tag / attrs / data / children`，由 WebProjector 管理受控 Light DOM；组件内部只管理 Shadow DOM、资源、Canvas 和视觉帧。不创建跨组件 Renderable Registry、统一单 Canvas，也不把 OpenMS StreamScene 当作游戏架构复制。
 

@@ -6,6 +6,21 @@
 >
 > 参见 [DOM + Multi-Canvas 世界渲染架构](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)、[设计基线](../../docs/design-baseline/README.md)。
 
+## 0. ABI V1 文档与状态
+
+本树现在具有可逐项审查的 **RenderNode ABI V1 候选**：共享字段在 [Field Paint Unit ABI V1](./FIELD-PAINT-UNIT-ABI-V1-DRAFT.md)，新增六个组件的 exact attrs/data/children、JSON 示例、更新语义、错误处理分别位于各自文档的 **RenderNode ABI V1** 节。此前已设计完成的 [ms-avatar](./ms-avatar.md) 和 [ms-action](./ms-action.md) V1 **不重新定义、不重写其既有接口**。
+
+共同约定：
+
+- 所有节点仍使用 LoomRealm 的 `key / tag / attrs / data / children` 五字段；`attrs` 仅 string map，`data` 仅 plain JSON。
+- `ms-scene-view` 使用 `camera-x` / `camera-y` / `visible`，data 为 sceneEpoch/mapId/pixelSnap；它是唯一 Stage-1 World root，**不是**世界深度排序单元。
+- 直属世界 Paint Units 必须拥有全域唯一 `stack-rank`；其它高频属性分别是 `world-x/world-y`（Actor、独立 Obj、Portal）或 `view-x/view-y`（Back）。
+- 静态 Atlas/Page 的 ResourceRef 必须带 namespace/key/contentVersion，不能传输私有 URL 或原始 WZ 数据。`ms-map-batch` 是有序 Tile/Obj placement 的安全连续区间，内部不产生独立 DOM。
+- `ms-world-item` 首阶段**必须恰好有一个 ms-avatar 直接子节点**；ms-avatar 保留它的 ms-action 数据子树；ms-map-back、ms-map-batch、ms-map-object、ms-portal-visual 的 children 为空。
+- 构造时先 context/DOM/attrs 后 data，不能凭 connectedCallback 判断画面 ready；LoomRealm retained commit 不保证多个异步 Canvas 同帧完成，场景可见性门闩仍是待实现的集成问题。
+
+本表是**可审查的接口提案，不等于已经通过 CMS079 验证或浏览器 E2E**。地图深度比较、Back type1–4、Portal phase 和完整场景切换 ready gate 等仍需单独验收。
+
 ## 1. 本阶段 8 个候选标签及独立设计文档
 
 | 标签 | 阶段要求 | 设计文档 | 浏览器可见表现 / 最终排序单元 |

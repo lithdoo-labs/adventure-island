@@ -2,6 +2,8 @@
 
 > **状态：Design Baseline Reset；记录日期：2026-11-17。** 本文取代旧版 DESIGN.md 的现行规范地位。旧文完整保存在 [历史设计档案](./docs/archive/legacy-DESIGN-2026-10-26.md)。
 
+> **详细设计入口已收敛到 [`design/README.md`](./design/README.md)。** 本文件继续作为仓库根状态摘要；产品目标、LoomRealm 架构、FSDB、OpenMS 和组件文档的阅读顺序以 `design/` 目录为准。
+
 ## 1. 当前状态
 
 本轮是设计与仓库边界清理，不是新 Renderer、Scene ABI 或游戏功能实现。
@@ -18,11 +20,17 @@
 
 | 资料 | 当前效力 |
 |---|---|
+| `design/README.md` | 当前详细设计目录、证据标签、阅读顺序和批准门 |
+| `design/product/PRODUCT-GOALS.md` | 产品目标与阶段范围候选；未批准 |
+| `design/architecture/LOOMREALM-RUNTIME-AND-RENDERING.md` | 固定 LoomRealm 合同及 Adventure Island 集成边界 |
+| `design/architecture/FIELD-PROJECTION-PIPELINE.md` | FSDB → Adapter → Subsystem → RenderNode → Component 候选数据流 |
+| `design/content/FSDB-CONTENT-MODEL.md` | 当前 Adventure FSDB 内容结构与非运行时边界 |
+| `design/references/OPENMS-DEVELOPMENT-REFERENCE.md` | OpenMS 固定提交开发参考与许可证/证据边界 |
 | `design/ms-components/ms-avatar.md` | 可审查候选设计；未批准、未冻结、未实现 |
 | `design/ms-components/ms-action.md` | 可审查候选设计；未批准、未冻结、未实现 |
 | `design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md` | DOM + Multi-Canvas 世界呈现讨论草案；统一深度排序与独立绘制单元；未批准、未冻结、未实现 |
 | `design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md` | 首阶段组件树、地图/Avatar 遮挡关系、范围及测试门；未批准 |
-| `design/ms-components/FIELD-PAINT-UNIT-ABI-V1-DRAFT.md` | 六个新组件的共享 RenderNode ABI V1 候选（字段、ResourceRef、rank、生命周期），不修改 LoomRealm 或 Avatar/Action V1；未批准 |
+| `design/ms-components/FIELD-PAINT-UNIT-ABI-DRAFT.md` | 六个新组件的共享 RenderNode ABI 候选（字段、ResourceRef、rank、生命周期），不修改 LoomRealm 或 Avatar/Action 候选；未批准 |
 | `design/ms-components/ms-scene-view.md` / `ms-map-back.md` / `ms-map-batch.md` / `ms-world-item.md` / `ms-map-object.md` / `ms-portal-visual.md` | 六份新增单组件讨论草案；未批准、未冻结、未实现 |
 | `design/ms-components/RENDERNODE-ARCHITECTURE.md` | 探索性提案档案；不构成当前架构决策 |
 | `design/ms-components/RENDERNODE-BASELINE-AUDIT.md` | 指定旧 HEAD 的只读审计快照；非当前基线 |
@@ -66,7 +74,7 @@
 - 父子组件投影一致性及 LoomRealm 集成点；
 - PWA 与 Hostra 的注册、脚本顺序、错误处理和一致性验收。
 
-`WORLD-RENDERING-ARCHITECTURE-DRAFT.md` 当前仅提出 **统一世界排序 + DOM 多绘制单元 + 多 Canvas 安全深度合批** 的讨论模型。它没有批准任何 CMS079 深度常数、tie-break 规则、Custom Element/RenderNode ABI、Canvas 预算、批处理策略或 LoomRealm 上游改动。未经证据审计、明确审批和真实 WebProjector 浏览器测试，不得直接作为实施要求.
+`WORLD-RENDERING-ARCHITECTURE-DRAFT.md` 当前仅提出 **统一世界排序 + DOM 多绘制单元 + 多 Canvas 安全深度合批** 的讨论模型。CMS079 source-of-truth 已闭合的 key/comparator 事实继续有效，但本文没有批准它们到产品 `stack-rank` 的编码、Custom Element/RenderNode ABI、Canvas 预算、批处理策略或 LoomRealm 上游改动。未经证据审计、明确审批和真实 WebProjector 浏览器测试，不得直接作为实施要求。
 
 ## 6. 不变约束
 

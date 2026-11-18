@@ -4,6 +4,7 @@
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需；具体字段/schema 和是否必须单独成标签，仍待审查。
 > 本标签主要承载玩家 Avatar，未来可复用到 NPC/Mob；见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md)。
+> position、Movement contact、Foothold layer/group 和世界 rank 属于 [Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md) 上游权威；本组件不读取 FSDB/Foothold，也不自行 y-sort。
 
 ## 1. 存在原因
 

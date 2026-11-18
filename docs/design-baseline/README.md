@@ -1,6 +1,6 @@
 # Adventure Island — Design Baseline Reset
 
-> **Effective date: 2026-11-17.** This is the single current entry point for design status on this branch. It supersedes earlier documents that described the legacy `cms-*` component ABI or the 2026-11-16 Product-First proposals as the active product baseline.
+> **Effective date: 2026-11-17.** This document remains the baseline-status authority for this branch. The detailed design information architecture and reading path now live at [design/README.md](../../design/README.md). Earlier documents that described the legacy `cms-*` component ABI or the 2026-11-16 Product-First proposals are not the active product baseline.
 
 ## 1. Baseline status
 
@@ -14,12 +14,12 @@ This branch is in a **design reset**, not a new runtime implementation phase.
 
 ## 2. Read these documents first
 
-1. [Current design summary](../../DESIGN.md) — current scope, status and approval gates.
-2. [Stage-one Custom Element tree and occlusion matrix](../../design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md) — eight proposed tags, stage necessity, real DOM tree and map/Avatar occlusion; not approved.
-3. [DOM + Multi-Canvas World Rendering draft](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md) — current discussion draft for mixed DOM/Canvas Paint Units and unified world depth ordering; not approved or normative.
-4. [MS component index and all six new single-component drafts](../../design/ms-components/README.md) — complete first-stage dossier index.
-5. [ms-avatar candidate](../../design/ms-components/ms-avatar.md) — retained detailed avatar design, unchanged interface.
-6. [ms-action candidate](../../design/ms-components/ms-action.md) — retained detailed Clip design, unchanged interface.
+1. [Current design summary](../../DESIGN.md) — root status and approval gates.
+2. [Detailed design index](../../design/README.md) — product, LoomRealm, FSDB, OpenMS, projection and component reading path.
+3. [Product goals](../../design/product/PRODUCT-GOALS.md) — candidate feature and stage scope; not approved.
+4. [LoomRealm runtime/rendering boundary](../../design/architecture/LOOMREALM-RUNTIME-AND-RENDERING.md) — pinned platform facts.
+5. [Field projection pipeline](../../design/architecture/FIELD-PROJECTION-PIPELINE.md) — content-to-RenderNode ownership and data flow.
+6. [MS component index](../../design/ms-components/README.md) — eight candidate tags and component contracts.
 7. [Legacy runtime boundary](../../components/README.md) — historical executable path, not the new ABI.
 
 ## 3. Legacy executable path
@@ -53,7 +53,7 @@ The CMS079 WZ→FSDB report remains bounded by its own evidence. It explicitly r
 ## 5. Current discussion draft and archived proposals — not implementation instructions
 
 - [Stage-one component tree, occlusion and scope](../../design/ms-components/FIELD-COMPONENT-TREE-DRAFT.md): eight proposed Custom Elements with independent linked design documents; stage scope 6 base + 2 conditional; **not approved**.
-- [Field Paint Unit RenderNode ABI V1 shared draft](../../design/ms-components/FIELD-PAINT-UNIT-ABI-V1-DRAFT.md): concrete proposed attrs/data/children, resource/stack contracts for the six additional Custom Elements; not a LoomRealm ABI change or approved application ABI. Existing ms-avatar/ms-action V1 remains preserved.
+- [Field Paint Unit RenderNode ABI shared draft](../../design/ms-components/FIELD-PAINT-UNIT-ABI-DRAFT.md): concrete proposed attrs/data/children and resource/stack contracts for the six additional Custom Elements; not a LoomRealm ABI change or approved application ABI. Existing ms-avatar/ms-action candidates remain preserved.
 - [World Rendering Architecture — DOM + Multi-Canvas (OpenMS-guided Draft)](../../design/ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md): current discussion draft for one depth ordering model and multiple independently stacked DOM/Canvas Paint Units, with safe static batching and no second cross-component registration authority. It separates OpenMS/GMS083 reference behavior from CMS079 evidence. It is **not approved, frozen, normative or implemented**.
 - [OpenMS-Guided Product-First archive](../product-first/README.md): 65 requirement proposals, ADR-001..016, module contracts and roadmap. None is approved by this reset.
 - [Scene / RenderNode architecture proposal](../../design/ms-components/RENDERNODE-ARCHITECTURE.md): global Draw List, `ms-world-layer`, `ms-entity`, ProjectionBatch, decoded-resource cache, RenderClockProvider and Domain topology are candidate ideas only.

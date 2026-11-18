@@ -4,6 +4,7 @@
 > **组件不做 Schema / ABI 版本管理**：RenderNode data 不设置 `formatVersion`、`schemaVersion` 或场景代际字段；不做版本协商、兼容分支或迁移。字段调整直接更新当前组件文档与投影实现。
 > **平台资源身份例外**：`ResourceRef.contentVersion` 是 LoomRealm `resource(namespace, key, expectedContentVersion)` 所要求的 Content 内容身份/完整性参数，不是组件 Schema 版本，不得删除。
 > 场景层级及阶段边界见 [Field Component Tree](./FIELD-COMPONENT-TREE-DRAFT.md)；OpenMS 深度证据见 [World Rendering Architecture](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)。
+> 内容与平台边界分别见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)、[Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md) 和 [LoomRealm 运行时与渲染架构](../architecture/LOOMREALM-RUNTIME-AND-RENDERING.md)。本 ABI 只接收投影后的 presentation state，不直接承载 FSDB record。
 
 
 ## 0. LoomRealm attrs / data / event 通道

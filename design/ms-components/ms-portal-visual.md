@@ -4,6 +4,7 @@
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段**仅在目标地图有可见 Portal 外观需求时启用**；Portal 触发与场景迁移功能本身**不依赖这个标签**。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md) 与 [ms-scene-view](./ms-scene-view.md)。
+> Portal `pn/pt/x/y/tm/tn` 与 HelperFrame 来源见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)；trigger、target、arrival 和 travel commit 属于 Field/Portal Subsystem，本组件只消费投影后的视觉计划。
 
 ## 1. 不等于 Portal Subsystem
 

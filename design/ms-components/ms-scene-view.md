@@ -4,6 +4,7 @@
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需；本文不是已批准的组件 ABI。
 > 总体关系见 [首阶段组件树](./FIELD-COMPONENT-TREE-DRAFT.md)；深度和绘制原则见 [World Rendering Architecture](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)。
+> 上游权威见 [LoomRealm 架构](../architecture/LOOMREALM-RUNTIME-AND-RENDERING.md) 与 [Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md)：Camera 和场景生命周期属于 Field Subsystem，本组件只应用投影后的 viewport/world-plane 呈现状态。
 
 ## 1. 产品用途和位置
 

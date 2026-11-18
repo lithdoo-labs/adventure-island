@@ -4,6 +4,7 @@
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需；不冻结最大 Canvas 尺寸、实际批次数量或静态 Batch Planner 算法。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md)、[架构草案](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)。
+> placement、frame 和 source order 见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)；排序和 batch 切分属于 [Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md)，不在本组件内执行。
 
 ## 1. 组件定义
 

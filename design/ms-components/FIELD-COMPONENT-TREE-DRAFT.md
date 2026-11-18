@@ -4,7 +4,7 @@
 >
 > **当前范围假设**：以归档 R1 三图（222000000、222000001、230030200）的 Map / Back / Avatar / Movement / Camera / Portal 可玩闭环为参考，然后以同一结构扩展至 R2 的 13 图。R1/R2 历史路线图现已 NON-NORMATIVE，当前阶段需求仍需单独审批。
 >
-> 参见 [DOM + Multi-Canvas 世界渲染架构](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)、[设计基线](../../docs/design-baseline/README.md)。
+> 参见 [设计总入口](../README.md)、[Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md)、[DOM + Multi-Canvas 世界渲染架构](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md) 与 [设计基线](../../docs/design-baseline/README.md)。
 
 ## 0. ABI 文档与无版本管理约定
 
@@ -100,7 +100,7 @@ OpenMS fixed reference 的场景把 Region、Entity 和 world containers 汇总�
 
 ### 3.1 示例：一个 Avatar 被部分地图物件遮挡
 
-以下**仅为 OpenMS GMS083 的参考公式演示**，以 `B=-0x40000000` 为共同偏移，表中去掉 B。CMS079 的深度常数、比较方向和同深度初始次序尚未批准。
+以下表格以 OpenMS GMS083 的表达方式演示 Paint Unit 穿插，以 `B=-0x40000000` 为共同偏移并在表中去掉 B。CMS079 已通过 C-001/C-002/C-097/C-099 独立恢复 Tile、Obj、Avatar key family 和 equal-key 确定性 secondary key；表中示例仍不是 Adventure Island 已批准的 `stack-rank` 编码，也不覆盖所有实体类别和视觉特例。
 
 | 背景 → 前景绘制序列 | 参考值（去 B） | Paint Unit / 遮挡意义 |
 | --- | ---: | --- |

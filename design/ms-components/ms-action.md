@@ -6,6 +6,7 @@
 > **实现状态：未实现。** 当前没有新 ms-action Custom Element、完整 Validator 或真实 WebProjector 集成测试。CMS079 数据与容量仍须按 ms-avatar 第 13 节验收。
 
 > **首阶段集成指引（非规范）：** 在 [Field 组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md) 中，`ms-action` 仍是 `ms-avatar` 的直接子数据节点；不独立绘制、不参与世界 Canvas/DOM 深度排序。该链接不修改现有 V1 Clip 或父子接口，后续可单独审查是否需要长期保留独立标签。
+> **上游边界：** Action Clip 来自 Avatar Adapter 对 [FSDB 内容](../content/FSDB-CONTENT-MODEL.md) 的有限投影；Renderer-local 播放时间不等于 [Field Simulation](../architecture/FIELD-PROJECTION-PIPELINE.md) 时间，也不能反向决定业务动作完成。
 
 ## 1. 定位与职责
 

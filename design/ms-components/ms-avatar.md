@@ -7,6 +7,7 @@
 > 组件：**ms-avatar**；动作数据子组件：[ms-action](./ms-action.md)。旧 **cms-actor** 仅作为迁移和算法参考，不是新组件 ABI。
 
 > **首阶段集成指引（非规范）：** 在 [Field 组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md) 中，本组件作为 `ms-world-item` 的直接子视觉组件，其外层世界位置和 stack-rank 不进入此处的 Avatar V1 attrs。该链接仅解释现阶段场景组合，不修改本 V1 的字段、时钟、纸娃娃算法或未解决的 ProjectionBatch 提案。
+> **内容来源边界：** `avatar.Part/PartFrame/Resource/DrawOrder/LayerSlot` 见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)；Adapter 解析选择、redirect、origin/anchors、zOrder 和 slot metadata，本组件根据这些 render-ready 数据执行局部布局、遮挡与绘制，不直接查询 FSDB。OpenMS Avatar composition 只作为 [开发参考](../references/OPENMS-DEVELOPMENT-REFERENCE.md)。
 
 ## 1. 目标、职责与非目标
 

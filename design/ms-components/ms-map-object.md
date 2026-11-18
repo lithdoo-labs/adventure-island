@@ -4,6 +4,7 @@
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。本阶段**按内容与遮挡需要启用**；并非每个静态 Obj 都要有独立 DOM。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md)、[ms-map-batch](./ms-map-batch.md)。
+> Obj placement/frame 来源见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)；静态 Obj 是否合批、是否需要独立 Paint Unit 由 [Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md) 决定。
 
 ## 1. 与 ms-map-batch 的明确区别
 

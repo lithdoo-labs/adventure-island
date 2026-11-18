@@ -6,6 +6,8 @@
 >
 > 本文不修改 [ms-avatar](./ms-avatar.md)、[ms-action](./ms-action.md) 既有候选 ABI，不改变 LoomRealm Submodule，也不批准 CMS079 深度公式、标签集合或实现方案。
 
+> 上游边界：先阅读 [设计总入口](../README.md)、[LoomRealm 架构](../architecture/LOOMREALM-RUNTIME-AND-RENDERING.md)、[Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md)、[FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md) 与 [OpenMS 开发参考](../references/OPENMS-DEVELOPMENT-REFERENCE.md)。
+
 ## 0. 首阶段组件树及独立文档入口
 
 当前阶段按“地图 + Back/Tile/Obj + 玩家 Avatar + Camera + Movement + Portal”三图闭环提出 **8 个 Custom Element 标签候选**，其具体树、前后遮挡关系、阶段范围及未决问题，统一参见 **[Field 首阶段组件树草案](./FIELD-COMPONENT-TREE-DRAFT.md)**。六个新组件的具体 attrs/data/children 与 ResourceRef/stack-rank 公共规则已写入 **[Field Paint Unit ABI 共享候选契约](./FIELD-PAINT-UNIT-ABI-DRAFT.md)**；各组件详情见下表。
@@ -44,7 +46,7 @@ LoomRealm 固定提交为 [93648192323bf5f57996b7b54cbae641d8a53fdb](https://git
 5. **语义稳定**：RenderNode 的 key/生命周期归 LoomRealm；Canvas 是组件内部实现，绘制批次不是新的平台 authority。
 6. **证据边界**：OpenMS 提供 GMS083 的已恢复行为参考，CMS079 事实仍需按来源和样本逐项验证。
 
-## 2. OpenMS：必须带入设计的绘制事实
+## 2. OpenMS 参考与 CMS079 已闭合事实
 
 参考 OpenMS 固定提交 [07994de02756356e3e025e3aca9e79433898d2c8](https://github.com/tensorfish/openms/tree/07994de02756356e3e025e3aca9e79433898d2c8)：
 
@@ -66,9 +68,15 @@ GMS083 参考深度（令 `B = -0x40000000`）：
 | Drop | `B + 29999 + (layer*3000-group)*10` |
 | Combat Number / MISS / LevelUp | `B + 398500` |
 
-这些公式是 **OpenMS/GMS083 的行为证据，不是 CMS079 的正式公式**。比较方向、初始静态创建次序、Boss/特殊控制器和其他视觉特例仍有证据边界。尤其 Tile 的 `zM` 是负乘数且需保留 Canvas `z`；不可直接当成 Obj 的 `z`。
+这些表中数值首先是 **OpenMS/GMS083 行为参考**。但 CMS079 最新 source-of-truth 已经独立恢复并闭合以下关键链条：
 
-本项目旧 [cms-map-layer 资料](../../components/cms-map-layer/DESIGN.md) 记录有限 CMS079 样本的 `tileKey = canvasZ + 10*(layer*3000-zM)-1073721834` 和 `objKey = layer*30000+z-1073739824`，但比较方向、tie-break、跨 Actor 统一深度仍未闭合。独立行为实现不得复制 OpenMS GPL-3.0 源码。
+- C-001：`tileKey = canvasZ + 10*(layer*3000-zM)-1073721834`；
+- C-002：`objKey = layer*30000+z-1073739824`；
+- C-097：slot45 keyed ordered-tree insert、comparator 和 equal-key 确定性二级比较；
+- C-099：Avatar 插入 key，和 Tile/Obj 属于同一个 `-2^30` key family；
+- C-100：Avatar 内部 149 层 zmap/smap 顺序与世界顺序相互独立且静态。
+
+因此“Tile/Obj/Avatar 进入同一确定性世界顺序”不再只是 OpenMS 假设。仍未批准的是 Adventure Island 怎样规范化该 key、怎样编码 `stack-rank`、怎样处理尚未覆盖的实体类别与所有视觉特例。独立实现不得复制 OpenMS GPL-3.0 源码。
 
 ## 3. 三层结构：权威投影、DOM Paint Units、局部绘制
 
@@ -292,15 +300,25 @@ CMS079 绘制事实 + 游戏权威 Actor/Foothold state
 - **关闭/替换**：Custom Element 解除视觉时钟订阅，取消/忽略未完成资源、释放本地 Canvas/纹理引用；Renderer Window teardown 的资源能力按 LoomRealm 生命周期失效。
 - **多 RenderNode 更新**：父子订阅存在混合可观察状态的可能；现有 ms-avatar 使用的 ProjectionBatch 仅是未批准提案，不能在本草案里作为已存在的上游保障。先通过最小真实 WebProjector spike 验证是否需要调整 ms-avatar 的数据组合边界。
 
-## 9. CMS079 待验问题与最小浏览器验证
+## 9. CMS079 剩余证据边界与最小浏览器验证
 
-### 9.1 需要先核实的游戏呈现事实
+### 9.1 已闭合与仍需核实的事实
 
-- CMS079 Tile Canvas `z`、Tile `zM`、Obj `z`、Back `front` 及各类别的比较方向。
-- Player/Mob/NPC 与 Foothold layer/group 的联系、跳跃保留深度与特殊实体深度。
-- 静态 authored tie-order、动态插入/深度变化序号及不同 Region 载入顺序。
-- 任务标记、NPC 名称、Speech Bubble、Damage Number、LevelUp、技能效果的相对层级。
-- 一张具体目标地图的**最大可插入 Actor depth 断点**与最终静态 Canvas 数量；不能仅凭 GMS083 公式推断 CMS079 性能。
+已闭合：
+
+- Tile/Obj key、Avatar 插入 key family；
+- keyed ordered-tree comparator 与 equal-key 确定性 secondary key；
+- Avatar 149 层局部顺序和 slot occlusion；
+- `screen = world - camera` 与 Camera 共享向量；
+- Portal 同图/跨图到达位置、速度清零和首次 Movement 重建的主要链条。
+
+仍需核实或由产品决定：
+
+- Back 各类型、Obj flow 和 Portal sprite 的动态方法体及精确时间语义；
+- Camera follow cadence/deadzone 和地图边界行为；
+- Movement 仍未闭合的状态分支与最终 Simulation Clock；
+- Mob/NPC、任务标记、名称、Speech Bubble、Damage Number、LevelUp 和技能效果的完整世界相对层级；
+- 一张目标地图所有可达 Actor depth 断点与最终静态 Canvas 数量；不能仅凭 OpenMS 公式推断 Canvas 预算。
 
 ### 9.2 必须可复现的 DOM + Multi-Canvas spike
 
@@ -322,7 +340,7 @@ CMS079 绘制事实 + 游戏权威 Actor/Foothold state
 - 按 depth 赋予 z-index 还是发布绝对 stack-rank 的最终编码；
 - `ms-avatar` 与 `ms-action` 的现有候选接口是否需要修订，ProjectionBatch 替代方案；
 - Renderer-local 时钟、decoded cache 共享边界、场景 ready/转场策略；
-- CMS079 全量深度算法与 Pixel parity；
+- CMS079 尚未覆盖实体类别的深度特例、动态画面时间语义与 Pixel parity；
 - 任何 LoomRealm API 扩展、Submodule 升级或旧 `cms-*` 运行时变更。
 
 ## 11. 参考资料
@@ -343,6 +361,12 @@ CMS079 绘制事实 + 游戏权威 Actor/Foothold state
 
 ### Adventure Island / CMS079
 
+- [设计总入口与证据标签](../README.md)
+- [产品目标与阶段范围](../product/PRODUCT-GOALS.md)
+- [Field 内容到画面的投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md)
+- [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)
+- [OpenMS 开发参考与许可证边界](../references/OPENMS-DEVELOPMENT-REFERENCE.md)
 - [ms-avatar candidate](./ms-avatar.md)、[ms-action candidate](./ms-action.md)
 - [旧 cms-map-layer 设计与样本限制](../../components/cms-map-layer/DESIGN.md)
 - [当前设计基线](../../docs/design-baseline/README.md)
+- `research/source-of-truth/claims.csv`、`evidence.csv`、`gaps.csv`

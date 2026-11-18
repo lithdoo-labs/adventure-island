@@ -4,6 +4,7 @@
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。首阶段必需：先覆盖目标地图中实际使用的静态/基础 Back；动态和复杂视差功能按单独能力门推进。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md) 与 [World Rendering Architecture](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md)。
+> 内容字段见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)，OpenMS 动画/背景行为见 [开发参考](../references/OPENMS-DEVELOPMENT-REFERENCE.md)。FSDB 的 `type/rx/ry/cx/cy/front` 是内容事实；最终视差、时间和 rank 由投影及产品决策给出。
 
 ## 1. 组件职责
 

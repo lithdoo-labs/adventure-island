@@ -39,6 +39,12 @@
 - [DOM + Multi-Canvas 世界渲染](./ms-components/WORLD-RENDERING-ARCHITECTURE-DRAFT.md)
 - [共享 Paint Unit ABI 草案](./ms-components/FIELD-PAINT-UNIT-ABI-DRAFT.md)
 
+### 2.5 查看实施顺序
+
+- [M0–M7 实施路线图](./roadmap/IMPLEMENTATION-ROADMAP.md)：从可复现基线、真实 WebProjector spike、单图投影，到 Movement、Portal、三图闭环和 13 图扩展的候选交付顺序与退出条件。
+
+路线图只组织实施依赖，不会自动批准产品范围、组件 ABI 或算法选择。
+
 ## 3. 文档结构
 
 ```text
@@ -53,6 +59,8 @@ design/
 │  └─ FSDB-CONTENT-MODEL.md
 ├─ references/
 │  └─ OPENMS-DEVELOPMENT-REFERENCE.md
+├─ roadmap/
+│  └─ IMPLEMENTATION-ROADMAP.md
 └─ ms-components/
    ├─ README.md
    ├─ FIELD-COMPONENT-TREE-DRAFT.md
@@ -61,7 +69,7 @@ design/
    └─ ms-*.md
 ```
 
-`product` 描述“要做什么”；`architecture` 描述“权威和数据怎样流动”；`content` 描述“已有内容事实”；`references` 描述“外部实现资料怎样使用”；`ms-components` 才描述“Renderer 中的候选视觉组件”。
+`product` 描述“要做什么”；`architecture` 描述“权威和数据怎样流动”；`content` 描述“已有内容事实”；`references` 描述“外部实现资料怎样使用”；`roadmap` 描述“按什么验证顺序落地”；`ms-components` 才描述“Renderer 中的候选视觉组件”。
 
 ## 4. 证据与决策标签
 

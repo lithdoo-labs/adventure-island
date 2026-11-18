@@ -3,6 +3,7 @@
 
 
 > 状态：PROPOSED / NON-NORMATIVE / NOT IMPLEMENTED。本阶段**按内容与遮挡需要启用**；并非每个静态 Obj 都要有独立 DOM。
+> M2 仅在纯数据 Adapter/Projection 中为 `222000000` 的 25 个多帧 Obj 生成 `ms-map-object` candidate，以防静态合批吞掉局部动画帧；Custom Element、正式动画 data ABI 与浏览器呈现仍未实现、未批准。见 [M2 证据](../roadmap/M2-ADAPTER-EVIDENCE.md)。
 > 参见 [组件树](./FIELD-COMPONENT-TREE-DRAFT.md)、[ms-map-batch](./ms-map-batch.md)。
 > Obj placement/frame 来源见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)；静态 Obj 是否合批、是否需要独立 Paint Unit 由 [Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md) 决定。
 

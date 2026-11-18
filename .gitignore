@@ -8,6 +8,7 @@ node_modules/
 .work/
 .tmp/
 tmp/
+components/ms-map-adapter/test/fixtures/.tmp-fsdb/
 .cache/
 out/
 build/

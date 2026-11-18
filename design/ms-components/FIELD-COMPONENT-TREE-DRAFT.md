@@ -2,6 +2,10 @@
 
 > **状态：PROPOSED / 非规范 / 未批准 / 未冻结 / 未实现。** 本文用于确定阶段范围与组件组合关系，不代表任何标签已经注册、实现或通过测试。
 >
+> **M1 实测结论（2026-11-18）：** [synthetic WebProjector spike](../roadmap/M1-SPIKE-EVIDENCE.md) 已验证 `ms-scene-view → (ms-map-batch, ms-world-item, ms-map-batch)` 子集的 Light DOM/Shadow DOM 层次、跨类型遮挡、Camera、identity 与局部 Canvas 更新原则。
+>
+> **M2 实测结论（2026-11-18）：** [map adapter evidence](../roadmap/M2-ADAPTER-EVIDENCE.md) 已对 `222000000` 产出可排序 Paint Unit 计划与 RenderNode candidate（纯数据，无 DOM）。完整八标签树、`ms-avatar` 正式嵌套、字段 ABI、真实 Map 深度编码和 Canvas 预算仍保持候选，等待 M3+ 验证。
+>
 > **当前范围假设**：以归档 R1 三图（222000000、222000001、230030200）的 Map / Back / Avatar / Movement / Camera / Portal 可玩闭环为参考，然后以同一结构扩展至 R2 的 13 图。R1/R2 历史路线图现已 NON-NORMATIVE，当前阶段需求仍需单独审批。
 >
 > 参见 [设计总入口](../README.md)、[Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md)、[DOM + Multi-Canvas 世界渲染架构](./WORLD-RENDERING-ARCHITECTURE-DRAFT.md) 与 [设计基线](../../docs/design-baseline/README.md)。

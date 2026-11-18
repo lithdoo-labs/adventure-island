@@ -1,0 +1,7 @@
+{
+  "formatVersion": 1,
+  "styles": [],
+  "scripts": [
+    { "namespace": "resource.Presentation", "key": "ms-field-spike/ms-field-spike.browser.js" }
+  ]
+}

@@ -60,7 +60,10 @@ design/
 ├─ references/
 │  └─ OPENMS-DEVELOPMENT-REFERENCE.md
 ├─ roadmap/
-│  └─ IMPLEMENTATION-ROADMAP.md
+│  ├─ IMPLEMENTATION-ROADMAP.md
+│  ├─ M0-BASELINE-EVIDENCE.md
+│  ├─ M1-SPIKE-EVIDENCE.md
+│  └─ M2-ADAPTER-EVIDENCE.md
 └─ ms-components/
    ├─ README.md
    ├─ FIELD-COMPONENT-TREE-DRAFT.md
@@ -132,6 +135,7 @@ Business Custom Elements
 - CMS079 已闭合 Tile/Obj key、ordered-tree comparator、Avatar 世界插入 key、纸娃娃遮挡、Portal 到达、部分完整物理循环和世界到屏幕 Camera 公式。
 - `[FSDB]adventure` 已包含 13 张地图、地图放置记录、Avatar 结构、Avatar/Map 资源及物理配置。
 - 旧 `cms-actor` 已验证局部 Canvas、资源解码、动画帧和“位置更新不重绘 Avatar”这一更新分离策略。
+- M0 已复验固定 Gitlink、锁定依赖、旧 `cms-actor`、deterministic bundle、generic PWA staging 与 canonical Service Worker E2E；M1 已通过真实 Renderer Store/WebProjector 验证 managed Light DOM、共同 world-plane、跨类型遮挡、有限 Canvas、identity 保留和静态画面无冗余重绘；M2 已对 `222000000` 建立纯 FSDB 内容闭包与 Adapter/Projection（MapFacts→OrderedDrawable→PaintUnitPlan→RenderNode candidate），含稳定 projection hash 与 group/resource/no-visual 校验。详见 [M0 证据](./roadmap/M0-BASELINE-EVIDENCE.md)、[M1 证据/决策](./roadmap/M1-SPIKE-EVIDENCE.md) 与 [M2 证据](./roadmap/M2-ADAPTER-EVIDENCE.md)。
 
 ### 尚未批准或仍有证据缺口
 

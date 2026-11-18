@@ -4,6 +4,10 @@
 >
 > **本次明确的方向：统一世界排序，不统一 Canvas。** 由 Field Subsystem 产生权威视觉状态及跨对象深度顺序；LoomRealm 将 RenderNode 机械投影为 DOM；同一 World Depth Plane 内交错排列可独立叠放的 Paint Units。静态地图采用多个 Canvas 批次，Avatar/NPC/Mob/独立场景物件采用独立 Custom Element 或局部 Canvas。
 >
+> **M1 实测结论（2026-11-18）：** [synthetic WebProjector spike](../roadmap/M1-SPIKE-EVIDENCE.md) 已确认 managed Light DOM + Shadow slot、共同 world-plane Camera、可交错 sibling Paint Units、有限 batch Canvas、identity 保留和静态 Canvas 无重绘等核心原则。
+>
+> **M2 实测结论（2026-11-18）：** [map adapter evidence](../roadmap/M2-ADAPTER-EVIDENCE.md) 已用真实 `222000000` FSDB 验证 CMS079 Tile/Obj key、sourceOrder tie、foothold 插入点切批与资源闭包；默认预算下得到 253 个静态 batch，25 个多帧 Obj 按更新策略独立为 `ms-map-object` candidate。这是首份切分测量，不是产品 Canvas 预算。本文仍是完整产品架构草案；M1/M2 没有批准完整标签集、生产 schema、`stack-rank` 编码或最终批次算法。
+>
 > 本文不修改 [ms-avatar](./ms-avatar.md)、[ms-action](./ms-action.md) 既有候选 ABI，不改变 LoomRealm Submodule，也不批准 CMS079 深度公式、标签集合或实现方案。
 
 > 上游边界：先阅读 [设计总入口](../README.md)、[LoomRealm 架构](../architecture/LOOMREALM-RUNTIME-AND-RENDERING.md)、[Field 投影管线](../architecture/FIELD-PROJECTION-PIPELINE.md)、[FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md) 与 [OpenMS 开发参考](../references/OPENMS-DEVELOPMENT-REFERENCE.md)。

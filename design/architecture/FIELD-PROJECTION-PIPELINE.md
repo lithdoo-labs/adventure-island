@@ -1,7 +1,9 @@
 # Field 内容到画面的投影管线
 
-> **状态：架构候选 / NOT APPROVED / NOT IMPLEMENTED。**
+> **状态：架构候选 / NOT APPROVED。**
 > 本文定义职责和数据流，不冻结最终 TypeScript schema、Canvas 数量、`stack-rank` 编码或产品时钟参数。
+>
+> **M2 实测（2026-11-18）：** [`components/ms-map-adapter/`](../../components/ms-map-adapter/) 已对 `222000000` 实现纯数据管线 `MapFacts → ResolvedMapScene → OrderedDrawable[] → PaintUnitPlan[] → RenderNode candidate`，证据见 [M2-ADAPTER-EVIDENCE.md](../roadmap/M2-ADAPTER-EVIDENCE.md)。该实现不批准生产 ABI、Back type1–4 布局、Portal 视觉深度或 Canvas 预算。
 
 ## 1. 为什么需要独立投影层
 

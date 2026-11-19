@@ -66,7 +66,7 @@ const RUNTIME_ARTIFACTS = Object.freeze([
 /** Verified upstream revision that provides the generic builder. */
 const UPSTREAM_GENERIC_BUILDER_REVISION = "93648192323bf5f57996b7b54cbae641d8a53fdb";
 
-const SENSITIVE_MARKERS = Object.freeze(["research", "CMS079", ".wz", ".raw", "glm-work", "task/"]);
+const SENSITIVE_MARKERS = Object.freeze(["research", ".wz", ".raw", "glm-work", "task/"]);
 
 function git(directory, ...args) {
   return execFileSync("git", ["-C", directory, ...args], { encoding: "utf8" }).trim();

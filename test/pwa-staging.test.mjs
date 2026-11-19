@@ -37,14 +37,18 @@ import { buildAdventureIslandInstallationBundle } from "../scripts/pwa/build-ins
 import {
   AVATAR_PLAN_KEY,
   AVATAR_PLAN_NAMESPACE,
-  buildCanonicalAdventureAvatarContent,
 } from "../scripts/pwa/read-adventure-fsdb.mjs";
+import {
+  FIELD_PLAN_KEY,
+  FIELD_PLAN_NAMESPACE,
+} from "../systems/adventure-map/field-plan-model.mjs";
+import { buildCanonicalAdventurePwaContent } from "../scripts/pwa/build-installation-bundle.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
 const stagingScriptPath = fileURLToPath(new URL("../scripts/pwa/build-staging.mjs", import.meta.url));
-const canonicalAdventure = await buildCanonicalAdventureAvatarContent();
-const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 2;
+const canonicalAdventure = await buildCanonicalAdventurePwaContent();
+const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 3;
 
 // Absolute sources for the fixture payload builder: esbuild resolves the
 // pinned framework workspace from the REAL repository sources, so isolated
@@ -84,11 +88,21 @@ async function makeStagingFixture() {
   for (const name of ["game.json", "launch.pwa.json", "presentation.json"]) {
     await copyFile(fileURLToPath(new URL(name, repoRoot)), path.join(game, name));
   }
-  for (const physical of ["systems/base/subsystem.mjs", "systems/adventure-map/subsystem.mjs"]) {
+  for (const physical of [
+    "systems/base/subsystem.mjs",
+    "systems/adventure-map/subsystem.mjs",
+    "systems/adventure-map/field-scene-runtime.mjs",
+    "systems/adventure-map/field-plan-model.mjs",
+  ]) {
     const target = path.join(game, physical);
     await mkdir(path.dirname(target), { recursive: true });
     await copyFile(path.join(repoRootPath, physical), target);
   }
+  await mkdir(path.join(game, "components", "ms-field", "browser"), { recursive: true });
+  await copyFile(
+    fileURLToPath(new URL("components/ms-field/browser/ms-field.browser.js", repoRoot)),
+    path.join(game, "components", "ms-field", "browser", "ms-field.browser.js"),
+  );
   await mkdir(path.join(game, "components", "cms-actor", "browser"), { recursive: true });
   await copyFile(
     fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)),
@@ -282,8 +296,8 @@ test("staging orchestrates payload and generic builder with pinned arguments", a
     assert.ok(
       payload.content.some((entry) => entry.kind === "resource"
         && entry.namespace === "resource.Presentation"
-        && entry.key === "cms-actor/cms-actor.browser.js"),
-      "the staged bundle must carry the cms-actor classic IIFE",
+        && entry.key === "ms-field/ms-field.browser.js"),
+      "the staged bundle must carry the ms-field classic IIFE",
     );
     assert.ok(
       payload.content.some((entry) => entry.kind === "record"
@@ -292,17 +306,32 @@ test("staging orchestrates payload and generic builder with pinned arguments", a
       "the staged bundle must carry the derived bootstrap AvatarPlan record",
     );
     assert.ok(
+      payload.content.some((entry) => entry.kind === "record"
+        && entry.namespace === FIELD_PLAN_NAMESPACE
+        && entry.key === FIELD_PLAN_KEY),
+      "the staged bundle must carry the derived bootstrap AdventureFieldPlan record",
+    );
+    assert.ok(
+      payload.content.some((entry) => entry.kind === "resource"
+        && entry.namespace === "resource.Presentation"
+        && entry.key === "cms-actor/cms-actor.browser.js"),
+      "the staged bundle must retain the cms-actor classic IIFE for Avatar compatibility",
+    );
+    assert.ok(
       payload.content.every((entry) => {
         if (entry.kind === "record") {
           return entry.namespace === "struct.avatar.Part"
             || entry.namespace === "struct.avatar.DrawOrder"
             || entry.namespace === "struct.avatar.LayerSlot"
-            || entry.namespace === AVATAR_PLAN_NAMESPACE;
+            || entry.namespace === AVATAR_PLAN_NAMESPACE
+            || entry.namespace === FIELD_PLAN_NAMESPACE;
         }
         if (entry.kind === "group") {
           return entry.namespace === "group.avatar.PartFrame" || entry.namespace === "group.avatar.Resource";
         }
-        return entry.namespace === "resource.Presentation" || entry.namespace === "resource.Avatar";
+        return entry.namespace === "resource.Presentation"
+          || entry.namespace === "resource.Avatar"
+          || entry.namespace === "resource.Map";
       }),
       "no unrelated Content may enter the staged bundle",
     );

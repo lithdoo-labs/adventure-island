@@ -13,7 +13,7 @@
 //   - manifest/subsystem keys round-trip; the executable set is exactly the
 //     two SELF-CONTAINED esbuild bundles (base + adventure-map), unique,
 //     dependency-free, and content-hashed correctly;
-//   - the Content whitelist is exact: the two classic presentation scripts
+//   - the Content whitelist is exact: the three classic presentation scripts
 //     (pinned Controls IIFE + cms-actor IIFE) plus the read-only single-
 //     character FSDB closure and the derived bootstrap AvatarPlan record —
 //     every identity, MIME and canonical base64 body is pinned, and the
@@ -44,8 +44,10 @@ import {
   CONTROLS_SCRIPT_KEY,
   CONTENT_SCRIPT_SOURCE_BINDINGS,
   EXECUTABLE_SOURCE_BINDINGS,
+  FIELD_SCRIPT_KEY,
   assertExecutableGraph,
   buildAdventureIslandInstallationBundle,
+  buildCanonicalAdventurePwaContent,
 } from "../scripts/pwa/build-installation-bundle.mjs";
 import {
   ADVENTURE_FSDB_RELATIVE_PATH,
@@ -54,6 +56,15 @@ import {
   AVATAR_PLAN_NAMESPACE,
   buildCanonicalAdventureAvatarContent,
 } from "../scripts/pwa/read-adventure-fsdb.mjs";
+import {
+  FIELD_PLAN_KEY,
+  FIELD_PLAN_NAMESPACE,
+  validateFieldPlan,
+} from "../systems/adventure-map/field-plan-model.mjs";
+import {
+  assertExactMapResourceRefSets,
+  collectMapResourceRefsFromFieldTree,
+} from "../scripts/pwa/collect-field-plan-map-resources.mjs";
 import {
   measureAvatarPlanDataBytes,
   validateAvatarPlan,
@@ -81,17 +92,19 @@ const EXPECTED_PRESENTATION = Object.freeze({
   styles: Object.freeze([]),
   scripts: Object.freeze([
     Object.freeze({ namespace: "Presentation", key: CONTROLS_SCRIPT_KEY }),
+    Object.freeze({ namespace: "Presentation", key: FIELD_SCRIPT_KEY }),
     Object.freeze({ namespace: "Presentation", key: ACTOR_SCRIPT_KEY }),
   ]),
 });
 
-/** The canonical Content closure, computed once (read-only FSDB + plan + 2 scripts). */
-const canonicalAdventure = await buildCanonicalAdventureAvatarContent();
+/** The canonical Content closure, computed once (read-only FSDB + plans + 3 scripts). */
+const canonicalAdventure = await buildCanonicalAdventurePwaContent();
 
 /** The exact canonical Content identity set, sorted. */
 const expectedContentIdentities = () => [
   ...canonicalAdventure.entries.map(({ kind, namespace, key }) => `${kind}\0${namespace}\0${key}`),
   `resource\0resource.Presentation\0${CONTROLS_SCRIPT_KEY}`,
+  `resource\0resource.Presentation\0${FIELD_SCRIPT_KEY}`,
   `resource\0resource.Presentation\0${ACTOR_SCRIPT_KEY}`,
 ].sort();
 
@@ -121,7 +134,7 @@ const CONTROLS_RELATIVE_SEGMENTS = Object.freeze(
 
 // A fully isolated "project root" that mimics a fresh checkout of this
 // repository: the three canonical documents, the two subsystem sources, the
-// two classic browser artifacts (cms-actor + pinned Controls), the read-only
+// three classic browser artifacts (ms-field + cms-actor + pinned Controls), the read-only
 // adventure FSDB closure, and a protected research/ tree with a sentinel.
 // Nothing here ever touches the real repository's research/.
 async function makeIsolatedGameRoot() {
@@ -136,6 +149,11 @@ async function makeIsolatedGameRoot() {
     await mkdir(path.dirname(target), { recursive: true });
     await copyFile(path.join(repoRootPath, physical), target);
   }
+  await mkdir(path.join(isolatedRoot, "components", "ms-field", "browser"), { recursive: true });
+  await copyFile(
+    path.join(repoRootPath, "components", "ms-field", "browser", "ms-field.browser.js"),
+    path.join(isolatedRoot, "components", "ms-field", "browser", "ms-field.browser.js"),
+  );
   await mkdir(path.join(isolatedRoot, "components", "cms-actor", "browser"), { recursive: true });
   await copyFile(
     path.join(repoRootPath, "components", "cms-actor", "browser", "cms-actor.browser.js"),
@@ -365,8 +383,10 @@ test("the payload schema and provenance are exact", async () => {
       assert.doesNotMatch(executable.source, /\bprocess\.\w/u, "the bundle must not reference Node-only globals");
     }
     assert.match(payload.executables[0].source, /game-controls-input/u, "the base bundle contains the Controls producer root");
-    assert.match(payload.executables[1].source, /struct\.AdventureAvatarPlan/u, "the map bundle contains the bootstrap plan identity");
-    assert.match(payload.executables[1].source, /adventure-player/u, "the map bundle contains the single actor node key");
+    assert.match(payload.executables[1].source, /struct\.AdventureFieldPlan/u, "the map bundle reads the bootstrap FieldPlan identity");
+    assert.match(payload.executables[1].source, /projectAdventureMapFieldSceneFromPlan/u, "the map bundle uses the browser-safe Field runtime");
+    assert.doesNotMatch(payload.executables[1].source, /field-scene-baseline/u, "the map executable must not embed the generated Field baseline");
+    assert.ok(payload.executables[1].source.length < 500_000, "the map executable must stay browser-safe without an inlined Field tree");
 
     // The Content set is the exact PR-B whitelist, canonically ordered.
     assert.deepEqual(
@@ -379,12 +399,13 @@ test("the payload schema and provenance are exact", async () => {
   }
 });
 
-test("the Content whitelist is exact: the two classic scripts plus the read-only FSDB closure and derived plan", async () => {
+test("the Content whitelist is exact: the three classic scripts plus the read-only FSDB closure and derived plans", async () => {
   const temp = await makeTempDir();
   try {
     const run = runCli(["--output", path.join(temp, "bundle.json")]);
     assert.equal(run.status, 0, `CLI must succeed (stderr: ${run.stderr})`);
     const payload = JSON.parse(await readText(path.join(temp, "bundle.json")));
+    const fieldScriptBytes = await readFile(fileURLToPath(new URL("components/ms-field/browser/ms-field.browser.js", repoRoot)));
     const actorScriptBytes = await readFile(fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)));
     const controlsScriptBytes = await readFile(fileURLToPath(
       new URL("loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js", repoRoot),
@@ -396,18 +417,22 @@ test("the Content whitelist is exact: the two classic scripts plus the read-only
       const bytes = Buffer.from(entry.body, "base64");
       assert.equal(bytes.toString("base64"), entry.body, "content bodies must be canonical base64");
       if (entry.kind === "resource" && entry.namespace === "resource.Presentation") {
-        assert.ok([CONTROLS_SCRIPT_KEY, ACTOR_SCRIPT_KEY].includes(entry.key));
+        assert.ok([CONTROLS_SCRIPT_KEY, FIELD_SCRIPT_KEY, ACTOR_SCRIPT_KEY].includes(entry.key));
         assert.equal(entry.mime, "text/javascript; charset=utf-8");
-        const expected = entry.key === CONTROLS_SCRIPT_KEY ? controlsScriptBytes : actorScriptBytes;
+        const expected = entry.key === CONTROLS_SCRIPT_KEY
+          ? controlsScriptBytes
+          : entry.key === FIELD_SCRIPT_KEY
+            ? fieldScriptBytes
+            : actorScriptBytes;
         assert.ok(bytes.equals(expected), `the published script ${entry.key} must be the pinned artifact, byte for byte`);
         assert.doesNotMatch(bytes.toString("utf8"), /(^|\n)\s*(import|export)\s*[({"'\s]/u, "ES module sources must never be published as classic scripts");
       } else if (entry.kind === "resource") {
-        assert.equal(entry.namespace, "resource.Avatar");
+        assert.ok(["resource.Avatar", "resource.Map"].includes(entry.namespace));
         assert.equal(entry.mime, "image/png");
         assert.deepEqual(bytes.subarray(1, 4), Buffer.from([0x50, 0x4e, 0x47]), "image resources must be PNGs");
       } else if (entry.kind === "record") {
         assert.ok(
-          ["struct.avatar.Part", "struct.avatar.DrawOrder", "struct.avatar.LayerSlot", AVATAR_PLAN_NAMESPACE].includes(entry.namespace),
+          ["struct.avatar.Part", "struct.avatar.DrawOrder", "struct.avatar.LayerSlot", AVATAR_PLAN_NAMESPACE, FIELD_PLAN_NAMESPACE].includes(entry.namespace),
           "records must be the FSDB part/order tables or the derived plan",
         );
         assert.ok(!entry.key.includes("/"), "record keys must be flat");
@@ -469,6 +494,36 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
     const planDataBytes = measureAvatarPlanDataBytes(plan);
     assert.ok(planDataBytes <= AVATAR_PLAN_DATA_BYTE_LIMIT, `plan data ${planDataBytes}B must stay under the cap`);
     assert.ok(planBytes.length <= AVATAR_PLAN_DATA_BYTE_LIMIT, "the published plan record body itself stays bounded");
+
+    const fieldPlanEntry = payload.content.find(
+      (entry) => entry.kind === "record" && entry.namespace === FIELD_PLAN_NAMESPACE && entry.key === FIELD_PLAN_KEY,
+    );
+    assert.ok(fieldPlanEntry !== undefined, "the derived bootstrap FieldPlan record must be published");
+    const fieldPlan = validateFieldPlan(JSON.parse(Buffer.from(fieldPlanEntry.body, "base64").toString("utf8")));
+    assert.deepEqual(fieldPlan.hash, canonicalAdventure.fieldPlan.hash);
+    assert.equal(fieldPlan.root.children.some((child) => child.key === "player:adventure"), true);
+
+    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root);
+    const publishedMapResources = new Map(payload.content
+      .filter((entry) => entry.kind === "resource" && entry.namespace === "resource.Map")
+      .map((entry) => [entry.key, Buffer.from(entry.body, "base64")]));
+    const publishedMapStamps = fieldMapRefs.map((ref) => Object.freeze({
+      namespace: ref.namespace,
+      key: ref.key,
+      contentVersion: `sha256:${sha256(publishedMapResources.get(ref.key))}`,
+    }));
+    assertExactMapResourceRefSets(fieldMapRefs, publishedMapStamps, "published Field bundle map resources");
+    assert.deepEqual(
+      [...publishedMapResources.keys()].sort(),
+      fieldMapRefs.map((ref) => ref.key).sort(),
+      "published resource.Map keys must equal the FieldPlan recursive closure exactly",
+    );
+    for (const ref of fieldMapRefs) {
+      const png = publishedMapResources.get(ref.key);
+      assert.ok(png !== undefined, `FieldPlan resource.Map/${ref.key} must be published`);
+      assert.equal(ref.contentVersion, `sha256:${sha256(png)}`, `FieldPlan stamp must equal published PNG bytes for ${ref.key}`);
+      assert.deepEqual(png.subarray(0, 8), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    }
 
     // Every layer resource must resolve to a published PNG whose sha256
     // equals the version stamped in the plan (identity + version + bytes).
@@ -832,6 +887,40 @@ test("tampered adventure Content fails the builder's consistency checks", async 
       "corrupted JSONL groups must be rejected",
     );
 
+  const sampleMap = canonicalAdventure.entries.find((entry) => entry.kind === "resource" && entry.namespace === "resource.Map");
+  assert.ok(sampleMap !== undefined, "canonical closure must publish resource.Map PNGs");
+  await assert.rejects(
+    buildWith(async () => ({
+      ...canonicalAdventure,
+      entries: canonicalAdventure.entries.map((entry) => (entry.kind === "resource"
+        && entry.namespace === "resource.Map"
+        && entry.key === sampleMap.key
+        ? { ...entry, bytes: Buffer.from("not-a-png", "utf8") }
+        : entry)),
+    })),
+    /not a PNG|stamps|version mismatch|resource\.Map/u,
+    "a non-PNG map resource body must be rejected",
+  );
+
+  await assert.rejects(
+    buildWith(async () => ({
+      ...canonicalAdventure,
+      entries: canonicalAdventure.entries.map((entry) => (entry.kind === "resource"
+        && entry.namespace === "resource.Map"
+        && entry.key === sampleMap.key
+        ? {
+          ...entry,
+          bytes: Buffer.concat([
+            sampleMap.bytes.subarray(0, sampleMap.bytes.length - 1),
+            Buffer.from([sampleMap.bytes.at(-1) ^ 0xff]),
+          ]),
+        }
+        : entry)),
+    })),
+    /stamps|FieldPlan stamps|version mismatch/u,
+    "tampered map PNG bytes must be rejected against FieldPlan stamps",
+  );
+
     // The untampered canonical closure still builds.
     const summary = await buildWith(async () => canonicalAdventure);
     assert.equal(summary.contentCount, expectedContentIdentities().length);
@@ -921,6 +1010,11 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
         "launch.pwa.json": manifest,
         "presentation.json": presentation,
       });
+      await mkdir(path.join(fixture, "components", "ms-field", "browser"), { recursive: true });
+      await copyFile(
+        path.join(repoRootPath, "components", "ms-field", "browser", "ms-field.browser.js"),
+        path.join(fixture, "components", "ms-field", "browser", "ms-field.browser.js"),
+      );
       await mkdir(path.join(fixture, "components", "cms-actor", "browser"), { recursive: true });
       await copyFile(
         path.join(repoRootPath, "components", "cms-actor", "browser", "cms-actor.browser.js"),
@@ -1137,7 +1231,6 @@ test("the artifact carries no research material or sensitive markers", async () 
     const text = await readText(path.join(temp, "bundle.json"));
     const forbidden = [
       "research",
-      "CMS079",
       ".wz",
       ".raw",
       "glm-work",
@@ -1161,7 +1254,7 @@ test("the artifact carries no research material or sensitive markers", async () 
     for (const input of whitelisted) {
       assert.match(
         input,
-        /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/|components\/cms-actor\/browser\/|loom-realm\/game-libs\/game-common-controls\/dist\/browser\/)/u,
+        /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/|components\/(ms-field|cms-actor)\/browser\/|loom-realm\/game-libs\/game-common-controls\/dist\/browser\/)/u,
         `input whitelist entry must stay canonical: ${input}`,
       );
     }

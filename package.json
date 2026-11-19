@@ -9,7 +9,7 @@
     "loom-realm/game-libs/*"
   ],
   "scripts": {
-    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/adventure-runtime.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
+    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/adventure-runtime.test.mjs test/adventure-map-field-bridge.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
     "pwa:bundle": "node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json",
     "pwa:staging": "node scripts/pwa/build-staging.mjs"
   },

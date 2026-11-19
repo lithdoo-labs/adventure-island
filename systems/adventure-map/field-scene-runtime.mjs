@@ -1,0 +1,53 @@
+/**
+ * Browser-safe static Field runtime: project camera attrs onto the published
+ * bootstrap AdventureFieldPlan (no Node FSDB, no generated baseline module).
+ */
+import { cameraForViewport } from "../../components/ms-field/src/camera.mjs";
+import { createStaticFieldState } from "../../components/ms-field/src/field-state.mjs";
+import { validateFieldPlan } from "./field-plan-model.mjs";
+
+function decimalAttr(value) {
+  if (!Number.isFinite(value)) throw new TypeError(`non-finite attr value ${value}`);
+  if (Object.is(value, -0)) return "0";
+  return String(value);
+}
+
+function rootWithCamera(root, camera) {
+  const attrs = Object.freeze({
+    ...root.attrs,
+    "camera-x": decimalAttr(camera.cameraX),
+    "camera-y": decimalAttr(camera.cameraY),
+    visible: "true",
+  });
+  return Object.freeze({
+    ...root,
+    attrs,
+    children: root.children,
+  });
+}
+
+/**
+ * @param {object} planValue bootstrap AdventureFieldPlan record body
+ * @param {{ width: number, height: number } | null | undefined} viewport
+ */
+export function projectAdventureMapFieldSceneFromPlan(planValue, viewport) {
+  const plan = validateFieldPlan(planValue);
+  const fieldState = plan.fieldState ?? createStaticFieldState({ mapId: plan.mapId });
+  const camera = cameraForViewport(
+    fieldState.player,
+    viewport ?? null,
+    { effectiveBounds: plan.effectiveBounds },
+  );
+  const root = rootWithCamera(plan.root, camera);
+  return Object.freeze({
+    fieldState,
+    effectiveBounds: plan.effectiveBounds,
+    root,
+    hash: plan.hash,
+    mapProjectionHash: plan.mapProjectionHash,
+    fromContent: true,
+  });
+}
+
+/** Stable RenderNode key of the canonical 222000000 Field scene root. */
+export const FIELD_SCENE_ROOT_KEY = "scene:map222000000";

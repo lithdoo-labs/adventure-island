@@ -454,8 +454,8 @@ test("the root Adventure Map binding forwards the shared factory", async () => {
   const rootShim = await import(new URL("subsystems/adventure-map.mjs", repoRoot).href);
   assert.equal(typeof sharedModule.default, "function", "the Map default export must be a factory function");
   assert.equal(rootShim.default, sharedModule.default, "the root binding must forward the shared Map factory");
-  assert.equal(rootShim.AVATAR_PLAN_NAMESPACE, "struct.AdventureAvatarPlan");
-  assert.equal(rootShim.AVATAR_PLAN_KEY, "bootstrap");
+  assert.equal(rootShim.ADVENTURE_FIELD_SCENE_ROOT_KEY, "scene:map222000000");
+  assert.equal(rootShim.ADVENTURE_PLAYER_NODE_KEY, "player:adventure");
 });
 
 test("the root shims and the raw sources must never be published as PWA executables", async () => {
@@ -512,17 +512,26 @@ test("the root shims and the raw sources must never be published as PWA executab
     ["systems/base/subsystem.mjs", ["@loomrealm/subsystem"]],
     [
       "systems/adventure-map/subsystem.mjs",
-      ["@loomrealm/subsystem", "@loomrealm-game/common-controls/subsystem"],
+      [
+        "../../components/ms-field/src/camera.mjs",
+        "./field-plan-model.mjs",
+        "./field-scene-runtime.mjs",
+        "@loomrealm/subsystem",
+        "@loomrealm-game/common-controls/subsystem",
+      ],
     ],
   ]) {
     const source = await readText(new URL(sourcePath, repoRoot));
     const edges = readModuleEdges(source, sourcePath);
     assert.deepEqual([...edges].sort(), [...allowedEdges].sort(), `${sourcePath} must import exactly the pinned framework packages`);
     for (const specifier of edges) {
-      assert.deepEqual(
-        resolveLogicalImport("subsystems/base.mjs", specifier),
-        { ok: false, code: "SUBSYSTEM_MODULE_GRAPH_INVALID" },
-        `the raw source edge "${specifier}" must be unpublishable — only the bundle ships`,
+      if (specifier.startsWith(".")) continue;
+      const resolved = resolveLogicalImport("subsystems/base.mjs", specifier);
+      assert.equal(resolved.ok, false, `the raw source edge "${specifier}" must be unpublishable — only the bundle ships`);
+      assert.equal(
+        resolved.code,
+        "SUBSYSTEM_MODULE_GRAPH_INVALID",
+        `unexpected unpublishable code for "${specifier}": ${resolved.code}`,
       );
     }
   }

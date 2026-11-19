@@ -63,6 +63,14 @@ import {
   AVATAR_PLAN_NAMESPACE,
   buildCanonicalAdventureAvatarContent,
 } from "./read-adventure-fsdb.mjs";
+import { collectMapResourceRefsFromFieldTree } from "./collect-field-plan-map-resources.mjs";
+import { buildCanonicalAdventureMapResourceContent } from "./read-adventure-map-resource-content.mjs";
+import {
+  FIELD_PLAN_KEY,
+  FIELD_PLAN_NAMESPACE,
+  buildCanonicalAdventureFieldPlanContent,
+} from "./read-adventure-field-plan.mjs";
+import { validateFieldPlan } from "../../systems/adventure-map/field-plan-model.mjs";
 import {
   measureAvatarPlanDataBytes,
   validateAvatarPlan,
@@ -103,16 +111,21 @@ const INPUT_PATHS = Object.freeze({
 export const CONTROLS_SCRIPT_KEY = "controls/device-input.browser.js";
 /** Physical artifact (built inside the fixed gitlink), relative to the game root. */
 export const CONTROLS_SCRIPT_PATH = "loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js";
-/** Logical Content key of the cms-actor classic IIFE. */
+/** Logical Content key of the ms-field classic IIFE (M3 Field scene). */
+export const FIELD_SCRIPT_KEY = "ms-field/ms-field.browser.js";
+/** Physical artifact (generated), relative to the game root. */
+export const FIELD_SCRIPT_PATH = "components/ms-field/browser/ms-field.browser.js";
+/** Logical Content key of the cms-actor classic IIFE (M4 Avatar compatibility slice). */
 export const ACTOR_SCRIPT_KEY = "cms-actor/cms-actor.browser.js";
-/** Physical artifact (PR-A generated), relative to the game root. */
+/** Physical artifact (generated), relative to the game root. */
 export const ACTOR_SCRIPT_PATH = "components/cms-actor/browser/cms-actor.browser.js";
 
 /**
  * The frozen Content-script whitelist: Content identity (kind\0namespace\0key)
  * → physical classic-script artifact. The canonical presentation registers
- * exactly the two pinned IIFEs — Controls first (it defines the
- * `game-controls-input` element Base projects), Actor second — never the ESM
+ * exactly the three pinned IIFEs — Controls first (it defines the
+ * `game-controls-input` element Base projects), ms-field second, cms-actor
+ * third — never the ESM
  * sources (the builder rejects module syntax below) and never anything from
  * research/**, .raw/**, .work/**, glm-work/** or task/**. The Controls IIFE
  * must be the artifact built inside the fixed gitlink checkout, not a copy
@@ -121,6 +134,7 @@ export const ACTOR_SCRIPT_PATH = "components/cms-actor/browser/cms-actor.browser
 export const CONTENT_SCRIPT_SOURCE_BINDINGS = Object.freeze(
   Object.freeze({
     [`resource\0resource.Presentation\0${CONTROLS_SCRIPT_KEY}`]: CONTROLS_SCRIPT_PATH,
+    [`resource\0resource.Presentation\0${FIELD_SCRIPT_KEY}`]: FIELD_SCRIPT_PATH,
     [`resource\0resource.Presentation\0${ACTOR_SCRIPT_KEY}`]: ACTOR_SCRIPT_PATH,
   }),
 );
@@ -411,7 +425,89 @@ async function assembleAdventureContent({ scriptEntries, adventureContent }) {
   if (planLayers.length === 0) {
     throw new TypeError("the published bootstrap AvatarPlanV1 references no layers at all");
   }
-  return Object.freeze({ content, plan });
+
+  const fieldPlanEntry = byIdentity.get(`record\0${FIELD_PLAN_NAMESPACE}\0${FIELD_PLAN_KEY}`);
+  if (fieldPlanEntry === undefined) {
+    throw new TypeError(`the published Content set is missing the derived ${FIELD_PLAN_NAMESPACE}/${FIELD_PLAN_KEY} record`);
+  }
+  const fieldPlan = validateFieldPlan(JSON.parse(fieldPlanEntry.bytes.toString("utf8")));
+  if (fieldPlan.root.tag !== "ms-scene-view") {
+    throw new TypeError("the published bootstrap AdventureFieldPlan root must be ms-scene-view");
+  }
+  if (!fieldPlan.root.children.some((child) => child.key === "player:adventure")) {
+    throw new TypeError("the published bootstrap AdventureFieldPlan must include player:adventure");
+  }
+
+  const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const publishedMapKeys = new Map();
+  for (const entry of content) {
+    if (entry.kind === "resource" && entry.namespace === "resource.Map") {
+      const bytes = Buffer.from(entry.body, "base64");
+      if (!bytes.subarray(0, 8).equals(PNG_SIGNATURE)) {
+        throw new TypeError(`published resource.Map/${entry.key} is not a PNG`);
+      }
+      publishedMapKeys.set(entry.key, `sha256:${sha256(bytes)}`);
+    }
+  }
+  const fieldRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root);
+  const publishedKeys = [...publishedMapKeys.keys()].sort();
+  const fieldKeys = fieldRefs.map((ref) => ref.key).sort();
+  if (publishedKeys.length !== fieldKeys.length || publishedKeys.some((key, index) => key !== fieldKeys[index])) {
+    throw new TypeError(
+      `published resource.Map keys (${publishedKeys.length}) do not match the FieldPlan tree (${fieldKeys.length})`,
+    );
+  }
+  for (const ref of fieldRefs) {
+    const publishedVersion = publishedMapKeys.get(ref.key);
+    if (publishedVersion === undefined || publishedVersion !== ref.contentVersion) {
+      throw new TypeError(
+        `published resource.Map/${ref.key} is ${publishedVersion ?? "missing"} but the FieldPlan stamps ${ref.contentVersion}`,
+      );
+    }
+  }
+
+  return Object.freeze({ content, plan, fieldPlan });
+}
+
+function compareContentEntries(left, right) {
+  const keys = ["kind", "namespace", "key"];
+  for (const key of keys) {
+    const delta = left[key] < right[key] ? -1 : left[key] > right[key] ? 1 : 0;
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
+/**
+ * Canonical Avatar plan + map 222000000 resource closure for the M3 Field PWA.
+ */
+export async function buildCanonicalAdventurePwaContent({ gameRoot = root } = {}) {
+  const [avatar, field] = await Promise.all([
+    buildCanonicalAdventureAvatarContent({ gameRoot }),
+    buildCanonicalAdventureFieldPlanContent({ gameRoot, repoRoot: root }),
+  ]);
+  const map = await buildCanonicalAdventureMapResourceContent({
+    gameRoot,
+    repoRoot: root,
+    fieldPlanRoot: field.plan.root,
+  });
+  const byIdentity = new Set();
+  const entries = [];
+  for (const entry of [...avatar.entries, ...map.entries, ...field.entries]) {
+    const identity = `${entry.kind}\0${entry.namespace}\0${entry.key}`;
+    if (byIdentity.has(identity)) {
+      throw new TypeError(`duplicate Content identity while merging Avatar, map, and Field closures: ${identity}`);
+    }
+    byIdentity.add(identity);
+    entries.push(entry);
+  }
+  entries.sort(compareContentEntries);
+  return Object.freeze({
+    entries: Object.freeze(entries),
+    plan: avatar.plan,
+    fieldPlan: field.plan,
+    sources: Object.freeze([...avatar.sources, ...map.sources, ...field.sources]),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -806,7 +902,7 @@ export async function buildAdventureIslandInstallationBundle({
   verifyGitlink = true,
   executableSources = EXECUTABLE_SOURCE_BINDINGS,
   contentScriptSources = CONTENT_SCRIPT_SOURCE_BINDINGS,
-  adventureContent = buildCanonicalAdventureAvatarContent,
+  adventureContent = buildCanonicalAdventurePwaContent,
 } = {}) {
   const game = resolve(gameRoot);
   if (typeof outputFile !== "string" || outputFile.length === 0) {

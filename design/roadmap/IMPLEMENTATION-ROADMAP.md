@@ -2,7 +2,7 @@
 
 > **状态：候选实施计划 / NOT APPROVED。**
 > 本文把现有产品目标、LoomRealm 运行时边界、FSDB 内容事实和 `ms-*` 组件候选组织为可验收的落地顺序。它不批准组件 ABI、业务算法或阶段范围；每个里程碑仍需满足对应设计门和证据要求。
-> 分支 `feat/m0-m1-runtime-rendering-spike` 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md)、[M1-SPIKE-EVIDENCE.md](M1-SPIKE-EVIDENCE.md) 与 [M2-ADAPTER-EVIDENCE.md](M2-ADAPTER-EVIDENCE.md)。这些记录不批准本文。
+> 分支 `feat/m0-m1-runtime-rendering-spike` 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md)、[M1-SPIKE-EVIDENCE.md](M1-SPIKE-EVIDENCE.md)、[M2-ADAPTER-EVIDENCE.md](M2-ADAPTER-EVIDENCE.md) 与 [M3-FIELD-EVIDENCE.md](M3-FIELD-EVIDENCE.md)。这些记录不批准本文。
 
 ## 1. 路线原则
 
@@ -430,6 +430,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-路线图批准后，第一项实施工作是 **M0**。M0 完成并留下完整测试证据后，再创建 M1 synthetic WebProjector spike；在 M1 证明 DOM + Multi-Canvas 结构成立之前，不开始完整 Map Adapter、Movement 或 Portal 实现。
+当前实施基线已经完成 **M0–M3** 的逐级证据闭环。下一实施里程碑为 **M4：新纸娃娃接入世界**；继续保留 `ms-world-item` 的世界坐标与排序职责，以正式 `ms-avatar` + `ms-action` 替换 `ms-m3-avatar-slot`，不得提前把 Movement 或 Portal 权威逻辑放入 Renderer。
 
-2026-11-18 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md)、[M1-SPIKE-EVIDENCE.md](M1-SPIKE-EVIDENCE.md) 与 [M2-ADAPTER-EVIDENCE.md](M2-ADAPTER-EVIDENCE.md)。M0、M1 与 M2 已通过：Windows 本机 3 个 symlink 安全分支因 `EPERM` 未覆盖，但根测试 `fail 0`，真实集成层 `skipped 0`；M1 的核心组件树与 Paint Unit 原则已按 synthetic spike 实测确认；M2 已对 `222000000` 建立纯 FSDB→Adapter/Projection 管线（稳定 hash、group/resource/no-visual 校验、排序与 batch planner golden），不依赖 DOM/Canvas。完整标签 ABI、生产 schema、Canvas 预算、Back type1–4 布局与 Movement/Portal 运行时仍保持候选。下一实施里程碑为 M3。
+2026-11-18–19 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md)、[M1-SPIKE-EVIDENCE.md](M1-SPIKE-EVIDENCE.md)、[M2-ADAPTER-EVIDENCE.md](M2-ADAPTER-EVIDENCE.md) 与 [M3-FIELD-EVIDENCE.md](M3-FIELD-EVIDENCE.md)。M0–M3 已通过对应退出门禁：M3 已在完整 `222000000` 上验证 297 个地图 Paint Unit + Player、298 个有限 Canvas、真实 WebProjector 像素、Content 去重/并发预算、Camera 更新分离、carrier replacement 与 canonical PWA。组件 ABI 仍未批准；Movement、Portal 运行时和 Back type1–4 布局继续保持后续候选。

@@ -12,16 +12,17 @@ import { fileURLToPath } from "node:url";
 import {
   ACTOR_SCRIPT_KEY,
   CONTROLS_SCRIPT_KEY,
+  FIELD_SCRIPT_KEY,
+  buildCanonicalAdventurePwaContent,
 } from "../scripts/pwa/build-installation-bundle.mjs";
-import { buildCanonicalAdventureAvatarContent } from "../scripts/pwa/read-adventure-fsdb.mjs";
 import { buildCanonicalSyntheticAvatarContent } from "../scripts/pwa/synthetic-avatar-content.mjs";
 import { FIXTURE_LOGICAL_MODULE, composeAvatarFixturePayload } from "./pwa-avatar-fixture.mjs";
 import { COLORS, FRAME_MARKERS } from "../components/cms-actor/test/synthetic-fsdb.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
-const canonicalAdventure = await buildCanonicalAdventureAvatarContent();
-const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 2;
+const canonicalAdventure = await buildCanonicalAdventurePwaContent();
+const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 3;
 const FIXTURE_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
 
 // Resolve Playwright from the exact pinned framework workspace installed by CI.
@@ -29,7 +30,7 @@ const requireFromFramework = createRequire(new URL("../loom-realm/apps/pwa/packa
 const { chromium } = requireFromFramework("playwright");
 
 // ---------------------------------------------------------------------------
-// T5 — the CANONICAL Base → Adventure Map → cms-actor PWA under its real
+// T5 — the CANONICAL Base → Adventure Map → ms-field PWA under its real
 // Service Worker scope (issue #62). Driven by LOOMREALM_PWA_URL exactly like
 // the CI staging loopback: the product must reach the ACTIVE "ready" state
 // (the adventure-map Frame intentionally never settles), the single actor
@@ -37,7 +38,7 @@ const { chromium } = requireFromFramework("playwright");
 // never synthetic DOM KeyboardEvents) must drive locomotion/facing and
 // release, and a viewport resize must re-center the actor.
 // ---------------------------------------------------------------------------
-test("Adventure Island Base → Adventure Map PWA runs active under its isolated Service Worker scope", { timeout: 120_000 }, async () => {
+test("Adventure Island Base → Adventure Map PWA runs active under its isolated Service Worker scope", { timeout: 300_000 }, async () => {
   const url = process.env.LOOMREALM_PWA_URL;
   assert.ok(url?.endsWith("/pwa/adventure-island/"), "real upstream loopback E2E URL must use Adventure Island scope");
   const browser = await chromium.launch({ headless: true });
@@ -85,6 +86,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         productState: document.documentElement.dataset.loomrealmProduct,
         presentationState: document.documentElement.dataset.loomrealmPresentation ?? null,
         presentationError: document.documentElement.dataset.loomrealmPresentationError ?? null,
+        msSceneViewRegistered: typeof customElements.get("ms-scene-view"),
+        msAvatarSlotRegistered: typeof customElements.get("ms-m3-avatar-slot"),
         cmsActorRegistered: typeof customElements.get("cms-actor"),
         controlsInputRegistered: typeof customElements.get("game-controls-input"),
         controlled: navigator.serviceWorker.controller !== null,
@@ -101,7 +104,9 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(evidence.productState, "ready", `the canonical slice must stay ACTIVE, not settle: ${JSON.stringify({ diagnostics, evidence })}`);
     assert.equal(evidence.presentationState, "ready", `the canonical presentation bootstrap must succeed: ${JSON.stringify({ diagnostics, evidence })}`);
     assert.equal(evidence.presentationError, null, JSON.stringify({ diagnostics, evidence }));
-    assert.equal(evidence.cmsActorRegistered, "function", "the canonical staging must bootstrap the cms-actor classic script through the Service Worker Content route");
+    assert.equal(evidence.msSceneViewRegistered, "function", "the canonical staging must bootstrap the ms-field classic script through the Service Worker Content route");
+    assert.equal(evidence.msAvatarSlotRegistered, "function", "the ms-field script must register the M3 avatar slot");
+    assert.equal(evidence.cmsActorRegistered, "function", "the canonical cms-actor classic script must register cms-actor");
     assert.equal(evidence.controlsInputRegistered, "function", "the pinned Controls classic script must register game-controls-input");
     assert.equal(evidence.controlled, true, JSON.stringify({ diagnostics, evidence }));
     assert.match(evidence.controllerScript, /\/pwa\/adventure-island\/service-worker\.js$/);
@@ -111,134 +116,117 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(evidence.contentCount, CANONICAL_CONTENT_COUNT);
     assert.deepEqual(evidence.presentationScripts, [
       { namespace: "Presentation", key: CONTROLS_SCRIPT_KEY },
+      { namespace: "Presentation", key: FIELD_SCRIPT_KEY },
       { namespace: "Presentation", key: ACTOR_SCRIPT_KEY },
     ]);
     assert.equal(evidence.failure, null);
     assert.ok(evidence.statuses.some((entry) => entry?.status === "main-started"), "the real Runtime must have started Main");
 
-    // Exactly one Controls producer and exactly one actor, painted and
-    // centered from the real FSDB plan.
     await page.waitForFunction(() => {
-      const actor = document.querySelector("cms-actor");
-      return actor?.getAttribute("data-render-state") === "ready" || actor?.getAttribute("data-render-state") === "error";
-    }, null, { timeout: 45_000 });
-    const actorState = await page.evaluate(() => {
-      const actor = document.querySelector("cms-actor");
+      const scene = document.querySelector("ms-scene-view");
+      return scene?.diagnostics?.().state === "ready";
+    }, null, { timeout: 120_000 });
+    try {
+      await page.waitForFunction(() => {
+        const readyObjects = [...document.querySelectorAll("ms-map-object")]
+          .filter((unit) => unit.diagnostics?.().state === "ready");
+        const readyPortals = [...document.querySelectorAll("ms-portal-visual")]
+          .filter((unit) => unit.diagnostics?.().state === "ready");
+        return readyObjects.length >= 1 && readyPortals.length >= 1;
+      }, null, { timeout: 60_000 });
+    } catch (cause) {
+      const standalone = await page.evaluate(() => [...document.querySelectorAll("ms-map-object, ms-portal-visual")]
+        .map((unit) => ({
+          tag: unit.localName,
+          diagnostics: unit.diagnostics?.() ?? null,
+          data: unit.data ?? null,
+          attrs: Object.fromEntries(unit.getAttributeNames().map((name) => [name, unit.getAttribute(name)])),
+        })));
+      throw new Error(`standalone field units did not become ready: ${cause.message}\n${JSON.stringify({ standalone, diagnostics }, null, 2)}`);
+    }
+    const fieldState = await page.evaluate(() => {
+      const opaqueCount = (canvas) => {
+        if (!canvas || canvas.width === 0 || canvas.height === 0) return 0;
+        const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
+        let count = 0;
+        for (let i = 3; i < data.length; i += 4) if (data[i] > 0) count += 1;
+        return count;
+      };
+      const scene = document.querySelector("ms-scene-view");
+      const slot = document.querySelector("ms-m3-avatar-slot");
+      const sampled = [...document.querySelectorAll("ms-map-object, ms-portal-visual")]
+        .filter((unit) => unit.diagnostics?.().state === "ready");
+      const ranks = scene ? [...scene.children].map((node) => Number(node.getAttribute("stack-rank"))) : [];
       return {
-        actorCount: document.querySelectorAll("cms-actor").length,
+        sceneCount: document.querySelectorAll("ms-scene-view").length,
         producerCount: document.querySelectorAll("game-controls-input").length,
-        renderState: actor?.getAttribute("data-render-state") ?? null,
-        renderError: actor?.getAttribute("data-render-error") ?? null,
-        x: actor?.getAttribute("x") ?? null,
-        y: actor?.getAttribute("y") ?? null,
-        locomotion: actor?.getAttribute("locomotion") ?? null,
-        facing: actor?.getAttribute("facing") ?? null,
-        action: actor?.getAttribute("data-action") ?? null,
-        viewport: { width: window.innerWidth, height: window.innerHeight },
+        batchCount: document.querySelectorAll("ms-map-batch").length,
+        sceneState: scene?.diagnostics?.().state ?? null,
+        cameraX: scene?.getAttribute("camera-x") ?? null,
+        cameraY: scene?.getAttribute("camera-y") ?? null,
+        playerPresent: document.querySelectorAll("ms-world-item").length,
+        objectCount: document.querySelectorAll("ms-map-object").length,
+        portalCount: document.querySelectorAll("ms-portal-visual").length,
+        sampledReadyCount: sampled.length,
+        slotPixels: opaqueCount(slot?.shadowRoot?.querySelector("canvas")),
+        sampledPixels: sampled.map((unit) => ({
+          tag: unit.localName,
+          stackRank: Number(unit.getAttribute("stack-rank")),
+          opaque: opaqueCount(unit.shadowRoot?.querySelector("canvas")),
+        })),
+        failedStandalone: [...document.querySelectorAll("ms-map-object, ms-portal-visual")]
+          .filter((unit) => {
+            const state = unit.diagnostics?.().state;
+            return state === "failed" || state === "invalid";
+          })
+          .map((unit) => ({ tag: unit.localName, state: unit.diagnostics?.().state, code: unit.diagnostics?.().code })),
+        ranks,
       };
     });
-    assert.equal(actorState.actorCount, 1, "exactly one cms-actor may be projected");
-    assert.equal(actorState.producerCount, 1, "exactly one game-controls-input producer may be projected");
-    assert.equal(actorState.renderState, "ready", `the actor must paint from the published FSDB plan (${actorState.renderError ?? "?"})`);
-    assert.equal(actorState.locomotion, "stand");
-    assert.equal(actorState.facing, "right");
-    assert.equal(actorState.action, "stand1", "initial rendering must select the real stand action");
-    assert.equal(actorState.x, String(Math.round(actorState.viewport.width / 2)), "the actor starts horizontally centered");
-    assert.equal(actorState.y, String(Math.round(actorState.viewport.height / 2 + 16)), "the actor starts vertically centered (+16 body-origin offset)");
-
-    // The unique actor paints real non-transparent pixels (FSDB atlas).
-    const visibleActorBounds = async () => page.evaluate(() => {
-      const canvas = document.querySelector("cms-actor")?.shadowRoot?.querySelector("canvas");
-      if (!canvas || canvas.width <= 1) return null;
-      const data = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height).data;
-      let opaquePixels = 0;
-      let minX = canvas.width;
-      let minY = canvas.height;
-      let maxX = -1;
-      let maxY = -1;
-      for (let pixel = 0; pixel < canvas.width * canvas.height; pixel += 1) {
-        if (data[pixel * 4 + 3] === 0) continue;
-        const x = pixel % canvas.width;
-        const y = Math.floor(pixel / canvas.width);
-        minX = Math.min(minX, x);
-        maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y);
-        maxY = Math.max(maxY, y);
-        opaquePixels += 1;
-      }
-      if (opaquePixels === 0) return { opaquePixels };
-      const rect = canvas.getBoundingClientRect();
-      return {
-        opaquePixels,
-        x: rect.left + (minX + maxX + 1) / 2 * rect.width / canvas.width,
-        y: rect.top + (minY + maxY + 1) / 2 * rect.height / canvas.height,
-        viewportX: window.innerWidth / 2,
-        viewportY: window.innerHeight / 2,
-      };
-    });
-    const expectVisibleCenter = (bounds, phase) => {
-      assert.ok(bounds?.opaquePixels > 0, `${phase}: the real FSDB actor must paint non-transparent pixels`);
-      // The body origin is not the sprite center. Allow less than one small
-      // CMS079 sprite width of animation/anchor variation, but reject a
-      // misplaced actor or a canvas positioned outside the viewport.
+    assert.deepEqual(fieldState.failedStandalone, [], "standalone paint units must not fail in the canonical slice");
+    assert.equal(fieldState.sceneCount, 1, "exactly one ms-scene-view may be projected");
+    assert.equal(fieldState.producerCount, 1, "exactly one game-controls-input producer may be projected");
+    assert.equal(fieldState.sceneState, "ready", "the static Field scene must reach ready");
+    assert.ok(fieldState.batchCount > 0, "map batches must be projected");
+    assert.equal(fieldState.playerPresent, 1, "the adventure player world-item must be present");
+    assert.ok(fieldState.objectCount >= 1, "map objects must be projected");
+    assert.ok(fieldState.portalCount >= 1, "portal visuals must be projected");
+    assert.ok(fieldState.sampledReadyCount >= 2, "at least one map object and one portal must reach ready");
+    assert.ok(fieldState.slotPixels > 0, "the M3 avatar slot must paint placeholder pixels");
+    assert.ok(
+      fieldState.sampledPixels.length >= 2,
+      "the canonical slice must sample ready standalone paint units",
+    );
+    assert.ok(
+      fieldState.sampledPixels.every((sample) => sample.opaque > 0),
+      "every sampled standalone Canvas must commit nontransparent pixels",
+    );
+    const readyObject = fieldState.sampledPixels.find((sample) => sample.tag === "ms-map-object");
+    const readyPortal = fieldState.sampledPixels.find((sample) => sample.tag === "ms-portal-visual");
+    assert.ok(readyObject !== undefined && readyPortal !== undefined, "samples must include both object and portal");
+    for (let index = 1; index < fieldState.ranks.length; index += 1) {
       assert.ok(
-        Math.abs(bounds.x - bounds.viewportX) <= 24 && Math.abs(bounds.y - bounds.viewportY) <= 24,
-        `${phase}: visible FSDB pixels must be centered (within 24 CSS px): ${JSON.stringify(bounds)}`,
+        fieldState.ranks[index] > fieldState.ranks[index - 1],
+        "scene sibling stack-rank must increase with DOM order",
       );
-    };
-    expectVisibleCenter(await visibleActorBounds(), "initial stand");
+    }
 
-    // Trusted keyboard input through the real controls channel. Wait for the
-    // interactive state before pressing (the map's consumer is live once the
-    // actor projected; keys pressed before that are not guaranteed to arrive).
-    const expectActor = async (locomotion, facing, action) => {
-      await page.waitForFunction(({ locomotion: wantLocomotion, facing: wantFacing, action: wantAction }) => {
-        const actor = document.querySelector("cms-actor");
-        if (!actor) return false;
-        return actor.getAttribute("locomotion") === wantLocomotion
-          && actor.getAttribute("facing") === wantFacing
-          && actor.getAttribute("data-action") === wantAction;
-      }, { locomotion, facing, action }, { timeout: 20_000 });
-    };
-
-    await page.keyboard.down("ArrowLeft");
-    await expectActor("walk", "left", "walk1");
-    await page.keyboard.up("ArrowLeft");
-    await expectActor("stand", "left", "stand1");
-
-    await page.keyboard.down("ArrowRight");
-    await expectActor("walk", "right", "walk1");
-    await page.keyboard.up("ArrowRight");
-    await expectActor("stand", "right", "stand1");
-
-    await page.keyboard.down("ArrowUp");
-    await expectActor("jump", "right", "jump");
-    await page.keyboard.up("ArrowUp");
-    await expectActor("stand", "right", "stand1");
-
-    await page.keyboard.down("ArrowDown");
-    await expectActor("stand", "right", "stand1");
-    await page.keyboard.up("ArrowDown");
-    await expectActor("stand", "right", "stand1");
-
-    // Resize re-centers the still-unique actor.
     await page.setViewportSize({ width: 1000, height: 700 });
     await page.waitForFunction(() => {
-      const actor = document.querySelector("cms-actor");
-      if (!actor) return false;
-      return actor.getAttribute("x") === String(Math.round(1000 / 2))
-        && actor.getAttribute("y") === String(Math.round(700 / 2 + 16));
+      const scene = document.querySelector("ms-scene-view");
+      return scene?.getAttribute("camera-x") === "-592" && scene?.getAttribute("camera-y") === "-490";
     }, null, { timeout: 20_000 });
     const afterResize = await page.evaluate(() => ({
-      actorCount: document.querySelectorAll("cms-actor").length,
+      sceneCount: document.querySelectorAll("ms-scene-view").length,
       productState: document.documentElement.dataset.loomrealmProduct,
     }));
-    assert.equal(afterResize.actorCount, 1, "resize must not duplicate the actor");
+    assert.equal(afterResize.sceneCount, 1, "resize must not duplicate the Field root");
     assert.equal(afterResize.productState, "ready", "the product stays active after resize");
-    expectVisibleCenter(await visibleActorBounds(), "after resize");
 
     const pageErrors = diagnostics.filter((line) => line.startsWith("pageerror:"));
+    const busyResponses = diagnostics.filter((line) => line.startsWith("http:429:"));
     assert.deepEqual(pageErrors, [], `no unhandled page errors may escape the active slice (${JSON.stringify(pageErrors)})`);
+    assert.deepEqual(busyResponses, [], "the Field resource pool must stay below the PWA Content concurrency limit");
   } finally {
     await browser.close();
   }

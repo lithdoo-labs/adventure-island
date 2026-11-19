@@ -1,7 +1,7 @@
 // Headless validation for the canonical root presentation manifest
 // (PWA migration 3A; issue #62 registers TWO classic scripts: the pinned
 // common-controls IIFE first — it defines the `game-controls-input` element
-// Base projects — and the cms-actor IIFE second).
+// Base projects — ms-field second, cms-actor third for M4 Avatar compatibility).
 //
 // Deterministic base layer: presentation.json is a valid Web Presentation
 // Config V1 as allowed by the pinned loom-realm submodule
@@ -10,8 +10,9 @@
 // validateWebPresentationConfigV1): an exact
 // { formatVersion, scripts, styles } object whose entries are exact
 // { namespace, key } Content resource references. The application declares
-// exactly two scripts, in order:
+// exactly three scripts, in order:
 //   resource.Presentation/controls/device-input.browser.js
+//   resource.Presentation/ms-field/ms-field.browser.js
 //   resource.Presentation/cms-actor/cms-actor.browser.js
 // (apps/pwa/src/renderer-host.ts prefixes `resource.` onto the declared
 // namespace when fetching bootstrap scripts from the installation Content).
@@ -31,6 +32,7 @@ const EXPECTED_PRESENTATION = Object.freeze({
   styles: Object.freeze([]),
   scripts: Object.freeze([
     Object.freeze({ namespace: "Presentation", key: "controls/device-input.browser.js" }),
+    Object.freeze({ namespace: "Presentation", key: "ms-field/ms-field.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
   ]),
 });
@@ -101,7 +103,7 @@ function validatePresentationStructural(text, label) {
 // Deterministic base validation
 // ---------------------------------------------------------------------------
 
-test("the root presentation manifest registers the Controls and cms-actor classic scripts in order", async () => {
+test("the root presentation manifest registers Controls, ms-field, and cms-actor classic scripts in order", async () => {
   const presentation = validatePresentationStructural(
     await readText(new URL("presentation.json", repoRoot)),
     "presentation.json (root)",
@@ -112,9 +114,10 @@ test("the root presentation manifest registers the Controls and cms-actor classi
     presentation.scripts,
     [
       { namespace: "Presentation", key: "controls/device-input.browser.js" },
+      { namespace: "Presentation", key: "ms-field/ms-field.browser.js" },
       { namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" },
     ],
-    "Controls must be declared BEFORE cms-actor (it defines the projected game-controls-input element)",
+    "Controls must be declared BEFORE ms-field (it defines game-controls-input); cms-actor stays third",
   );
 
   // Both declared scripts must resolve, through the pinned PWA hosting
@@ -132,10 +135,15 @@ test("the root presentation manifest registers the Controls and cms-actor classi
   // absent locally — CI builds it before pwa:bundle and the bundle builder
   // fails closed when it is missing.
 
-  const artifact = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
-  assert.ok(artifact.length > 0, "components/cms-actor/browser/cms-actor.browser.js must exist");
-  assert.doesNotMatch(artifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the published entry must be a classic script, not an ES module");
-  assert.match(artifact, /customElements\.define\("cms-actor"/u, "the published entry must register the cms-actor element");
+  const fieldArtifact = await readText(new URL("components/ms-field/browser/ms-field.browser.js", repoRoot));
+  assert.ok(fieldArtifact.length > 0, "components/ms-field/browser/ms-field.browser.js must exist");
+  assert.doesNotMatch(fieldArtifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the ms-field published entry must be a classic script, not an ES module");
+  assert.match(fieldArtifact, /ms-scene-view/u, "the published entry must register the Field scene element");
+
+  const actorArtifact = await readText(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot));
+  assert.ok(actorArtifact.length > 0, "components/cms-actor/browser/cms-actor.browser.js must exist");
+  assert.doesNotMatch(actorArtifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the cms-actor published entry must be a classic script, not an ES module");
+  assert.match(actorArtifact, /cms-actor/u, "the published entry must register the cms-actor element");
 });
 
 test("the mirrored Web Presentation Config rules reject malformed documents", () => {

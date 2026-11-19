@@ -32,11 +32,11 @@ function renumberStackRanks(children) {
   }));
 }
 
-function insertPlayerChildren(children, player) {
+function insertPlayerChildren(children, player, avatarPlan = null) {
   const key = playerSortKey(player);
   let insertAt = children.findIndex((child) => key < childSortKey(child));
   if (insertAt < 0) insertAt = children.length;
-  const playerNode = createPlayerWorldItem(player, { stackRank: insertAt + 1 });
+  const playerNode = createPlayerWorldItem(player, { stackRank: insertAt + 1, avatarPlan });
   const next = [...children];
   next.splice(insertAt, 0, playerNode);
   return renumberStackRanks(next);
@@ -80,7 +80,7 @@ export async function buildFieldProjection(options = {}) {
     ? { cameraX: options.cameraX, cameraY: options.cameraY }
     : cameraForViewport(fieldState.player, viewport, map.scene.bounds);
 
-  children = insertPlayerChildren(children, fieldState.player);
+  children = insertPlayerChildren(children, fieldState.player, options.avatarPlan ?? null);
 
   const root = Object.freeze({
     ...map.projection.root,

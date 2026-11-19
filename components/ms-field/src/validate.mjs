@@ -1,9 +1,12 @@
 import {
   FIELD_CANVAS_LIMITS,
   FIELD_INPUT_LIMITS,
-  M3_AVATAR_SLOT_TAG,
+  MS_ACTION_TAG,
+  MS_AVATAR_TAG,
   FIELD_SCENE_CHILD_TAGS,
 } from "./limits.mjs";
+import { validateAvatarRenderData, validateMsActionData } from "../../ms-avatar/src/avatar-render-data.mjs";
+import { AVATAR_RENDER_LIMITS } from "../../ms-avatar/src/limits.mjs";
 
 const DECIMAL = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?$/;
 const RANK = /^[1-9][0-9]*$/;
@@ -14,7 +17,15 @@ const BATCH_ATTRS = Object.freeze(["stack-rank", "visible"]);
 const WORLD_ATTRS = Object.freeze(["stack-rank", "visible", "world-x", "world-y"]);
 const BACK_ATTRS = Object.freeze(["stack-rank", "visible", "view-x", "view-y"]);
 const MARKER_ATTRS = Object.freeze([]);
-const AVATAR_SLOT_ATTRS = Object.freeze([]);
+const AVATAR_ATTRS = Object.freeze([
+  "action",
+  "facing",
+  "expression",
+  "one-shot-enabled",
+  "frame-index",
+  "elapsed-ms",
+]);
+const ACTION_ATTRS = Object.freeze(["name"]);
 
 function invalid(code, path, detail) {
   return Object.freeze({ ok: false, code, path, detail });
@@ -61,6 +72,17 @@ function finiteDecimal(value, path) {
 function visibleValue(value, path) {
   if (value !== "true" && value !== "false") return invalid("INPUT_INVALID", path, "must be true or false");
   return valid(value === "true");
+}
+
+function nonNegativeDecimalInteger(value, path, max) {
+  if (typeof value !== "string" || !/^-?\d+$/.test(value)) {
+    return invalid("INPUT_INVALID", path, "must be a canonical decimal integer string");
+  }
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < 0 || number > max) {
+    return invalid("INPUT_INVALID", path, "must be an in-range safe integer");
+  }
+  return valid(number);
 }
 
 function stackRank(value, path) {
@@ -526,42 +548,35 @@ export function validateBackData(data) {
   return valid({ placementId: placementId.value, image: image.value, sortKey: data.provenance.sortKey });
 }
 
-export function validateAvatarSlotData(data) {
-  if (!plainObject(data) || !sameKeys(data, ["color", "height", "localX", "localY", "m4TargetTag", "phase", "width"])) {
-    return invalid("INPUT_INVALID", "data", "avatar slot data must contain m4TargetTag, phase, width, height, color, localX, and localY");
+export function validateAvatarAttrs(attrs) {
+  if (!plainObject(attrs) || !sameKeys(attrs, AVATAR_ATTRS)) {
+    return invalid("INPUT_INVALID", "attrs", "ms-avatar attrs must include action, facing, expression, clock, and one-shot-enabled");
   }
-  if (data.m4TargetTag !== "ms-avatar") {
-    return invalid("UNSUPPORTED_CAPABILITY", "data.m4TargetTag", "M3 slot must declare ms-avatar handoff target");
+  if (typeof attrs.action !== "string" || attrs.action.length === 0) {
+    return invalid("INPUT_INVALID", "attrs.action", "action must be non-empty");
   }
-  const width = safeInteger(data.width, "data.width", { min: 1, max: FIELD_CANVAS_LIMITS.maxCanvasWidth });
-  if (!width.ok) return width;
-  const height = safeInteger(data.height, "data.height", { min: 1, max: FIELD_CANVAS_LIMITS.maxCanvasHeight });
-  if (!height.ok) return height;
-  if (width.value * height.value > FIELD_CANVAS_LIMITS.maxCanvasPixels) {
-    return invalid("RESOURCE_LIMIT", "data", "avatar slot pixel budget exceeded");
+  if (attrs.facing !== "left" && attrs.facing !== "right") {
+    return invalid("INPUT_INVALID", "attrs.facing", "facing must be left or right");
   }
-  if (!plainObject(data.color) || !sameKeys(data.color, ["a", "b", "g", "r"])) {
-    return invalid("INPUT_INVALID", "data.color", "color must contain r, g, b, a");
+  if (typeof attrs.expression !== "string" || attrs.expression.length === 0) {
+    return invalid("INPUT_INVALID", "attrs.expression", "expression must be non-empty");
   }
-  const color = {};
-  for (const channel of ["r", "g", "b", "a"]) {
-    const parsed = safeInteger(data.color[channel], `data.color.${channel}`, { min: 0, max: 255 });
-    if (!parsed.ok) return parsed;
-    color[channel] = parsed.value;
+  if (attrs["one-shot-enabled"] !== "true" && attrs["one-shot-enabled"] !== "false") {
+    return invalid("INPUT_INVALID", "attrs.one-shot-enabled", "one-shot-enabled must be true or false");
   }
-  const localX = safeInteger(data.localX, "data.localX");
-  if (!localX.ok) return localX;
-  const localY = safeInteger(data.localY, "data.localY");
-  if (!localY.ok) return localY;
-  return valid({
-    m4TargetTag: data.m4TargetTag,
-    phase: data.phase,
-    width: width.value,
-    height: height.value,
-    color,
-    localX: localX.value,
-    localY: localY.value,
-  });
+  const frameIndex = nonNegativeDecimalInteger(attrs["frame-index"], "attrs.frame-index", 1_000_000);
+  if (!frameIndex.ok) return frameIndex;
+  const elapsedMs = nonNegativeDecimalInteger(attrs["elapsed-ms"], "attrs.elapsed-ms", 86_400_000);
+  if (!elapsedMs.ok) return elapsedMs;
+  return valid({ ...attrs });
+}
+
+export function validateAvatarData(data) {
+  try {
+    return valid(validateAvatarRenderData(data));
+  } catch (cause) {
+    return invalid("APPEARANCE_INVALID", "data", cause instanceof Error ? cause.message : String(cause));
+  }
 }
 
 export function validateMarkerData(data) {
@@ -666,17 +681,48 @@ function validatePaintUnitChild(child, { keys, ranks, placements, actors }) {
     ranks.add(attrs.value.stackRank);
     if (actors.has(data.value.actorVisualId)) return invalid("INPUT_INVALID", "data.actorVisualId", "duplicate actor presentation id");
     actors.add(data.value.actorVisualId);
-    if (child.children.length !== 1) return invalid("INPUT_INVALID", "children", "world item must contain exactly one avatar slot");
-    const slot = child.children[0];
-    const slotShape = nodeShape(slot);
-    if (!slotShape.ok) return slotShape;
-    if (slot.tag !== M3_AVATAR_SLOT_TAG) return invalid("INPUT_INVALID", "tag", "M3 avatar slot tag is required");
-    if (keys.has(slot.key)) return invalid("INPUT_INVALID", "key", "duplicate render key");
-    keys.add(slot.key);
-    if (!sameKeys(slot.attrs, AVATAR_SLOT_ATTRS)) return invalid("INPUT_INVALID", "attrs", "avatar slot attrs must be empty");
-    const slotData = validateAvatarSlotData(slot.data);
-    if (!slotData.ok) return slotData;
-    if (slot.children.length !== 0) return invalid("INPUT_INVALID", "children", "avatar slot children must be empty");
+    if (child.children.length !== 1) return invalid("INPUT_INVALID", "children", "world item must contain exactly one ms-avatar");
+    const avatar = child.children[0];
+    const avatarShape = nodeShape(avatar);
+    if (!avatarShape.ok) return avatarShape;
+    if (avatar.tag !== MS_AVATAR_TAG) return invalid("INPUT_INVALID", "tag", "ms-avatar child is required");
+    if (keys.has(avatar.key)) return invalid("INPUT_INVALID", "key", "duplicate render key");
+    keys.add(avatar.key);
+    const avatarAttrs = validateAvatarAttrs(avatar.attrs);
+    if (!avatarAttrs.ok) return avatarAttrs;
+    const avatarData = validateAvatarData(avatar.data);
+    if (!avatarData.ok) return avatarData;
+    if (avatar.children.length === 0 || avatar.children.length > AVATAR_RENDER_LIMITS.maxActionChildren) {
+      return invalid("RESOURCE_LIMIT", "children", "ms-avatar action child count is outside the budget");
+    }
+    const actionNames = new Set();
+    for (const actionNode of avatar.children) {
+      const actionShape = nodeShape(actionNode);
+      if (!actionShape.ok) return actionShape;
+      if (actionNode.tag !== MS_ACTION_TAG) return invalid("INPUT_INVALID", "tag", "ms-avatar children must be ms-action");
+      if (keys.has(actionNode.key)) return invalid("INPUT_INVALID", "key", "duplicate render key");
+      keys.add(actionNode.key);
+      if (!sameKeys(actionNode.attrs, ACTION_ATTRS)) return invalid("INPUT_INVALID", "attrs", "ms-action attrs must contain name");
+      if (typeof actionNode.attrs.name !== "string" || actionNode.attrs.name.length === 0
+        || actionNode.attrs.name.length > AVATAR_RENDER_LIMITS.maxIdentifierLength) {
+        return invalid("INPUT_INVALID", "attrs.name", "ms-action name must be a bounded non-empty string");
+      }
+      if (actionNames.has(actionNode.attrs.name)) return invalid("DUPLICATE_ACTION", "attrs.name", "duplicate action name");
+      actionNames.add(actionNode.attrs.name);
+      try {
+        validateMsActionData(actionNode.data, avatarData.value.appearance.zOrder, avatarData.value.sprites.items);
+      } catch (cause) {
+        return invalid("ACTION_INVALID", "data.clip", cause instanceof Error ? cause.message : String(cause));
+      }
+      if (actionNode.children.length !== 0) return invalid("INPUT_INVALID", "children", "ms-action children must be empty");
+    }
+    if (!actionNames.has(avatarAttrs.value.action)) {
+      return invalid("ACTION_MISSING", "attrs.action", "retained action must name a child clip");
+    }
+    const activeAction = avatar.children.find((node) => node.attrs.name === avatarAttrs.value.action);
+    if (avatarAttrs.value["frame-index"] >= activeAction.data.clip.frames.length) {
+      return invalid("INPUT_INVALID", "attrs.frame-index", "frame-index exceeds the retained action clip");
+    }
     return valid(null);
   }
   return invalid("UNSUPPORTED_CAPABILITY", "tag", "child tag is outside the M3 field");

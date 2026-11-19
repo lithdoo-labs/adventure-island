@@ -1,24 +1,28 @@
 /**
- * Measured M3 canonical 222000000 budgets (generous over Windows dev baselines).
+ * Measured M4 canonical 222000000 + avatar budgets (generous over Windows dev baselines).
  * Values are enforcement ceilings for tests, not product SLAs.
  */
 import { FIELD_CANVAS_LIMITS } from "../src/limits.mjs";
 
-/** Observed Node projection: 297 map paint units + 1 avatar slot Canvas. */
+/** Observed Node projection: 297 map paint units + 1 ms-avatar Canvas. */
 export const MEASURED_CANVAS_COUNT = 298;
 
 /**
  * FieldPlan / published map resource closure (all resource refs reachable from RenderNode data).
  * Matches PWA `collectMapResourceRefsFromFieldTree` walk semantics (Node, 2026-11-19).
  */
-export const MEASURED_FIELD_PLAN_RESOURCE_CLOSURE = 167;
+export const MEASURED_FIELD_PLAN_RESOURCE_CLOSURE = 171;
 
 /**
  * Underlying Content reads for static first-frame painting on the full 298-host scene.
  * Smaller than the closure because batch nodes ship extra sprite pages not painted on frame 0.
  * Measured after all visual hosts reach `ready` with `resourceActive === 0` (Chromium, 2026-11-19).
  */
-export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 146;
+/** Static first-frame resource identities from projection walk (Node). */
+export const MEASURED_FIRST_FRAME_PAINT_RESOURCE_IDENTITIES = 150;
+
+/** Underlying client Content reads after full canonical Chromium first paint. */
+export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 150;
 
 /** @deprecated Use {@link MEASURED_FIELD_PLAN_RESOURCE_CLOSURE}. */
 export const MEASURED_UNIQUE_CONTENT_READS = MEASURED_FIELD_PLAN_RESOURCE_CLOSURE;
@@ -28,8 +32,8 @@ export const MEASURED_MAX_CANVAS_WIDTH = 1890;
 export const MEASURED_MAX_CANVAS_HEIGHT = 573;
 export const MEASURED_MAX_LOCAL_CANVAS_PIXELS = 680_208;
 
-/** Sum of local width×height across every visual Canvas host at DPR 1. */
-export const MEASURED_TOTAL_LOCAL_PIXELS = 19_336_136;
+/** Sum of local width×height across every visual Canvas host at DPR 1 (excludes ms-avatar — runtime-sized). */
+export const MEASURED_TOTAL_LOCAL_PIXELS = 19_335_752;
 
 /** ms-field presentation code caps in-flight underlying reads (PWA rejects above 32). */
 export const RESOURCE_READ_CONCURRENCY = 8;
@@ -54,7 +58,7 @@ const VISUAL_TAGS = new Set([
   "ms-map-back",
   "ms-map-object",
   "ms-portal-visual",
-  "ms-m3-avatar-slot",
+  "ms-avatar",
 ]);
 
 export function expectedLocalCanvasSize(node) {
@@ -69,8 +73,8 @@ export function expectedLocalCanvasSize(node) {
     const source = node.data.frames[0].image.source;
     return { width: source.w, height: source.h };
   }
-  if (node.tag === "ms-m3-avatar-slot") {
-    return { width: node.data.width, height: node.data.height };
+  if (node.tag === "ms-avatar") {
+    return null;
   }
   return null;
 }
@@ -141,6 +145,24 @@ export function collectFirstFramePaintResourceIdentities(root) {
         const page = item ? node.data.sprites.pages[item.page] : null;
         if (page?.resource) add(page.resource);
       }
+    } else if (node.tag === "ms-avatar") {
+      const action = node.attrs?.action;
+      const actionNode = (node.children ?? []).find((child) => child.tag === "ms-action" && child.attrs?.name === action);
+      const frame = actionNode?.data?.clip?.frames?.[0];
+      const catalog = node.data?.sprites;
+      if (frame && catalog?.items && catalog?.pages) {
+        const layers = [...(frame.layers ?? [])];
+        if (frame.showFace !== false) {
+          const expression = node.data?.expressions?.[node.attrs?.expression]
+            ?? node.data?.expressions?.default;
+          layers.push(...(expression?.frames?.[0]?.layers ?? []));
+        }
+        for (const layer of layers) {
+          const item = catalog.items[layer.sprite];
+          const page = item ? catalog.pages[item.page] : null;
+          if (page?.resource) add(page.resource);
+        }
+      }
     }
     for (const child of node.children ?? []) visit(child);
   };
@@ -156,7 +178,10 @@ export function summarizeProjectionCanvasBudget(root) {
   let totalLocalPixels = 0;
   for (const unit of units) {
     const size = expectedLocalCanvasSize(unit);
-    if (!size) throw new Error(`missing local canvas size for ${unit.tag}:${unit.key}`);
+    if (!size) {
+      if (unit.tag !== "ms-avatar") throw new Error(`missing local canvas size for ${unit.tag}:${unit.key}`);
+      continue;
+    }
     maxWidth = Math.max(maxWidth, size.width);
     maxHeight = Math.max(maxHeight, size.height);
     const pixels = size.width * size.height;

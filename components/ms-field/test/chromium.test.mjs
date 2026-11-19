@@ -5,6 +5,7 @@ import path from "node:path";
 import test, { after, before } from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildFieldProjection } from "../src/field-project.mjs";
+import { buildCanonicalAdventureAvatarContent } from "../../../scripts/pwa/read-adventure-fsdb.mjs";
 import { validateFieldTree } from "../src/validate.mjs";
 import {
   BEARER,
@@ -43,14 +44,21 @@ function walkResources(node, sink) {
   for (const child of node.children ?? []) walkResources(child, sink);
 }
 
+const FSDB_BY_NAMESPACE = (gameRoot) => Object.freeze({
+  "resource.Map": path.join(gameRoot, "content", "[FSDB]adventure", "[resource]Map"),
+  "resource.Avatar": path.join(gameRoot, "content", "[FSDB]adventure", "[resource]Avatar"),
+});
+
 async function loadResourceIndex(root, gameRoot) {
   const refs = [];
   walkResources(root, refs);
   const unique = new Map();
   for (const ref of refs) unique.set(`${ref.namespace}\0${ref.key}`, ref);
-  const fsdbRoot = path.join(gameRoot, "content", "[FSDB]adventure", "[resource]Map");
+  const roots = FSDB_BY_NAMESPACE(gameRoot);
   const index = new Map();
   for (const ref of unique.values()) {
+    const fsdbRoot = roots[ref.namespace];
+    if (!fsdbRoot) throw new Error(`unsupported resource namespace ${ref.namespace}`);
     const filePath = path.join(fsdbRoot, `${ref.key.split("/").join(path.sep)}.png`);
     const bytes = await readFile(filePath);
     index.set(`${ref.namespace}\0${ref.key}`, {
@@ -78,10 +86,12 @@ after(async () => {
 });
 
 test("real map field tree keeps player between paint units in WebProjector", { timeout: 120_000 }, async (t) => {
+  const { plan: avatarPlan } = await buildCanonicalAdventureAvatarContent({ gameRoot: repoRoot });
   const projection = await buildFieldProjection({
     gameRoot: repoRoot,
     paintUnitCap: 20,
     viewport: { width: 96, height: 96 },
+    avatarPlan,
   });
   const index = await loadResourceIndex(projection.root, repoRoot);
   const server = await startFieldServer({ index, scriptBytes });
@@ -103,10 +113,10 @@ test("real map field tree keeps player between paint units in WebProjector", { t
   await waitFor(page, () => {
     const scene = document.querySelector("ms-scene-view");
     const player = document.querySelector("ms-world-item");
-    const slot = document.querySelector("ms-m3-avatar-slot");
+    const avatar = document.querySelector("ms-avatar");
     return scene?.diagnostics().state === "ready"
       && player?.diagnostics().state === "ready"
-      && slot?.diagnostics().state === "ready"
+      && avatar?.getAttribute("data-render-state") === "ready"
       && document.querySelectorAll("ms-map-batch, ms-map-back").length > 0;
   }, "field scene ready");
   const inspected = await page.evaluate(() => {
@@ -179,11 +189,13 @@ test("camera update keeps static batch paint counts stable", { timeout: 120_000 
   assert.equal(after.cameraX.trim(), "10px");
 });
 
-test("field scene commits drawable pixels on avatar slot and finite canvases", { timeout: 120_000 }, async (t) => {
+test("field scene commits drawable pixels on ms-avatar and finite canvases", { timeout: 120_000 }, async (t) => {
+  const { plan: avatarPlan } = await buildCanonicalAdventureAvatarContent({ gameRoot: repoRoot });
   const projection = await buildFieldProjection({
     gameRoot: repoRoot,
     paintUnitCap: 20,
     viewport: { width: 96, height: 96 },
+    avatarPlan,
   });
   const index = await loadResourceIndex(projection.root, repoRoot);
   const server = await startFieldServer({ index, scriptBytes });
@@ -204,9 +216,9 @@ test("field scene commits drawable pixels on avatar slot and finite canvases", {
   await page.evaluate((tree) => window.__open(tree), projection.root);
   await waitFor(page, () => {
     const scene = document.querySelector("ms-scene-view");
-    const slot = document.querySelector("ms-m3-avatar-slot");
+    const avatar = document.querySelector("ms-avatar");
     return scene?.diagnostics().state === "ready"
-      && slot?.diagnostics().state === "ready"
+      && avatar?.getAttribute("data-render-state") === "ready"
       && document.querySelectorAll("ms-map-batch, ms-map-back").length > 0;
   }, "field scene ready");
   const pixels = await page.evaluate(() => {
@@ -219,19 +231,20 @@ test("field scene commits drawable pixels on avatar slot and finite canvases", {
       const d = ctx.getImageData(x, y, 1, 1).data;
       return [d[0], d[1], d[2], d[3]];
     };
-    const canvases = [...document.querySelectorAll("ms-map-batch, ms-map-back, ms-m3-avatar-slot")]
+    const canvases = [...document.querySelectorAll("ms-map-batch, ms-map-back, ms-avatar")]
       .map((element) => element.shadowRoot?.querySelector("canvas"))
       .filter((canvas) => canvas && canvas.width > 0 && canvas.height > 0);
     const pixelArea = canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0);
     return {
-      slot: sample(document.querySelector("ms-m3-avatar-slot")),
+      avatar: sample(document.querySelector("ms-avatar")),
       pixelArea,
       canvasCount: canvases.length,
     };
   });
   assert.ok(pixels.canvasCount > 0);
   assert.ok(pixels.pixelArea > 0, "field scene should allocate finite local canvas pixels");
-  assert.deepEqual(pixels.slot?.slice(0, 3), [0, 200, 80]);
+  assert.ok(Array.isArray(pixels.avatar), "ms-avatar should commit non-empty canvas pixels");
+  assert.ok(pixels.avatar[3] > 0, "ms-avatar pixels should be visible");
   assert.deepEqual(page.__pageErrors, []);
   assert.deepEqual(await page.evaluate(() => window.__presentationFailures), []);
 });

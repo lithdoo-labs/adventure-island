@@ -32,6 +32,7 @@ const EXPECTED_PRESENTATION = Object.freeze({
   styles: Object.freeze([]),
   scripts: Object.freeze([
     Object.freeze({ namespace: "Presentation", key: "controls/device-input.browser.js" }),
+    Object.freeze({ namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "ms-field/ms-field.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
   ]),
@@ -103,7 +104,7 @@ function validatePresentationStructural(text, label) {
 // Deterministic base validation
 // ---------------------------------------------------------------------------
 
-test("the root presentation manifest registers Controls, ms-field, and cms-actor classic scripts in order", async () => {
+test("the root presentation manifest registers Controls, ms-avatar, ms-field, and cms-actor classic scripts in order", async () => {
   const presentation = validatePresentationStructural(
     await readText(new URL("presentation.json", repoRoot)),
     "presentation.json (root)",
@@ -114,10 +115,11 @@ test("the root presentation manifest registers Controls, ms-field, and cms-actor
     presentation.scripts,
     [
       { namespace: "Presentation", key: "controls/device-input.browser.js" },
+      { namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" },
       { namespace: "Presentation", key: "ms-field/ms-field.browser.js" },
       { namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" },
     ],
-    "Controls must be declared BEFORE ms-field (it defines game-controls-input); cms-actor stays third",
+    "Controls must load first; the formal ms-avatar artifact must own its tags before the field aggregate fallback",
   );
 
   // Both declared scripts must resolve, through the pinned PWA hosting

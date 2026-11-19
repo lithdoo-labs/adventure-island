@@ -7,6 +7,16 @@ import { fileURLToPath } from "node:url";
 const componentRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sources = [
   path.join(componentRoot, "src", "limits.mjs"),
+  path.join(componentRoot, "src", "resource-read-pool.mjs"),
+  path.join(componentRoot, "..", "cms-actor", "src", "avatar-model.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "limits.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "action-clip.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "avatar-render-data.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "presentation-timing.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "presentation-attrs.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "compose-internal-plan.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "ms-action.mjs"),
+  path.join(componentRoot, "..", "ms-avatar", "src", "ms-avatar.mjs"),
   path.join(componentRoot, "src", "validate.mjs"),
   path.join(componentRoot, "src", "elements.mjs"),
 ];
@@ -19,6 +29,8 @@ function stripModuleSyntax(source) {
   return source
     .replace(/\r\n/g, "\n")
     .replace(/^import\s*\{[\s\S]*?\}\s*from\s*["'][^"']+["'];\s*$/gm, "")
+    .replace(/^import\s+[\s\S]*?\s+from\s*["'][^"']+["'];\s*$/gm, "")
+    .replace(/^export\s+\{[\s\S]*?\};\s*$/gm, "")
     .replace(/^export\s+(?=(const|function|class)\b)/gm, "");
 }
 

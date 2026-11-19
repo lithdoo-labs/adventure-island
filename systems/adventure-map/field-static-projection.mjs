@@ -5,6 +5,7 @@
  */
 import { buildFieldProjection } from "../../components/ms-field/src/field-project.mjs";
 import { createStaticFieldState, FIELD_MAP_222000000 } from "../../components/ms-field/src/field-state.mjs";
+import { buildCanonicalAdventureAvatarContent } from "../../scripts/pwa/read-adventure-fsdb.mjs";
 
 export { FIELD_MAP_222000000, createStaticFieldState };
 
@@ -24,10 +25,14 @@ export async function projectAdventureMapFieldScene(input) {
   if (viewport.width <= 0 || viewport.height <= 0) {
     throw new TypeError("viewport width and height must be positive");
   }
+  const avatarPlan = input.avatarPlan ?? (input.gameRoot
+    ? (await buildCanonicalAdventureAvatarContent({ gameRoot: input.gameRoot })).plan
+    : null);
   return buildFieldProjection({
     gameRoot: input.gameRoot,
     mapId: input.mapId ?? FIELD_MAP_222000000,
     viewport,
     fieldState: input.fieldState ?? createStaticFieldState({ mapId: input.mapId }),
+    avatarPlan,
   });
 }

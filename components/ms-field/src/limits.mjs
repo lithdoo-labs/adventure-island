@@ -18,8 +18,8 @@ export const FIELD_INPUT_LIMITS = Object.freeze({
   stackRankMax: 2_147_483_646,
 });
 
-/** M4 replaces this placeholder child with a real `ms-avatar` host. */
-export const M3_AVATAR_SLOT_TAG = "ms-m3-avatar-slot";
+export const MS_AVATAR_TAG = "ms-avatar";
+export const MS_ACTION_TAG = "ms-action";
 
 export const FIELD_SCENE_CHILD_TAGS = Object.freeze([
   "ms-map-back",

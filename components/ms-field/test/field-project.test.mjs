@@ -19,8 +19,7 @@ test("synthetic map field projection inserts player with unified stack-ranks", a
   const playerKey = playerSortKey(projection.fieldState.player);
   const playerChild = projection.root.children.find((child) => child.key === "player:adventure");
   assert.ok(playerChild);
-  assert.equal(playerChild.children[0].tag, "ms-m3-avatar-slot");
-  assert.equal(playerChild.children[0].data.m4TargetTag, "ms-avatar");
+  assert.equal(playerChild.children[0].tag, "ms-avatar");
   assert.ok(Number.isFinite(projection.camera.cameraX));
   const keys = stackRankOrder(projection.root.children);
   const mapKeys = projection.map.projection.root.children.map((child) => child.key);

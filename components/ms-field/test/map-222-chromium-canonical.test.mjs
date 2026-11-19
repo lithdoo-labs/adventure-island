@@ -5,6 +5,7 @@ import path from "node:path";
 import test, { after, before } from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildFieldProjection } from "../src/field-project.mjs";
+import { buildCanonicalAdventureAvatarContent } from "../../../scripts/pwa/read-adventure-fsdb.mjs";
 import { validateFieldTree } from "../src/validate.mjs";
 import {
   CANONICAL_FIELD_BUDGETS,
@@ -52,14 +53,21 @@ function walkResources(node, sink) {
   for (const child of node.children ?? []) walkResources(child, sink);
 }
 
+const FSDB_BY_NAMESPACE = (gameRoot) => Object.freeze({
+  "resource.Map": path.join(gameRoot, "content", "[FSDB]adventure", "[resource]Map"),
+  "resource.Avatar": path.join(gameRoot, "content", "[FSDB]adventure", "[resource]Avatar"),
+});
+
 async function loadResourceIndex(root, gameRoot) {
   const refs = [];
   walkResources(root, refs);
   const unique = new Map();
   for (const ref of refs) unique.set(`${ref.namespace}\0${ref.key}`, ref);
-  const fsdbRoot = path.join(gameRoot, "content", "[FSDB]adventure", "[resource]Map");
+  const roots = FSDB_BY_NAMESPACE(gameRoot);
   const index = new Map();
   for (const ref of unique.values()) {
+    const fsdbRoot = roots[ref.namespace];
+    if (!fsdbRoot) throw new Error(`unsupported resource namespace ${ref.namespace}`);
     const filePath = path.join(fsdbRoot, `${ref.key.split("/").join(path.sep)}.png`);
     const bytes = await readFile(filePath);
     index.set(`${ref.namespace}\0${ref.key}`, {
@@ -87,9 +95,11 @@ after(async () => {
 });
 
 test("canonical 222000000 full WebProjector scene: all visual canvases, ranks, budgets, camera", { timeout: 360_000 }, async (t) => {
+  const { plan: avatarPlan } = await buildCanonicalAdventureAvatarContent({ gameRoot: repoRoot });
   const projection = await buildFieldProjection({
     gameRoot: repoRoot,
     viewport: { width: 800, height: 600 },
+    avatarPlan,
   });
   assert.equal(validateFieldTree(projection.root).ok, true);
   assert.equal(projection.root.children.length, 298);
@@ -130,7 +140,7 @@ test("canonical 222000000 full WebProjector scene: all visual canvases, ranks, b
     };
     const scene = document.querySelector("ms-scene-view");
     const hosts = [
-      ...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-m3-avatar-slot"),
+      ...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar"),
     ];
     const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
     let maxWidth = 0;
@@ -223,6 +233,60 @@ test("canonical 222000000 full WebProjector scene: all visual canvases, ranks, b
   }));
   assert.deepEqual(afterCamera.paints, beforePaints);
   assert.equal(afterCamera.cameraX.trim(), "15px");
+
+  const beforeWorldMove = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
+  await page.evaluate(() => window.__update([{
+    op: "update",
+    key: "player:adventure",
+    attrs: { set: { "world-x": "1340", "world-y": "220" } },
+  }]));
+  await waitFor(page, () => {
+    const player = document.querySelector("ms-world-item");
+    return player?.getAttribute("world-x") === "1340"
+      && player.getAttribute("world-y") === "220";
+  }, "player world host moved");
+  const afterWorldMove = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+    hostStyle: document.querySelector("ms-world-item").shadowRoot.querySelector("style").textContent,
+  }));
+  assert.deepEqual(afterWorldMove.staticPaints, beforeWorldMove.staticPaints,
+    "world position updates must not repaint static map canvases");
+  assert.equal(afterWorldMove.avatarRounds, beforeWorldMove.avatarRounds,
+    "world position updates must not repaint the local avatar canvas");
+  assert.match(afterWorldMove.hostStyle, /left:1340px; top:220px;/,
+    "world position belongs to the outer ms-world-item host");
+
+  const beforeAction = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
+  await page.evaluate(() => window.__update([{
+    op: "update",
+    key: "player:adventure:avatar",
+    attrs: { set: { action: "walk1", facing: "left", "frame-index": "1", "elapsed-ms": "180" } },
+  }]));
+  await waitFor(page, () => {
+    const avatar = document.querySelector("ms-avatar");
+    return avatar?.getAttribute("data-action") === "walk1"
+      && avatar.getAttribute("data-frame") === "1"
+      && avatar.diagnostics().paintPending === false;
+  }, "avatar action frame projected");
+  const afterAction = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
+  assert.deepEqual(afterAction.staticPaints, beforeAction.staticPaints,
+    "avatar action updates must not repaint static map canvases");
+  assert.ok(afterAction.avatarRounds > beforeAction.avatarRounds,
+    "avatar action updates must repaint the local avatar canvas");
 
   assert.deepEqual(page.__pageErrors, []);
   assert.deepEqual(await page.evaluate(() => window.__presentationFailures), []);

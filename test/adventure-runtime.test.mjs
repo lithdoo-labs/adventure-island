@@ -315,8 +315,9 @@ function pressDirection(harness, button, held) {
   harness.eventsHarness.dispatch("controls.event", "input.event", { action: "down", button, repeat: false });
 }
 
-test("T2: the Map projects the static Field scene and reprojects camera on resize", async () => {
+test("T2: the Map projects the static Field scene and reprojects camera on resize", async (t) => {
   const harness = startMapFrame();
+  t.after(() => harness.frame.abort());
   const outcome = harness.outcome;
   await settle();
 
@@ -340,11 +341,18 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   pressDirection(harness, "left");
   pressDirection(harness, "right");
   await settle();
-  assert.equal(
-    harness.domain().updates.length,
-    updatesBeforeInput,
-    "static M3 keeps the Controls consumer without projecting locomotion",
+  assert.ok(
+    harness.domain().updates.length > updatesBeforeInput,
+    "M4 projects locomotion/facing to ms-avatar attrs from Controls",
   );
+  const avatarUpdate = harness.domain().updates.find((update) => update.nodes?.[0]?.key === "player:adventure:avatar");
+  assert.ok(avatarUpdate, "controls input must update the nested ms-avatar node");
+  pressDirection(harness, "up");
+  await settle();
+  assert.ok(harness.domain().updates.some((update) => (
+    update.nodes?.[0]?.key === "player:adventure:avatar"
+      && update.nodes[0].attrs?.set?.action === "jump"
+  )), "up must select the projected jump action");
 
   harness.viewportHarness.notify({ width: 1000, height: 500 });
   await settle();
@@ -367,8 +375,12 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   assert.equal(harness.domain().updates.length, before, "null/zero viewports do not project");
 
   for (const update of harness.domain().updates) {
-    assert.equal(update.nodes?.[0]?.key, FIELD_SCENE_ROOT_KEY);
-    assert.equal(update.nodes?.[0]?.data, undefined, "camera updates must not resend scene data");
+    const key = update.nodes?.[0]?.key;
+    assert.ok(
+      key === FIELD_SCENE_ROOT_KEY || key === "player:adventure:avatar",
+      `updates must target camera or avatar attrs only (saw ${key})`,
+    );
+    assert.equal(update.nodes?.[0]?.data, undefined, "projection updates must not resend scene data");
   }
 
   harness.frame.abort();

@@ -1,7 +1,7 @@
-import { FIELD_CANVAS_LIMITS, M3_AVATAR_SLOT_TAG } from "./limits.mjs";
+import { FIELD_CANVAS_LIMITS } from "./limits.mjs";
+import { readSharedResource } from "./resource-read-pool.mjs";
 import {
   placementDestRect,
-  validateAvatarSlotData,
   validateBackAttrs,
   validateBackData,
   validateBatchAttrs,
@@ -48,82 +48,6 @@ function failureCode(error) {
   if (error?.code === "CONTENT_CONFLICT") return "CONTENT_IDENTITY_MISMATCH";
   if (error?.code === "CONTENT_CANCELLED" || error?.name === "AbortError") return "STALE_RENDER_RESULT";
   return "IMAGE_INVALID";
-}
-
-// A Field may project hundreds of finite Canvas paint units while many of
-// them reference the same immutable Content object.  The PWA Content route
-// deliberately rejects more than 32 concurrent reads, so presentation code
-// must not turn one projection commit into an unbounded request burst.
-// Pools are scoped to the Renderer resource client: successful immutable
-// reads are shared by identity and no cache survives the client itself.
-const RESOURCE_READ_CONCURRENCY = 8;
-const resourcePools = new WeakMap();
-
-function resourcePool(client) {
-  let pool = resourcePools.get(client);
-  if (pool !== undefined) return pool;
-  pool = { active: 0, queue: [], entries: new Map() };
-  resourcePools.set(client, pool);
-  return pool;
-}
-
-function pumpResourcePool(pool) {
-  while (pool.active < RESOURCE_READ_CONCURRENCY && pool.queue.length > 0) {
-    const task = pool.queue.shift();
-    pool.active += 1;
-    void task().finally(() => {
-      pool.active -= 1;
-      pumpResourcePool(pool);
-    });
-  }
-}
-
-function cancelledResourceRead() {
-  return Object.assign(new Error("content request cancelled"), {
-    code: "CONTENT_CANCELLED",
-    name: "AbortError",
-  });
-}
-
-function waitForSharedResource(promise, signal) {
-  if (signal?.aborted) return Promise.reject(cancelledResourceRead());
-  if (signal === undefined) return promise;
-  return new Promise((resolve, reject) => {
-    const abort = () => reject(cancelledResourceRead());
-    signal.addEventListener("abort", abort, { once: true });
-    promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", abort));
-  });
-}
-
-function readSharedResource(client, namespace, key, contentVersion, signal) {
-  if (client === null || typeof client !== "object" || typeof client.resource !== "function") {
-    return Promise.reject(Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" }));
-  }
-  const pool = resourcePool(client);
-  const identity = `${namespace}\0${key}\0${contentVersion}`;
-  let entry = pool.entries.get(identity);
-  if (entry === undefined) {
-    let resolveEntry;
-    let rejectEntry;
-    const promise = new Promise((resolve, reject) => {
-      resolveEntry = resolve;
-      rejectEntry = reject;
-    });
-    entry = { promise };
-    pool.entries.set(identity, entry);
-    pool.queue.push(async () => {
-      try {
-        // The shared underlying read belongs to the resource-client lifetime,
-        // not to one paint unit.  Individual disconnects only stop waiting.
-        resolveEntry(await client.resource(namespace, key, contentVersion));
-      } catch (error) {
-        if (pool.entries.get(identity) === entry) pool.entries.delete(identity);
-        rejectEntry(error);
-      }
-    });
-    pumpResourcePool(pool);
-  }
-  return waitForSharedResource(entry.promise, signal);
 }
 
 class SpikeElement extends SpikeHTMLElement {
@@ -850,89 +774,6 @@ export class MsWorldItem extends SpikeElement {
   }
 }
 
-export class MsM3AvatarSlot extends SpikeElement {
-  static get observedAttributes() {
-    return [];
-  }
-
-  constructor() {
-    super();
-    this._paintedSignature = null;
-  }
-
-  _installShadow() {
-    const shadow = this.attachShadow({ mode: "open" });
-    this._style = document.createElement("style");
-    this._canvas = document.createElement("canvas");
-    this._canvas.setAttribute("aria-hidden", "true");
-    shadow.append(this._style, this._canvas);
-    this._writeHost(false, { localX: 0, localY: 0, width: 0, height: 0 });
-  }
-
-  _writeHost(shown, box = this._box) {
-    this._desiredVisible = shown;
-    this._box = box;
-    if (!this._style || !box) return;
-    this._style.textContent = `
-      :host {
-        position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:auto;
-        left:${cssPx(box.localX)}; top:${cssPx(box.localY)}; width:${cssPx(box.width)}; height:${cssPx(box.height)};
-        ${shown ? "" : "visibility:hidden;"}
-      }
-      canvas { display:block; image-rendering:pixelated; }
-    `;
-  }
-
-  _clearCanvas() {
-    if (!this._canvas) return;
-    this._canvas.width = 0;
-    this._canvas.height = 0;
-    this._clearCommits += 1;
-  }
-
-  _applyInput() {
-    if (!this._canvas) return;
-    const declared = readDeclaredAttrs(this);
-    if (!declared.ok) return this._failInput(declared);
-    if (this._data === undefined) return;
-    const data = validateAvatarSlotData(this._data);
-    if (!data.ok) return this._failInput(data);
-    const signature = JSON.stringify(data.value);
-    const box = data.value;
-    if (signature === this._paintedSignature && this._state === "ready") {
-      this._writeHost(true, box);
-      return;
-    }
-    const ratio = deviceRatio();
-    if (ratio === null) return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the spike budget" });
-    const deviceW = Math.round(box.width * ratio);
-    const deviceH = Math.round(box.height * ratio);
-    if (deviceW * deviceH > FIELD_CANVAS_LIMITS.maxCanvasPixels) {
-      return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "marker pixel budget exceeded" });
-    }
-    const offscreen = document.createElement("canvas");
-    offscreen.width = deviceW;
-    offscreen.height = deviceH;
-    const context = offscreen.getContext("2d");
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.imageSmoothingEnabled = false;
-    const { r, g, b, a } = box.color;
-    context.fillStyle = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-    context.fillRect(0, 0, box.width, box.height);
-    this._canvas.width = deviceW;
-    this._canvas.height = deviceH;
-    this._canvas.style.width = cssPx(box.width);
-    this._canvas.style.height = cssPx(box.height);
-    this._canvas.getContext("2d").drawImage(offscreen, 0, 0);
-    this._paintCommits += 1;
-    this._paintedSignature = signature;
-    this._state = "ready";
-    this._code = null;
-    this._detail = "";
-    this._writeHost(true, box);
-  }
-}
-
 function defineFieldElements() {
   if (typeof customElements === "undefined") return;
   const entries = [
@@ -942,7 +783,6 @@ function defineFieldElements() {
     ["ms-map-object", MsMapObject],
     ["ms-portal-visual", MsPortalVisual],
     ["ms-world-item", MsWorldItem],
-    [M3_AVATAR_SLOT_TAG, MsM3AvatarSlot],
   ];
   for (const [tag, constructor] of entries) {
     if (customElements.get(tag) === undefined) customElements.define(tag, constructor);

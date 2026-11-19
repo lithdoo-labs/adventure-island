@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   ACTOR_SCRIPT_KEY,
+  AVATAR_SCRIPT_KEY,
   CONTROLS_SCRIPT_KEY,
   FIELD_SCRIPT_KEY,
   buildCanonicalAdventurePwaContent,
@@ -22,7 +23,7 @@ import { COLORS, FRAME_MARKERS } from "../components/cms-actor/test/synthetic-fs
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
 const canonicalAdventure = await buildCanonicalAdventurePwaContent();
-const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 3;
+const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 4;
 const FIXTURE_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
 
 // Resolve Playwright from the exact pinned framework workspace installed by CI.
@@ -87,7 +88,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         presentationState: document.documentElement.dataset.loomrealmPresentation ?? null,
         presentationError: document.documentElement.dataset.loomrealmPresentationError ?? null,
         msSceneViewRegistered: typeof customElements.get("ms-scene-view"),
-        msAvatarSlotRegistered: typeof customElements.get("ms-m3-avatar-slot"),
+        msAvatarRegistered: typeof customElements.get("ms-avatar"),
+        msActionRegistered: typeof customElements.get("ms-action"),
         cmsActorRegistered: typeof customElements.get("cms-actor"),
         controlsInputRegistered: typeof customElements.get("game-controls-input"),
         controlled: navigator.serviceWorker.controller !== null,
@@ -105,7 +107,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(evidence.presentationState, "ready", `the canonical presentation bootstrap must succeed: ${JSON.stringify({ diagnostics, evidence })}`);
     assert.equal(evidence.presentationError, null, JSON.stringify({ diagnostics, evidence }));
     assert.equal(evidence.msSceneViewRegistered, "function", "the canonical staging must bootstrap the ms-field classic script through the Service Worker Content route");
-    assert.equal(evidence.msAvatarSlotRegistered, "function", "the ms-field script must register the M3 avatar slot");
+    assert.equal(evidence.msAvatarRegistered, "function", "the ms-avatar classic script must register ms-avatar");
+    assert.equal(evidence.msActionRegistered, "function", "the ms-avatar classic script must register ms-action");
     assert.equal(evidence.cmsActorRegistered, "function", "the canonical cms-actor classic script must register cms-actor");
     assert.equal(evidence.controlsInputRegistered, "function", "the pinned Controls classic script must register game-controls-input");
     assert.equal(evidence.controlled, true, JSON.stringify({ diagnostics, evidence }));
@@ -116,6 +119,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(evidence.contentCount, CANONICAL_CONTENT_COUNT);
     assert.deepEqual(evidence.presentationScripts, [
       { namespace: "Presentation", key: CONTROLS_SCRIPT_KEY },
+      { namespace: "Presentation", key: AVATAR_SCRIPT_KEY },
       { namespace: "Presentation", key: FIELD_SCRIPT_KEY },
       { namespace: "Presentation", key: ACTOR_SCRIPT_KEY },
     ]);
@@ -126,6 +130,18 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       const scene = document.querySelector("ms-scene-view");
       return scene?.diagnostics?.().state === "ready";
     }, null, { timeout: 120_000 });
+    await page.waitForFunction(() => {
+      const avatar = document.querySelector("ms-avatar");
+      return avatar?.diagnostics?.().state === "ready"
+        && avatar.getAttribute("data-action") === "stand1";
+    }, null, { timeout: 120_000 });
+    await page.waitForFunction(() => {
+      const hosts = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
+      )];
+      return hosts.length === 298
+        && hosts.every((host) => host.diagnostics?.().state === "ready");
+    }, null, { timeout: 240_000 });
     try {
       await page.waitForFunction(() => {
         const readyObjects = [...document.querySelectorAll("ms-map-object")]
@@ -153,7 +169,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         return count;
       };
       const scene = document.querySelector("ms-scene-view");
-      const slot = document.querySelector("ms-m3-avatar-slot");
+      const avatar = document.querySelector("ms-avatar");
       const sampled = [...document.querySelectorAll("ms-map-object, ms-portal-visual")]
         .filter((unit) => unit.diagnostics?.().state === "ready");
       const ranks = scene ? [...scene.children].map((node) => Number(node.getAttribute("stack-rank"))) : [];
@@ -168,7 +184,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         objectCount: document.querySelectorAll("ms-map-object").length,
         portalCount: document.querySelectorAll("ms-portal-visual").length,
         sampledReadyCount: sampled.length,
-        slotPixels: opaqueCount(slot?.shadowRoot?.querySelector("canvas")),
+        avatarPixels: opaqueCount(avatar?.shadowRoot?.querySelector("canvas")),
         sampledPixels: sampled.map((unit) => ({
           tag: unit.localName,
           stackRank: Number(unit.getAttribute("stack-rank")),
@@ -192,7 +208,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.ok(fieldState.objectCount >= 1, "map objects must be projected");
     assert.ok(fieldState.portalCount >= 1, "portal visuals must be projected");
     assert.ok(fieldState.sampledReadyCount >= 2, "at least one map object and one portal must reach ready");
-    assert.ok(fieldState.slotPixels > 0, "the M3 avatar slot must paint placeholder pixels");
+    assert.ok(fieldState.avatarPixels > 0, "the ms-avatar canvas must commit visible pixels");
     assert.ok(
       fieldState.sampledPixels.length >= 2,
       "the canonical slice must sample ready standalone paint units",
@@ -210,6 +226,37 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         "scene sibling stack-rank must increase with DOM order",
       );
     }
+
+    const beforeAvatarInput = await page.evaluate(() => ({
+      staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+        .map((unit) => unit.diagnostics().paintCommits),
+      avatarRounds: document.querySelector("ms-avatar")?.diagnostics().paintRounds ?? 0,
+    }));
+    await page.keyboard.down("ArrowLeft");
+    await page.waitForFunction(() => {
+      const avatar = document.querySelector("ms-avatar");
+      return avatar?.getAttribute("action") === "walk1"
+        && avatar.getAttribute("facing") === "left"
+        && Number(avatar.getAttribute("frame-index")) > 0
+        && avatar.getAttribute("data-action") === "walk1";
+    }, null, { timeout: 20_000 });
+    await page.keyboard.up("ArrowLeft");
+    await page.waitForFunction(() => document.querySelector("ms-avatar")?.getAttribute("action") === "stand1", null, { timeout: 20_000 });
+    await page.keyboard.down("ArrowUp");
+    await page.waitForFunction(() => {
+      const avatar = document.querySelector("ms-avatar");
+      return avatar?.getAttribute("action") === "jump" && avatar.getAttribute("data-action") === "jump";
+    }, null, { timeout: 20_000 });
+    await page.keyboard.up("ArrowUp");
+    const afterAvatarInput = await page.evaluate(() => ({
+      staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+        .map((unit) => unit.diagnostics().paintCommits),
+      avatarRounds: document.querySelector("ms-avatar")?.diagnostics().paintRounds ?? 0,
+    }));
+    assert.deepEqual(afterAvatarInput.staticPaints, beforeAvatarInput.staticPaints,
+      "avatar action/facing/frame updates must not repaint static map canvases");
+    assert.ok(afterAvatarInput.avatarRounds > beforeAvatarInput.avatarRounds,
+      "avatar action updates must repaint only the local avatar canvas");
 
     await page.setViewportSize({ width: 1000, height: 700 });
     await page.waitForFunction(() => {

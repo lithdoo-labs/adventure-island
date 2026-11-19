@@ -14,7 +14,7 @@ export const BEARER = "Bearer field-token";
 
 export { launchChromium, preparePresentation, waitFor };
 
-/** Full canonical 222000000 static scene: 297 map paint units + avatar slot. */
+/** Full canonical 222000000 static scene: 297 map paint units + one ms-avatar canvas. */
 export const CANONICAL_VISUAL_HOST_COUNT = 298;
 
 /**
@@ -29,7 +29,7 @@ export async function waitForFullCanonicalFieldReady(page, {
     const scene = document.querySelector("ms-scene-view");
     if (scene?.diagnostics().state !== "ready") return false;
     const hosts = [
-      ...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-m3-avatar-slot"),
+      ...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar"),
     ];
     if (hosts.length !== expectedHosts) return false;
     if (!hosts.every((host) => host.diagnostics().state === "ready")) return false;

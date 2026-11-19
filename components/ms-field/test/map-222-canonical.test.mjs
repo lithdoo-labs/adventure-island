@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildFieldProjection, stackRankOrder } from "../src/field-project.mjs";
 import { validateFieldTree } from "../src/validate.mjs";
 import { FIELD_MAP_222000000 } from "../src/field-state.mjs";
+import { buildCanonicalAdventureAvatarContent } from "../../../scripts/pwa/read-adventure-fsdb.mjs";
 import {
   CANONICAL_FIELD_BUDGETS,
   MEASURED_CANVAS_COUNT,
@@ -14,7 +15,7 @@ import {
   MEASURED_MAX_LOCAL_CANVAS_PIXELS,
   MEASURED_TOTAL_LOCAL_PIXELS,
   MEASURED_FIELD_PLAN_RESOURCE_CLOSURE,
-  MEASURED_FIRST_FRAME_UNDERLYING_READS,
+  MEASURED_FIRST_FRAME_PAINT_RESOURCE_IDENTITIES,
   summarizeProjectionCanvasBudget,
 } from "./canonical-budgets.mjs";
 
@@ -23,9 +24,11 @@ const FIELD_HASH_800X600 = "sha256:c2639610e66ba310aaf1398e4bfb238c513616fe67da1
 
 test("canonical 222000000 Node projection: 297 paint units, player, exact ranks, canvas budgets", async () => {
   const started = performance.now();
+  const { plan: avatarPlan } = await buildCanonicalAdventureAvatarContent({ gameRoot: repoRoot });
   const projection = await buildFieldProjection({
     gameRoot: repoRoot,
     viewport: { width: 800, height: 600 },
+    avatarPlan,
   });
   const projectionMs = performance.now() - started;
 
@@ -69,7 +72,7 @@ test("canonical 222000000 Node projection: 297 paint units, player, exact ranks,
   assert.equal(summary.maxLocalCanvasPixels, MEASURED_MAX_LOCAL_CANVAS_PIXELS);
   assert.equal(summary.totalLocalPixels, MEASURED_TOTAL_LOCAL_PIXELS);
   assert.equal(summary.fieldPlanResourceClosure, MEASURED_FIELD_PLAN_RESOURCE_CLOSURE);
-  assert.equal(summary.firstFramePaintResources, MEASURED_FIRST_FRAME_UNDERLYING_READS);
+  assert.equal(summary.firstFramePaintResources, MEASURED_FIRST_FRAME_PAINT_RESOURCE_IDENTITIES);
   assert.ok(summary.firstFramePaintResources < summary.fieldPlanResourceClosure,
     "first-frame paint must not pull the entire FieldPlan closure");
 

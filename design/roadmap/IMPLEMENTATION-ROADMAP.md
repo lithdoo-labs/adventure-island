@@ -269,6 +269,8 @@ FieldState
 
 ## 8. M4：新纸娃娃接入世界
 
+> **路线图状态：2026-11-19 验收门已闭环；组件 ABI 未批准。** 复现命令、实测预算与剩余风险见 [M4-AVATAR-EVIDENCE.md](./M4-AVATAR-EVIDENCE.md)。
+
 ### 8.1 目标
 
 实现 `ms-avatar` 与 `ms-action`，以 render-ready appearance/action 数据驱动局部纸娃娃 Canvas，并由 `ms-world-item` 承担世界位置。
@@ -430,6 +432,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-当前实施基线已经完成 **M0–M3** 的逐级证据闭环。下一实施里程碑为 **M4：新纸娃娃接入世界**；继续保留 `ms-world-item` 的世界坐标与排序职责，以正式 `ms-avatar` + `ms-action` 替换 `ms-m3-avatar-slot`，不得提前把 Movement 或 Portal 权威逻辑放入 Renderer。
+当前实施基线已经完成 **M0–M4** 的逐级证据闭环（M4 见 [M4-AVATAR-EVIDENCE.md](./M4-AVATAR-EVIDENCE.md)；**组件 ABI 未批准**）。下一实施里程碑为 **M5：权威 Movement 与 Camera**；`ms-world-item` 仍负责世界坐标与排序，`ms-avatar` + `ms-action` 已替换 `ms-m3-avatar-slot`，Renderer 仍不持有 Movement / Portal 权威。
 
 2026-11-18–19 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md)、[M1-SPIKE-EVIDENCE.md](M1-SPIKE-EVIDENCE.md)、[M2-ADAPTER-EVIDENCE.md](M2-ADAPTER-EVIDENCE.md) 与 [M3-FIELD-EVIDENCE.md](M3-FIELD-EVIDENCE.md)。M0–M3 已通过对应退出门禁：M3 已在完整 `222000000` 上验证 297 个地图 Paint Unit + Player、298 个有限 Canvas、真实 WebProjector 像素、Content 去重/并发预算、Camera 更新分离、carrier replacement 与 canonical PWA。组件 ABI 仍未批准；Movement、Portal 运行时和 Back type1–4 布局继续保持后续候选。

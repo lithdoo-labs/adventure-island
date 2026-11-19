@@ -1,8 +1,7 @@
 import { avatarSortKey } from "../../ms-map-adapter/src/depth.mjs";
-import { M3_AVATAR_SLOT_TAG } from "./limits.mjs";
+import { buildPlayerAvatarSubtree } from "./avatar-field-projection.mjs";
 
-/** Formal M4 target: replace `ms-m3-avatar-slot` with `ms-avatar` + render-ready appearance. */
-export const M4_AVATAR_TARGET_TAG = "ms-avatar";
+export const MS_AVATAR_TAG = "ms-avatar";
 
 function decimalAttr(value) {
   if (!Number.isFinite(value)) throw new TypeError(`non-finite attr value ${value}`);
@@ -19,11 +18,47 @@ export function playerSortKey(player) {
 
 /**
  * @param {object} player
- * @param {{ stackRank?: number }} [opts]
+ * @param {{ stackRank?: number, avatarPlan?: object }} [opts]
  */
-export function createPlayerWorldItem(player, { stackRank = 1 } = {}) {
+export function createPlayerWorldItem(player, { stackRank = 1, avatarPlan = null } = {}) {
   const sortKey = playerSortKey(player);
   const nodeKey = player.nodeKey ?? "player:adventure";
+  const avatarChild = avatarPlan
+    ? buildPlayerAvatarSubtree(player, avatarPlan)
+    : Object.freeze({
+      key: `${nodeKey}:avatar-pending`,
+      tag: MS_AVATAR_TAG,
+      attrs: Object.freeze({
+        action: "stand1",
+        facing: player.facing ?? "right",
+        expression: "default",
+        "one-shot-enabled": "true",
+        "frame-index": "0",
+        "elapsed-ms": "0",
+      }),
+      data: Object.freeze({
+        appearance: Object.freeze({ zOrder: Object.freeze(["body"]) }),
+        sprites: Object.freeze({ pages: Object.freeze({}), items: Object.freeze({}) }),
+        expressions: Object.freeze({
+          default: Object.freeze({ frames: Object.freeze([Object.freeze({ durationMs: 0, layers: Object.freeze([]) })]) }),
+        }),
+      }),
+      children: Object.freeze([Object.freeze({
+        key: `${nodeKey}:action:stand1`,
+        tag: "ms-action",
+        attrs: Object.freeze({ name: "stand1" }),
+        data: Object.freeze({
+          clip: Object.freeze({
+            playback: Object.freeze({ mode: "hold" }),
+            frames: Object.freeze([Object.freeze({
+              durationMs: 0,
+              layers: Object.freeze([]),
+            })]),
+          }),
+        }),
+        children: Object.freeze([]),
+      })]),
+    });
   return Object.freeze({
     key: nodeKey,
     tag: "ms-world-item",
@@ -43,20 +78,6 @@ export function createPlayerWorldItem(player, { stackRank = 1 } = {}) {
         controllerFlag: Boolean(player.controllerFlag),
       }),
     }),
-    children: Object.freeze([Object.freeze({
-      key: `${nodeKey}:avatar-slot`,
-      tag: M3_AVATAR_SLOT_TAG,
-      attrs: Object.freeze({}),
-      data: Object.freeze({
-        m4TargetTag: M4_AVATAR_TARGET_TAG,
-        phase: "static-placeholder",
-        width: 16,
-        height: 24,
-        localX: -8,
-        localY: -24,
-        color: Object.freeze({ r: 0, g: 200, b: 80, a: 255 }),
-      }),
-      children: Object.freeze([]),
-    })]),
+    children: Object.freeze([avatarChild]),
   });
 }

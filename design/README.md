@@ -14,7 +14,7 @@
 5. Portal 同图移动、跨图准备、提交和场景跳转；
 6. 从候选三图垂直切片扩展到现有 13 图内容闭包。
 
-这些是**产品设计目标**，不是“已经实现”或“已批准 ABI”的声明。当前正式运行路径仍是旧 `cms-*` 垂直切片，新 `ms-*` 组件均未实现。
+这些是**产品设计目标**，不是“已经实现”或“已批准 ABI”的声明。当前 canonical 运行路径已完成 M0–M4 的 `ms-field`、`ms-world-item`、`ms-avatar` 与 `ms-action` 实验闭环；旧 `cms-*` 仍保留兼容用例，但任何 `ms-*` 组件 ABI 都尚未正式批准。
 
 ## 2. 阅读路径
 
@@ -63,7 +63,9 @@ design/
 │  ├─ IMPLEMENTATION-ROADMAP.md
 │  ├─ M0-BASELINE-EVIDENCE.md
 │  ├─ M1-SPIKE-EVIDENCE.md
-│  └─ M2-ADAPTER-EVIDENCE.md
+│  ├─ M2-ADAPTER-EVIDENCE.md
+│  ├─ M3-FIELD-EVIDENCE.md
+│  └─ M4-AVATAR-EVIDENCE.md
 └─ ms-components/
    ├─ README.md
    ├─ FIELD-COMPONENT-TREE-DRAFT.md
@@ -135,7 +137,7 @@ Business Custom Elements
 - CMS079 已闭合 Tile/Obj key、ordered-tree comparator、Avatar 世界插入 key、纸娃娃遮挡、Portal 到达、部分完整物理循环和世界到屏幕 Camera 公式。
 - `[FSDB]adventure` 已包含 13 张地图、地图放置记录、Avatar 结构、Avatar/Map 资源及物理配置。
 - 旧 `cms-actor` 已验证局部 Canvas、资源解码、动画帧和“位置更新不重绘 Avatar”这一更新分离策略。
-- M0 已复验固定 Gitlink、锁定依赖、deterministic bundle、generic PWA staging 与 canonical Service Worker E2E；M1 已通过真实 Renderer Store/WebProjector 验证 managed Light DOM、共同 world-plane、跨类型遮挡、有限 Canvas、identity 保留和静态画面无冗余重绘；M2 已对 `222000000` 建立纯 FSDB 内容闭包与 Adapter/Projection；**M3 验证通过**——`components/ms-field/` 全图 298 Canvas 首帧、`RendererRenderStore` carrier 与 canonical PWA Field 场景已按路线图 7.4 取证（FieldPlan 闭包 167 ≠ 首帧读取 146）；`ms-m3-avatar-slot` 仍为 M4 占位。详见 [M0](./roadmap/M0-BASELINE-EVIDENCE.md)、[M1](./roadmap/M1-SPIKE-EVIDENCE.md)、[M2](./roadmap/M2-ADAPTER-EVIDENCE.md)、[M3](./roadmap/M3-FIELD-EVIDENCE.md) 证据。
+- M0 已复验固定 Gitlink、锁定依赖、deterministic bundle、generic PWA staging 与 canonical Service Worker E2E；M1 已通过真实 Renderer Store/WebProjector 验证 managed Light DOM、共同 world-plane、跨类型遮挡、有限 Canvas、identity 保留和静态画面无冗余重绘；M2 已对 `222000000` 建立纯 FSDB 内容闭包与 Adapter/Projection；M3 已完成静态 Field 验收（历史基线：FieldPlan 闭包 167、首帧读取 146）；**M4 验证通过**——`ms-avatar` + `ms-action` 已替换占位节点，真实 CMS079/FSDB 像素、stand/walk/jump、翻转/遮挡、资源生命周期、局部失效边界和 canonical PWA 均已取证（M4 闭包 171、首帧读取 150）。详见 [M0](./roadmap/M0-BASELINE-EVIDENCE.md)、[M1](./roadmap/M1-SPIKE-EVIDENCE.md)、[M2](./roadmap/M2-ADAPTER-EVIDENCE.md)、[M3](./roadmap/M3-FIELD-EVIDENCE.md)、[M4](./roadmap/M4-AVATAR-EVIDENCE.md) 证据；里程碑完成仍不代表组件 ABI 批准。
 
 ### 尚未批准或仍有证据缺口
 

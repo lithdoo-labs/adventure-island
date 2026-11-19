@@ -514,6 +514,9 @@ test("the root shims and the raw sources must never be published as PWA executab
       "systems/adventure-map/subsystem.mjs",
       [
         "../../components/ms-field/src/camera.mjs",
+        "../../components/ms-avatar/src/presentation-attrs.mjs",
+        "../../components/ms-avatar/src/presentation-timing.mjs",
+        "./avatar-locomotion.mjs",
         "./field-plan-model.mjs",
         "./field-scene-runtime.mjs",
         "@loomrealm/subsystem",

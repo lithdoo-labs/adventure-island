@@ -485,16 +485,152 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.ok(waterPortalReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs);
     t.diagnostic(`M7.1 water portal ready ${waterPortalReadyMs}ms; Canvas ${waterAfterInput.canvasCount}, max ${waterAfterInput.maxWidth}x${waterAfterInput.maxHeight}, total ${waterAfterInput.totalPixels}px`);
 
-    // Trusted water input still changes only authoritative player state and
-    // the avatar/camera projection; newly exposed static units may paint as
-    // the camera moves, so that separate behavior is not folded into the
-    // frame-only invalidation assertion above.
+    // M7.2: audited east00 at x=296/y=-98 matches arrival feet on map C; a fresh
+    // trusted Up edge must replace the water scene with map B land/stand at sea00.
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      const avatar = document.querySelector("ms-avatar");
+      return Number(player?.getAttribute("world-x")) === 296
+        && Number(player?.getAttribute("world-y")) === -98
+        && avatar?.getAttribute("action") === "fly";
+    }, null, { timeout: 20_000 });
+  const landReturnStartedAt = Date.now();
+  await page.keyboard.down("ArrowUp");
+  await page.keyboard.up("ArrowUp");
+  try {
+    await page.waitForFunction(() => {
+      const scene = document.querySelector("ms-scene-view");
+      const avatar = document.querySelector("ms-avatar");
+      return scene?.diagnostics?.().state === "ready"
+        && document.querySelectorAll("ms-scene-view").length === 1
+        && document.querySelectorAll("ms-map-batch").length === 10
+        && document.querySelectorAll("ms-map-object").length === 1
+        && document.querySelectorAll("ms-portal-visual").length === 0
+        && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 6
+        && avatar?.getAttribute("action") === "stand1"
+        && avatar.getAttribute("data-action") === "stand1";
+    }, null, { timeout: M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs });
+  } catch (cause) {
+    const returnFailure = await page.evaluate(() => {
+      const scene = document.querySelector("ms-scene-view");
+      const player = document.querySelector("ms-world-item");
+      const avatar = document.querySelector("ms-avatar");
+      return {
+        sceneCount: document.querySelectorAll("ms-scene-view").length,
+        batches: document.querySelectorAll("ms-map-batch").length,
+        worldX: player?.getAttribute("world-x") ?? null,
+        worldY: player?.getAttribute("world-y") ?? null,
+        action: avatar?.getAttribute("action") ?? null,
+        locomotion: avatar?.getAttribute("locomotion") ?? null,
+        scene: scene?.diagnostics?.() ?? null,
+      };
+    });
+    throw new Error(`M7.2 water→land return did not become ready: ${cause.message}\n${JSON.stringify(returnFailure, null, 2)}`);
+  }
+  const landReturnReadyMs = Date.now() - landReturnStartedAt;
+  assert.ok(landReturnReadyMs <= M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs);
+  const landReturnScene = await page.evaluate(() => {
+    const canvases = [...document.querySelectorAll(
+      "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
+    )].map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+    return {
+      sceneCount: document.querySelectorAll("ms-scene-view").length,
+      canvasCount: canvases.length,
+      maxWidth: Math.max(0, ...canvases.map((canvas) => canvas.width)),
+      maxHeight: Math.max(0, ...canvases.map((canvas) => canvas.height)),
+      maxPixels: Math.max(0, ...canvases.map((canvas) => canvas.width * canvas.height)),
+      totalPixels: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0),
+    };
+  });
+  assert.equal(landReturnScene.sceneCount, 1);
+  assert.ok(landReturnScene.canvasCount <= M6_PORTAL_BUDGETS.maxTargetVisualCanvases);
+  assert.ok(landReturnScene.maxWidth <= M6_PORTAL_BUDGETS.maxTargetCanvasWidth);
+  assert.ok(landReturnScene.maxHeight <= M6_PORTAL_BUDGETS.maxTargetCanvasHeight);
+  assert.ok(landReturnScene.maxPixels <= M6_PORTAL_BUDGETS.maxTargetCanvasPixels);
+  t.diagnostic(`M7.2 C→B land return ${landReturnReadyMs}ms; Canvas ${landReturnScene.canvasCount}`);
+
+    // Safe repeat: B sea00 → C east00 → B sea00; each hop must keep a single scene
+    // root and stay within the existing M6/M7 travel-ready budgets.
+    const repeatStartedAt = Date.now();
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      return Number(player?.getAttribute("world-y")) >= 500
+        && document.querySelector("ms-avatar")?.getAttribute("action") === "stand1";
+    }, null, { timeout: 20_000 });
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.up("ArrowUp");
+    await page.waitForFunction(() => {
+      const avatar = document.querySelector("ms-avatar");
+      return document.querySelectorAll("ms-scene-view").length === 1
+        && document.querySelectorAll("ms-map-back").length === 31
+        && avatar?.getAttribute("action") === "fly"
+        && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 296;
+    }, null, { timeout: M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs });
+    await page.evaluate(() => {
+      const hosts = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual",
+      )];
+      const avatar = document.querySelector("ms-avatar");
+      window.__m72RetiredWater = {
+        hosts,
+        avatar,
+        paintCommits: hosts.map((host) => host.diagnostics().paintCommits),
+      };
+    });
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.up("ArrowUp");
+    await page.waitForFunction(() => {
+      const avatar = document.querySelector("ms-avatar");
+      return document.querySelectorAll("ms-scene-view").length === 1
+        && document.querySelectorAll("ms-map-batch").length === 10
+        && avatar?.getAttribute("action") === "stand1"
+        && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 6;
+    }, null, { timeout: M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs });
+    await page.waitForFunction(() => {
+      const retired = window.__m72RetiredWater;
+      if (!retired || retired.hosts.length !== 136) return false;
+      const currentAvatar = document.querySelector("ms-avatar");
+      return retired.hosts.every((host) => !host.isConnected)
+        && retired.hosts.every((host) => host.shadowRoot?.querySelector("canvas")?.width === 0)
+        && retired.avatar === currentAvatar
+        && currentAvatar?.isConnected === true
+        && currentAvatar.getAttribute("action") === "stand1"
+        && currentAvatar.getAttribute("data-action") === "stand1";
+    }, null, { timeout: 5_000 });
+    const retiredWater = await page.evaluate(async () => {
+      const retired = window.__m72RetiredWater;
+      const before = retired.hosts.map((host) => host.diagnostics().paintCommits);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      const currentAvatar = document.querySelector("ms-avatar");
+      return {
+        before,
+        after: retired.hosts.map((host) => host.diagnostics().paintCommits),
+        allDisconnected: retired.hosts.every((host) => !host.isConnected),
+        avatarIdentityPreserved: retired.avatar === currentAvatar && currentAvatar?.isConnected === true,
+        avatarAction: currentAvatar?.getAttribute("action") ?? null,
+        avatarDataAction: currentAvatar?.getAttribute("data-action") ?? null,
+      };
+    });
+    assert.equal(retiredWater.allDisconnected, true);
+    assert.equal(retiredWater.avatarIdentityPreserved, true,
+      "the preserved player/avatar carrier must survive the static scene replacement");
+    assert.equal(retiredWater.avatarAction, "stand1");
+    assert.equal(retiredWater.avatarDataAction, "stand1",
+      "the retired water plan must not overwrite the retained avatar with a late fly result");
+    assert.deepEqual(retiredWater.after, retiredWater.before,
+      "retired water carriers must reject late async paint commits after replacement");
+    const repeatReadyMs = Date.now() - repeatStartedAt;
+    assert.ok(repeatReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs + M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs);
+    t.diagnostic(`M7.2 B↔C repeat round-trip ${repeatReadyMs}ms`);
+
+    // After the repeat lap we are back on map B at sea00; land locomotion must
+    // still follow trusted keyboard input without duplicating the scene root.
     await page.keyboard.down("ArrowLeft");
     await page.waitForFunction(() => {
       const player = document.querySelector("ms-world-item");
       const avatar = document.querySelector("ms-avatar");
-      return Number(player?.getAttribute("world-x")) < 290
-        && avatar?.getAttribute("action") === "fly"
+      return Number(player?.getAttribute("world-x")) < 0
+        && (avatar?.getAttribute("action") === "walk1" || avatar?.getAttribute("action") === "stand1")
         && avatar.getAttribute("facing") === "left";
     }, null, { timeout: 10_000 });
     await page.keyboard.up("ArrowLeft");

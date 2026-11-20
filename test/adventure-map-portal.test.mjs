@@ -137,6 +137,44 @@ test("failed prepare restore leaves source map id on field state", () => {
   assert.equal(restored.player.worldX, 1);
 });
 
+test("prepareCrossMapPortalCommit loads map222000001 when returning from water east00", async () => {
+  const plans = await buildAllCanonicalAdventureFieldPlans({ gameRoot: repoRoot });
+  const mapC = plans.plans.find((p) => p.mapId === "230030200");
+  const east00 = mapC.portalLogicalIndex.entries.find((p) => p.name === "east00");
+  const scope = {
+    async record(namespace, key) {
+      if (namespace !== FIELD_PLAN_NAMESPACE) throw new Error("unexpected");
+      const match = plans.plans.find((p) => fieldPlanContentKey(p.mapId) === key);
+      if (!match) throw new Error(`missing ${key}`);
+      return Object.freeze({ value: match });
+    },
+  };
+  const prepared = await prepareCrossMapPortalCommit({
+    scope: { content: scope },
+    signal: new AbortController().signal,
+    sourcePlan: mapC,
+    fieldState: {
+      ...mapC.fieldState,
+      mapId: "230030200",
+      portalTravel: { phase: "preparing", activeToken: 4, sceneEpoch: 2 },
+    },
+    movementState: createMovementState({
+      worldX: 296,
+      worldY: -98,
+      segments: mapC.footholdCollisionPlan.segments,
+    }),
+    sourcePortal: east00,
+    viewport: { width: 800, height: 600 },
+    travelToken: 4,
+    sceneEpoch: 2,
+  });
+  assert.equal(prepared.ok, true);
+  assert.equal(prepared.commit.activePlan.mapId, "222000001");
+  assert.equal(prepared.commit.sceneEpoch, 3);
+  assert.equal(prepared.commit.movementState.medium, "land");
+  assert.ok(prepared.commit.renderRoot.key.includes(":e3"));
+});
+
 test("canonical PWA content merges three-map resource closures", async () => {
   const content = await buildCanonicalAdventurePwaContent({ gameRoot: repoRoot });
   const fieldRecords = content.entries.filter(

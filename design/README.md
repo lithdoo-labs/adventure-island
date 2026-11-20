@@ -14,7 +14,7 @@
 5. Portal 同图移动、跨图准备、提交和场景跳转；
 6. 从候选三图垂直切片扩展到现有 13 图内容闭包。
 
-这些是**产品设计目标**，不是“已经实现”或“已批准 ABI”的声明。当前 canonical 运行路径已完成 M0–M5 的 `ms-field`、`ms-world-item`、`ms-avatar`、`ms-action` 与权威 Movement/Camera 实验闭环（见 [M5-MOVEMENT-EVIDENCE.md](./roadmap/M5-MOVEMENT-EVIDENCE.md)）。旧 `cms-*` 仍保留兼容用例，但任何 `ms-*` 组件 ABI 都尚未正式批准。
+这些是**产品设计目标**，不是“已经实现”或“已批准 ABI”的声明。当前 canonical 运行路径已完成 M0–M6 的逐级实验闭环，并完成 M7.1 水域纵剖与 M7.2 真实返程切片（见 [实施路线图](./roadmap/IMPLEMENTATION-ROADMAP.md)）；旧 `cms-*` 仍保留兼容用例，但任何 `ms-*` 组件 ABI 都尚未正式批准。
 
 ## 2. 阅读路径
 
@@ -41,7 +41,7 @@
 
 ### 2.5 查看实施顺序
 
-- [M0–M7 实施路线图](./roadmap/IMPLEMENTATION-ROADMAP.md)：从可复现基线、真实 WebProjector spike、单图投影，到 Movement、Portal、三图闭环和 13 图扩展的候选交付顺序与退出条件；M5/M6 证据见 [M5-MOVEMENT-EVIDENCE.md](./roadmap/M5-MOVEMENT-EVIDENCE.md) 与 [M6-PORTAL-EVIDENCE.md](./roadmap/M6-PORTAL-EVIDENCE.md)；M7.1 实验切片见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./roadmap/M7.1-WATER-THREE-MAP-EVIDENCE.md)（非正式 ABI 批准）。
+- [M0–M7 实施路线图](./roadmap/IMPLEMENTATION-ROADMAP.md)：从可复现基线、真实 WebProjector spike、单图投影，到 Movement、Portal、三图闭环和 13 图扩展的候选交付顺序与退出条件；M5/M6 证据见 [M5-MOVEMENT-EVIDENCE.md](./roadmap/M5-MOVEMENT-EVIDENCE.md) 与 [M6-PORTAL-EVIDENCE.md](./roadmap/M6-PORTAL-EVIDENCE.md)；M7.1 水域纵剖与 M7.2 真实返程切片见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./roadmap/M7.1-WATER-THREE-MAP-EVIDENCE.md) 和 [M7.2-THREE-MAP-RETURN-EVIDENCE.md](./roadmap/M7.2-THREE-MAP-RETURN-EVIDENCE.md)（均非正式 ABI 批准）。
 
 路线图只组织实施依赖，不会自动批准产品范围、组件 ABI 或算法选择。
 
@@ -137,7 +137,7 @@ Business Custom Elements
 - CMS079 已闭合 Tile/Obj key、ordered-tree comparator、Avatar 世界插入 key、纸娃娃遮挡、Portal 到达、部分完整物理循环和世界到屏幕 Camera 公式。
 - `[FSDB]adventure` 已包含 13 张地图、地图放置记录、Avatar 结构、Avatar/Map 资源及物理配置。
 - 旧 `cms-actor` 已验证局部 Canvas、资源解码、动画帧和“位置更新不重绘 Avatar”这一更新分离策略。
-- M0 已复验固定 Gitlink、锁定依赖、deterministic bundle、generic PWA staging 与 canonical Service Worker E2E；M1 已通过真实 Renderer Store/WebProjector 验证 managed Light DOM、共同 world-plane、跨类型遮挡、有限 Canvas、identity 保留和静态画面无冗余重绘；M2 已对 `222000000` 建立纯 FSDB 内容闭包与 Adapter/Projection；M3 已完成静态 Field 验收（历史基线：FieldPlan 闭包 167、首帧读取 146）；M4 已接入 `ms-avatar` + `ms-action`（闭包 171、首帧读取 150）；**M5 验证通过**——Subsystem 权威固定 tick、Foothold 行走/跳跃/落地、Camera follow/clamp、FSDB 物理配置身份、玩家深度更新和局部失效边界；**M6 实验闭环完成**——222000000↔222000001 Portal 原子事务；**M7.1 实验闭环完成**——第三份 230030200 FieldPlan、四条批准 Portal 边、整图泳态、真实 FSDB `fly` 两帧、精确缺口/资源发布门，以及真实 Chromium A→B→C 和局部失效预算均已取证。详见 [M0](./roadmap/M0-BASELINE-EVIDENCE.md)–[M7.1](./roadmap/M7.1-WATER-THREE-MAP-EVIDENCE.md)；里程碑完成仍不代表组件 ABI 或完整 CMS079 物理等价性批准。
+- M0 已复验固定 Gitlink、锁定依赖、deterministic bundle、generic PWA staging 与 canonical Service Worker E2E；M1 已通过真实 Renderer Store/WebProjector 验证 managed Light DOM、共同 world-plane、跨类型遮挡、有限 Canvas、identity 保留和静态画面无冗余重绘；M2 已对 `222000000` 建立纯 FSDB 内容闭包与 Adapter/Projection；M3 已完成静态 Field 验收（历史基线：FieldPlan 闭包 167、首帧读取 146）；M4 已接入 `ms-avatar` + `ms-action`（闭包 171、首帧读取 150）；**M5 验证通过**——Subsystem 权威固定 tick、Foothold 行走/跳跃/落地、Camera follow/clamp、FSDB 物理配置身份、玩家深度更新和局部失效边界；**M6 实验闭环完成**——222000000↔222000001 Portal 原子事务；**M7.1 实验闭环完成**——第三份 230030200 FieldPlan、四条批准 Portal 边、整图泳态、真实 FSDB `fly` 两帧、精确缺口/资源发布门，以及真实 Chromium A→B→C 和局部失效预算均已取证；**M7.2 实验切片完成**——可信 C→B 返程、B↔C 重复替换、scene epoch/key 不复用和退役载体异步隔离已取证。详见 [M0](./roadmap/M0-BASELINE-EVIDENCE.md)–[M7.2](./roadmap/M7.2-THREE-MAP-RETURN-EVIDENCE.md)；里程碑完成仍不代表组件 ABI 或完整 CMS079 物理等价性批准。
 
 ### 尚未批准或仍有证据缺口
 

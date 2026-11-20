@@ -358,7 +358,7 @@ validate trigger
 
 ## 11. M7：三图闭环与内容扩展
 
-> **路线图状态：2026-11-20，M7.1 三图水域纵剖验收门完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** 已验证三 FieldPlan、四条 Portal 边、整图泳态、真实 FSDB `fly` 两帧、语义化资源缺口门、PWA staging 与真实 Chromium A→B→C；详见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)。
+> **路线图状态：2026-11-20，M7.1 水域纵剖与 M7.2 真实返程实验切片完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** M7.1：三 FieldPlan、四条 Portal 边、整图泳态、真实 FSDB `fly` 两帧、Chromium A→B→C。M7.2：east00 Up 审计、Chromium A→B→C→B 与 B↔C 重复、sceneEpoch 隔离与 B sea00→A 产品阻塞登记；详见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md) 与 [M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md)。
 
 ### 11.1 三图候选集
 
@@ -439,6 +439,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1 实验切片**（三 FieldPlan、四条 Portal 边、整图泳态 Movement、真实 FSDB `fly` 两帧、PWA staging、真实 Chromium A→B→C 与局部失效验证）；见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)。**组件 ABI 未批准**；**M7 全量**（Back 动态布局、Obj flow、完整泳态 force 方程、C→B→A 浏览器往返、性能/内存长跑、13 图）仍有缺口。`ms-world-item` 仍负责世界坐标与排序；Portal travel 权威在 `adventure-map` Subsystem。
+当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1**（三图入水纵剖）与 **M7.2**（east00 可信 Up 返程、Chromium A→B→C→B、B↔C 重复 cross-map replace、sea00→out00 产品阻塞）；见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md) 与 [M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md)。**组件 ABI 未批准**；**M7 全量**（Back 动态布局、Obj flow、完整泳态 force 方程、**浏览器 C→B→A**、Rope/Climb、性能/内存长跑、13 图）仍有缺口。`ms-world-item` 仍负责世界坐标与排序；Portal travel 权威在 `adventure-map` Subsystem。
 
 2026-11-18–20 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)。M0–M6 验收门保持不变；M7.1 不降低 M3/M6 预算断言，也不宣称 Back type1–4 / Obj flow 动态 parity。

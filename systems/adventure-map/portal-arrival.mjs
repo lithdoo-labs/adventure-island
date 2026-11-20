@@ -1,4 +1,4 @@
-import { createMovementState } from "./movement-sim.mjs";
+import { createMovementStateForMap } from "./movement-step.mjs";
 
 /** Destination feet position from target portal anchor (Subsystem authority). */
 export function arrivalPositionFromPortal(portal) {
@@ -12,11 +12,12 @@ export function arrivalPositionFromPortal(portal) {
  * Cross-map / same-map arrival: zero velocity + foothold snap via M5 support query.
  * @param {object} targetPortal portalLogicalIndex entry on destination map
  * @param {object} footholdCollisionPlan validated plan
- * @param {{ facing?: string }} [options]
+ * @param {{ facing?: string, mapEnvironment?: object }} [options]
  */
 export function buildArrivalMovementState(targetPortal, footholdCollisionPlan, options = {}) {
   const pos = arrivalPositionFromPortal(targetPortal);
-  return createMovementState({
+  return createMovementStateForMap({
+    mapEnvironment: options.mapEnvironment,
     worldX: pos.worldX,
     worldY: pos.worldY,
     facing: options.facing ?? "right",

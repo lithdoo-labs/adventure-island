@@ -215,6 +215,7 @@ export async function buildAdventureAvatarPlan(content, input) {
   const standName = `stand${suffix.stand}`;
   const walkName = `walk${suffix.walk}`;
   const actionNames = [standName, walkName, "jump"];
+  if (rowsFor(body, "fly").length > 0) actionNames.push("fly");
   if (typeof requestedAction === "string" && requestedAction.length > 0
     && !actionNames.includes(requestedAction)
     && rowsFor(body, requestedAction).length > 0) {
@@ -308,16 +309,19 @@ export async function buildAdventureAvatarPlan(content, input) {
       frames.push(frame);
     }
     actions[actionName] = {
-      loop: actionName === standName || actionName === walkName,
+      loop: actionName === standName || actionName === walkName || actionName === "fly",
       frames,
     };
   }
+
+  const locomotionActions = { stand: standName, walk: walkName, jump: "jump" };
+  if (actions.fly) locomotionActions.swim = "fly";
 
   const plan = {
     formatVersion: 1,
     bodyKey: body.key,
     zOrder: [],
-    locomotionActions: { stand: standName, walk: walkName, jump: "jump" },
+    locomotionActions,
     actions,
   };
 

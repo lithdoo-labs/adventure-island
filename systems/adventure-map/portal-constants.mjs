@@ -11,8 +11,19 @@ export const M6_ENABLED_PORTAL_EDGES = Object.freeze([
   Object.freeze({ mapId: "222000001", name: "out00" }),
 ]);
 
+/** M7.1 product-enabled travel edges. west00 on 230030200 stays disabled. */
+export const M7_ENABLED_PORTAL_EDGES = Object.freeze([
+  ...M6_ENABLED_PORTAL_EDGES,
+  Object.freeze({ mapId: "222000001", name: "sea00" }),
+  Object.freeze({ mapId: "230030200", name: "east00" }),
+]);
+
 export function portalEdgeId(mapId, name) {
   return `${mapId}:${name}`;
+}
+
+export function isM7EnabledPortalEdge(mapId, name) {
+  return M7_ENABLED_PORTAL_EDGES.some((edge) => edge.mapId === mapId && edge.name === name);
 }
 
 export function isM6EnabledPortalEdge(mapId, name) {

@@ -133,6 +133,7 @@ export function createMovementState({
   const grounded = support !== null;
   const snapY = grounded ? support.surfaceY : worldY;
   return Object.freeze({
+    medium: "land",
     worldX: q(worldX),
     worldY: q(snapY),
     velocityX: 0,
@@ -270,6 +271,7 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
   const simulationTimeMs = state.simulationTimeMs + BUSINESS_TICK_MS;
 
   return Object.freeze({
+    medium: "land",
     worldX: q(worldX),
     worldY: q(worldY),
     velocityX: q(velocityX),

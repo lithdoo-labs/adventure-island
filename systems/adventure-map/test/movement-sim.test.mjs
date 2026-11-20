@@ -22,6 +22,9 @@ const movementConfig = Object.freeze({
   gravityAcc: 2000,
   fallSpeed: 670,
   jumpSpeed: 555,
+  swimForce: 120_000,
+  swimSpeed: 140,
+  swimSpeedDec: 0.9,
 });
 
 test("createMovementState snaps canonical spawn onto reachable foothold", async () => {

@@ -156,7 +156,15 @@ const AVATAR_PLAN_LIMITS = Object.freeze({
   maxCoordinate: 100_000,
 });
 
-const LOCOMOTION_STATES = Object.freeze(["stand", "walk", "jump"]);
+const LOCOMOTION_STATES = Object.freeze([
+  "stand",
+  "walk",
+  "jump",
+  "prone",
+  "swim",
+  "sit",
+  "climb",
+]);
 
 function isFinitePair(value) {
   return Array.isArray(value)
@@ -427,7 +435,15 @@ function measureAvatarPlanDataBytes(plan) {
 
 /** Map the small runtime vocabulary to the concrete WZ action name. */
 function resolveActionName(plan, locomotion = "stand") {
-  const defaults = { stand: "stand1", walk: "walk1", jump: "jump" };
+  const defaults = {
+    stand: "stand1",
+    walk: "walk1",
+    jump: "jump",
+    prone: "prone",
+    swim: "fly",
+    sit: "sit",
+    climb: "rope",
+  };
   const requested = plan?.locomotionActions?.[locomotion] ?? defaults[locomotion] ?? locomotion;
   if (plan?.actions?.[requested]) return requested;
   if (plan?.actions?.stand1) return "stand1";

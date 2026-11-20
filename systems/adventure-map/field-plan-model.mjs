@@ -2,6 +2,7 @@
  * Browser-safe validation for the derived bootstrap AdventureFieldPlan record.
  */
 import { validateFootholdCollisionPlan } from "./foothold-collision-plan.mjs";
+import { validateMapEnvironment } from "./map-environment.mjs";
 import { validateMovementConfig } from "./movement-config.mjs";
 import { validatePortalLogicalIndex } from "./portal-logical-index.mjs";
 
@@ -47,6 +48,10 @@ export function validateFieldPlan(value) {
   }
   validateFootholdCollisionPlan(value.footholdCollisionPlan);
   validateMovementConfig(value.movementConfig);
+  const mapEnvironment = validateMapEnvironment(value.mapEnvironment);
+  if (mapEnvironment.mapId !== value.mapId) {
+    throw new TypeError("AdventureFieldPlan.mapEnvironment must describe the same mapId");
+  }
   validatePortalLogicalIndex(value.portalLogicalIndex, value.mapId);
   if (!Number.isInteger(value.sceneEpoch) || value.sceneEpoch < 0) {
     throw new TypeError("AdventureFieldPlan.sceneEpoch must be a non-negative integer");

@@ -12,8 +12,11 @@ test("plan projection emits ms-avatar with ms-action children", async () => {
   assert.equal(avatar.tag, "ms-avatar");
   assert.equal(avatar.attrs.action, "stand1");
   assert.deepEqual(Object.keys(avatar.data.appearance).sort(), ["zOrder"]);
-  assert.ok(avatar.children.length >= 3);
+  assert.ok(avatar.children.length >= 4);
   assert.ok(avatar.children.every((child) => child.tag === "ms-action"));
   const names = avatar.children.map((child) => child.attrs.name).sort();
-  assert.deepEqual(names, ["jump", "stand1", "walk1"]);
+  assert.deepEqual(names, ["fly", "jump", "stand1", "walk1"]);
+  const fly = avatar.children.find((child) => child.attrs.name === "fly");
+  assert.equal(fly.data.clip.playback.mode, "loop");
+  assert.deepEqual(fly.data.clip.frames.map((frame) => frame.durationMs), [300, 300]);
 });

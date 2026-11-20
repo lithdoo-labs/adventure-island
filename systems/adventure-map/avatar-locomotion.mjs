@@ -10,13 +10,23 @@ export const PLAYER_WORLD_ITEM_KEY = "player:adventure";
  * @param {object} [fieldState]
  * @param {object} [timingState]
  */
+const LOCOMOTION_ACTION_FALLBACK = Object.freeze({
+  stand: "stand1",
+  walk: "walk1",
+  jump: "jump",
+  swim: "fly",
+});
+
 export function projectAvatarLocomotionAttrs(fieldState = null, timingState = null) {
   const locomotion = fieldState?.player?.locomotion ?? "stand";
   const facing = fieldState?.player?.facing ?? "right";
   const planRef = fieldState?.avatarPlanRef;
-  const action = planRef
-    ? resolveActionName(planRef, locomotion)
-    : ({ stand: "stand1", walk: "walk1", jump: "jump" }[locomotion] ?? "stand1");
+  let action;
+  if (planRef) {
+    action = resolveActionName(planRef, locomotion);
+  } else {
+    action = LOCOMOTION_ACTION_FALLBACK[locomotion] ?? LOCOMOTION_ACTION_FALLBACK.stand;
+  }
 
   const timing = timingState?.clip
     ? presentationTimingAttrs(timingState.clip, timingState.elapsedMs ?? 0)

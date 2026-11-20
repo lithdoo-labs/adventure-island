@@ -19,7 +19,7 @@ import {
 import { buildCanonicalSyntheticAvatarContent } from "../scripts/pwa/synthetic-avatar-content.mjs";
 import { FIXTURE_LOGICAL_MODULE, composeAvatarFixturePayload } from "./pwa-avatar-fixture.mjs";
 import { COLORS, FRAME_MARKERS } from "../components/cms-actor/test/synthetic-fsdb.mjs";
-import { M6_PORTAL_BUDGETS } from "../systems/adventure-map/portal-budgets.mjs";
+import { M6_PORTAL_BUDGETS, M7_PORTAL_BUDGETS } from "../systems/adventure-map/portal-budgets.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
@@ -354,6 +354,150 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.ok(targetScene.maxHeight <= M6_PORTAL_BUDGETS.maxTargetCanvasHeight);
     assert.ok(targetScene.maxPixels <= M6_PORTAL_BUDGETS.maxTargetCanvasPixels);
     t.diagnostic(`M6 portal ready ${portalReadyMs}ms; target Canvas ${targetScene.canvasCount}, max ${targetScene.maxWidth}x${targetScene.maxHeight}`);
+
+    // M7.1 real travel: st00 drops into the narrow map001 shaft. Its bottom
+    // foothold is y=514 and sea00 is x=6/y=513, so the authoritative landing
+    // position x=22 is already inside the audited trigger box. A fresh trusted
+    // Up edge must atomically replace B with the water map C.
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      return Number(player?.getAttribute("world-x")) === 22
+        && Number(player?.getAttribute("world-y")) === 514
+        && document.querySelector("ms-avatar")?.getAttribute("action") === "stand1";
+    }, null, { timeout: 20_000 });
+    const waterPortalStartedAt = Date.now();
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.up("ArrowUp");
+    try {
+      await page.waitForFunction(() => {
+        const scene = document.querySelector("ms-scene-view");
+        const avatar = document.querySelector("ms-avatar");
+        return scene?.diagnostics?.().state === "ready"
+          && document.querySelectorAll("ms-map-back").length === 31
+          && document.querySelectorAll("ms-map-batch").length === 65
+          && document.querySelectorAll("ms-map-object").length === 39
+          && document.querySelectorAll("ms-portal-visual").length === 1
+          && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 296
+          && avatar?.getAttribute("action") === "fly"
+          && avatar.getAttribute("data-action") === "fly";
+      }, null, { timeout: M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs });
+    } catch (cause) {
+      const waterFailure = await page.evaluate(() => {
+        const scene = document.querySelector("ms-scene-view");
+        const player = document.querySelector("ms-world-item");
+        const avatar = document.querySelector("ms-avatar");
+        return {
+          product: document.documentElement.dataset.loomrealmProduct,
+          failure: window.__loomrealmPwa?.failure ?? null,
+          backs: document.querySelectorAll("ms-map-back").length,
+          batches: document.querySelectorAll("ms-map-batch").length,
+          objects: document.querySelectorAll("ms-map-object").length,
+          portals: document.querySelectorAll("ms-portal-visual").length,
+          scene: scene?.diagnostics?.() ?? null,
+          worldX: player?.getAttribute("world-x") ?? null,
+          worldY: player?.getAttribute("world-y") ?? null,
+          action: avatar?.getAttribute("action") ?? null,
+          dataAction: avatar?.getAttribute("data-action") ?? null,
+          avatarState: avatar?.diagnostics?.() ?? null,
+        };
+      });
+      throw new Error(`water portal target did not become ready: ${cause.message}\n${JSON.stringify({ waterFailure, diagnostics }, null, 2)}`);
+    }
+    await page.waitForFunction(() => {
+      const hosts = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
+      )];
+      const inactive = hosts.length === 137 && hosts.every((host) => {
+        const state = host.diagnostics?.();
+        return (state?.resourceActive ?? 0) === 0 && state?.paintPending !== true;
+      });
+      const staticPaints = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual",
+      )].map((host) => host.diagnostics?.().paintCommits ?? 0).join(",");
+      const now = performance.now();
+      const prior = window.__m71StaticSettle;
+      if (!inactive || prior?.staticPaints !== staticPaints) {
+        window.__m71StaticSettle = { staticPaints, since: now };
+        return false;
+      }
+      return now - prior.since >= 600;
+    }, null, { timeout: M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs });
+    const waterPortalReadyMs = Date.now() - waterPortalStartedAt;
+    const waterBeforeInput = await page.evaluate(() => ({
+      staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+        .map((unit) => unit.diagnostics().paintCommits),
+      avatarRounds: document.querySelector("ms-avatar")?.diagnostics().paintRounds ?? 0,
+      avatarFrame: document.querySelector("ms-avatar")?.getAttribute("frame-index") ?? null,
+    }));
+    try {
+      await page.waitForFunction((priorFrame) => {
+        const avatar = document.querySelector("ms-avatar");
+        return avatar?.getAttribute("action") === "fly"
+          && avatar.getAttribute("frame-index") !== priorFrame;
+      }, waterBeforeInput.avatarFrame, { timeout: 5_000 });
+    } catch (cause) {
+      const clockFailure = await page.evaluate(() => {
+        const avatar = document.querySelector("ms-avatar");
+        const fly = [...(avatar?.children ?? [])].find((node) => node.getAttribute("name") === "fly");
+        return {
+          attrs: avatar ? Object.fromEntries(avatar.getAttributeNames().map((name) => [name, avatar.getAttribute(name)])) : null,
+          diagnostics: avatar?.diagnostics?.() ?? null,
+          flyData: fly?.data ?? null,
+        };
+      });
+      throw new Error(`water avatar clock did not advance: ${cause.message}\n${JSON.stringify(clockFailure, null, 2)}`);
+    }
+    const waterAfterInput = await page.evaluate(() => {
+      const hosts = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
+      )];
+      const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+      const avatar = document.querySelector("ms-avatar");
+      return {
+        productState: document.documentElement.dataset.loomrealmProduct,
+        sceneCount: document.querySelectorAll("ms-scene-view").length,
+        visualCount: hosts.length,
+        canvasCount: canvases.length,
+        maxWidth: Math.max(0, ...canvases.map((canvas) => canvas.width)),
+        maxHeight: Math.max(0, ...canvases.map((canvas) => canvas.height)),
+        maxPixels: Math.max(0, ...canvases.map((canvas) => canvas.width * canvas.height)),
+        totalPixels: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0),
+        staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+          .map((unit) => unit.diagnostics().paintCommits),
+        avatarRounds: avatar?.diagnostics().paintRounds ?? 0,
+        flyChildren: [...(avatar?.children ?? [])]
+          .filter((node) => node.localName === "ms-action" && node.getAttribute("name") === "fly").length,
+      };
+    });
+    assert.equal(waterAfterInput.productState, "ready");
+    assert.equal(waterAfterInput.sceneCount, 1);
+    assert.equal(waterAfterInput.visualCount, 137);
+    assert.equal(waterAfterInput.flyChildren, 1, "the committed water avatar must carry one real fly clip");
+    assert.ok(waterAfterInput.canvasCount <= M7_PORTAL_BUDGETS.maxWaterMapVisualCanvases);
+    assert.ok(waterAfterInput.maxWidth <= M7_PORTAL_BUDGETS.maxWaterMapCanvasWidth);
+    assert.ok(waterAfterInput.maxHeight <= M7_PORTAL_BUDGETS.maxWaterMapCanvasHeight);
+    assert.ok(waterAfterInput.maxPixels <= M7_PORTAL_BUDGETS.maxWaterMapLocalCanvasPixels);
+    assert.ok(waterAfterInput.totalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
+    assert.deepEqual(waterAfterInput.staticPaints, waterBeforeInput.staticPaints,
+      "a fly frame update must not repaint static map canvases");
+    assert.ok(waterAfterInput.avatarRounds > waterBeforeInput.avatarRounds,
+      "a fly frame update must repaint only the local avatar canvas");
+    assert.ok(waterPortalReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs);
+    t.diagnostic(`M7.1 water portal ready ${waterPortalReadyMs}ms; Canvas ${waterAfterInput.canvasCount}, max ${waterAfterInput.maxWidth}x${waterAfterInput.maxHeight}, total ${waterAfterInput.totalPixels}px`);
+
+    // Trusted water input still changes only authoritative player state and
+    // the avatar/camera projection; newly exposed static units may paint as
+    // the camera moves, so that separate behavior is not folded into the
+    // frame-only invalidation assertion above.
+    await page.keyboard.down("ArrowLeft");
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      const avatar = document.querySelector("ms-avatar");
+      return Number(player?.getAttribute("world-x")) < 290
+        && avatar?.getAttribute("action") === "fly"
+        && avatar.getAttribute("facing") === "left";
+    }, null, { timeout: 10_000 });
+    await page.keyboard.up("ArrowLeft");
 
     const pageErrors = diagnostics.filter((line) => line.startsWith("pageerror:"));
     const busyResponses = diagnostics.filter((line) => line.startsWith("http:429:"));

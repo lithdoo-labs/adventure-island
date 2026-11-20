@@ -358,6 +358,8 @@ validate trigger
 
 ## 11. M7：三图闭环与内容扩展
 
+> **路线图状态：2026-11-20，M7.1 三图水域纵剖验收门完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** 已验证三 FieldPlan、四条 Portal 边、整图泳态、真实 FSDB `fly` 两帧、语义化资源缺口门、PWA staging 与真实 Chromium A→B→C；详见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)。
+
 ### 11.1 三图候选集
 
 ```text
@@ -437,6 +439,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-当前实施基线已经完成 **M0–M6** 的逐级证据闭环（M6 见 [M6-PORTAL-EVIDENCE.md](./M6-PORTAL-EVIDENCE.md)；**组件 ABI 未批准**）。下一实施里程碑为 **M7：三图闭环与内容扩展**；`ms-world-item` 仍负责世界坐标与排序，Portal travel 权威在 `adventure-map` Subsystem，Renderer/`ms-portal-visual` 仍仅 presentation。
+当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1 实验切片**（三 FieldPlan、四条 Portal 边、整图泳态 Movement、真实 FSDB `fly` 两帧、PWA staging、真实 Chromium A→B→C 与局部失效验证）；见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)。**组件 ABI 未批准**；**M7 全量**（Back 动态布局、Obj flow、完整泳态 force 方程、C→B→A 浏览器往返、性能/内存长跑、13 图）仍有缺口。`ms-world-item` 仍负责世界坐标与排序；Portal travel 权威在 `adventure-map` Subsystem。
 
-2026-11-18–19 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M6-PORTAL-EVIDENCE.md](M6-PORTAL-EVIDENCE.md)。M0–M6 路线图验收门已在实验范围通过；这不批准组件 ABI、CMS079 完整物理等价性、三图 Portal graph 或 Back type1–4 布局。
+2026-11-18–20 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)。M0–M6 验收门保持不变；M7.1 不降低 M3/M6 预算断言，也不宣称 Back type1–4 / Obj flow 动态 parity。

@@ -40,7 +40,7 @@
 - 当前 PWA Bundle Builder 只发布单角色 Avatar Content 闭包、派生的 `struct.AdventureAvatarPlan/bootstrap` 和两份 classic script。
 - 当前 Adventure Map 的 `x/y` 是 Viewport 展示坐标，不是地图世界坐标；`up` 播放 `jump` 动作不代表角色离地。
 - 方向映射写在 `systems/adventure-map/subsystem.mjs` 的 `LOCOMOTION_BY_DIRECTION`：左右是 `walk`，上是 `jump`，下是 `stand`。视口订阅会改写人物 `x/y`。这是演示动作，不是场地移动。
-- `cms-actor` 的校验器和 `locomotionActions` 仍只接受 `stand`、`walk`、`jump`。ABI 已经加入 `prone`、`swim`、`sit`、`climb`，实现还没跟上。
+- M7.1 已把 `cms-actor` 校验器和 `locomotionActions` 扩展到 `stand`、`walk`、`jump`、`prone`、`swim`、`sit`、`climb`，并完成 canonical `swim → fly` 两帧闭环；其余新增状态仍未进入路线图运行时闭环，正式 ABI 也未批准。
 
 依据：[`docs/game-entry.md`](../game-entry.md)、[`2026-11-06-base-adventure-map-actor-slice-draft.md`](./2026-11-06-base-adventure-map-actor-slice-draft.md)、[`components/cms-actor/IMPLEMENTATION.md`](../../components/cms-actor/IMPLEMENTATION.md)。
 

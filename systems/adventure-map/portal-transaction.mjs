@@ -19,7 +19,7 @@ export function planSameMapPortalCommit({
   const arrivalMovement = buildArrivalMovementState(
     targetPortal,
     activePlan.footholdCollisionPlan,
-    { facing: movementState.facing },
+    { facing: movementState.facing, mapEnvironment: activePlan.mapEnvironment },
   );
   const nextField = portalTravelFieldPatch(fieldState, arrivalMovement, {
     phase: "committed",
@@ -60,7 +60,7 @@ export function planCrossMapPortalCommit({
   const arrivalMovement = buildArrivalMovementState(
     targetPortal,
     targetPlan.footholdCollisionPlan,
-    { facing: movementState.facing },
+    { facing: movementState.facing, mapEnvironment: targetPlan.mapEnvironment },
   );
   const targetProjection = projectAdventureMapFieldSceneFromPlan(targetPlan, viewport);
   const stagedField = portalTravelFieldPatch(

@@ -498,10 +498,13 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
       "the published plan must equal the adapter-derived plan",
     );
     const plan = validateAvatarPlan(JSON.parse(planBytes.toString("utf8")));
-    assert.deepEqual(Object.keys(plan.actions).sort(), ["jump", "stand1", "walk1"], "exactly the locomotion actions");
+    assert.deepEqual(Object.keys(plan.actions).sort(), ["fly", "jump", "stand1", "walk1"], "exactly the M7.1 locomotion actions");
     assert.equal(plan.actions.jump.loop, false, "jump is the one-shot action");
+    assert.equal(plan.actions.fly.loop, true, "fly is the sustained swim action");
+    assert.deepEqual(plan.actions.fly.frames.map((frame) => frame.delay), [300, 300]);
     assert.equal(plan.locomotionActions.stand, "stand1");
     assert.equal(plan.locomotionActions.walk, "walk1");
+    assert.equal(plan.locomotionActions.swim, "fly");
     const planDataBytes = measureAvatarPlanDataBytes(plan);
     assert.ok(planDataBytes <= AVATAR_PLAN_DATA_BYTE_LIMIT, `plan data ${planDataBytes}B must stay under the cap`);
     assert.ok(planBytes.length <= AVATAR_PLAN_DATA_BYTE_LIMIT, "the published plan record body itself stays bounded");
@@ -519,7 +522,26 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
     );
     assert.ok(fieldPlanMapB !== undefined, "M6 map222000001 FieldPlan record must be published");
     const mapBRoot = validateFieldPlan(JSON.parse(Buffer.from(fieldPlanMapB.body, "base64").toString("utf8"))).root;
-    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root, [mapBRoot]);
+    const fieldPlanMapSea = payload.content.find(
+      (entry) => entry.kind === "record" && entry.namespace === FIELD_PLAN_NAMESPACE && entry.key === "map230030200",
+    );
+    assert.ok(fieldPlanMapSea !== undefined, "M7 map230030200 FieldPlan record must be published");
+    const mapSeaRoot = validateFieldPlan(JSON.parse(Buffer.from(fieldPlanMapSea.body, "base64").toString("utf8"))).root;
+    assert.equal(mapSeaRoot.data.mapId, "230030200");
+    const findNode = (node, predicate) => {
+      if (predicate(node)) return node;
+      for (const child of node.children ?? []) {
+        const match = findNode(child, predicate);
+        if (match) return match;
+      }
+      return null;
+    };
+    const seaAvatar = findNode(mapSeaRoot, (node) => node.tag === "ms-avatar");
+    assert.ok(seaAvatar, "water FieldPlan must carry the player avatar node");
+    const flyAction = seaAvatar.children.find((node) => node.tag === "ms-action" && node.attrs?.name === "fly");
+    assert.ok(flyAction, "water FieldPlan must carry the real fly action clip");
+    assert.deepEqual(flyAction.data.clip.frames.map((frame) => frame.durationMs), [300, 300]);
+    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root, [mapBRoot, mapSeaRoot]);
     const publishedMapResources = new Map(payload.content
       .filter((entry) => entry.kind === "resource" && entry.namespace === "resource.Map")
       .map((entry) => [entry.key, Buffer.from(entry.body, "base64")]));

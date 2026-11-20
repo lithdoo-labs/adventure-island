@@ -21,6 +21,14 @@ export function validateMovementConfig(value) {
       throw new TypeError(`movementConfig.${key} must be a bounded positive number`);
     }
   }
+  for (const key of ["swimForce", "swimSpeed"]) {
+    if (!Number.isFinite(value[key]) || value[key] <= 0 || value[key] > 1_000_000) {
+      throw new TypeError(`movementConfig.${key} must be a bounded positive number`);
+    }
+  }
+  if (!Number.isFinite(value.swimSpeedDec) || value.swimSpeedDec <= 0 || value.swimSpeedDec > 1) {
+    throw new TypeError("movementConfig.swimSpeedDec must be in (0, 1]");
+  }
   return Object.freeze({
     ...value,
     source: Object.freeze({ ...source }),

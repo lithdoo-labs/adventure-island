@@ -38,11 +38,11 @@ import {
   applyCrossMapPortalRenderReplace,
   authorityAfterCrossMapReplace,
 } from "./portal-cross-map-commit.mjs";
+import { applyMovementToFieldState } from "./movement-sim.mjs";
 import {
-  applyMovementToFieldState,
-  createMovementState,
-  stepMovement,
-} from "./movement-sim.mjs";
+  createMovementStateForMap,
+  stepMovementForMap,
+} from "./movement-step.mjs";
 import { validateFootholdCollisionPlan } from "./foothold-collision-plan.mjs";
 import { planSchedulerDrain } from "./simulation-scheduler.mjs";
 import { validateMovementConfig } from "./movement-config.mjs";
@@ -199,7 +199,8 @@ export default defineSubsystem((scope) => ({
       movementConfig = validateMovementConfig(activePlan.movementConfig);
       if (frame.signal.aborted) return cancelled();
 
-      movementState = createMovementState({
+      movementState = createMovementStateForMap({
+        mapEnvironment: activePlan.mapEnvironment,
         worldX: projection.fieldState.player.worldX,
         worldY: projection.fieldState.player.worldY,
         facing: projection.fieldState.player.facing ?? "right",
@@ -324,7 +325,8 @@ export default defineSubsystem((scope) => ({
 
       const syncAvatarOnActionChange = () => {
         const nextAction = projectAvatarLocomotionAttrs(fieldState).action;
-        if (nextAction !== avatarAction) {
+        const actionChanged = nextAction !== avatarAction;
+        if (actionChanged) {
           avatarElapsedMs = 0;
           avatarClockLast = null;
         }
@@ -332,7 +334,9 @@ export default defineSubsystem((scope) => ({
           clip: findAvatarActionClip(avatarNode, nextAction),
           elapsedMs: avatarElapsedMs,
         });
-        scheduleAvatarClock();
+        // Simulation runs every 20ms. Restarting an existing timer here would
+        // starve every action frame whose duration is longer than one tick.
+        if (actionChanged || avatarClockHandle === null) scheduleAvatarClock();
       };
 
       function tickAvatarClock() {
@@ -357,11 +361,12 @@ export default defineSubsystem((scope) => ({
         for (let index = 0; index < count; index += 1) {
           const jumpPressed = jumpLatch;
           if (jumpPressed) jumpLatch = false;
-          movementState = stepMovement(
+          movementState = stepMovementForMap(
             movementState,
             movementIntent,
             footholdCollisionPlan,
             movementConfig,
+            activePlan.mapEnvironment,
             { jumpPressed },
           );
           fieldState = applyMovementToFieldState(fieldState, movementState);

@@ -85,3 +85,59 @@ export function assertExactMapResourceRefSets(left, right, label) {
     }
   }
 }
+
+/**
+ * M7.1 water map: painted FieldPlan tree is a strict subset of adapter closure
+ * (unsupported Back type1–4 / Obj flow visuals are omitted from the tree).
+ */
+export function assertFieldTreeMapResourcesSubsetOfAdapter(left, right, label) {
+  const rightByKey = new Map(right.map((entry) => [entry.key, entry]));
+  for (const entry of left) {
+    const other = rightByKey.get(entry.key);
+    if (other === undefined || other.contentVersion !== entry.contentVersion) {
+      throw new TypeError(`${label}: field tree resource.Map/${entry.key} is missing or mismatched in adapter closure`);
+    }
+  }
+}
+
+function collectNestedMapResources(value, sink, seen = new WeakSet()) {
+  if (value === null || typeof value !== "object") return;
+  if (seen.has(value)) return;
+  seen.add(value);
+  if (value.namespace === "resource.Map" && typeof value.key === "string") {
+    noteResource(value, sink);
+  }
+  if (Array.isArray(value)) {
+    for (const child of value) collectNestedMapResources(child, sink, seen);
+    return;
+  }
+  for (const child of Object.values(value)) collectNestedMapResources(child, sink, seen);
+}
+
+/**
+ * The 230030200 tree may omit only resources reachable from its audited
+ * UNSUPPORTED drawables. This keeps the exception semantic: count-preserving
+ * arbitrary adapter drift cannot enter the PWA closure unnoticed.
+ */
+export function assertM7WaterMapResourceBoundary(left, right, scene, label) {
+  assertFieldTreeMapResourcesSubsetOfAdapter(left, right, label);
+  if (left.length !== 118 || right.length !== 154) {
+    throw new TypeError(`${label}: audited water resource counts drifted (field tree ${left.length}, adapter ${right.length})`);
+  }
+  const leftKeys = new Set(left.map((entry) => entry.key));
+  const unsupportedIds = new Set(
+    (scene?.diagnostics ?? [])
+      .filter((item) => item.code === "UNSUPPORTED")
+      .map((item) => item.stableId),
+  );
+  const approved = new Map();
+  for (const drawable of scene?.drawables ?? []) {
+    if (unsupportedIds.has(drawable.stableId)) collectNestedMapResources(drawable, approved);
+  }
+  const omitted = right.filter((entry) => !leftKeys.has(entry.key));
+  const approvedOmitted = [...approved.values()].filter((entry) => !leftKeys.has(entry.key));
+  assertExactMapResourceRefSets(omitted, approvedOmitted, `${label}: omitted set vs audited unsupported drawables`);
+  if (omitted.length !== 36) {
+    throw new TypeError(`${label}: audited water adapter-only count drifted (${omitted.length})`);
+  }
+}

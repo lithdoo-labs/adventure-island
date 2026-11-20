@@ -7,11 +7,12 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildMapProjection } from "../../components/ms-map-adapter/src/index.mjs";
-import { assertM6ExtraMapFieldPlanPublishable } from "../../systems/adventure-map/map-m6-publishability.mjs";
+import { assertPublishedExtraMapFieldPlanPublishable } from "../../systems/adventure-map/map-m7-publishability.mjs";
 import { defaultAdventureFsdbRoot } from "../../components/ms-map-adapter/src/fsdb-reader.mjs";
 import { FIELD_MAP_222000000 } from "../../components/ms-field/src/field-state.mjs";
 import {
   assertExactMapResourceRefSets,
+  assertM7WaterMapResourceBoundary,
   collectMapResourceRefsFromFieldTree,
 } from "./collect-field-plan-map-resources.mjs";
 
@@ -90,12 +91,17 @@ export async function buildCanonicalAdventureMapResourceContent({
       throw new TypeError("extra FieldPlan root must carry mapId in data");
     }
     const extraProjection = await buildMapProjection({ mapId: extraMapId, gameRoot: repo });
-    assertM6ExtraMapFieldPlanPublishable(extraMapId, extraProjection.closure);
+    assertPublishedExtraMapFieldPlanPublishable(extraMapId, extraProjection);
     const extraTreeRefs = collectMapResourceRefsFromFieldTree(extraRoot);
     const extraAdapterRefs = Object.freeze([...extraProjection.scene.resources].sort((left, right) => (
       left.key < right.key ? -1 : left.key > right.key ? 1 : 0
     )));
-    assertExactMapResourceRefSets(extraTreeRefs, extraAdapterRefs, `AdventureFieldPlan ${extraMapId} vs adapter closure`);
+    const resourceLabel = `AdventureFieldPlan ${extraMapId} vs adapter closure`;
+    if (extraMapId === "230030200") {
+      assertM7WaterMapResourceBoundary(extraTreeRefs, extraAdapterRefs, extraProjection.scene, resourceLabel);
+    } else {
+      assertExactMapResourceRefSets(extraTreeRefs, extraAdapterRefs, resourceLabel);
+    }
   }
 
   const entries = [];

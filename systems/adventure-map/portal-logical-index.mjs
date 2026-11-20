@@ -4,7 +4,7 @@
 import {
   DISABLED_TARGET_MAP,
   PORTAL_LOGICAL_INDEX_MAX,
-  isM6EnabledPortalEdge,
+  isM7EnabledPortalEdge,
 } from "./portal-constants.mjs";
 
 function portalRowEnabled(mapId, row, publishedTargetMapIds) {
@@ -15,7 +15,7 @@ function portalRowEnabled(mapId, row, publishedTargetMapIds) {
   const targetMap = String(row.tm);
   if (targetMap === DISABLED_TARGET_MAP) return false;
   if (!publishedTargetMapIds.has(targetMap)) return false;
-  return isM6EnabledPortalEdge(mapId, row.pn);
+  return isM7EnabledPortalEdge(mapId, row.pn);
 }
 
 function freezePortalEntry(entry) {

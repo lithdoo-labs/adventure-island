@@ -13,19 +13,19 @@ import { prepareCrossMapPortalCommit } from "../systems/adventure-map/portal-run
 import { bootstrapPortalState } from "../systems/adventure-map/portal-runtime-bridge.mjs";
 import { createMovementState } from "../systems/adventure-map/movement-sim.mjs";
 import { idlePortalTravelAfterFailedPrepare } from "../systems/adventure-map/portal-runtime-bridge.mjs";
-import { M6_PORTAL_BUDGETS } from "../systems/adventure-map/portal-budgets.mjs";
+import { M6_PORTAL_BUDGETS, M7_PORTAL_BUDGETS } from "../systems/adventure-map/portal-budgets.mjs";
 import { summarizeProjectionCanvasBudget } from "../components/ms-field/test/canonical-budgets.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("field plans publish bootstrap plus map222000001 records", async () => {
+test("field plans publish bootstrap plus map222000001 and map230030200 records", async () => {
   const started = performance.now();
   const bundle = await buildAllCanonicalAdventureFieldPlans({ gameRoot: repoRoot });
   const projectionMs = performance.now() - started;
-  assert.equal(bundle.plans.length, 2);
-  assert.equal(bundle.entries.length, 2);
+  assert.equal(bundle.plans.length, 3);
+  assert.equal(bundle.entries.length, 3);
   const keys = bundle.entries.map((entry) => entry.key).sort();
-  assert.deepEqual(keys, ["bootstrap", "map222000001"]);
+  assert.deepEqual(keys, ["bootstrap", "map222000001", "map230030200"]);
   for (const plan of bundle.plans) {
     assert.ok(plan.portalLogicalIndex.entries.length > 0);
     assert.equal(plan.sceneEpoch, 0);
@@ -40,6 +40,18 @@ test("field plans publish bootstrap plus map222000001 records", async () => {
   assert.ok(budget.maxLocalCanvasPixels <= M6_PORTAL_BUDGETS.maxTargetCanvasPixels);
   assert.ok(budget.totalLocalPixels <= M6_PORTAL_BUDGETS.maxTargetTotalCanvasPixels);
   assert.ok(budget.fieldPlanResourceClosure <= M6_PORTAL_BUDGETS.maxTargetFieldPlanResourceClosure);
+  assert.ok(projectionMs <= M7_PORTAL_BUDGETS.maxTriFieldPlanProjectionMs,
+    `tri FieldPlan projection took ${projectionMs.toFixed(1)}ms`);
+  const water = bundle.plans.find((plan) => plan.mapId === "230030200");
+  const waterBudget = summarizeProjectionCanvasBudget(water.root);
+  assert.equal(water.mapEnvironment.swim, 1);
+  assert.ok(waterBudget.canvasCount <= M7_PORTAL_BUDGETS.maxWaterMapVisualCanvases);
+  assert.ok(waterBudget.maxWidth <= M7_PORTAL_BUDGETS.maxWaterMapCanvasWidth);
+  assert.ok(waterBudget.maxHeight <= M7_PORTAL_BUDGETS.maxWaterMapCanvasHeight);
+  assert.ok(waterBudget.maxLocalCanvasPixels <= M7_PORTAL_BUDGETS.maxWaterMapLocalCanvasPixels);
+  assert.ok(waterBudget.totalLocalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
+  assert.ok(waterBudget.fieldPlanResourceClosure <= M7_PORTAL_BUDGETS.maxWaterMapFieldPlanResourceClosure);
+  assert.ok(waterBudget.firstFramePaintResources <= M7_PORTAL_BUDGETS.maxWaterMapFirstFramePaintResources);
 });
 
 test("prepareCrossMapPortalCommit loads map222000001 field plan record", async () => {
@@ -125,14 +137,14 @@ test("failed prepare restore leaves source map id on field state", () => {
   assert.equal(restored.player.worldX, 1);
 });
 
-test("canonical PWA content merges both map resource closures", async () => {
+test("canonical PWA content merges three-map resource closures", async () => {
   const content = await buildCanonicalAdventurePwaContent({ gameRoot: repoRoot });
   const fieldRecords = content.entries.filter(
     (e) => e.kind === "record" && e.namespace === FIELD_PLAN_NAMESPACE,
   );
-  assert.equal(fieldRecords.length, 2);
+  assert.equal(fieldRecords.length, 3);
   const mapResources = content.entries.filter((e) => e.kind === "resource" && e.namespace === "resource.Map");
-  assert.equal(mapResources.length, M6_PORTAL_BUDGETS.publishedMapResourceUnion);
+  assert.equal(mapResources.length, M7_PORTAL_BUDGETS.publishedMapResourceUnion);
   const bootstrap = (await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRoot })).plan;
   const portal = bootstrapPortalState(bootstrap);
   assert.equal(portal.portalIndex.entries.some((p) => p.name === "in00" && p.enabled), true);

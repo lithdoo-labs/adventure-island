@@ -514,7 +514,12 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
     assert.deepEqual(fieldPlan.hash, canonicalAdventure.fieldPlan.hash);
     assert.equal(fieldPlan.root.children.some((child) => child.key === "player:adventure"), true);
 
-    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root);
+    const fieldPlanMapB = payload.content.find(
+      (entry) => entry.kind === "record" && entry.namespace === FIELD_PLAN_NAMESPACE && entry.key === "map222000001",
+    );
+    assert.ok(fieldPlanMapB !== undefined, "M6 map222000001 FieldPlan record must be published");
+    const mapBRoot = validateFieldPlan(JSON.parse(Buffer.from(fieldPlanMapB.body, "base64").toString("utf8"))).root;
+    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root, [mapBRoot]);
     const publishedMapResources = new Map(payload.content
       .filter((entry) => entry.kind === "resource" && entry.namespace === "resource.Map")
       .map((entry) => [entry.key, Buffer.from(entry.body, "base64")]));

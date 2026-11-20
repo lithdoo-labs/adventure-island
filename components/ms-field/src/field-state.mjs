@@ -1,4 +1,4 @@
-/** Static Field authority for M3 (no Movement tick / Portal travel yet). */
+/** Field authority seed for M3+; Movement/Camera tick owned by adventure-map Subsystem (M5). */
 
 export const FIELD_MAP_222000000 = "222000000";
 
@@ -27,8 +27,13 @@ export function createStaticFieldState(overrides = {}) {
     mapId,
     player,
     movement: Object.freeze({
-      mode: "static-ground",
+      mode: "stand",
       grounded: true,
+      velocityX: 0,
+      velocityY: 0,
+      contact: null,
+      tickIndex: 0,
+      simulationTimeMs: 0,
       ...(overrides.movement ?? {}),
     }),
     camera: Object.freeze({
@@ -37,6 +42,9 @@ export function createStaticFieldState(overrides = {}) {
     }),
     portalTravel: Object.freeze({
       phase: "idle",
+      activeToken: 0,
+      sceneEpoch: 0,
+      crossMap: false,
       ...(overrides.portalTravel ?? {}),
     }),
   });

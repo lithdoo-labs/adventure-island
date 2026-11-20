@@ -49,14 +49,16 @@ function walkRenderNode(node, sink) {
 
 /**
  * @param {object} fieldPlanRoot ms-scene-view RenderNode from AdventureFieldPlan
+ * @param {ReadonlyArray<object>} [extraRoots] additional FieldPlan roots to union
  * @returns {ReadonlyArray<{namespace: string, key: string, contentVersion: string}>}
  */
-export function collectMapResourceRefsFromFieldTree(fieldPlanRoot) {
+export function collectMapResourceRefsFromFieldTree(fieldPlanRoot, extraRoots = []) {
   if (fieldPlanRoot === null || fieldPlanRoot === undefined || typeof fieldPlanRoot !== "object") {
     throw new TypeError("fieldPlanRoot must be a RenderNode object");
   }
   const sink = new Map();
   walkRenderNode(fieldPlanRoot, sink);
+  for (const extra of extraRoots) walkRenderNode(extra, sink);
   return Object.freeze([...sink.values()].sort((left, right) => (
     left.key < right.key ? -1 : left.key > right.key ? 1 : 0
   )));

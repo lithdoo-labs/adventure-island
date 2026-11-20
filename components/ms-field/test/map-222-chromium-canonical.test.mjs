@@ -129,6 +129,7 @@ test("canonical 222000000 full WebProjector scene: all visual canvases, ranks, b
   const readyMs = Date.now() - readyStarted;
   assert.ok(readyMs < CANONICAL_FIELD_BUDGETS.maxReadyMs,
     `ready took ${readyMs}ms (budget ${CANONICAL_FIELD_BUDGETS.maxReadyMs}ms)`);
+  t.diagnostic(`canonical browser ready ${readyMs}ms / ${CANONICAL_FIELD_BUDGETS.maxReadyMs}ms budget`);
 
   const evidence = await page.evaluate(() => {
     const opaqueSample = (canvas) => {
@@ -261,6 +262,31 @@ test("canonical 222000000 full WebProjector scene: all visual canvases, ranks, b
     "world position updates must not repaint the local avatar canvas");
   assert.match(afterWorldMove.hostStyle, /left:1340px; top:220px;/,
     "world position belongs to the outer ms-world-item host");
+
+  const playerIndex = projection.root.children.findIndex((child) => child.key === "player:adventure");
+  const nextDepthNode = projection.root.children[playerIndex + 1];
+  const playerRank = projection.root.children[playerIndex].attrs["stack-rank"];
+  const nextRank = nextDepthNode.attrs["stack-rank"];
+  const beforeDepthChange = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
+  await page.evaluate(({ nextKey, playerRankValue, nextRankValue }) => window.__update([
+    { op: "update", key: "player:adventure", attrs: { set: { "stack-rank": nextRankValue } } },
+    { op: "update", key: nextKey, attrs: { set: { "stack-rank": playerRankValue } } },
+  ]), { nextKey: nextDepthNode.key, playerRankValue: playerRank, nextRankValue: nextRank });
+  await waitFor(page, (rank) => document.querySelector("ms-world-item")?.getAttribute("stack-rank") === rank,
+    "player depth rank moved", 20_000, nextRank);
+  const afterDepthChange = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
+  assert.deepEqual(afterDepthChange.staticPaints, beforeDepthChange.staticPaints,
+    "stack-rank updates must not repaint static map canvases");
+  assert.equal(afterDepthChange.avatarRounds, beforeDepthChange.avatarRounds,
+    "stack-rank updates must not repaint the local avatar canvas");
 
   const beforeAction = await page.evaluate(() => ({
     staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]

@@ -33,13 +33,25 @@ test("bundle-derived AdventureFieldPlan/bootstrap reprojects through the browser
   assert.equal(validateFieldTree(projection.root).ok, true);
   assert.equal(projection.root.key, FIELD_SCENE_ROOT_KEY);
   assert.equal(projection.fromContent, true);
+  assert.deepEqual(
+    {
+      walkSpeed: plan.movementConfig.walkSpeed,
+      gravityAcc: plan.movementConfig.gravityAcc,
+      fallSpeed: plan.movementConfig.fallSpeed,
+      jumpSpeed: plan.movementConfig.jumpSpeed,
+    },
+    { walkSpeed: 125, gravityAcc: 2000, fallSpeed: 670, jumpSpeed: 555 },
+    "Movement constants come from the canonical physics FSDB record",
+  );
+  assert.match(plan.movementConfig.source.contentVersion, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(projection.root.attrs["camera-x"], "-492");
   assert.equal(projection.root.attrs["camera-y"], "-390");
 });
 
 test("adventure-map subsystem reads FieldPlan via scope.content.record", async () => {
   const source = await readFile(path.join(repoRoot, "systems/adventure-map/subsystem.mjs"), "utf8");
-  assert.match(source, /ms-scene-view/);
+  assert.match(source, /field-scene-runtime/);
+  assert.match(source, /movement-sim/);
   assert.match(source, /scope\.content\.record/);
   assert.match(source, /FIELD_PLAN_NAMESPACE/);
   assert.match(source, new RegExp(FIELD_PLAN_KEY));

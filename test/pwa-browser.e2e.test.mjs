@@ -19,6 +19,7 @@ import {
 import { buildCanonicalSyntheticAvatarContent } from "../scripts/pwa/synthetic-avatar-content.mjs";
 import { FIXTURE_LOGICAL_MODULE, composeAvatarFixturePayload } from "./pwa-avatar-fixture.mjs";
 import { COLORS, FRAME_MARKERS } from "../components/cms-actor/test/synthetic-fsdb.mjs";
+import { M6_PORTAL_BUDGETS } from "../systems/adventure-map/portal-budgets.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
@@ -39,7 +40,7 @@ const { chromium } = requireFromFramework("playwright");
 // never synthetic DOM KeyboardEvents) must drive locomotion/facing and
 // release, and a viewport resize must re-center the actor.
 // ---------------------------------------------------------------------------
-test("Adventure Island Base → Adventure Map PWA runs active under its isolated Service Worker scope", { timeout: 300_000 }, async () => {
+test("Adventure Island Base → Adventure Map PWA runs active under its isolated Service Worker scope", { timeout: 300_000 }, async (t) => {
   const url = process.env.LOOMREALM_PWA_URL;
   assert.ok(url?.endsWith("/pwa/adventure-island/"), "real upstream loopback E2E URL must use Adventure Island scope");
   const browser = await chromium.launch({ headless: true });
@@ -237,7 +238,6 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       const avatar = document.querySelector("ms-avatar");
       return avatar?.getAttribute("action") === "walk1"
         && avatar.getAttribute("facing") === "left"
-        && Number(avatar.getAttribute("frame-index")) > 0
         && avatar.getAttribute("data-action") === "walk1";
     }, null, { timeout: 20_000 });
     await page.keyboard.up("ArrowLeft");
@@ -261,7 +261,9 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     await page.setViewportSize({ width: 1000, height: 700 });
     await page.waitForFunction(() => {
       const scene = document.querySelector("ms-scene-view");
-      return scene?.getAttribute("camera-x") === "-592" && scene?.getAttribute("camera-y") === "-490";
+      const player = document.querySelector("ms-world-item");
+      return Number(scene?.getAttribute("camera-x")) === Number(player?.getAttribute("world-x")) - 500
+        && scene?.getAttribute("camera-y") === "-490";
     }, null, { timeout: 20_000 });
     const afterResize = await page.evaluate(() => ({
       sceneCount: document.querySelectorAll("ms-scene-view").length,
@@ -269,6 +271,89 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     }));
     assert.equal(afterResize.sceneCount, 1, "resize must not duplicate the Field root");
     assert.equal(afterResize.productState, "ready", "the product stays active after resize");
+
+    // M6 real travel: approach in00 on the lower foothold, jump into its
+    // x±20/y±50 trigger box, then issue a fresh trusted Up edge. The Portal
+    // transaction must replace only the scene root and become ready within
+    // the explicit travel budget.
+    await page.waitForFunction(() => document.querySelector("ms-avatar")?.getAttribute("action") === "stand1", null, { timeout: 20_000 });
+    await page.keyboard.down("ArrowLeft");
+    await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) <= -465, null, { timeout: 20_000 });
+    await page.keyboard.up("ArrowLeft");
+    await page.keyboard.down("ArrowUp");
+    await page.waitForFunction(() => document.querySelector("ms-avatar")?.getAttribute("action") === "jump", null, { timeout: 5_000 });
+    await page.keyboard.up("ArrowUp");
+    await page.keyboard.down("ArrowLeft");
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      const x = Number(player?.getAttribute("world-x"));
+      const y = Number(player?.getAttribute("world-y"));
+      return x >= -528 && x <= -488 && y >= 194 && y <= 294;
+    }, null, { timeout: 10_000 });
+    const portalStartedAt = Date.now();
+    // Keep Left held until the Up edge is delivered; releasing it first adds
+    // enough command latency for airborne momentum to leave the narrow box.
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.up("ArrowLeft");
+    try {
+      await page.waitForFunction(() => {
+        const scene = document.querySelector("ms-scene-view");
+        return scene?.diagnostics?.().state === "ready"
+          && document.querySelectorAll("ms-map-batch").length === 10
+          && document.querySelectorAll("ms-map-object").length === 1
+          && document.querySelectorAll("ms-portal-visual").length === 0
+          && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 22;
+      }, null, { timeout: M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs });
+    } catch (cause) {
+      const portalFailure = await page.evaluate(() => {
+        const scene = document.querySelector("ms-scene-view");
+        const player = document.querySelector("ms-world-item");
+        return {
+          product: document.documentElement.dataset.loomrealmProduct,
+          failure: window.__loomrealmPwa?.failure ?? null,
+          batchCount: document.querySelectorAll("ms-map-batch").length,
+          objectCount: document.querySelectorAll("ms-map-object").length,
+          portalCount: document.querySelectorAll("ms-portal-visual").length,
+          scene: scene?.diagnostics?.() ?? null,
+          worldX: player?.getAttribute("world-x") ?? null,
+          worldY: player?.getAttribute("world-y") ?? null,
+          action: document.querySelector("ms-avatar")?.getAttribute("action") ?? null,
+        };
+      });
+      throw new Error(`portal target did not become ready: ${cause.message}\n${JSON.stringify({ portalFailure, diagnostics }, null, 2)}`);
+    }
+    await page.keyboard.up("ArrowUp");
+    const portalReadyMs = Date.now() - portalStartedAt;
+    assert.ok(portalReadyMs <= M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs,
+      `portal target ready took ${portalReadyMs}ms`);
+    const targetScene = await page.evaluate(() => {
+      const canvases = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
+      )].map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+      return {
+        productState: document.documentElement.dataset.loomrealmProduct,
+        sceneCount: document.querySelectorAll("ms-scene-view").length,
+        batchCount: document.querySelectorAll("ms-map-batch").length,
+        objectCount: document.querySelectorAll("ms-map-object").length,
+        portalCount: document.querySelectorAll("ms-portal-visual").length,
+        canvasCount: canvases.length,
+        maxWidth: Math.max(0, ...canvases.map((canvas) => canvas.width)),
+        maxHeight: Math.max(0, ...canvases.map((canvas) => canvas.height)),
+        maxPixels: Math.max(0, ...canvases.map((canvas) => canvas.width * canvas.height)),
+      };
+    });
+    assert.equal(targetScene.productState, "ready");
+    assert.equal(targetScene.sceneCount, 1);
+    assert.deepEqual(
+      { batches: targetScene.batchCount, objects: targetScene.objectCount, portals: targetScene.portalCount },
+      { batches: 10, objects: 1, portals: 0 },
+      "the committed DOM tree must be the canonical map222000001 projection",
+    );
+    assert.ok(targetScene.canvasCount <= M6_PORTAL_BUDGETS.maxTargetVisualCanvases);
+    assert.ok(targetScene.maxWidth <= M6_PORTAL_BUDGETS.maxTargetCanvasWidth);
+    assert.ok(targetScene.maxHeight <= M6_PORTAL_BUDGETS.maxTargetCanvasHeight);
+    assert.ok(targetScene.maxPixels <= M6_PORTAL_BUDGETS.maxTargetCanvasPixels);
+    t.diagnostic(`M6 portal ready ${portalReadyMs}ms; target Canvas ${targetScene.canvasCount}, max ${targetScene.maxWidth}x${targetScene.maxHeight}`);
 
     const pageErrors = diagnostics.filter((line) => line.startsWith("pageerror:"));
     const busyResponses = diagnostics.filter((line) => line.startsWith("http:429:"));

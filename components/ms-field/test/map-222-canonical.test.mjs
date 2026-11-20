@@ -20,7 +20,9 @@ import {
 } from "./canonical-budgets.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-const FIELD_HASH_800X600 = "sha256:c2639610e66ba310aaf1398e4bfb238c513616fe67da12758cbb1f361663ea8a";
+// M6 extends FieldState.portalTravel with token/epoch/crossMap authority, so
+// the exact hash intentionally differs from the M5-only schema baseline.
+const FIELD_HASH_800X600 = "sha256:073874b5c5e683b42a0e5b28381ca826f457d11f9dbd7d3325d7f373769946c2";
 
 test("canonical 222000000 Node projection: 297 paint units, player, exact ranks, canvas budgets", async () => {
   const started = performance.now();

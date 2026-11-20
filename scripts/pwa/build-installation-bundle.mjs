@@ -68,6 +68,7 @@ import { buildCanonicalAdventureMapResourceContent } from "./read-adventure-map-
 import {
   FIELD_PLAN_KEY,
   FIELD_PLAN_NAMESPACE,
+  buildAllCanonicalAdventureFieldPlans,
   buildCanonicalAdventureFieldPlanContent,
 } from "./read-adventure-field-plan.mjs";
 import { validateFieldPlan } from "../../systems/adventure-map/field-plan-model.mjs";
@@ -454,7 +455,14 @@ async function assembleAdventureContent({ scriptEntries, adventureContent }) {
       publishedMapKeys.set(entry.key, `sha256:${sha256(bytes)}`);
     }
   }
-  const fieldRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root);
+  const extraFieldPlanRoots = [];
+  for (const entry of content) {
+    if (entry.kind !== "record" || entry.namespace !== FIELD_PLAN_NAMESPACE || entry.key === FIELD_PLAN_KEY) continue;
+    const body = JSON.parse(Buffer.from(entry.body, "base64").toString("utf8"));
+    validateFieldPlan(body);
+    extraFieldPlanRoots.push(body.root);
+  }
+  const fieldRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root, extraFieldPlanRoots);
   const publishedKeys = [...publishedMapKeys.keys()].sort();
   const fieldKeys = fieldRefs.map((ref) => ref.key).sort();
   if (publishedKeys.length !== fieldKeys.length || publishedKeys.some((key, index) => key !== fieldKeys[index])) {
@@ -487,14 +495,24 @@ function compareContentEntries(left, right) {
  * Canonical Avatar plan + map 222000000 resource closure for the M3 Field PWA.
  */
 export async function buildCanonicalAdventurePwaContent({ gameRoot = root } = {}) {
-  const [avatar, field] = await Promise.all([
+  const [avatar, fieldBundle] = await Promise.all([
     buildCanonicalAdventureAvatarContent({ gameRoot }),
-    buildCanonicalAdventureFieldPlanContent({ gameRoot, repoRoot: root }),
+    buildAllCanonicalAdventureFieldPlans({ gameRoot, repoRoot: root }),
   ]);
+  const bootstrapPlan = fieldBundle.plans.find((plan) => plan.mapId === "222000000")
+    ?? fieldBundle.plans[0];
   const map = await buildCanonicalAdventureMapResourceContent({
     gameRoot,
     repoRoot: root,
-    fieldPlanRoot: field.plan.root,
+    fieldPlanRoot: bootstrapPlan.root,
+    extraFieldPlanRoots: fieldBundle.plans
+      .filter((plan) => plan.mapId !== bootstrapPlan.mapId)
+      .map((plan) => plan.root),
+  });
+  const field = Object.freeze({
+    plan: bootstrapPlan,
+    entries: fieldBundle.entries,
+    sources: fieldBundle.sources,
   });
   const byIdentity = new Set();
   const entries = [];

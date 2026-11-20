@@ -11,7 +11,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 /** Soft M3 Node budget on Windows dev hardware; not a product SLA. */
 const FULL_MAP_PROJECTION_BUDGET_MS = 8_000;
 
-test("full 222000000 field projection validates within node baseline budget", async () => {
+test("full 222000000 field projection validates within node baseline budget", async (t) => {
   const started = performance.now();
   const projection = await buildFieldProjection({
     gameRoot: repoRoot,
@@ -26,4 +26,5 @@ test("full 222000000 field projection validates within node baseline budget", as
     elapsed < FULL_MAP_PROJECTION_BUDGET_MS,
     `full field projection took ${elapsed.toFixed(1)}ms (budget ${FULL_MAP_PROJECTION_BUDGET_MS}ms)`,
   );
+  t.diagnostic(`full field projection ${elapsed.toFixed(1)}ms / ${FULL_MAP_PROJECTION_BUDGET_MS}ms budget`);
 });

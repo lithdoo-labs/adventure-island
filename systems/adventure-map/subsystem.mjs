@@ -1,19 +1,9 @@
 /**
- * Adventure Map Subsystem — static Field scene (M3) on the unified Controls
- * channel provided by Base's `game-controls-input`.
- *
- * Scope:
- *   - read the published bootstrap FieldPlan record once per Frame;
- *   - project `ms-scene-view` for map `222000000` with unified depth order;
- *   - keep the pinned Controls consumer attached for canonical PWA wiring
- *     (locomotion/facing projected to ms-avatar attrs — M4 presentation only);
- *   - clamp `camera-x` / `camera-y` on viewport changes;
- *   - release Controls consumer, Viewport subscription, and RenderDomain on
- *     cancel, failure, or mid-initialization errors.
+ * Adventure Map Subsystem — authoritative Movement + Camera (M5) on the unified
+ * Controls channel provided by Base's `game-controls-input`.
  */
 import { ContentReadError, cancelled, defineSubsystem, failed } from "@loomrealm/subsystem";
 import { createControlsConsumer } from "@loomrealm-game/common-controls/subsystem";
-import { cameraForViewport } from "../../components/ms-field/src/camera.mjs";
 import {
   FIELD_PLAN_KEY,
   FIELD_PLAN_NAMESPACE,
@@ -23,36 +13,67 @@ import {
   projectAdventureMapFieldSceneFromPlan,
 } from "./field-scene-runtime.mjs";
 import {
+  controlsUpEdgeFromEvent,
+  movementIntentAfterPortal,
+  movementIntentFromHeldForState,
+} from "./portal-controls.mjs";
+import {
+  bootstrapPortalState,
+  contentErrorCode as portalContentErrorCode,
+  evaluatePortalOnUpEdge,
+  idlePortalTravelAfterFailedPrepare,
+  prepareCrossMapPortalCommit,
+} from "./portal-runtime-bridge.mjs";
+import {
   findAvatarActionClip,
   PLAYER_AVATAR_KEY,
+  PLAYER_WORLD_ITEM_KEY,
   projectAvatarLocomotionAttrs,
+  projectPlayerWorldAttrs,
 } from "./avatar-locomotion.mjs";
 import { presentationTimingAttrs } from "../../components/ms-avatar/src/presentation-attrs.mjs";
 import { nextClipBoundaryMs } from "../../components/ms-avatar/src/presentation-timing.mjs";
+import { movementIntentFromHeld } from "./movement-intent.mjs";
+import {
+  applyCrossMapPortalRenderReplace,
+  authorityAfterCrossMapReplace,
+} from "./portal-cross-map-commit.mjs";
+import {
+  applyMovementToFieldState,
+  createMovementState,
+  stepMovement,
+} from "./movement-sim.mjs";
+import { validateFootholdCollisionPlan } from "./foothold-collision-plan.mjs";
+import { planSchedulerDrain } from "./simulation-scheduler.mjs";
+import { validateMovementConfig } from "./movement-config.mjs";
+import {
+  projectInitialMovementRoot,
+  projectPlayerDepthUpdate,
+} from "./movement-render-projection.mjs";
+import { applyCameraToFieldState } from "./camera-state.mjs";
 
 /** Logical Subsystem key this module implements (game.json / launch.*.json). */
 export const ADVENTURE_MAP_SUBSYSTEM_KEY = "adventure-map";
 
 export { FIELD_PLAN_KEY, FIELD_PLAN_NAMESPACE, FIELD_SCENE_ROOT_KEY };
 
-/** Stable RenderNode key of the Field scene root. */
 export const ADVENTURE_FIELD_SCENE_ROOT_KEY = FIELD_SCENE_ROOT_KEY;
+export const ADVENTURE_PLAYER_NODE_KEY = PLAYER_WORLD_ITEM_KEY;
 
-/** Legacy alias retained for runtime contract tests that grep node keys. */
-export const ADVENTURE_PLAYER_NODE_KEY = "player:adventure";
-
-/** Content identity of the derived bootstrap FieldPlan record. */
 export const FIELD_PLAN_RECORD_NAMESPACE = FIELD_PLAN_NAMESPACE;
 export const FIELD_PLAN_RECORD_KEY = FIELD_PLAN_KEY;
 
-/** Frame-failure codes (stable, greppable, part of the slice contract). */
 export const ADVENTURE_FAILURE_CODES = Object.freeze({
   fieldContentUnavailable: "ADVENTURE_FIELD_CONTENT_UNAVAILABLE",
   initFailed: "ADVENTURE_MAP_INIT_FAILED",
   inputProjectionFailed: "ADVENTURE_INPUT_PROJECTION_FAILED",
+  simulationFailed: "ADVENTURE_SIMULATION_FAILED",
   viewportProjectionFailed: "ADVENTURE_VIEWPORT_PROJECTION_FAILED",
+  portalSceneReplaceFailed: "ADVENTURE_PORTAL_SCENE_REPLACE_FAILED",
   unexpectedExit: "ADVENTURE_MAP_UNEXPECTED_EXIT",
 });
+
+const WALL_CLOCK_POLL_MS = 4;
 
 function decimalAttr(value) {
   if (!Number.isFinite(value)) throw new TypeError(`non-finite attr value ${value}`);
@@ -127,77 +148,156 @@ export default defineSubsystem((scope) => ({
     let domain = null;
     let unsubscribeViewport = null;
     let consumer = null;
+    let activePlan = null;
+    let portalIndex = null;
+    let sceneEpoch = 0;
+    let sceneRootKey = FIELD_SCENE_ROOT_KEY;
+    let portalPrepareGeneration = 0;
+    let portalPrepareAbort = null;
+    let heldButtons = [];
+    let activeRenderChildren = null;
     let projection = null;
+    let fieldState = null;
+    let movementState = null;
+    let footholdCollisionPlan = null;
+    let movementConfig = null;
     let cameraX = null;
     let cameraY = null;
-    let heldButtons = [];
-    let avatarFacing = null;
+    let projectedWorldX = null;
+    let projectedWorldY = null;
+    let movementIntent = movementIntentFromHeld([]);
+    let jumpLatch = false;
     let avatarAction = null;
+    let avatarFacing = null;
     let avatarElapsedMs = 0;
     let avatarProjectedElapsed = "0";
     let avatarProjectedFrame = "0";
     let avatarClockLast = null;
     let avatarClockHandle = null;
     let avatarNode = null;
+    let simAccumulatorMs = 0;
+    let wallClockHandle = null;
+    let wallClockLast = null;
+    let currentRanks = null;
+    let projectedLayer = null;
+    let projectedPlatform = null;
+    let schedulerDiscardedTicks = 0;
 
     const abortWait = createAbortWait(frame.signal);
 
     try {
-      projection = projectAdventureMapFieldSceneFromPlan(bootstrap.value, scope.viewport.current);
+      const portalBootstrap = bootstrapPortalState(bootstrap.value);
+      activePlan = portalBootstrap.activePlan;
+      portalIndex = portalBootstrap.portalIndex;
+      sceneEpoch = portalBootstrap.sceneEpoch;
+      sceneRootKey = portalBootstrap.sceneRootKey;
+      projection = projectAdventureMapFieldSceneFromPlan(activePlan, scope.viewport.current);
+      if (!activePlan.footholdCollisionPlan) {
+        throw new TypeError("AdventureFieldPlan requires footholdCollisionPlan for Movement");
+      }
+      footholdCollisionPlan = validateFootholdCollisionPlan(activePlan.footholdCollisionPlan);
+      movementConfig = validateMovementConfig(activePlan.movementConfig);
       if (frame.signal.aborted) return cancelled();
 
-      cameraX = projection.root.attrs["camera-x"];
-      cameraY = projection.root.attrs["camera-y"];
-      avatarNode = projection.root.children
+      movementState = createMovementState({
+        worldX: projection.fieldState.player.worldX,
+        worldY: projection.fieldState.player.worldY,
+        facing: projection.fieldState.player.facing ?? "right",
+        layer: projection.fieldState.player.layer ?? 0,
+        platform: projection.fieldState.player.zM ?? 0,
+        segments: footholdCollisionPlan.segments,
+      });
+      fieldState = applyMovementToFieldState(projection.fieldState, movementState);
+
+      const initialCamera = applyCameraToFieldState(
+        fieldState,
+        scope.viewport.current,
+        activePlan.effectiveBounds,
+      );
+      fieldState = initialCamera.fieldState;
+      const cam0 = initialCamera.camera;
+      cameraX = decimalAttr(cam0.cameraX);
+      cameraY = decimalAttr(cam0.cameraY);
+      projectedWorldX = decimalAttr(fieldState.player.worldX);
+      projectedWorldY = decimalAttr(fieldState.player.worldY);
+
+      const renderRoot = projectInitialMovementRoot(projection.root, fieldState, cam0);
+      activeRenderChildren = renderRoot.children;
+      currentRanks = new Map(renderRoot.children.map((child) => [child.key, child.attrs["stack-rank"]]));
+      projectedLayer = fieldState.player.layer;
+      projectedPlatform = fieldState.player.zM;
+
+      avatarNode = renderRoot.children
         .find((child) => child.key === ADVENTURE_PLAYER_NODE_KEY)
         ?.children?.[0] ?? null;
-      avatarFacing = avatarNode?.attrs?.facing ?? "right";
-      avatarAction = avatarNode?.attrs?.action ?? "stand1";
-      avatarProjectedElapsed = avatarNode?.attrs?.["elapsed-ms"] ?? "0";
-      avatarProjectedFrame = avatarNode?.attrs?.["frame-index"] ?? "0";
+      const avatarAttrs = projectAvatarLocomotionAttrs(fieldState);
+      avatarFacing = avatarAttrs.facing;
+      avatarAction = avatarAttrs.action;
+      avatarProjectedElapsed = avatarAttrs["elapsed-ms"];
+      avatarProjectedFrame = avatarAttrs["frame-index"];
 
       domain = scope.createRenderDomain({
         zIndex: 0,
-        roots: [projection.root],
+        roots: [renderRoot],
       });
+
+      const diffAttrs = (next, current, keys) => {
+        const changed = {};
+        for (const key of keys) {
+          if (next[key] === undefined) continue;
+          if (next[key] !== current[key]) changed[key] = next[key];
+        }
+        return changed;
+      };
 
       const projectCamera = () => {
         const size = scope.viewport.current;
         if (size === null || typeof size !== "object") return;
         const { width, height } = size;
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
-        const cam = cameraForViewport(
-          projection.fieldState.player,
-          size,
-          { effectiveBounds: projection.effectiveBounds },
-        );
+        const cameraProjection = applyCameraToFieldState(fieldState, size, activePlan.effectiveBounds);
+        fieldState = cameraProjection.fieldState;
+        const cam = cameraProjection.camera;
         const nextX = decimalAttr(cam.cameraX);
         const nextY = decimalAttr(cam.cameraY);
-        const changed = {};
-        if (nextX !== cameraX) changed["camera-x"] = nextX;
-        if (nextY !== cameraY) changed["camera-y"] = nextY;
-        if (Object.keys(changed).length === 0) return;
-        domain.update({ nodes: [{ key: FIELD_SCENE_ROOT_KEY, attrs: { set: changed } }] });
-        cameraX = nextX;
-        cameraY = nextY;
+        const nodes = [];
+        const sceneChanged = diffAttrs({ "camera-x": nextX, "camera-y": nextY }, { "camera-x": cameraX, "camera-y": cameraY }, ["camera-x", "camera-y"]);
+        if (Object.keys(sceneChanged).length > 0) {
+          nodes.push({ key: sceneRootKey, attrs: { set: sceneChanged } });
+          cameraX = nextX;
+          cameraY = nextY;
+        }
+        if (nodes.length === 0) return;
+        domain.update({ nodes });
       };
 
-      unsubscribeViewport = scope.viewport.subscribe(
-        () => applySafely(projectCamera, ADVENTURE_FAILURE_CODES.viewportProjectionFailed),
-      );
-      applySafely(projectCamera, ADVENTURE_FAILURE_CODES.viewportProjectionFailed);
+      const projectWorldPosition = () => {
+        const next = projectPlayerWorldAttrs(fieldState.player);
+        const changed = diffAttrs(next, { "world-x": projectedWorldX, "world-y": projectedWorldY }, ["world-x", "world-y"]);
+        if (Object.keys(changed).length === 0) return;
+        domain.update({ nodes: [{ key: PLAYER_WORLD_ITEM_KEY, attrs: { set: changed } }] });
+        projectedWorldX = next["world-x"];
+        projectedWorldY = next["world-y"];
+      };
+
+      const projectPlayerDepth = () => {
+        if (fieldState.player.layer === projectedLayer
+          && fieldState.player.zM === projectedPlatform) return;
+        const depth = projectPlayerDepthUpdate(activeRenderChildren, fieldState.player, currentRanks);
+        if (depth.nodes.length > 0) domain.update({ nodes: depth.nodes });
+        currentRanks = depth.nextRanks;
+        projectedLayer = fieldState.player.layer;
+        projectedPlatform = fieldState.player.zM;
+      };
 
       const projectAvatarPresentation = (timingState) => {
-        const attrs = projectAvatarLocomotionAttrs(heldButtons, projection.fieldState, timingState);
-        const changed = {};
-        for (const key of ["action", "facing", "frame-index", "elapsed-ms"]) {
-          if (attrs[key] === undefined) continue;
-          const current = key === "action" ? avatarAction
-            : key === "facing" ? avatarFacing
-              : key === "frame-index" ? avatarProjectedFrame
-                : avatarProjectedElapsed;
-          if (attrs[key] !== current) changed[key] = attrs[key];
-        }
+        const attrs = projectAvatarLocomotionAttrs(fieldState, timingState);
+        const changed = diffAttrs(attrs, {
+          action: avatarAction,
+          facing: avatarFacing,
+          "frame-index": avatarProjectedFrame,
+          "elapsed-ms": avatarProjectedElapsed,
+        }, ["action", "facing", "frame-index", "elapsed-ms"]);
         if (attrs.action !== undefined) avatarAction = attrs.action;
         if (attrs.facing !== undefined) avatarFacing = attrs.facing;
         if (attrs["frame-index"] !== undefined) avatarProjectedFrame = attrs["frame-index"];
@@ -222,8 +322,8 @@ export default defineSubsystem((scope) => ({
         avatarClockHandle = globalThis.setTimeout(tickAvatarClock, delay);
       };
 
-      const projectAvatar = () => {
-        const nextAction = projectAvatarLocomotionAttrs(heldButtons, projection.fieldState).action;
+      const syncAvatarOnActionChange = () => {
+        const nextAction = projectAvatarLocomotionAttrs(fieldState).action;
         if (nextAction !== avatarAction) {
           avatarElapsedMs = 0;
           avatarClockLast = null;
@@ -253,20 +353,245 @@ export default defineSubsystem((scope) => ({
         scheduleAvatarClock();
       }
 
+      const runSimulationTicks = (count) => {
+        for (let index = 0; index < count; index += 1) {
+          const jumpPressed = jumpLatch;
+          if (jumpPressed) jumpLatch = false;
+          movementState = stepMovement(
+            movementState,
+            movementIntent,
+            footholdCollisionPlan,
+            movementConfig,
+            { jumpPressed },
+          );
+          fieldState = applyMovementToFieldState(fieldState, movementState);
+        }
+        projectWorldPosition();
+        projectPlayerDepth();
+        projectCamera();
+        syncAvatarOnActionChange();
+      };
+
+      const drainSimulation = (elapsedMs) => {
+        const plan = planSchedulerDrain(elapsedMs, simAccumulatorMs);
+        simAccumulatorMs = plan.nextAccumulatorMs;
+        if (plan.diagnostic) {
+          schedulerDiscardedTicks += plan.diagnostic.discardedTicks;
+          try {
+            globalThis.console?.warn?.(
+              `[adventure-map] ${plan.diagnostic.code}`,
+              Object.freeze({
+                discardedTicks: plan.diagnostic.discardedTicks,
+                totalDiscardedTicks: schedulerDiscardedTicks,
+              }),
+            );
+          } catch {
+            // Diagnostics are best-effort and never become simulation fate.
+          }
+        }
+        if (plan.ticksToRun > 0) runSimulationTicks(plan.ticksToRun);
+      };
+
+      const viewportSize = () => scope.viewport.current;
+
+      const applySameMapPortalCommit = (commit) => {
+        fieldState = commit.fieldState;
+        movementState = commit.movementState;
+        projectWorldPosition();
+        projectPlayerDepth();
+        projectCamera();
+        syncAvatarOnActionChange();
+      };
+
+      const cancelPortalPrepare = () => {
+        if (portalPrepareAbort !== null) {
+          portalPrepareAbort.abort();
+          portalPrepareAbort = null;
+        }
+      };
+
+      const applyCrossMapPortalCommit = (commit) => {
+        // Build every value that can fail before replacing the live Render tree.
+        // After replace succeeds, the remaining assignments are the atomic
+        // authority commit and must not re-run projection or validation.
+        const next = authorityAfterCrossMapReplace(commit);
+        const renderRoot = next.renderRoot;
+        const nextRanks = new Map(renderRoot.children.map((child) => [child.key, child.attrs["stack-rank"]]));
+        const nextAvatarNode = renderRoot.children
+          .find((child) => child.key === PLAYER_WORLD_ITEM_KEY)
+          ?.children?.[0] ?? null;
+        const nextCameraX = decimalAttr(next.camera.cameraX);
+        const nextCameraY = decimalAttr(next.camera.cameraY);
+        const nextWorldX = decimalAttr(next.fieldState.player.worldX);
+        const nextWorldY = decimalAttr(next.fieldState.player.worldY);
+        const avatarAttrs = projectAvatarLocomotionAttrs(next.fieldState);
+        const nextMovementIntent = movementIntentAfterPortal(heldButtons, false);
+
+        applyCrossMapPortalRenderReplace(commit, domain);
+
+        activePlan = next.activePlan;
+        projection = next.projection;
+        footholdCollisionPlan = next.footholdCollisionPlan;
+        movementConfig = next.movementConfig;
+        portalIndex = next.portalIndex;
+        fieldState = next.fieldState;
+        movementState = next.movementState;
+        sceneEpoch = next.sceneEpoch;
+        sceneRootKey = next.sceneRootKey;
+        activeRenderChildren = next.activeRenderChildren;
+        currentRanks = nextRanks;
+        projectedLayer = fieldState.player.layer;
+        projectedPlatform = fieldState.player.zM;
+        avatarNode = nextAvatarNode;
+        cameraX = nextCameraX;
+        cameraY = nextCameraY;
+        projectedWorldX = nextWorldX;
+        projectedWorldY = nextWorldY;
+        avatarFacing = avatarAttrs.facing;
+        avatarAction = avatarAttrs.action;
+        avatarProjectedElapsed = avatarAttrs["elapsed-ms"];
+        avatarProjectedFrame = avatarAttrs["frame-index"];
+        avatarElapsedMs = 0;
+        avatarClockLast = null;
+        simAccumulatorMs = 0;
+        movementIntent = nextMovementIntent;
+        clearAvatarClock();
+        scheduleAvatarClock();
+      };
+
+      const startCrossMapPortalPrepare = (cross) => {
+        cancelPortalPrepare();
+        fieldState = cross.fieldState;
+        portalPrepareGeneration += 1;
+        const generation = portalPrepareGeneration;
+        const travelToken = cross.travelToken;
+        const abortController = new AbortController();
+        portalPrepareAbort = abortController;
+        const onFrameAbort = () => abortController.abort();
+        frame.signal.addEventListener("abort", onFrameAbort, { once: true });
+        void (async () => {
+          try {
+            const prepared = await prepareCrossMapPortalCommit({
+              scope,
+              signal: abortController.signal,
+              sourcePlan: activePlan,
+              fieldState,
+              movementState,
+              sourcePortal: cross.sourcePortal,
+              viewport: viewportSize(),
+              travelToken,
+              sceneEpoch,
+            });
+            if (closed || fatalCode !== null || frame.signal.aborted) return;
+            if (generation !== portalPrepareGeneration) return;
+            if (travelToken !== fieldState.portalTravel?.activeToken) return;
+            if (!prepared.ok) {
+              applySafely(() => {
+                fieldState = idlePortalTravelAfterFailedPrepare(fieldState);
+              });
+              return;
+            }
+            applySafely(() => {
+              try {
+                applyCrossMapPortalCommit(prepared.commit);
+              } catch (cause) {
+                // replace failed before the authority commit. Preserve the
+                // current source-map movement state and only clear travel.
+                fieldState = idlePortalTravelAfterFailedPrepare(fieldState);
+                throw cause;
+              }
+            }, ADVENTURE_FAILURE_CODES.portalSceneReplaceFailed);
+          } catch (cause) {
+            if (closed || fatalCode !== null || frame.signal.aborted) return;
+            if (generation !== portalPrepareGeneration) return;
+            if (travelToken !== fieldState.portalTravel?.activeToken) return;
+            if (portalContentErrorCode(cause) === "CONTENT_CANCELLED" || abortController.signal.aborted) {
+              applySafely(() => {
+                fieldState = idlePortalTravelAfterFailedPrepare(fieldState);
+              });
+              return;
+            }
+            applySafely(() => {
+              fieldState = idlePortalTravelAfterFailedPrepare(fieldState);
+            });
+          } finally {
+            frame.signal.removeEventListener("abort", onFrameAbort);
+            if (portalPrepareAbort === abortController) portalPrepareAbort = null;
+          }
+        })();
+      };
+
+      const tryPortalTravel = (upEdge) => {
+        if (!upEdge) return false;
+        const decision = evaluatePortalOnUpEdge({
+          activePlan,
+          portalIndex,
+          fieldState,
+          movementState,
+          viewport: viewportSize(),
+        });
+        if (decision.type === "none") return false;
+        if (decision.type === "same-map") {
+          applySameMapPortalCommit(decision.commit);
+          return true;
+        }
+        startCrossMapPortalPrepare(decision);
+        return true;
+      };
+
+      const onWallClock = () => {
+        if (closed || fatalCode !== null) return;
+        const now = Date.now();
+        const elapsed = wallClockLast === null ? WALL_CLOCK_POLL_MS : Math.max(0, now - wallClockLast);
+        wallClockLast = now;
+        applySafely(() => drainSimulation(elapsed), ADVENTURE_FAILURE_CODES.simulationFailed);
+      };
+
+      wallClockLast = Date.now();
+      wallClockHandle = globalThis.setInterval(onWallClock, WALL_CLOCK_POLL_MS);
+
+      unsubscribeViewport = scope.viewport.subscribe(
+        () => applySafely(projectCamera, ADVENTURE_FAILURE_CODES.viewportProjectionFailed),
+      );
+
       consumer = createControlsConsumer(scope.presentationEvents, frame, {
         onState(state) {
           applySafely(() => {
-            heldButtons = Array.isArray(state?.down) ? [...state.down] : [];
-            projectAvatar();
+            const down = Array.isArray(state?.down) ? state.down : [];
+            heldButtons = [...down];
+            const nextIntent = movementIntentFromHeldForState(down);
+            if (nextIntent.jump && !movementIntent.jump) jumpLatch = true;
+            movementIntent = nextIntent;
           });
         },
-        onEvent() {},
+        onEvent(event) {
+          applySafely(() => {
+            const upEdge = controlsUpEdgeFromEvent(event);
+            const portalConsumed = tryPortalTravel(upEdge);
+            if (portalConsumed) {
+              jumpLatch = false;
+              movementIntent = movementIntentAfterPortal(heldButtons, true);
+              return;
+            }
+            if (upEdge) {
+              const nextIntent = movementIntentFromHeld(heldButtons);
+              if (nextIntent.jump && !movementIntent.jump) jumpLatch = true;
+              movementIntent = nextIntent;
+            }
+          });
+        },
       });
-      projectAvatar();
+
+      syncAvatarOnActionChange();
+      projectWorldPosition();
+      projectCamera();
 
       await Promise.race([abortWait.promise, fatalPromise]);
       if (frame.signal.aborted) return cancelled();
-      return failed({ code: fatalCode ?? ADVENTURE_FAILURE_CODES.unexpectedExit });
+      return failed({
+        code: fatalCode ?? ADVENTURE_FAILURE_CODES.unexpectedExit,
+        message: failureMessage(fatalCode ?? ADVENTURE_FAILURE_CODES.unexpectedExit),
+      });
     } catch (cause) {
       if (frame.signal.aborted) return cancelled();
       return failed({
@@ -275,7 +600,13 @@ export default defineSubsystem((scope) => ({
       });
     } finally {
       closed = true;
+      if (portalPrepareAbort !== null) {
+        portalPrepareAbort.abort();
+        portalPrepareAbort = null;
+      }
       abortWait.dispose();
+      if (wallClockHandle !== null) globalThis.clearInterval(wallClockHandle);
+      wallClockHandle = null;
       consumer?.close();
       unsubscribeViewport?.();
       if (avatarClockHandle !== null) globalThis.clearTimeout(avatarClockHandle);

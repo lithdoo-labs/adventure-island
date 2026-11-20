@@ -7,6 +7,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildMapProjection } from "../../components/ms-map-adapter/src/index.mjs";
+import { assertM6ExtraMapFieldPlanPublishable } from "../../systems/adventure-map/map-m6-publishability.mjs";
 import { defaultAdventureFsdbRoot } from "../../components/ms-map-adapter/src/fsdb-reader.mjs";
 import { FIELD_MAP_222000000 } from "../../components/ms-field/src/field-state.mjs";
 import {
@@ -55,6 +56,7 @@ export async function buildCanonicalAdventureMapResourceContent({
   repoRoot = canonicalRepoRoot,
   mapId = FIELD_MAP_222000000,
   fieldPlanRoot,
+  extraFieldPlanRoots = [],
 } = {}) {
   if (fieldPlanRoot === undefined) {
     throw new TypeError("fieldPlanRoot is required to derive the published resource.Map closure");
@@ -76,11 +78,25 @@ export async function buildCanonicalAdventureMapResourceContent({
     throw new TypeError(`map ${mapId} projection closure is not publishable`);
   }
 
-  const fieldRefs = collectMapResourceRefsFromFieldTree(fieldPlanRoot);
+  const fieldRefs = collectMapResourceRefsFromFieldTree(fieldPlanRoot, extraFieldPlanRoots);
+  const bootstrapRefs = collectMapResourceRefsFromFieldTree(fieldPlanRoot);
   const adapterRefs = Object.freeze([...projection.scene.resources].sort((left, right) => (
     left.key < right.key ? -1 : left.key > right.key ? 1 : 0
   )));
-  assertExactMapResourceRefSets(fieldRefs, adapterRefs, "AdventureFieldPlan tree vs map adapter closure");
+  assertExactMapResourceRefSets(bootstrapRefs, adapterRefs, "AdventureFieldPlan tree vs map adapter closure");
+  for (const extraRoot of extraFieldPlanRoots) {
+    const extraMapId = extraRoot?.data?.mapId;
+    if (typeof extraMapId !== "string") {
+      throw new TypeError("extra FieldPlan root must carry mapId in data");
+    }
+    const extraProjection = await buildMapProjection({ mapId: extraMapId, gameRoot: repo });
+    assertM6ExtraMapFieldPlanPublishable(extraMapId, extraProjection.closure);
+    const extraTreeRefs = collectMapResourceRefsFromFieldTree(extraRoot);
+    const extraAdapterRefs = Object.freeze([...extraProjection.scene.resources].sort((left, right) => (
+      left.key < right.key ? -1 : left.key > right.key ? 1 : 0
+    )));
+    assertExactMapResourceRefSets(extraTreeRefs, extraAdapterRefs, `AdventureFieldPlan ${extraMapId} vs adapter closure`);
+  }
 
   const entries = [];
   const sources = [];

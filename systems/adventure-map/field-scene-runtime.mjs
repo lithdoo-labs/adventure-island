@@ -49,5 +49,19 @@ export function projectAdventureMapFieldSceneFromPlan(planValue, viewport) {
   });
 }
 
-/** Stable RenderNode key of the canonical 222000000 Field scene root. */
+/** Bootstrap default scene root key (map 222000000). */
 export const FIELD_SCENE_ROOT_KEY = "scene:map222000000";
+
+/** @param {string} mapId */
+export function fieldSceneRootKeyForMap(mapId) {
+  return `scene:map${mapId}`;
+}
+
+/**
+ * @param {object} plan bootstrap AdventureFieldPlan record body
+ */
+export function sceneRootKeyFromPlan(plan) {
+  if (plan?.root?.key) return plan.root.key;
+  if (plan?.mapId) return fieldSceneRootKeyForMap(plan.mapId);
+  return FIELD_SCENE_ROOT_KEY;
+}

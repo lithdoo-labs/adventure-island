@@ -33,19 +33,25 @@ import {
 } from "../systems/adventure-map/field-plan-model.mjs";
 import { FIELD_SCENE_ROOT_KEY } from "../systems/adventure-map/field-scene-runtime.mjs";
 import { buildCanonicalAdventureFieldPlanContent } from "../scripts/pwa/read-adventure-field-plan.mjs";
+import { fieldPlanContentKey } from "../systems/adventure-map/field-plan-keys.mjs";
 import { fileURLToPath } from "node:url";
 
 const repoRootPath = fileURLToPath(new URL("../", import.meta.url));
 const canonicalFieldPlan = (await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRootPath })).plan;
+const canonicalTargetFieldPlan = (await buildCanonicalAdventureFieldPlanContent({
+  gameRoot: repoRootPath,
+  mapId: "222000001",
+})).plan;
 
 // --- Shared fakes -----------------------------------------------------------
 
-function createDomainHarness({ failOnAttr = null } = {}) {
+function createDomainHarness({ failOnAttr = null, failReplace = false } = {}) {
   const domains = [];
   const createRenderDomain = (state) => {
     const domain = {
       initialState: state,
       updates: [],
+      replacements: [],
       closed: false,
       update(update) {
         if (domain.closed) throw new Error("update after close");
@@ -55,7 +61,11 @@ function createDomainHarness({ failOnAttr = null } = {}) {
         }
         domain.updates.push(update);
       },
-      replace() { if (domain.closed) throw new Error("replace after close"); },
+      replace(state) {
+        if (domain.closed) throw new Error("replace after close");
+        if (failReplace) throw new Error("replace rejected");
+        domain.replacements.push(state);
+      },
       emit() {},
       close() { domain.closed = true; },
     };
@@ -127,7 +137,11 @@ function createPresentationEventsHarness() {
   };
 }
 
-function createContentHarness({ recordError = null, fieldPlan = canonicalFieldPlan } = {}) {
+function createContentHarness({
+  recordError = null,
+  fieldPlan = canonicalFieldPlan,
+  targetFieldPlan = canonicalTargetFieldPlan,
+} = {}) {
   const calls = [];
   const content = {
     calls,
@@ -136,6 +150,9 @@ function createContentHarness({ recordError = null, fieldPlan = canonicalFieldPl
       if (recordError !== null) throw recordError;
       if (namespace === FIELD_PLAN_NAMESPACE && key === FIELD_PLAN_KEY) {
         return Object.freeze({ value: fieldPlan });
+      }
+      if (namespace === FIELD_PLAN_NAMESPACE && key === fieldPlanContentKey(targetFieldPlan.mapId)) {
+        return Object.freeze({ value: targetFieldPlan });
       }
       throw new Error(`unexpected content record ${namespace}/${key}`);
     },
@@ -177,6 +194,32 @@ function denyScopeExtra(capabilities) {
 }
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
+const waitForBusinessTicks = () => new Promise((resolve) => setTimeout(resolve, 50));
+async function waitFor(check, label, timeoutMs = 2_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = check();
+    if (value) return value;
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.fail(`timed out waiting for ${label}`);
+}
+
+function fieldPlanAtPortal(plan = canonicalFieldPlan) {
+  return Object.freeze({
+    ...plan,
+    fieldState: Object.freeze({
+      ...plan.fieldState,
+      player: Object.freeze({
+        ...plan.fieldState.player,
+        worldX: -508,
+        // Keep the seeded player airborne so initial support snapping does not
+        // move the feet to the lower y=333 platform outside the trigger box.
+        worldY: 194,
+      }),
+    }),
+  });
+}
 
 function contentReadError(code) {
   const error = new Error(code);
@@ -328,7 +371,10 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   assert.equal(root.attrs["camera-x"], "-492");
   assert.equal(root.attrs["camera-y"], "-390");
   assert.ok(root.children.length > 200, "the Field root carries the full map Paint Unit tree");
-  assert.ok(root.children.some((child) => child.key === "player:adventure"));
+  const initialPlayer = root.children.find((child) => child.key === "player:adventure");
+  assert.ok(initialPlayer);
+  assert.equal(initialPlayer.attrs["world-y"], "243", "the first snapshot uses authoritative ground contact");
+  assert.equal(initialPlayer.attrs["stack-rank"], "155", "the first snapshot uses Foothold layer/group depth");
   assert.equal(harness.eventsHarness.listeners.length, 1, "exactly one Controls consumer listener");
   assert.deepEqual(harness.eventsHarness.listeners[0].channels, ["controls.state", "controls.event"]);
 
@@ -336,51 +382,78 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
     const update = index === -1 ? harness.domain().updates.at(-1) : harness.domain().updates[index];
     return update?.nodes?.[0]?.attrs?.set ?? {};
   };
+  const latestAttrsFor = (key) => [...harness.domain().updates]
+    .reverse()
+    .flatMap((update) => update.nodes ?? [])
+    .find((node) => node.key === key)?.attrs?.set ?? {};
 
   const updatesBeforeInput = harness.domain().updates.length;
   pressDirection(harness, "left");
-  pressDirection(harness, "right");
-  await settle();
+  assert.equal(
+    harness.domain().updates.length,
+    updatesBeforeInput,
+    "Controls callbacks update intent but never advance the business simulation",
+  );
+  await waitForBusinessTicks();
   assert.ok(
     harness.domain().updates.length > updatesBeforeInput,
-    "M4 projects locomotion/facing to ms-avatar attrs from Controls",
+    "the fixed business clock projects locomotion/facing from authoritative Movement",
   );
   const avatarUpdate = harness.domain().updates.find((update) => update.nodes?.[0]?.key === "player:adventure:avatar");
   assert.ok(avatarUpdate, "controls input must update the nested ms-avatar node");
+  harness.eventsHarness.dispatch("controls.state", "input.state", { down: [] });
+  await waitForBusinessTicks();
   pressDirection(harness, "up");
-  await settle();
+  await waitForBusinessTicks();
   assert.ok(harness.domain().updates.some((update) => (
     update.nodes?.[0]?.key === "player:adventure:avatar"
       && update.nodes[0].attrs?.set?.action === "jump"
   )), "up must select the projected jump action");
 
+  harness.eventsHarness.dispatch("controls.state", "input.state", { down: [] });
+  await waitForBusinessTicks();
+  const latestWorldX = [...harness.domain().updates]
+    .reverse()
+    .flatMap((update) => update.nodes ?? [])
+    .find((node) => node.key === "player:adventure" && node.attrs?.set?.["world-x"] !== undefined)
+    ?.attrs.set["world-x"] ?? initialPlayer.attrs["world-x"];
   harness.viewportHarness.notify({ width: 1000, height: 500 });
-  await settle();
   assert.deepEqual(
-    attrsOfUpdate(-1),
-    { "camera-x": "-592", "camera-y": "-290" },
+    latestAttrsFor(FIELD_SCENE_ROOT_KEY),
+    { "camera-x": String(Number(latestWorldX) - 500), "camera-y": "-290" },
     "viewport resize projects clamped camera attrs on ms-scene-view",
   );
   harness.viewportHarness.notify({ width: 1002, height: 500 });
-  await settle();
-  assert.deepEqual(attrsOfUpdate(-1), { "camera-x": "-593" }, "width-only resize updates camera-x only");
+  assert.deepEqual(
+    latestAttrsFor(FIELD_SCENE_ROOT_KEY),
+    { "camera-x": String(Number(latestWorldX) - 501) },
+    "width-only resize updates camera-x only",
+  );
   harness.viewportHarness.notify({ width: 1002, height: 502 });
-  await settle();
-  assert.deepEqual(attrsOfUpdate(-1), { "camera-y": "-292" }, "height-only resize updates camera-y only");
+  assert.deepEqual(latestAttrsFor(FIELD_SCENE_ROOT_KEY), { "camera-y": "-292" }, "height-only resize updates camera-y only");
 
-  const before = harness.domain().updates.length;
+  const cameraUpdatesBefore = harness.domain().updates.filter((update) => (
+    update.nodes?.some((node) => node.key === FIELD_SCENE_ROOT_KEY)
+  )).length;
   harness.viewportHarness.notify(null);
   harness.viewportHarness.notify({ width: 0, height: 100 });
   await settle();
-  assert.equal(harness.domain().updates.length, before, "null/zero viewports do not project");
+  const cameraUpdatesAfter = harness.domain().updates.filter((update) => (
+    update.nodes?.some((node) => node.key === FIELD_SCENE_ROOT_KEY)
+  )).length;
+  assert.equal(cameraUpdatesAfter, cameraUpdatesBefore, "null/zero viewports do not project camera state");
 
   for (const update of harness.domain().updates) {
-    const key = update.nodes?.[0]?.key;
-    assert.ok(
-      key === FIELD_SCENE_ROOT_KEY || key === "player:adventure:avatar",
-      `updates must target camera or avatar attrs only (saw ${key})`,
-    );
-    assert.equal(update.nodes?.[0]?.data, undefined, "projection updates must not resend scene data");
+    for (const node of update.nodes ?? []) {
+      const key = node.key;
+      assert.ok(
+        key === FIELD_SCENE_ROOT_KEY
+          || key === "player:adventure:avatar"
+          || key === "player:adventure",
+        `updates must target camera, world position, or avatar attrs only (saw ${key})`,
+      );
+      assert.equal(node.data, undefined, "projection updates must not resend scene data");
+    }
   }
 
   harness.frame.abort();
@@ -388,6 +461,107 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   assert.equal(harness.domain().closed, true);
   assert.equal(harness.viewportHarness.unsubscribeCount, 1);
   assert.equal(harness.eventsHarness.listeners[0].closed, true);
+});
+
+test("M6: state-before-event Up edge performs one atomic cross-map replace", async (t) => {
+  const harness = startMapFrame({
+    content: createContentHarness({ fieldPlan: fieldPlanAtPortal() }),
+  });
+  t.after(() => harness.frame.abort());
+  await settle();
+
+  pressDirection(harness, "up", ["up"]);
+  const replacement = await waitFor(
+    () => harness.domain().replacements[0],
+    "cross-map RenderDomain.replace",
+  );
+  const root = replacement.roots[0];
+  assert.equal(root.data.mapId, "222000001");
+  assert.match(root.key, /^scene:map222000001:e1$/u);
+  const player = root.children.find((child) => child.key === "player:adventure");
+  assert.equal(player.attrs["world-x"], "22", "arrival uses the target st00 x coordinate");
+  assert.equal(harness.domain().replacements.length, 1, "one Up edge commits exactly once");
+
+  harness.frame.abort();
+  assert.deepEqual(await harness.outcome, { type: "cancelled" });
+});
+
+test("M6: failed prepare keeps source movement monotonic instead of rewinding a stale snapshot", async (t) => {
+  let rejectTarget;
+  const content = createContentHarness({ fieldPlan: fieldPlanAtPortal() });
+  const baseRecord = content.record.bind(content);
+  content.record = async (namespace, key, options) => {
+    if (key === fieldPlanContentKey("222000001")) {
+      return new Promise((_resolve, reject) => { rejectTarget = reject; });
+    }
+    return baseRecord(namespace, key, options);
+  };
+  const harness = startMapFrame({ content });
+  t.after(() => harness.frame.abort());
+  await settle();
+
+  pressDirection(harness, "left", ["left"]);
+  pressDirection(harness, "up", ["left", "up"]);
+  await waitFor(() => rejectTarget, "pending target FieldPlan read");
+  await waitForBusinessTicks();
+  rejectTarget(new Error("target plan unavailable"));
+  await settle();
+  await waitForBusinessTicks();
+
+  const xs = harness.domain().updates
+    .flatMap((update) => update.nodes ?? [])
+    .filter((node) => node.key === "player:adventure" && node.attrs?.set?.["world-x"] !== undefined)
+    .map((node) => Number(node.attrs.set["world-x"]));
+  assert.ok(xs.length >= 2, `movement must continue while prepare is pending and after it fails: ${JSON.stringify(xs)}`);
+  for (let index = 1; index < xs.length; index += 1) {
+    assert.ok(xs[index] <= xs[index - 1], `source movement rewound at ${xs[index - 1]} -> ${xs[index]}`);
+  }
+  assert.equal(harness.domain().replacements.length, 0, "failed prepare never replaces the source scene");
+});
+
+test("M6: frame cancellation aborts an in-flight target FieldPlan read", async () => {
+  let targetReadStarted = false;
+  let targetReadAborted = false;
+  const content = createContentHarness({ fieldPlan: fieldPlanAtPortal() });
+  const baseRecord = content.record.bind(content);
+  content.record = async (namespace, key, options) => {
+    if (key === fieldPlanContentKey("222000001")) {
+      targetReadStarted = true;
+      return new Promise((_resolve, reject) => {
+        options.signal.addEventListener("abort", () => {
+          targetReadAborted = true;
+          reject(contentReadError("CONTENT_CANCELLED"));
+        }, { once: true });
+      });
+    }
+    return baseRecord(namespace, key, options);
+  };
+  const harness = startMapFrame({ content });
+  await settle();
+  pressDirection(harness, "up", ["up"]);
+  await waitFor(() => targetReadStarted, "target FieldPlan read");
+
+  harness.frame.abort();
+  assert.deepEqual(await harness.outcome, { type: "cancelled" });
+  await waitFor(() => targetReadAborted, "target FieldPlan abort");
+  assert.equal(harness.domain().replacements.length, 0);
+});
+
+test("M6: replace failure preserves the source scene and reports the stable transaction code", async () => {
+  const domains = createDomainHarness({ failReplace: true });
+  const harness = startMapFrame({
+    domains,
+    content: createContentHarness({ fieldPlan: fieldPlanAtPortal() }),
+  });
+  await settle();
+  pressDirection(harness, "up", ["up"]);
+
+  const failure = await harness.outcome;
+  assert.equal(failure.type, "failed");
+  assert.equal(failure.error.code, "ADVENTURE_PORTAL_SCENE_REPLACE_FAILED");
+  assert.equal(harness.domain().initialState.roots[0].data.mapId, "222000000");
+  assert.equal(harness.domain().replacements.length, 0, "a rejected replace cannot install the target tree");
+  assert.equal(harness.domain().closed, true);
 });
 
 // ---------------------------------------------------------------------------

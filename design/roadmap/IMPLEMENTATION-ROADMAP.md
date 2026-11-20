@@ -295,6 +295,8 @@ FieldState
 
 ## 9. M5：权威 Movement 与 Camera
 
+> **路线图状态：2026-11-19 最小闭环验收门已通过；简化积分模型、FieldState/MovementConfig 形状与组件 ABI 未批准。** 复现命令、来源边界、实测预算和剩余风险见 [M5-MOVEMENT-EVIDENCE.md](./M5-MOVEMENT-EVIDENCE.md)。
+
 ### 9.1 目标
 
 把输入从视觉动作选择升级为 Subsystem 中的确定性 Movement intent 和 Simulation。
@@ -321,6 +323,8 @@ FieldState
 
 ## 10. M6：Portal 原子场景事务
 
+> **路线图状态：2026-11-20 两图最小事务验收门已完成；组件/Portal data ABI 未批准。** Node、Subsystem、bundle、staging、真实 Chromium 单向旅行与预算证据见 [M6-PORTAL-EVIDENCE.md](./M6-PORTAL-EVIDENCE.md)。
+
 ### 10.1 首个闭环
 
 先支持候选相邻图：
@@ -336,8 +340,9 @@ validate trigger
   → resolve unique target
   → prepare target content/resource closure
   → build target projection candidate
-  → atomically commit FieldState + Player + Camera
-  → replace authoritative Render tree
+  → precompute complete FieldState + Player + Camera candidate
+  → replace authoritative Render tree（失败则不提交 authority）
+  → synchronously install the prepared authority snapshot
   → renderer prepares local pixels asynchronously
 ```
 
@@ -432,6 +437,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-当前实施基线已经完成 **M0–M4** 的逐级证据闭环（M4 见 [M4-AVATAR-EVIDENCE.md](./M4-AVATAR-EVIDENCE.md)；**组件 ABI 未批准**）。下一实施里程碑为 **M5：权威 Movement 与 Camera**；`ms-world-item` 仍负责世界坐标与排序，`ms-avatar` + `ms-action` 已替换 `ms-m3-avatar-slot`，Renderer 仍不持有 Movement / Portal 权威。
+当前实施基线已经完成 **M0–M6** 的逐级证据闭环（M6 见 [M6-PORTAL-EVIDENCE.md](./M6-PORTAL-EVIDENCE.md)；**组件 ABI 未批准**）。下一实施里程碑为 **M7：三图闭环与内容扩展**；`ms-world-item` 仍负责世界坐标与排序，Portal travel 权威在 `adventure-map` Subsystem，Renderer/`ms-portal-visual` 仍仅 presentation。
 
-2026-11-18–19 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md)、[M1-SPIKE-EVIDENCE.md](M1-SPIKE-EVIDENCE.md)、[M2-ADAPTER-EVIDENCE.md](M2-ADAPTER-EVIDENCE.md) 与 [M3-FIELD-EVIDENCE.md](M3-FIELD-EVIDENCE.md)。M0–M3 已通过对应退出门禁：M3 已在完整 `222000000` 上验证 297 个地图 Paint Unit + Player、298 个有限 Canvas、真实 WebProjector 像素、Content 去重/并发预算、Camera 更新分离、carrier replacement 与 canonical PWA。组件 ABI 仍未批准；Movement、Portal 运行时和 Back type1–4 布局继续保持后续候选。
+2026-11-18–19 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M6-PORTAL-EVIDENCE.md](M6-PORTAL-EVIDENCE.md)。M0–M6 路线图验收门已在实验范围通过；这不批准组件 ABI、CMS079 完整物理等价性、三图 Portal graph 或 Back type1–4 布局。

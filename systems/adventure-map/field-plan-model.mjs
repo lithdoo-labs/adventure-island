@@ -1,6 +1,9 @@
 /**
  * Browser-safe validation for the derived bootstrap AdventureFieldPlan record.
  */
+import { validateFootholdCollisionPlan } from "./foothold-collision-plan.mjs";
+import { validateMovementConfig } from "./movement-config.mjs";
+import { validatePortalLogicalIndex } from "./portal-logical-index.mjs";
 
 export const FIELD_PLAN_NAMESPACE = "struct.AdventureFieldPlan";
 export const FIELD_PLAN_KEY = "bootstrap";
@@ -41,6 +44,12 @@ export function validateFieldPlan(value) {
   const player = fieldState.player;
   if (player === null || typeof player !== "object" || !Number.isFinite(player.worldX) || !Number.isFinite(player.worldY)) {
     throw new TypeError("AdventureFieldPlan.fieldState.player must carry world coordinates");
+  }
+  validateFootholdCollisionPlan(value.footholdCollisionPlan);
+  validateMovementConfig(value.movementConfig);
+  validatePortalLogicalIndex(value.portalLogicalIndex, value.mapId);
+  if (!Number.isInteger(value.sceneEpoch) || value.sceneEpoch < 0) {
+    throw new TypeError("AdventureFieldPlan.sceneEpoch must be a non-negative integer");
   }
   return Object.freeze(value);
 }

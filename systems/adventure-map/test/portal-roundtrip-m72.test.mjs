@@ -10,7 +10,9 @@ import { buildArrivalMovementState } from "../portal-arrival.mjs";
 import { playerInPortalTriggerBox } from "../portal-trigger.mjs";
 import { selectPortalTriggerCandidate } from "../portal-trigger.mjs";
 import { evaluatePortalOnUpEdge } from "../portal-runtime-bridge.mjs";
-import { createMovementStateForMap } from "../movement-step.mjs";
+import { createMovementStateForMap, stepMovementForMap } from "../movement-step.mjs";
+import { movementIntentFromHeld, movementIntentFromHeldForState } from "../movement-intent.mjs";
+import { CLIMB_DELTA_PER_TICK } from "../movement-rope.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const viewport = Object.freeze({ width: 800, height: 600 });
@@ -158,7 +160,64 @@ test("A→B→C→B→C→B repeat assigns monotonic scene epochs without key re
   }
 });
 
-test("B sea00 return feet bind Up to water sea00; the real shaft rope still needs authority support", () => {
+test("B shaft rope climbs to out00 portal band without teleport", () => {
+  const mapB = plans["222000001"];
+  const mapA = plans["222000000"];
+  const rope = mapB.ropeCollisionPlan.segments[0];
+  const out00 = portalByName(mapB.portalLogicalIndex, "out00");
+  let movement = createMovementStateForMap({
+    mapEnvironment: mapB.mapEnvironment,
+    worldX: 6,
+    worldY: 514,
+    facing: "right",
+    segments: mapB.footholdCollisionPlan.segments,
+  });
+  for (let index = 0; index < 22; index += 1) {
+    movement = stepMovementForMap(
+      movement,
+      movementIntentFromHeldForState(["left"]),
+      mapB.footholdCollisionPlan,
+      mapB.ropeCollisionPlan,
+      mapB.movementConfig,
+      mapB.mapEnvironment,
+      {},
+    );
+  }
+  movement = stepMovementForMap(
+    movement,
+    movementIntentFromHeldForState(["down"]),
+    mapB.footholdCollisionPlan,
+    mapB.ropeCollisionPlan,
+    mapB.movementConfig,
+    mapB.mapEnvironment,
+    {},
+  );
+  assert.equal(movement.mode, "climb");
+  const ticks = Math.ceil((rope.y2 - (out00.y + 5)) / CLIMB_DELTA_PER_TICK) + 2;
+  for (let index = 0; index < ticks; index += 1) {
+    movement = stepMovementForMap(
+      movement,
+      movementIntentFromHeld(["up"]),
+      mapB.footholdCollisionPlan,
+      mapB.ropeCollisionPlan,
+      mapB.movementConfig,
+      mapB.mapEnvironment,
+      {},
+    );
+  }
+  assert.ok(movement.worldY <= out00.y + 20);
+  assert.equal(movement.worldX, rope.x);
+  const atOut = selectPortalTriggerCandidate(
+    mapB.portalLogicalIndex,
+    { worldX: movement.worldX, worldY: movement.worldY },
+    true,
+  );
+  assert.equal(atOut?.name, "out00");
+  const targetPortal = resolveTravelTarget(atOut, mapA.portalLogicalIndex).portal;
+  assert.equal(targetPortal.name, "in00");
+});
+
+test("B sea00 return feet bind Up to water sea00; rope authority is published in FieldPlan", () => {
   const mapB = plans["222000001"];
   const sea00 = portalByName(mapB.portalLogicalIndex, "sea00");
   const out00 = portalByName(mapB.portalLogicalIndex, "out00");
@@ -183,10 +242,9 @@ test("B sea00 return feet bind Up to water sea00; the real shaft rope still need
   assert.equal(atOut?.name, "out00");
   assert.deepEqual(mapBRopes, [{ x: -51, y1: -499, y2: 474, l: 0, uf: 0, page: 4, id: 1 }]);
   const verticalSpan = Math.abs(sea00.y - out00.y);
-  assert.ok(
-    verticalSpan > 900,
-    `audited span ${verticalSpan} between sea00 and out00; the FSDB rope is not yet projected into authoritative Movement — browser B→A needs Rope/Climb, not teleport`,
-  );
+  assert.ok(verticalSpan > 900);
+  assert.equal(mapB.ropeCollisionPlan.segments.length, 1);
+  assert.equal(mapB.ropeCollisionPlan.segments[0].x, -51);
 });
 
 test("evaluatePortalOnUpEdge on C at east00 feet schedules cross-map prepare", () => {

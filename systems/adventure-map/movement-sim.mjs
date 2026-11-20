@@ -151,6 +151,7 @@ export function createMovementState({
     layer: grounded ? support.layer : layer,
     platform: grounded ? support.platform : platform,
     locomotion: grounded ? "stand" : "jump",
+    ropeContact: null,
   });
 }
 
@@ -285,6 +286,7 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
     layer: contact?.layer ?? state.layer,
     platform: contact?.platform ?? state.platform,
     locomotion,
+    ropeContact: null,
   });
 }
 
@@ -309,6 +311,7 @@ export function applyMovementToFieldState(fieldState, movement) {
     velocityX: movement.velocityX,
     velocityY: movement.velocityY,
     contact: movement.contact,
+    ropeContact: movement.ropeContact ?? null,
     tickIndex: movement.tickIndex,
     simulationTimeMs: movement.simulationTimeMs,
   });

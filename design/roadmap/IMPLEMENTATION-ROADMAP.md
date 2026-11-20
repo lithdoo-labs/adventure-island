@@ -358,7 +358,7 @@ validate trigger
 
 ## 11. M7：三图闭环与内容扩展
 
-> **路线图状态：2026-11-20，M7.1 水域纵剖与 M7.2 真实返程实验切片完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** M7.1：三 FieldPlan、四条 Portal 边、整图泳态、真实 FSDB `fly` 两帧、Chromium A→B→C。M7.2：east00 Up 审计、Chromium A→B→C→B 与 B↔C 重复、sceneEpoch 隔离与 B sea00→A 产品阻塞登记；详见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md) 与 [M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md)。
+> **路线图状态：2026-11-21，M7.1 水域纵剖、M7.2 真实返程与 M7.3 Rope/Climb 实验切片完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** M7.1：三 FieldPlan、四条 Portal 边、整图泳态、真实 FSDB `fly` 两帧、Chromium A→B→C。M7.2：east00 Up 审计、Chromium A→B→C→B 与 B↔C 重复、sceneEpoch 隔离。M7.3：真实 RopePlan、Subsystem 权威 grab/climb/exit、`rope` 纸娃娃动作、退役 Back 生命周期修复与 Chromium B→A；详见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)、[M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md) 与 [M7.3-ROPE-CLIMB-EVIDENCE.md](./M7.3-ROPE-CLIMB-EVIDENCE.md)。
 
 ### 11.1 三图候选集
 
@@ -371,6 +371,7 @@ validate trigger
 ### 11.2 工作项
 
 - 水域 Movement、游泳和水中跳跃；
+- RopePlan、抓绳、攀爬、离绳与真实 B→A 返回（M7.3 实验切片已完成）；
 - 无完整 VR 时的 effective bounds fallback；
 - 三图 Portal graph、资源闭包和存在性审计；
 - Back repeat/parallax/auto-scroll；
@@ -439,6 +440,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1**（三图入水纵剖）与 **M7.2**（east00 可信 Up 返程、Chromium A→B→C→B、B↔C 重复 cross-map replace、sea00→out00 产品阻塞）；见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md) 与 [M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md)。**组件 ABI 未批准**；**M7 全量**（Back 动态布局、Obj flow、完整泳态 force 方程、**浏览器 C→B→A**、Rope/Climb、性能/内存长跑、13 图）仍有缺口。`ms-world-item` 仍负责世界坐标与排序；Portal travel 权威在 `adventure-map` Subsystem。
+当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1**（三图入水纵剖）、**M7.2**（可信 C→B 返程与重复 replace）与 **M7.3**（真实 Rope/Climb、浏览器 C→B→A）；见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)、[M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md) 与 [M7.3-ROPE-CLIMB-EVIDENCE.md](./M7.3-ROPE-CLIMB-EVIDENCE.md)。**组件 ABI 未批准**；**M7 全量**（Back type 1–4 动态布局、Obj flow、完整泳态 force 方程、Seat/drop-through、性能/内存长跑、13 图）仍有缺口。`ms-world-item` 仍负责世界坐标与排序；Rope、Movement 与 Portal travel 权威均在 `adventure-map` Subsystem。
 
-2026-11-18–20 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)。M0–M6 验收门保持不变；M7.1 不降低 M3/M6 预算断言，也不宣称 Back type1–4 / Obj flow 动态 parity。
+2026-11-18–21 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.3-ROPE-CLIMB-EVIDENCE.md](./M7.3-ROPE-CLIMB-EVIDENCE.md)。M0–M6 验收门保持不变；M7.1–M7.3 不降低 M3/M6 预算断言，也不宣称 Back type 1–4 / Obj flow 动态 parity 或正式 ABI 批准。

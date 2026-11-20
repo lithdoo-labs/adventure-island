@@ -57,6 +57,7 @@ export function createWaterMovementState({
     layer,
     platform,
     locomotion: "swim",
+    ropeContact: null,
   });
 }
 
@@ -114,5 +115,6 @@ export function stepWaterMovement(state, intent, movementConfig, edges = {}) {
     layer: state.layer,
     platform: state.platform,
     locomotion: "swim",
+    ropeContact: null,
   });
 }

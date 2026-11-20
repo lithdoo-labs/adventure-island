@@ -278,23 +278,51 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     // the explicit travel budget.
     await page.waitForFunction(() => document.querySelector("ms-avatar")?.getAttribute("action") === "stand1", null, { timeout: 20_000 });
     await page.keyboard.down("ArrowLeft");
-    await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) <= -465, null, { timeout: 20_000 });
+    await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) <= -350, null, { timeout: 20_000 });
     await page.keyboard.up("ArrowLeft");
+    await page.waitForFunction(() => document.querySelector("ms-avatar")?.getAttribute("action") === "stand1", null, { timeout: 5_000 });
+    // The authenticated portal band is only 40 px wide while a backgrounded
+    // browser can coalesce several fixed ticks between DOM polls. Finish the
+    // approach with short trusted key pulses so the test exercises the real
+    // input path without skipping across the trigger rectangle.
+    for (let pulse = 0; pulse < 32; pulse += 1) {
+      const worldX = await page.evaluate(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")));
+      if (worldX <= -488) break;
+      await page.keyboard.down("ArrowLeft");
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 25)));
+      await page.keyboard.up("ArrowLeft");
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 25)));
+    }
+    try {
+      await page.waitForFunction(() => {
+        const player = document.querySelector("ms-world-item");
+        const x = Number(player?.getAttribute("world-x"));
+        const y = Number(player?.getAttribute("world-y"));
+        return x >= -528 && x <= -488 && y === 333;
+      }, null, { timeout: 5_000 });
+    } catch (cause) {
+      const approachFailure = await page.evaluate(() => {
+        const player = document.querySelector("ms-world-item");
+        const avatar = document.querySelector("ms-avatar");
+        return {
+          worldX: player?.getAttribute("world-x") ?? null,
+          worldY: player?.getAttribute("world-y") ?? null,
+          action: avatar?.getAttribute("action") ?? null,
+          dataAction: avatar?.getAttribute("data-action") ?? null,
+          facing: avatar?.getAttribute("facing") ?? null,
+        };
+      });
+      throw new Error(`M6 portal approach failed: ${cause.message}\n${JSON.stringify({ approachFailure, diagnostics }, null, 2)}`);
+    }
     await page.keyboard.down("ArrowUp");
-    await page.waitForFunction(() => document.querySelector("ms-avatar")?.getAttribute("action") === "jump", null, { timeout: 5_000 });
+    await page.waitForFunction(() => (
+      document.querySelector("ms-avatar")?.getAttribute("action") === "jump"
+      && Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) <= 294
+    ), null, { timeout: 5_000 });
     await page.keyboard.up("ArrowUp");
-    await page.keyboard.down("ArrowLeft");
-    await page.waitForFunction(() => {
-      const player = document.querySelector("ms-world-item");
-      const x = Number(player?.getAttribute("world-x"));
-      const y = Number(player?.getAttribute("world-y"));
-      return x >= -528 && x <= -488 && y >= 194 && y <= 294;
-    }, null, { timeout: 10_000 });
+    await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)));
     const portalStartedAt = Date.now();
-    // Keep Left held until the Up edge is delivered; releasing it first adds
-    // enough command latency for airborne momentum to leave the narrow box.
     await page.keyboard.down("ArrowUp");
-    await page.keyboard.up("ArrowLeft");
     try {
       await page.waitForFunction(() => {
         const scene = document.querySelector("ms-scene-view");
@@ -586,17 +614,38 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         && avatar?.getAttribute("action") === "stand1"
         && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 6;
     }, null, { timeout: M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs });
-    await page.waitForFunction(() => {
-      const retired = window.__m72RetiredWater;
-      if (!retired || retired.hosts.length !== 136) return false;
-      const currentAvatar = document.querySelector("ms-avatar");
-      return retired.hosts.every((host) => !host.isConnected)
-        && retired.hosts.every((host) => host.shadowRoot?.querySelector("canvas")?.width === 0)
-        && retired.avatar === currentAvatar
-        && currentAvatar?.isConnected === true
-        && currentAvatar.getAttribute("action") === "stand1"
-        && currentAvatar.getAttribute("data-action") === "stand1";
-    }, null, { timeout: 5_000 });
+    try {
+      await page.waitForFunction(() => {
+        const retired = window.__m72RetiredWater;
+        if (!retired || retired.hosts.length !== 136) return false;
+        const currentAvatar = document.querySelector("ms-avatar");
+        return retired.hosts.every((host) => !host.isConnected)
+          && retired.hosts.every((host) => host.shadowRoot?.querySelector("canvas")?.width === 0)
+          && retired.avatar === currentAvatar
+          && currentAvatar?.isConnected === true
+          && currentAvatar.getAttribute("action") === "stand1"
+          && currentAvatar.getAttribute("data-action") === "stand1";
+      }, null, { timeout: 5_000 });
+    } catch (cause) {
+      const retiredFailure = await page.evaluate(() => {
+        const retired = window.__m72RetiredWater;
+        const currentAvatar = document.querySelector("ms-avatar");
+        return {
+          hostCount: retired?.hosts?.length ?? null,
+          connectedCount: retired?.hosts?.filter((host) => host.isConnected).length ?? null,
+          nonZeroCanvasCount: retired?.hosts?.filter((host) => (
+            (host.shadowRoot?.querySelector("canvas")?.width ?? 0) !== 0
+          )).length ?? null,
+          avatarIdentityPreserved: retired?.avatar === currentAvatar,
+          avatarConnected: currentAvatar?.isConnected ?? null,
+          avatarAction: currentAvatar?.getAttribute("action") ?? null,
+          avatarDataAction: currentAvatar?.getAttribute("data-action") ?? null,
+          avatarState: currentAvatar?.diagnostics?.().state ?? null,
+          avatarCode: currentAvatar?.diagnostics?.().code ?? null,
+        };
+      });
+      throw new Error(`M7.2 retired water lifecycle failed: ${cause.message}\n${JSON.stringify(retiredFailure)}`);
+    }
     const retiredWater = await page.evaluate(async () => {
       const retired = window.__m72RetiredWater;
       const before = retired.hosts.map((host) => host.diagnostics().paintCommits);
@@ -634,6 +683,102 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         && avatar.getAttribute("facing") === "left";
     }, null, { timeout: 10_000 });
     await page.keyboard.up("ArrowLeft");
+
+    // M7.3: sea00 → rope grab → climb → out00 → Up returns to map A (no teleport).
+    const climbBandStartedAt = Date.now();
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      return Number(player?.getAttribute("world-y")) >= 500
+        && document.querySelector("ms-avatar")?.getAttribute("action") === "stand1";
+    }, null, { timeout: 20_000 });
+  await page.keyboard.down("ArrowLeft");
+  await page.waitForFunction(() => {
+    const player = document.querySelector("ms-world-item");
+    return Number(player?.getAttribute("world-x")) <= -50
+      && Number(player?.getAttribute("world-y")) >= 500;
+  }, null, { timeout: 90_000 });
+  await page.keyboard.up("ArrowLeft");
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 250)));
+  const beforeClimbPaints = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
+  await page.keyboard.down("ArrowDown");
+  try {
+    await page.waitForFunction(() => {
+      const avatar = document.querySelector("ms-avatar");
+      return avatar?.getAttribute("action") === "rope" || avatar.getAttribute("data-action") === "rope";
+    }, null, { timeout: 60_000 });
+  } catch (cause) {
+    const grabFailure = await page.evaluate(() => {
+      const player = document.querySelector("ms-world-item");
+      const avatar = document.querySelector("ms-avatar");
+      return {
+        worldX: player?.getAttribute("world-x") ?? null,
+        worldY: player?.getAttribute("world-y") ?? null,
+        action: avatar?.getAttribute("action") ?? null,
+        locomotion: avatar?.getAttribute("locomotion") ?? null,
+      };
+    });
+    throw new Error(`M7.3 rope grab failed: ${cause.message}\n${JSON.stringify(grabFailure)}`);
+  }
+  await page.keyboard.up("ArrowDown");
+  await page.keyboard.down("ArrowUp");
+  await page.waitForFunction(() => {
+    const player = document.querySelector("ms-world-item");
+    const avatar = document.querySelector("ms-avatar");
+    return Number(player?.getAttribute("world-x")) === -51
+      && Number(player?.getAttribute("world-y")) <= -450
+      && (avatar?.getAttribute("action") === "rope" || avatar.getAttribute("data-action") === "rope");
+  }, null, { timeout: 120_000 });
+  await page.keyboard.up("ArrowUp");
+  const afterClimbPaints = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
+  assert.deepEqual(afterClimbPaints.staticPaints, beforeClimbPaints.staticPaints,
+    "rope climb frame updates must not repaint static map canvases");
+  assert.ok(afterClimbPaints.avatarRounds > beforeClimbPaints.avatarRounds,
+    "rope climb must advance the local avatar canvas");
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 100)));
+  const outPortalStartedAt = Date.now();
+  await page.keyboard.down("ArrowUp");
+  await page.keyboard.up("ArrowUp");
+  try {
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      const scene = document.querySelector("ms-scene-view");
+      return scene?.diagnostics?.().state === "ready"
+        // The test resized to 1000×700 before portal travel. Map A's
+        // viewport-bounded projection at that size has exactly 253 batches;
+        // 298 is the earlier 800×600 bootstrap projection.
+        && document.querySelectorAll("ms-map-batch").length === 253
+        && Number(player?.getAttribute("world-x")) === -508
+        && document.querySelector("ms-avatar")?.getAttribute("action") === "stand1";
+    }, null, { timeout: M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs });
+  } catch (cause) {
+    const portalFailure = await page.evaluate(() => {
+      const player = document.querySelector("ms-world-item");
+      const avatar = document.querySelector("ms-avatar");
+      const scene = document.querySelector("ms-scene-view");
+      return {
+        worldX: player?.getAttribute("world-x") ?? null,
+        worldY: player?.getAttribute("world-y") ?? null,
+        action: avatar?.getAttribute("action") ?? null,
+        dataAction: avatar?.getAttribute("data-action") ?? null,
+        sceneState: scene?.diagnostics?.().state ?? null,
+        sceneCode: scene?.diagnostics?.().code ?? null,
+        mapBatchCount: document.querySelectorAll("ms-map-batch").length,
+      };
+    });
+    throw new Error(`M7.3 out00 return failed: ${cause.message}\n${JSON.stringify(portalFailure)}`);
+  }
+  const outPortalReadyMs = Date.now() - outPortalStartedAt;
+  assert.ok(outPortalReadyMs <= M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs);
+  assert.ok(Date.now() - climbBandStartedAt <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs + 120_000);
+  t.diagnostic(`M7.3 B rope climb + out00→A ${Date.now() - climbBandStartedAt}ms; portal ready ${outPortalReadyMs}ms`);
 
     const pageErrors = diagnostics.filter((line) => line.startsWith("pageerror:"));
     const busyResponses = diagnostics.filter((line) => line.startsWith("http:429:"));

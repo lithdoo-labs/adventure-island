@@ -44,6 +44,7 @@ import {
   stepMovementForMap,
 } from "./movement-step.mjs";
 import { validateFootholdCollisionPlan } from "./foothold-collision-plan.mjs";
+import { validateRopeCollisionPlan } from "./rope-collision-plan.mjs";
 import { planSchedulerDrain } from "./simulation-scheduler.mjs";
 import { validateMovementConfig } from "./movement-config.mjs";
 import {
@@ -160,6 +161,7 @@ export default defineSubsystem((scope) => ({
     let fieldState = null;
     let movementState = null;
     let footholdCollisionPlan = null;
+    let ropeCollisionPlan = null;
     let movementConfig = null;
     let cameraX = null;
     let cameraY = null;
@@ -195,7 +197,11 @@ export default defineSubsystem((scope) => ({
       if (!activePlan.footholdCollisionPlan) {
         throw new TypeError("AdventureFieldPlan requires footholdCollisionPlan for Movement");
       }
+      if (!activePlan.ropeCollisionPlan) {
+        throw new TypeError("AdventureFieldPlan requires ropeCollisionPlan for Movement");
+      }
       footholdCollisionPlan = validateFootholdCollisionPlan(activePlan.footholdCollisionPlan);
+      ropeCollisionPlan = validateRopeCollisionPlan(activePlan.ropeCollisionPlan);
       movementConfig = validateMovementConfig(activePlan.movementConfig);
       if (frame.signal.aborted) return cancelled();
 
@@ -365,6 +371,7 @@ export default defineSubsystem((scope) => ({
             movementState,
             movementIntent,
             footholdCollisionPlan,
+            ropeCollisionPlan,
             movementConfig,
             activePlan.mapEnvironment,
             { jumpPressed },
@@ -437,6 +444,7 @@ export default defineSubsystem((scope) => ({
         activePlan = next.activePlan;
         projection = next.projection;
         footholdCollisionPlan = next.footholdCollisionPlan;
+        ropeCollisionPlan = next.ropeCollisionPlan;
         movementConfig = next.movementConfig;
         portalIndex = next.portalIndex;
         fieldState = next.fieldState;
@@ -579,6 +587,14 @@ export default defineSubsystem((scope) => ({
               return;
             }
             if (upEdge) {
+              if (movementState.mode === "climb") {
+                // Up is the climb axis while attached. The state publication
+                // already carries it; do not reinterpret the matching event
+                // as the land jump edge and detach from the rope.
+                jumpLatch = false;
+                movementIntent = movementIntentFromHeldForState(heldButtons);
+                return;
+              }
               const nextIntent = movementIntentFromHeld(heldButtons);
               if (nextIntent.jump && !movementIntent.jump) jumpLatch = true;
               movementIntent = nextIntent;

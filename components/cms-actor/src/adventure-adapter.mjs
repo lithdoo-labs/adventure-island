@@ -216,6 +216,7 @@ export async function buildAdventureAvatarPlan(content, input) {
   const walkName = `walk${suffix.walk}`;
   const actionNames = [standName, walkName, "jump"];
   if (rowsFor(body, "fly").length > 0) actionNames.push("fly");
+  if (rowsFor(body, "rope").length > 0) actionNames.push("rope");
   if (typeof requestedAction === "string" && requestedAction.length > 0
     && !actionNames.includes(requestedAction)
     && rowsFor(body, requestedAction).length > 0) {
@@ -252,6 +253,7 @@ export async function buildAdventureAvatarPlan(content, input) {
       const contentVersion = await versionFor(row.image);
       const anchors = {};
       for (const [name, point] of Object.entries(layer.anchors ?? {})) anchors[name] = copyPoint(point, `${layer.resource}.${name}`);
+      const tag = canvasTag(owner.part.covers, layerSlots[layer.z]);
       planLayers.push({
         id: layer.id,
         z: layer.z,
@@ -261,8 +263,7 @@ export async function buildAdventureAvatarPlan(content, input) {
         height: row.h,
         origin: copyPoint(layer.origin, layer.resource),
         anchors,
-        priority,
-        tag: canvasTag(owner.part.covers, layerSlots[layer.z]),
+        ...(tag.length > 0 ? { priority, tag } : {}),
       });
     }
     return planLayers;
@@ -282,9 +283,14 @@ export async function buildAdventureAvatarPlan(content, input) {
       if (layers.length === 0 || layers[0].id !== "body") {
         throw new TypeError(`${body.key} ${actionName} frame ${row.frame ?? 0} does not start with the body canvas`);
       }
+      const showFace = row.showFace !== false;
       for (const part of visible) {
         if (part === body || EXPRESSION_KINDS.has(part.part.kind)) continue;
-        const partRow = rowAt(part, resolved.followed.action, resolved.followed.frame);
+        // Back-facing poses hide the expression, but still compose every part
+        // that publishes an exact FSDB row for the body frame.
+        const partRow = showFace
+          ? rowAt(part, resolved.followed.action, resolved.followed.frame)
+          : exactRow(part, resolved.followed.action, resolved.followed.frame);
         if (!partRow) continue;
         const partResolved = resolveRow(part, partRow, new Set());
         const partLayers = await emit(part, partResolved.layers);
@@ -301,7 +307,7 @@ export async function buildAdventureAvatarPlan(content, input) {
         return { ...layer, id };
       });
       remember(layers);
-      const frame = { showFace: row.showFace !== false, layers };
+      const frame = { showFace, layers };
       if (typeof row.delay === "number" && Number.isFinite(row.delay)) frame.delay = Math.abs(row.delay);
       if (Array.isArray(row.move)) frame.move = copyPoint(row.move, `${actionName}.move`);
       if (row.flip === true) frame.flip = true;
@@ -309,13 +315,14 @@ export async function buildAdventureAvatarPlan(content, input) {
       frames.push(frame);
     }
     actions[actionName] = {
-      loop: actionName === standName || actionName === walkName || actionName === "fly",
+      loop: actionName === standName || actionName === walkName || actionName === "fly" || actionName === "rope",
       frames,
     };
   }
 
   const locomotionActions = { stand: standName, walk: walkName, jump: "jump" };
   if (actions.fly) locomotionActions.swim = "fly";
+  if (actions.rope) locomotionActions.climb = "rope";
 
   const plan = {
     formatVersion: 1,

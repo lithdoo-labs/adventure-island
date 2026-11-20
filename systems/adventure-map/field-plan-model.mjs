@@ -2,6 +2,7 @@
  * Browser-safe validation for the derived bootstrap AdventureFieldPlan record.
  */
 import { validateFootholdCollisionPlan } from "./foothold-collision-plan.mjs";
+import { validateRopeCollisionPlan } from "./rope-collision-plan.mjs";
 import { validateMapEnvironment } from "./map-environment.mjs";
 import { validateMovementConfig } from "./movement-config.mjs";
 import { validatePortalLogicalIndex } from "./portal-logical-index.mjs";
@@ -47,6 +48,7 @@ export function validateFieldPlan(value) {
     throw new TypeError("AdventureFieldPlan.fieldState.player must carry world coordinates");
   }
   validateFootholdCollisionPlan(value.footholdCollisionPlan);
+  validateRopeCollisionPlan(value.ropeCollisionPlan);
   validateMovementConfig(value.movementConfig);
   const mapEnvironment = validateMapEnvironment(value.mapEnvironment);
   if (mapEnvironment.mapId !== value.mapId) {

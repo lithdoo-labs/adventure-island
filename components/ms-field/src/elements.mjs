@@ -476,6 +476,7 @@ export class MsMapBack extends SpikeElement {
   }
 
   async _paint(image, signature, epoch, controller, visible, box) {
+    let bitmap;
     try {
       if (this._context?.resources?.resource === undefined) {
         throw Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" });
@@ -491,11 +492,13 @@ export class MsMapBack extends SpikeElement {
       if (epoch !== this._epoch) return;
       const mime = String(resource.mime).split(";")[0].trim().toLowerCase();
       if (mime !== "image/png") throw Object.assign(new Error("page mime is not image/png"), { code: "CONTENT_INVALID" });
-      const bitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
+      bitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
+      if (epoch !== this._epoch || !this.isConnected) return;
       const ratio = deviceRatio();
       if (ratio === null) return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
       const deviceW = Math.round(image.pageWidth * ratio);
       const deviceH = Math.round(image.pageHeight * ratio);
+      if (epoch !== this._epoch || !this.isConnected) return;
       this._canvas.width = deviceW;
       this._canvas.height = deviceH;
       this._canvas.style.width = cssPx(image.pageWidth);
@@ -504,17 +507,19 @@ export class MsMapBack extends SpikeElement {
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
       context.imageSmoothingEnabled = false;
       context.drawImage(bitmap, 0, 0);
-      bitmap.close?.();
       this._paintCommits += 1;
       this._paintedSignature = signature;
       this._loadingSignature = null;
       this._state = "ready";
       this._writeHost(visible, box);
     } catch (error) {
-      if (epoch !== this._epoch) return;
+      if (epoch !== this._epoch || !this.isConnected) return;
       const code = failureCode(error);
       if (code === "STALE_RENDER_RESULT") return;
       this._failInput({ code, path: "resource", detail: error?.message ?? code });
+    } finally {
+      bitmap?.close?.();
+      if (this._abort === controller) this._abort = null;
     }
   }
 }

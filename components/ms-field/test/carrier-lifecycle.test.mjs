@@ -125,10 +125,13 @@ test("disconnect, stale async, and teardown leave no late pixels or leaked reads
     paintUnitCap: 20,
     viewport: { width: 96, height: 96 },
   });
-  const slowChild = projection.root.children.find((child) => child.tag === "ms-map-batch" && child.data?.sprites?.pages);
-  assert.ok(slowChild, "capped projection must include a sprite batch");
+  // Select a Back beyond the smaller projection's cap. Back used to miss the
+  // post-decode lifetime check present on sprite batches, allowing an old
+  // createImageBitmap result to repopulate a disconnected canvas.
+  const slowChild = projection.root.children.findLast((child) => child.tag === "ms-map-back" && child.data?.image?.resource);
+  assert.ok(slowChild, "capped projection must include a removable Back");
   const slowChildIndex = projection.root.children.indexOf(slowChild);
-  const slowRef = slowChild.data.sprites.pages[Object.keys(slowChild.data.sprites.pages)[0]].resource;
+  const slowRef = slowChild.data.image.resource;
   const slowIdentity = `${slowRef.namespace}\0${slowRef.key}`;
 
   const index = await loadResourceIndex(projection.root, repoRoot);
@@ -160,7 +163,7 @@ test("disconnect, stale async, and teardown leave no late pixels or leaked reads
     window.__slowHost = document.querySelector("ms-scene-view")?.children[childIndex] ?? null;
     return window.__slowHost?.localName ?? null;
   }, slowChildIndex);
-  assert.equal(capturedTag, "ms-map-batch", "DOM child order must identify the delayed batch exactly");
+  assert.equal(capturedTag, "ms-map-back", "DOM child order must identify the delayed Back exactly");
 
   const smaller = await buildFieldProjection({
     gameRoot: repoRoot,
@@ -192,8 +195,8 @@ test("disconnect, stale async, and teardown leave no late pixels or leaked reads
       paints,
     };
   });
-  assert.equal(staleEvidence.hostConnected, false, "slow batch must disconnect before the delayed Content completes");
-  assert.equal(staleEvidence.hostCanvasWidth, 0, "disconnected batch must not retain a bitmap surface");
+  assert.equal(staleEvidence.hostConnected, false, "slow Back must disconnect before the delayed Content completes");
+  assert.equal(staleEvidence.hostCanvasWidth, 0, "disconnected Back must not retain a bitmap surface");
   assert.ok(staleEvidence.paints.every((count) => count === 1),
     "stale async completion must not trigger a second paint on surviving units");
   assert.deepEqual(staleEvidence.failures, []);

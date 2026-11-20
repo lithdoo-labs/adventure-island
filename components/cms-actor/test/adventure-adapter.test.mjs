@@ -120,10 +120,22 @@ test("projects the one-hand set onto stand1/walk1 and crops the body atlas", asy
   const content = openLibrary();
   const plan = await buildAdventureAvatarPlan(content, { parts: SET_A, expression: "blink", action: "brandish1" });
   assert.equal(plan.bodyKey, BODY);
-  assert.deepEqual(Object.keys(plan.actions).sort(), ["brandish1", "fly", "jump", "stand1", "walk1"]);
+  assert.deepEqual(Object.keys(plan.actions).sort(), ["brandish1", "fly", "jump", "rope", "stand1", "walk1"]);
   assert.equal(plan.locomotionActions.stand, "stand1");
   assert.equal(plan.locomotionActions.walk, "walk1");
   assert.equal(plan.locomotionActions.swim, "fly");
+  assert.equal(plan.locomotionActions.climb, "rope");
+  assert.deepEqual(plan.actions.rope.frames.map((frame) => frame.delay), [250, 250]);
+  assert.equal(plan.actions.rope.frames.every((frame) => frame.showFace === false), true);
+  const ropeIds = layerIds(plan, "rope");
+  assert.equal(ropeIds.includes("head"), true);
+  assert.equal(ropeIds.includes("hair:backHair"), true);
+  assert.equal(ropeIds.some((id) => id.startsWith("coat")), true);
+  assert.equal(ropeIds.some((id) => id.startsWith("pants")), true);
+  assert.equal(ropeIds.some((id) => id.startsWith("shoes")), true);
+  assert.equal(ropeIds.some((id) => id.startsWith("glove")), true);
+  assert.equal(ropeIds.some((id) => id.startsWith("weapon") || id.startsWith("shield")), false);
+  assert.equal(plan.actions.rope.frames[0].layers.some((layer) => layer.z === "face"), false);
   assert.equal(plan.actions.fly.loop, true);
   assert.deepEqual(plan.actions.fly.frames.map((frame) => frame.delay), [300, 300]);
   assert.equal(plan.actions.stand1.loop, true);
@@ -163,7 +175,7 @@ test("projects the one-hand set onto stand1/walk1 and crops the body atlas", asy
 
 test("projects the two-hand set onto stand2/walk2 and can carry swingO1 or eburster", async () => {
   const swing = await buildAdventureAvatarPlan(openLibrary(), { parts: SET_B, expression: "default", action: "swingO1" });
-  assert.deepEqual(Object.keys(swing.actions).sort(), ["fly", "jump", "stand2", "swingO1", "walk2"]);
+  assert.deepEqual(Object.keys(swing.actions).sort(), ["fly", "jump", "rope", "stand2", "swingO1", "walk2"]);
   const standIds = layerIds(swing, "stand2");
   assert.equal(standIds.some((id) => id.startsWith("longcoat")), true);
   assert.equal(standIds.some((id) => id.startsWith("coat") || id.startsWith("pants") || id.startsWith("shield")), false);

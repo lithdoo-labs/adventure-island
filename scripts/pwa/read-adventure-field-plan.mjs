@@ -13,6 +13,8 @@ import {
   validateFieldPlan,
 } from "../../systems/adventure-map/field-plan-model.mjs";
 import { buildFootholdCollisionPlan } from "../../systems/adventure-map/foothold-collision-plan-build.mjs";
+import { buildRopeCollisionPlan } from "../../systems/adventure-map/rope-collision-plan-build.mjs";
+import { SOURCE_ABSENT } from "../../components/ms-map-adapter/src/status.mjs";
 import {
   MOVEMENT_CONFIG_KEY,
   MOVEMENT_CONFIG_NAMESPACE,
@@ -170,6 +172,18 @@ export async function buildCanonicalAdventureFieldPlanContent({
     throw new TypeError("map projection did not yield effectiveBounds for the bootstrap FieldPlan");
   }
   const footholdCollisionPlan = buildFootholdCollisionPlan(projection.map.scene.footholds);
+  const ropeGroup = projection.map.facts.groups.rope;
+  const ropeGroupStatus = projection.map.scene.groupStatus.rope;
+  const ropeGroupFileKey = `map.${resolvedForEnv}.jsonl`;
+  const ropeCollisionPlan = buildRopeCollisionPlan(
+    resolvedForEnv,
+    projection.map.scene.ropes,
+    ropeGroupStatus,
+    Object.freeze({
+      groupFileKey: ropeGroupFileKey,
+      contentVersion: ropeGroupStatus === SOURCE_ABSENT ? null : ropeGroup?.contentVersion ?? null,
+    }),
+  );
   const resolvedMapId = projection.fieldState.mapId;
   const publishedTargets = new Set(PUBLISHED_FIELD_PLAN_MAP_IDS);
   const portalLogicalIndex = buildPortalLogicalIndex(
@@ -184,6 +198,7 @@ export async function buildCanonicalAdventureFieldPlanContent({
     effectiveBounds,
     fieldState: projection.fieldState,
     footholdCollisionPlan,
+    ropeCollisionPlan,
     movementConfig: physics.movementConfig,
     mapEnvironment: mapEnvironmentBundle.mapEnvironment,
     portalLogicalIndex,

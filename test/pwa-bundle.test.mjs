@@ -498,13 +498,16 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
       "the published plan must equal the adapter-derived plan",
     );
     const plan = validateAvatarPlan(JSON.parse(planBytes.toString("utf8")));
-    assert.deepEqual(Object.keys(plan.actions).sort(), ["fly", "jump", "stand1", "walk1"], "exactly the M7.1 locomotion actions");
+    assert.deepEqual(Object.keys(plan.actions).sort(), ["fly", "jump", "rope", "stand1", "walk1"], "M7.1 swim + M7.3 climb actions");
     assert.equal(plan.actions.jump.loop, false, "jump is the one-shot action");
     assert.equal(plan.actions.fly.loop, true, "fly is the sustained swim action");
     assert.deepEqual(plan.actions.fly.frames.map((frame) => frame.delay), [300, 300]);
+    assert.equal(plan.actions.rope.loop, true, "rope is the sustained climb action");
+    assert.deepEqual(plan.actions.rope.frames.map((frame) => frame.delay), [250, 250]);
     assert.equal(plan.locomotionActions.stand, "stand1");
     assert.equal(plan.locomotionActions.walk, "walk1");
     assert.equal(plan.locomotionActions.swim, "fly");
+    assert.equal(plan.locomotionActions.climb, "rope");
     const planDataBytes = measureAvatarPlanDataBytes(plan);
     assert.ok(planDataBytes <= AVATAR_PLAN_DATA_BYTE_LIMIT, `plan data ${planDataBytes}B must stay under the cap`);
     assert.ok(planBytes.length <= AVATAR_PLAN_DATA_BYTE_LIMIT, "the published plan record body itself stays bounded");

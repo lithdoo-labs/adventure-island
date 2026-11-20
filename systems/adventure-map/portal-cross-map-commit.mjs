@@ -22,6 +22,7 @@ export function authorityAfterCrossMapReplace(commit) {
     activePlan: commit.activePlan,
     projection: commit.projection,
     footholdCollisionPlan: commit.activePlan.footholdCollisionPlan,
+    ropeCollisionPlan: commit.activePlan.ropeCollisionPlan,
     movementConfig: commit.activePlan.movementConfig,
     portalIndex: commit.activePlan.portalLogicalIndex,
     fieldState: commit.fieldState,

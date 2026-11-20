@@ -221,6 +221,36 @@ function fieldPlanAtPortal(plan = canonicalFieldPlan) {
   });
 }
 
+function fieldPlanAtRopeEntry(plan = canonicalTargetFieldPlan) {
+  return Object.freeze({
+    ...plan,
+    fieldState: Object.freeze({
+      ...plan.fieldState,
+      player: Object.freeze({
+        ...plan.fieldState.player,
+        worldX: -51,
+        worldY: 514,
+        locomotion: "stand",
+      }),
+    }),
+  });
+}
+
+function fieldPlanAtRopeExit(plan = canonicalTargetFieldPlan) {
+  return Object.freeze({
+    ...plan,
+    fieldState: Object.freeze({
+      ...plan.fieldState,
+      player: Object.freeze({
+        ...plan.fieldState.player,
+        worldX: -51,
+        worldY: -450,
+        locomotion: "climb",
+      }),
+    }),
+  });
+}
+
 function contentReadError(code) {
   const error = new Error(code);
   error.name = "ContentReadError";
@@ -484,6 +514,74 @@ test("M6: state-before-event Up edge performs one atomic cross-map replace", asy
 
   harness.frame.abort();
   assert.deepEqual(await harness.outcome, { type: "cancelled" });
+});
+
+test("M7.3: held Down enters authoritative rope state through the real Controls consumer", async (t) => {
+  const plan = fieldPlanAtRopeEntry();
+  const harness = startMapFrame({
+    content: createContentHarness({ fieldPlan: plan, targetFieldPlan: plan }),
+  });
+  t.after(() => harness.frame.abort());
+  await settle();
+
+  harness.eventsHarness.dispatch("controls.state", "input.state", { down: ["down"] });
+  const avatarUpdate = await waitFor(
+    () => harness.domain().updates
+      .flatMap((update) => update.nodes ?? [])
+      .find((node) => node.key === "player:adventure:avatar" && node.attrs?.set?.action === "rope"),
+    "rope locomotion projection",
+  );
+  assert.equal(avatarUpdate.attrs.set.action, "rope");
+  const worldUpdate = [...harness.domain().updates]
+    .reverse()
+    .flatMap((update) => update.nodes ?? [])
+    .find((node) => node.key === "player:adventure" && node.attrs?.set?.["world-y"] === "474");
+  assert.ok(worldUpdate, "the subsystem must snap only to the authenticated rope bottom");
+  assert.equal(harness.domain().replacements.length, 0, "rope entry updates the player carrier, not the scene tree");
+
+  harness.eventsHarness.dispatch("controls.state", "input.state", { down: [] });
+  await waitForBusinessTicks();
+  pressDirection(harness, "up", ["up"]);
+  const climbUpdate = await waitFor(
+    () => harness.domain().updates
+      .flatMap((update) => update.nodes ?? [])
+      .find((node) => node.key === "player:adventure" && Number(node.attrs?.set?.["world-y"]) < 474),
+    "rope upward movement",
+  );
+  assert.ok(Number(climbUpdate.attrs.set["world-y"]) < 474);
+  assert.equal(harness.domain().replacements.length, 0, "Up climbs until a portal is actually in range");
+});
+
+test("M7.3: a fresh Up edge in the out00 rope band commits B to A", async (t) => {
+  const source = fieldPlanAtRopeExit();
+  const content = createContentHarness({ fieldPlan: source, targetFieldPlan: canonicalFieldPlan });
+  const baseRecord = content.record.bind(content);
+  let bootstrapReads = 0;
+  content.record = async (namespace, key, options) => {
+    if (namespace === FIELD_PLAN_NAMESPACE && key === FIELD_PLAN_KEY) {
+      bootstrapReads += 1;
+      return Object.freeze({ value: bootstrapReads === 1 ? source : canonicalFieldPlan });
+    }
+    return baseRecord(namespace, key, options);
+  };
+  const harness = startMapFrame({
+    content,
+  });
+  t.after(() => harness.frame.abort());
+  await settle();
+
+  pressDirection(harness, "up", ["up"]);
+  const replacement = await waitFor(
+    () => harness.domain().replacements[0],
+    "out00 B-to-A scene replacement",
+  );
+  const root = replacement.roots[0];
+  assert.equal(root.data.mapId, "222000000");
+  const player = root.children.find((child) => child.key === "player:adventure");
+  assert.equal(player.attrs["world-x"], "-508");
+  assert.equal(player.attrs["world-y"], "248");
+  assert.equal(harness.domain().replacements.length, 1);
+  assert.equal(bootstrapReads, 2, "the return edge reloads the canonical bootstrap record");
 });
 
 test("M6: failed prepare keeps source movement monotonic instead of rewinding a stale snapshot", async (t) => {

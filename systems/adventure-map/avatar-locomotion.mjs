@@ -15,6 +15,7 @@ const LOCOMOTION_ACTION_FALLBACK = Object.freeze({
   walk: "walk1",
   jump: "jump",
   swim: "fly",
+  climb: "rope",
 });
 
 export function projectAvatarLocomotionAttrs(fieldState = null, timingState = null) {

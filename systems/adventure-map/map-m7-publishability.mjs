@@ -9,21 +9,20 @@ import { UNSUPPORTED } from "../../components/ms-map-adapter/src/status.mjs";
 export const M7_230030200_SWIM_FACT = Object.freeze({ mapId: "230030200", swim: 1 });
 
 /**
- * Presentation gaps audited on 230030200 — excluded from closure.ok but not hidden.
- * M7.4 closed the bounded Back type1–4 slice on 230030200; Obj flow remains unsupported.
+ * Audited 230030200 presentation facts for M7.5 Obj flow + M7.4 Back layout.
  */
 export const M7_230030200_KNOWN_PRESENTATION_GAPS = Object.freeze({
   mapId: "230030200",
-  unsupportedObjFlowVisualCount: 11,
+  unsupportedObjFlowVisualCount: 0,
+  supportedObjFlowVisualCount: 11,
   minimapProductFallbackBounds: Object.freeze({
     left: -1928,
     top: -459,
     right: 636,
     bottom: 1058,
   }),
-  /** Adapter closure resources not referenced by the static painted FieldPlan tree. */
-  adapterOnlyResourceCount: 36,
-  fieldPlanTreeResourceCount: 118,
+  adapterOnlyResourceCount: 0,
+  fieldPlanTreeResourceCount: 154,
   adapterClosureResourceCount: 154,
 });
 
@@ -32,7 +31,7 @@ const EXPECTED_BACK_TYPES = Object.freeze([
   3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4, 4, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 1,
 ]);
 const EXPECTED_REPEATED_BACK_SOURCE_ORDERS = Object.freeze([7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 29, 30]);
-const EXPECTED_FLOW_SOURCE_ORDERS = Object.freeze([22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
+const EXPECTED_OBJ_FLOW_SOURCE_ORDERS = Object.freeze([22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
 
 function sameNumbers(actual, expected) {
   return actual.length === expected.length && actual.every((value, index) => value === expected[index]);
@@ -96,14 +95,33 @@ export function assertM7ExtraMapFieldPlanPublishable(mapId, projection) {
   }
 
   const unsupported = (scene.diagnostics ?? []).filter((item) => item.code === UNSUPPORTED);
-  const flows = unsupported.filter((item) => item.message === "obj visual field unsupported (flow/r)");
-  if (unsupported.length !== flows.length) {
-    throw new TypeError(`map ${mapId} has an unapproved unsupported diagnostic`);
+  if (unsupported.length > 0) {
+    throw new TypeError(`map ${mapId} has an unapproved unsupported diagnostic: ${unsupported[0].message}`);
   }
-  if (!sameNumbers(flows.map((item) => item.sourceOrder), EXPECTED_FLOW_SOURCE_ORDERS)
-    || !flows.every((item) => item.stableId === `obj:map${mapId}:${item.sourceOrder}`)) {
-    throw new TypeError(`map ${mapId} Obj flow presentation gaps drifted from the audited set`);
+
+  const flowObjects = (projection.projection?.root?.children ?? [])
+    .filter((node) => node.tag === "ms-map-object" && node.data?.source?.flow === 1);
+  if (!sameNumbers(
+    flowObjects.map((node) => node.data.provenance.sourceOrder).sort((a, b) => a - b),
+    EXPECTED_OBJ_FLOW_SOURCE_ORDERS,
+  )) {
+    throw new TypeError(`map ${mapId} Obj flow RenderNode facts drifted from the audited set`);
   }
+  if (flowObjects.length !== M7_230030200_KNOWN_PRESENTATION_GAPS.supportedObjFlowVisualCount) {
+    throw new TypeError(`map ${mapId} Obj flow publishable count drifted`);
+  }
+  for (const node of flowObjects) {
+    if (!node.data.layout?.tileHorizontal || node.data.layout.kind !== "flow-horizontal") {
+      throw new TypeError(`map ${mapId} Obj flow layout drifted for ${node.key}`);
+    }
+    if (node.data.frames.length < 2) {
+      throw new TypeError(`map ${mapId} Obj flow must publish a multi-frame sequence for ${node.key}`);
+    }
+    if (node.data.layout.frameWidth !== node.data.frames[0].image.pageWidth) {
+      throw new TypeError(`map ${mapId} Obj flow rewrote resource page width for ${node.key}`);
+    }
+  }
+
   if ((scene.resources?.length ?? -1) !== M7_230030200_KNOWN_PRESENTATION_GAPS.adapterClosureResourceCount) {
     throw new TypeError(`map ${mapId} adapter resource closure drifted from the audited count`);
   }

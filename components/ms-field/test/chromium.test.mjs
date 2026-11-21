@@ -5,7 +5,9 @@ import path from "node:path";
 import test, { after, before } from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildFieldProjection } from "../src/field-project.mjs";
+import { RESOURCE_READ_CONCURRENCY } from "../src/resource-read-pool.mjs";
 import { buildCanonicalAdventureAvatarContent } from "../../../scripts/pwa/read-adventure-fsdb.mjs";
+import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
 import { validateFieldTree } from "../src/validate.mjs";
 import {
   BEARER,
@@ -461,4 +463,111 @@ test("failed standalone replacement keeps last-good pixels, geometry, and paint 
   assert.equal(after.top, before.top);
   assert.equal(after.hostWidth, before.hostWidth);
   assert.equal(after.hostHeight, before.hostHeight);
+});
+
+test("Obj flow camera attrs retain decoded frames and static paint commits", { timeout: 120_000 }, async (t) => {
+  const { plan } = await buildCanonicalAdventureFieldPlanContent({
+    gameRoot: repoRoot,
+    mapId: "230030200",
+  });
+  const tree = structuredClone(plan.root);
+  const flowObjects = tree.children.filter(
+    (child) => child.tag === "ms-map-object" && child.data?.source?.flow === 1,
+  );
+  assert.equal(flowObjects.length, 11);
+  flowObjects.forEach((object, index) => { object.attrs["stack-rank"] = String(index + 1); });
+  tree.children = flowObjects;
+  assert.equal(validateFieldTree(tree).ok, true);
+  const flowObject = flowObjects[0];
+
+  const index = await loadResourceIndex(tree, repoRoot);
+  const server = await startFieldServer({ index, scriptBytes });
+  t.after(() => server.close());
+  const prepared = await preparePresentation({
+    origin: server.origin,
+    index,
+    configPath: path.join(componentRoot, "presentation.json"),
+    scriptPath: SCRIPT_PATH,
+  });
+  const page = await openFieldPage(t, {
+    chromium,
+    origin: server.origin,
+    prepared,
+    installationId: INSTALLATION_ID,
+    bearer: BEARER,
+    viewport: { width: 1000, height: 700 },
+  });
+  await page.evaluate((opened) => window.__open(opened), tree);
+  await waitFor(page, () => {
+    const objects = [...document.querySelectorAll("ms-map-object")];
+    return objects.length === 11
+      && objects.every((object) => object.diagnostics().state === "ready")
+      && window.__resourceActive === 0;
+  }, "Obj flow hosts ready", 30_000);
+  assert.ok(server.metrics.maxConcurrentContentReads <= RESOURCE_READ_CONCURRENCY);
+  t.diagnostic(`Obj flow max concurrent Content reads ${server.metrics.maxConcurrentContentReads}/${RESOURCE_READ_CONCURRENCY}`);
+  const before = await page.evaluate(() => document.querySelector("ms-map-object").diagnostics());
+  const nextWorldX = Number(flowObject.attrs["world-x"]) + 25;
+  await page.evaluate(({ key, worldX }) => window.__update([{
+    op: "update",
+    key,
+    attrs: { set: { "world-x": String(worldX) } },
+  }]), { key: flowObject.key, worldX: nextWorldX });
+  await waitFor(page, (expected) => getComputedStyle(document.querySelector("ms-map-object")).left === `${expected}px`, "Obj flow moved", 20_000, nextWorldX);
+  const after = await page.evaluate(() => document.querySelector("ms-map-object").diagnostics());
+  assert.equal(after.state, "ready");
+  assert.equal(after.resourceReads, before.resourceReads, "camera-only attrs must not reload Obj frames");
+  assert.equal(after.paintCommits, before.paintCommits, "camera-only attrs must not repaint Obj pixels");
+  assert.ok(after.animationPaints >= before.animationPaints);
+  assert.deepEqual(page.__pageErrors, []);
+});
+
+test("retiring Obj flow during a later frame read closes decoded stale bitmaps", { timeout: 120_000 }, async (t) => {
+  const { plan } = await buildCanonicalAdventureFieldPlanContent({
+    gameRoot: repoRoot,
+    mapId: "230030200",
+  });
+  const tree = structuredClone(plan.root);
+  const flowObject = tree.children.find(
+    (child) => child.tag === "ms-map-object" && child.data?.source?.flow === 1,
+  );
+  assert.ok(flowObject?.data.frames.length > 1);
+  flowObject.attrs["stack-rank"] = "1";
+  tree.children = [flowObject];
+  const index = await loadResourceIndex(tree, repoRoot);
+  const delayed = flowObject.data.frames[1].image.resource;
+  const resourceDelayMs = new Map([[`${delayed.namespace}\0${delayed.key}`, 5_000]]);
+  const server = await startFieldServer({ index, scriptBytes, resourceDelayMs });
+  t.after(() => server.close());
+  const prepared = await preparePresentation({
+    origin: server.origin,
+    index,
+    configPath: path.join(componentRoot, "presentation.json"),
+    scriptPath: SCRIPT_PATH,
+  });
+  const page = await openFieldPage(t, {
+    chromium,
+    origin: server.origin,
+    prepared,
+    installationId: INSTALLATION_ID,
+    bearer: BEARER,
+    viewport: { width: 1000, height: 700 },
+  });
+  await page.evaluate(() => {
+    window.__bitmapCloses = 0;
+    const close = ImageBitmap.prototype.close;
+    ImageBitmap.prototype.close = function trackedClose() {
+      window.__bitmapCloses += 1;
+      return close.call(this);
+    };
+  });
+  await page.evaluate((opened) => window.__open(opened), tree);
+  await waitFor(page, () => window.__resourceCalls.length >= 2, "second Obj frame read started", 20_000);
+  await page.evaluate(() => window.__replace([]));
+  await waitFor(page, () => (
+    document.querySelector("ms-map-object") === null
+      && window.__resourceActive === 0
+      && window.__bitmapCloses >= 1
+  ), "retired Obj stale bitmap closed", 20_000);
+  assert.deepEqual(page.__pageErrors, []);
 });

@@ -16,6 +16,7 @@ import {
   backLayoutUnsupportedMessage,
   backPresentation,
 } from "./back-layout.mjs";
+import { objFlowUnsupportedMessage } from "./obj-flow.mjs";
 import {
   NO_VISUAL_PORTAL,
   RESOURCE_MISSING,
@@ -374,15 +375,25 @@ export function resolveMapScene(facts) {
     const hasFlow = Object.prototype.hasOwnProperty.call(row, "flow");
     const rValue = row.r;
     const rUnsupported = rValue !== undefined && Number(rValue) !== 0;
-
-    if (hasFlow || rUnsupported) {
-      diagnostics.push(diagnose(UNSUPPORTED, `obj visual field unsupported (flow/r)`, {
+    const flowUnsupportedMessage = hasFlow ? objFlowUnsupportedMessage(row) : null;
+    if (rUnsupported) {
+      diagnostics.push(diagnose(UNSUPPORTED, "obj visual field unsupported (r)", {
+        mapId,
+        group: "obj",
+        sourceOrder: row.sourceOrder,
+        stableId,
+        r: row.r,
+      }));
+    } else if (flowUnsupportedMessage) {
+      diagnostics.push(diagnose(UNSUPPORTED, flowUnsupportedMessage, {
         mapId,
         group: "obj",
         sourceOrder: row.sourceOrder,
         stableId,
         flow: row.flow,
-        r: row.r,
+        rx: row.rx,
+        cx: row.cx,
+        cy: row.cy,
       }));
     }
 
@@ -443,6 +454,8 @@ export function resolveMapScene(facts) {
     const flip = Number(row.f) !== 0;
     const sortKey = objSortKey(layer, Number(row.z));
     const multiFrame = framesFor.length > 1;
+    const flowEnabled = hasFlow && Number(row.flow) !== 0;
+    const flowSupported = flowEnabled && !flowUnsupportedMessage && !rUnsupported;
     const resolvedFrames = Object.freeze(framesFor.map((item) => Object.freeze({
       frame: Number(item.frame ?? 0),
       origin: Object.freeze([...(item.origin ?? [0, 0])]),
@@ -467,12 +480,18 @@ export function resolveMapScene(facts) {
       sortKey,
       tieKey: row.sourceOrder,
       sortKeySource: "CMS079-PROVEN",
-      updateClass: multiFrame || hasFlow ? "local-animation" : "static",
+      updateClass: multiFrame || flowSupported ? "local-animation" : "static",
       layer,
       z: Number(row.z),
       zM: row.zM === undefined ? null : Number(row.zM),
-      resolved: Boolean(resource) && !hasFlow && !rUnsupported,
-      unsupported: hasFlow || rUnsupported,
+      resolved: Boolean(resource) && !rUnsupported && (!flowEnabled || flowSupported),
+      unsupported: rUnsupported || (flowEnabled && !flowSupported),
+      flowPlacement: flowSupported ? Object.freeze({
+        flow: Number(row.flow),
+        rx: row.rx === undefined ? null : Number(row.rx),
+        cx: row.cx === undefined ? 0 : Number(row.cx),
+        cy: row.cy === undefined ? 0 : Number(row.cy),
+      }) : null,
       frames: resolvedFrames,
       bounds: resource
         ? worldBoundsFrom(frame.origin, frame.width, frame.height, row.x, row.y, flip)

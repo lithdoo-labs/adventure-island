@@ -28,18 +28,21 @@ test("230030200 publishability allows closure.ok with no missing/fatal/unresolve
   assert.deepEqual(effective, M7_230030200_KNOWN_PRESENTATION_GAPS.minimapProductFallbackBounds);
 });
 
-test("230030200 documents Obj flow gaps only after M7.4 Back layout", async () => {
+test("230030200 carries supported Obj flow visuals after M7.5", async () => {
   const projection = await buildMapProjection({
     mapId: "230030200",
     gameRoot: repoRoot,
-    viewport: { width: 800, height: 600 },
+    viewport: { width: 1000, height: 700 },
   });
   const diagnostics = projection.scene.diagnostics ?? [];
   const unsupported = diagnostics.filter((item) => item.code === UNSUPPORTED);
-  const flowVisuals = unsupported.filter((item) => String(item.message).includes("flow"));
   const backUnsupported = unsupported.filter((item) => String(item.message).includes("back type"));
   assert.equal(backUnsupported.length, 0);
-  assert.equal(flowVisuals.length, M7_230030200_KNOWN_PRESENTATION_GAPS.unsupportedObjFlowVisualCount);
+  assert.equal(unsupported.length, M7_230030200_KNOWN_PRESENTATION_GAPS.unsupportedObjFlowVisualCount);
+  const flowNodes = projection.projection.root.children.filter(
+    (node) => node.tag === "ms-map-object" && node.data?.source?.flow === 1,
+  );
+  assert.equal(flowNodes.length, M7_230030200_KNOWN_PRESENTATION_GAPS.supportedObjFlowVisualCount);
   assert.equal(M7_230030200_SWIM_FACT.swim, 1);
 });
 
@@ -50,10 +53,7 @@ test("230030200 FieldPlan tree resource closure is a documented subset of adapte
   const adapterRefs = projection.scene.resources;
   assert.equal(treeRefs.length, M7_230030200_KNOWN_PRESENTATION_GAPS.fieldPlanTreeResourceCount);
   assert.equal(adapterRefs.length, M7_230030200_KNOWN_PRESENTATION_GAPS.adapterClosureResourceCount);
-  assert.equal(
-    adapterRefs.length - treeRefs.length,
-    M7_230030200_KNOWN_PRESENTATION_GAPS.adapterOnlyResourceCount,
-  );
+  assert.equal(M7_230030200_KNOWN_PRESENTATION_GAPS.adapterOnlyResourceCount, 0);
   assert.doesNotThrow(() => assertM7WaterMapResourceBoundary(
     treeRefs,
     adapterRefs,
@@ -67,18 +67,24 @@ test("230030200 FieldPlan tree resource closure is a documented subset of adapte
   };
   assert.throws(
     () => assertM7WaterMapResourceBoundary(treeRefs, drifted, projection.scene, "230030200 drift"),
-    /omitted set|missing or mismatched/,
+    /key sets differ|stamp mismatch/,
   );
 });
 
-test("230030200 publishability rejects Obj flow presentation-gap drift", async () => {
-  const projection = await buildMapProjection({ mapId: "230030200", gameRoot: repoRoot });
+test("230030200 publishability rejects Obj flow RenderNode drift", async () => {
+  const projection = await buildMapProjection({
+    mapId: "230030200",
+    gameRoot: repoRoot,
+    viewport: { width: 1000, height: 700 },
+  });
   const candidate = structuredClone(projection);
-  const unsupported = candidate.scene.diagnostics.find((item) => item.code === UNSUPPORTED);
-  unsupported.stableId = "obj:map230030200:999";
+  const flow = candidate.projection.root.children.find(
+    (node) => node.tag === "ms-map-object" && node.data?.source?.flow === 1,
+  );
+  flow.data.layout.kind = "flow-vertical";
   assert.throws(
     () => assertM7ExtraMapFieldPlanPublishable("230030200", candidate),
-    /presentation gaps drifted|unapproved unsupported|Obj flow/,
+    /Obj flow layout drifted/,
   );
 });
 

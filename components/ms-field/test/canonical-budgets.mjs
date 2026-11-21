@@ -72,9 +72,12 @@ export function expectedLocalCanvasSize(node) {
   if ((node.tag === "ms-map-back" || node.tag === "ms-portal-visual") && image?.source) {
     return { width: image.source.w, height: image.source.h };
   }
-  if (node.tag === "ms-map-object" && node.data?.frames?.[0]?.image?.source) {
-    const source = node.data.frames[0].image.source;
-    return { width: source.w, height: source.h };
+  if (node.tag === "ms-map-object") {
+    if (node.data?.layout) {
+      return { width: node.data.layout.canvasWidth, height: node.data.layout.canvasHeight };
+    }
+    const source = node.data?.frames?.[0]?.image?.source;
+    if (source) return { width: source.w, height: source.h };
   }
   if (node.tag === "ms-avatar") {
     return null;

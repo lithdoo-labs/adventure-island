@@ -37,6 +37,7 @@ export function orderDrawables(scene, { includeUnresolved = false } = {}) {
       resource: item.resource,
       frames: item.frames,
       placement: item.placement,
+      flowPlacement: item.flowPlacement,
       presentation: item.presentation,
       visualName: item.visualName,
       portalStableId: item.portalStableId,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { writeSyntheticMap, resetSyntheticFsdb } from "../../ms-map-adapter/test/fixtures/synthetic-fsdb.mjs";
 import { buildFieldProjection } from "../src/field-project.mjs";
-import { validateBackData, validateFieldTree } from "../src/validate.mjs";
+import { validateBackData, validateFieldTree, validateMapObjectData } from "../src/validate.mjs";
 
 test("field tree validator rejects broken stack-ranks", async () => {
   const suiteId = `field-validate-${Date.now()}`;
@@ -35,4 +35,29 @@ test("Back layout validator rejects forged surfaces and zero-step repetition", a
   const forgedPage = structuredClone(back.data);
   forgedPage.image.pageWidth += 1;
   assert.equal(validateBackData(forgedPage).ok, false);
+});
+
+test("Obj flow validator bounds frames and rejects forged source/layout values", async () => {
+  const projection = await buildFieldProjection({
+    gameRoot: process.cwd(),
+    mapId: "230030200",
+    viewport: { width: 1000, height: 700 },
+  });
+  const object = projection.root.children.find(
+    (child) => child.tag === "ms-map-object" && child.data?.source?.flow === 1,
+  );
+  assert.ok(object);
+  assert.equal(validateMapObjectData(object.data).ok, true);
+
+  const invalidRx = structuredClone(object.data);
+  invalidRx.source.rx = Number.NaN;
+  assert.equal(validateMapObjectData(invalidRx).ok, false);
+
+  const missingAnchor = structuredClone(object.data);
+  delete missingAnchor.layout.anchorOffsetX;
+  assert.equal(validateMapObjectData(missingAnchor).ok, false);
+
+  const excessiveFrames = structuredClone(object.data);
+  excessiveFrames.frames = Array.from({ length: 129 }, () => object.data.frames[0]);
+  assert.equal(validateMapObjectData(excessiveFrames).ok, false);
 });

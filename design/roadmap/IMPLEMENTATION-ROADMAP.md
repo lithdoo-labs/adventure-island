@@ -358,7 +358,7 @@ validate trigger
 
 ## 11. M7：三图闭环与内容扩展
 
-> **路线图状态：2026-11-21，M7.1 水域纵剖、M7.2 真实返程、M7.3 Rope/Climb 与 M7.4 Back type1–4 实验切片完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** M7.4：`230030200` 真实 FSDB 非零步长有界重复、零步长单图、type4 水平滚动（证据内闭包）、Subsystem Camera counter-position 与 ms-map-back 局部 Canvas；详见 [M7.4-BACK-LAYOUT-EVIDENCE.md](./M7.4-BACK-LAYOUT-EVIDENCE.md)。M7.1–M7.3 证据链见同目录前述文档。
+> **路线图状态：2026-11-21，M7.1 水域纵剖、M7.2 真实返程、M7.3 Rope/Climb、M7.4 Back type1–4 与 M7.5 Obj flow 本地动画实验切片完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** M7.5：`230030200` 11 条 `flow:1` 鱼 Obj → `ms-map-object` 多帧 `delay` + `rx` 滚动 + 有界水平平铺；详见 [M7.5-OBJ-FLOW-EVIDENCE.md](./M7.5-OBJ-FLOW-EVIDENCE.md)。M7.1–M7.4 证据链见同目录前述文档。
 
 ### 11.1 三图候选集
 
@@ -375,7 +375,7 @@ validate trigger
 - 无完整 VR 时的 effective bounds fallback；
 - 三图 Portal graph、资源闭包和存在性审计；
 - Back repeat/parallax/auto-scroll（M7.4：type1–4 有界产品切片已在 230030200 取证；`+0x98` 视差、超出 viewport envelope 的 relayout 与 type5–7 仍缺口）；
-- 独立动态 Obj 与 Portal visual phase；
+- 独立动态 Obj 与 Portal visual phase（M7.5：`flow=1` 有界切片已在 230030200 取证；`flow=2/3`、完整 0x66A8D5 子实例与 Portal phase 仍缺口）；
 - Renderer-local transition；
 - Canvas、DOM、decode、CPU、内存和 composite 性能预算；
 - 三图稳定后扩展现有 13 图。
@@ -440,6 +440,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1–M7.4** 实验切片（见 [M7.1](./M7.1-WATER-THREE-MAP-EVIDENCE.md)–[M7.4](./M7.4-BACK-LAYOUT-EVIDENCE.md)）。**组件 ABI 未批准**；**M7 全量**（`+0x98` 视差、动态 viewport relayout、type5–7、Obj flow、完整泳态 force、Seat/drop-through、性能/内存长跑、13 图）仍有缺口。
+当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1–M7.5** 实验切片（见 [M7.1](./M7.1-WATER-THREE-MAP-EVIDENCE.md)–[M7.5](./M7.5-OBJ-FLOW-EVIDENCE.md)）。**组件 ABI 未批准**；**M7 全量**（`+0x98` 视差、动态 viewport relayout、type5–7、其余 13 图 flow、完整泳态 force、Seat/drop-through、性能/内存长跑）仍有缺口。
 
-2026-11-18–21 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.4-BACK-LAYOUT-EVIDENCE.md](./M7.4-BACK-LAYOUT-EVIDENCE.md)。M0–M6 验收门保持不变；M7 子切片不降低 M3/M6 预算断言，也不宣称 CMS079 像素 parity 或正式 ABI 批准。
+2026-11-18–21 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.5-OBJ-FLOW-EVIDENCE.md](./M7.5-OBJ-FLOW-EVIDENCE.md)。M0–M6 验收门保持不变；M7 子切片不降低 M3/M6 预算断言，也不宣称 CMS079 像素 parity 或正式 ABI 批准。

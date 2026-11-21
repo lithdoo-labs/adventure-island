@@ -32,6 +32,7 @@ import {
   projectPlayerWorldAttrs,
 } from "./avatar-locomotion.mjs";
 import { projectBackCameraUpdates } from "./back-view-projection.mjs";
+import { projectObjFlowCameraUpdates } from "./obj-flow-view-projection.mjs";
 import { presentationTimingAttrs } from "../../components/ms-avatar/src/presentation-attrs.mjs";
 import { nextClipBoundaryMs } from "../../components/ms-avatar/src/presentation-timing.mjs";
 import { movementIntentFromHeld } from "./movement-intent.mjs";
@@ -274,6 +275,8 @@ export default defineSubsystem((scope) => ({
           nodes.push({ key: sceneRootKey, attrs: { set: sceneChanged } });
           const backNodes = projectBackCameraUpdates(activeRenderChildren, cam);
           for (const node of backNodes) nodes.push(node);
+          const objFlowNodes = projectObjFlowCameraUpdates(activeRenderChildren, cam);
+          for (const node of objFlowNodes) nodes.push(node);
           cameraX = nextX;
           cameraY = nextY;
         }

@@ -18,6 +18,7 @@ const FIELD_INPUT_LIMITS = Object.freeze({
   maxPages: 64,
   maxItems: 512,
   maxPlacements: 512,
+  maxObjectFrames: 128,
   maxIdLength: 256,
   maxMapIdLength: 12,
   stackRankMax: 2_147_483_646,
@@ -2749,7 +2750,9 @@ function validateMapObjectData(data) {
   if (!plainObject(data) || typeof data.placementId !== "string" || data.mode !== "local-animation" || !Array.isArray(data.frames)) {
     return invalid("INPUT_INVALID", "data", "map object data must contain placementId, mode, frames");
   }
-  if (data.frames.length < 1) return invalid("INPUT_INVALID", "data.frames", "map object must publish at least one frame");
+  if (data.frames.length < 1 || data.frames.length > FIELD_INPUT_LIMITS.maxObjectFrames) {
+    return invalid("INPUT_INVALID", "data.frames", "map object frame count is outside the field budget");
+  }
   const placementId = idString(data.placementId, "data.placementId");
   if (!placementId.ok) return placementId;
   const frames = [];
@@ -2777,12 +2780,62 @@ function validateMapObjectData(data) {
   if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
     return invalid("INPUT_INVALID", "data.provenance.sortKey", "map object provenance sortKey must be finite");
   }
+  const layout = validateMapObjectLayout(data.layout, "data.layout");
+  if (!layout.ok) return layout;
+  let source = null;
+  if (data.source !== undefined && data.source !== null) {
+    if (!plainObject(data.source) || !sameKeys(data.source, ["cx", "cy", "flow", "rx"])) {
+      return invalid("INPUT_INVALID", "data.source", "map object source must be a plain object");
+    }
+    const flow = safeInteger(data.source.flow, "data.source.flow", { min: 1, max: 1 });
+    if (!flow.ok) return flow;
+    const rx = finiteNumber(data.source.rx, "data.source.rx");
+    if (!rx.ok || rx.value === 0) {
+      return invalid("INPUT_INVALID", "data.source.rx", "flow rx must be finite and non-zero");
+    }
+    const cx = safeInteger(data.source.cx, "data.source.cx");
+    if (!cx.ok) return cx;
+    const cy = safeInteger(data.source.cy, "data.source.cy");
+    if (!cy.ok) return cy;
+    source = Object.freeze({
+      flow: flow.value,
+      rx: rx.value,
+      cx: cx.value,
+      cy: cy.value,
+    });
+  }
   return valid({
     placementId: placementId.value,
     mode: "local-animation",
     frames,
+    layout: layout.value,
+    source,
     sortKey: data.provenance.sortKey,
   });
+}
+
+function validateMapObjectLayout(layout, path = "data.layout") {
+  if (layout === undefined || layout === null) return valid(null);
+  if (!plainObject(layout)) return invalid("INPUT_INVALID", path, "layout must be a plain object");
+  const anchorKeys = ["anchorOffsetX", "anchorOffsetY"];
+  if (!anchorKeys.every((key) => Object.prototype.hasOwnProperty.call(layout, key))) {
+    return invalid("INPUT_INVALID", path, "Obj flow layout must contain both anchor offsets");
+  }
+  const base = {};
+  for (const [key, value] of Object.entries(layout)) {
+    if (!anchorKeys.includes(key)) base[key] = value;
+  }
+  const validated = validateBackLayout(base, path);
+  if (!validated.ok) return validated;
+  const anchorOffsetX = finiteNumber(layout.anchorOffsetX, `${path}.anchorOffsetX`);
+  if (!anchorOffsetX.ok) return anchorOffsetX;
+  const anchorOffsetY = finiteNumber(layout.anchorOffsetY, `${path}.anchorOffsetY`);
+  if (!anchorOffsetY.ok) return anchorOffsetY;
+  return valid(Object.freeze({
+    ...validated.value,
+    anchorOffsetX: anchorOffsetX.value,
+    anchorOffsetY: anchorOffsetY.value,
+  }));
 }
 
 function validateBackLayout(layout, path = "data.layout") {
@@ -2797,7 +2850,10 @@ function validateBackLayout(layout, path = "data.layout") {
   if (!sameKeys(layout, keys)) {
     return invalid("INPUT_INVALID", path, "layout fields must match the candidate Back layout schema");
   }
-  const kinds = new Set(["static-type0", "tile-horizontal", "tile-vertical", "tile-both", "scroll-horizontal"]);
+  const kinds = new Set([
+    "static-type0", "tile-horizontal", "tile-vertical", "tile-both", "scroll-horizontal",
+    "flow-horizontal", "flow-vertical",
+  ]);
   if (!kinds.has(layout.kind)) {
     return invalid("INPUT_INVALID", `${path}.kind`, "layout.kind is not supported");
   }
@@ -3498,6 +3554,86 @@ function paintBackTiles(context, bitmap, image, layout, draw, scrollOffsetX = 0)
   context.globalAlpha = 1;
 }
 
+function mapObjectCycleDurationMs(frames) {
+  if (!Array.isArray(frames) || frames.length <= 1) return 0;
+  let sum = 0;
+  for (const frame of frames) {
+    const delay = Number(frame?.delay ?? 0);
+    if (Number.isFinite(delay) && delay > 0) sum += delay;
+  }
+  return sum;
+}
+
+function mapObjectFrameIndex(frames, elapsedMs) {
+  const duration = mapObjectCycleDurationMs(frames);
+  if (duration <= 0) return 0;
+  let cursor = elapsedMs % duration;
+  for (let index = 0; index < frames.length; index += 1) {
+    const delay = Number(frames[index]?.delay ?? 0);
+    if (!Number.isFinite(delay) || delay <= 0) continue;
+    if (cursor < delay) return index;
+    cursor -= delay;
+  }
+  return frames.length - 1;
+}
+
+function paintMapObjectFrame(context, bitmap, image, draw, layout, scrollOffsetX = 0) {
+  const source = image.source;
+  const frameW = layout?.frameWidth ?? source.w;
+  const frameH = layout?.frameHeight ?? source.h;
+  if (!layout) {
+    context.clearRect(0, 0, source.w, source.h);
+    const opacity = Number.isInteger(draw?.opacity) ? draw.opacity : 255;
+    context.globalAlpha = opacity / 255;
+    if (draw?.flip) {
+      context.save();
+      context.translate(source.w, 0);
+      context.scale(-1, 1);
+      context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+      context.restore();
+    } else {
+      context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+    }
+    context.globalAlpha = 1;
+    return;
+  }
+  const canvasW = layout.canvasWidth;
+  const canvasH = layout.canvasHeight;
+  const stepX = layout.tileStepX > 0 ? layout.tileStepX : frameW;
+  const stepY = layout.tileStepY > 0 ? layout.tileStepY : frameH;
+  context.clearRect(0, 0, canvasW, canvasH);
+  const opacity = Number.isInteger(draw?.opacity) ? draw.opacity : 255;
+  context.globalAlpha = opacity / 255;
+  const originX = Number.isFinite(layout.tileOriginX) ? layout.tileOriginX : 0;
+  const originY = Number.isFinite(layout.tileOriginY) ? layout.tileOriginY : 0;
+  const anchorOffsetX = Number.isFinite(layout.anchorOffsetX) ? layout.anchorOffsetX : 0;
+  const anchorOffsetY = Number.isFinite(layout.anchorOffsetY) ? layout.anchorOffsetY : 0;
+  const phaseX = -((((originX + scrollOffsetX) % stepX) + stepX) % stepX);
+  const phaseY = -(((originY % stepY) + stepY) % stepY);
+  const horiz = Boolean(layout.tileHorizontal);
+  const vert = Boolean(layout.tileVertical);
+  const yEnd = vert ? canvasH + stepY : frameH;
+  const xEnd = horiz ? canvasW + stepX : frameW;
+  const yStep = vert ? stepY : frameH;
+  const xStep = horiz ? stepX : frameW;
+  for (let y = vert ? phaseY : 0; y < yEnd; y += yStep) {
+    for (let x = horiz ? phaseX : 0; x < xEnd; x += xStep) {
+      const drawX = x + anchorOffsetX - (draw?.flip ? source.w - draw.origin[0] : draw.origin[0]);
+      const drawY = y + anchorOffsetY - draw.origin[1];
+      if (draw?.flip) {
+        context.save();
+        context.translate(drawX + source.w, drawY);
+        context.scale(-1, 1);
+        context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+        context.restore();
+      } else {
+        context.drawImage(bitmap, source.x, source.y, source.w, source.h, drawX, drawY, source.w, source.h);
+      }
+    }
+  }
+  context.globalAlpha = 1;
+}
+
 class MsMapBack extends SpikeElement {
   static get observedAttributes() {
     return ["stack-rank", "visible", "view-x", "view-y"];
@@ -3904,14 +4040,329 @@ class MsStandalonePaintUnit extends SpikeElement {
   }
 }
 
-class MsMapObject extends MsStandalonePaintUnit {
-  _validatePaintData(data) {
-    return validateMapObjectData(data);
+class MsMapObject extends SpikeElement {
+  static get observedAttributes() {
+    return ["world-x", "world-y", "stack-rank", "visible"];
   }
 
-  _firstPaintFrame(validated) {
-    const frame = validated.frames[0];
-    return { image: frame.image, draw: frame.draw };
+  constructor() {
+    super();
+    this._abort = null;
+    this._paintedSignature = null;
+    this._loadingSignature = null;
+    this._validated = null;
+    this._frameBitmaps = [];
+    this._presentationStart = 0;
+    this._animFrame = null;
+    this._scrollOffsetX = 0;
+    this._scrollLastTs = null;
+    this._scrollPixel = 0;
+    this._animationPaints = 0;
+    this._displayFrame = 0;
+  }
+
+  diagnostics() {
+    return Object.freeze({
+      ...super.diagnostics(),
+      animationPaints: this._animationPaints,
+    });
+  }
+
+  _stopAnim() {
+    if (this._animFrame !== null) {
+      cancelAnimationFrame(this._animFrame);
+      this._animFrame = null;
+    }
+    this._scrollLastTs = null;
+  }
+
+  _releaseBitmaps() {
+    for (const bitmap of this._frameBitmaps) bitmap?.close?.();
+    this._frameBitmaps = [];
+  }
+
+  _hasLastGoodPaint() {
+    return this._paintCommits > 0 && this._paintedSignature !== null && this._frameBitmaps.length > 0;
+  }
+
+  _failInput(result) {
+    this._stopAnim();
+    this._releaseBitmaps();
+    super._failInput(result);
+  }
+
+  _releaseSurface() {
+    this._stopAnim();
+    this._releaseBitmaps();
+    this._scrollOffsetX = 0;
+    this._scrollPixel = 0;
+    this._displayFrame = 0;
+    super._releaseSurface();
+  }
+
+  _installShadow() {
+    const shadow = this.attachShadow({ mode: "open" });
+    this._style = document.createElement("style");
+    this._canvas = document.createElement("canvas");
+    this._canvas.setAttribute("aria-hidden", "true");
+    shadow.append(this._style, this._canvas);
+    this._writeHost(false, { worldX: 0, worldY: 0, stackRank: 1, w: 0, h: 0 });
+  }
+
+  _hostBox(attrs, validated, frameIndex = 0) {
+    const frame = validated.frames[frameIndex] ?? validated.frames[0];
+    const layout = validated.layout;
+    if (layout) {
+      return {
+        worldX: attrs.worldX,
+        worldY: attrs.worldY,
+        stackRank: attrs.stackRank,
+        w: layout.canvasWidth,
+        h: layout.canvasHeight,
+      };
+    }
+    const [originX, originY] = frame.draw.origin;
+    const { w, h } = frame.image.source;
+    const worldX = frame.draw.flip ? attrs.worldX - (w - originX) : attrs.worldX - originX;
+    const worldY = attrs.worldY - originY;
+    return { worldX, worldY, stackRank: attrs.stackRank, w, h };
+  }
+
+  _writeHost(shown, box = this._box) {
+    this._desiredVisible = shown;
+    this._box = box;
+    if (!this._style || !box) return;
+    this._style.textContent = `
+      :host {
+        position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:none;
+        left:${cssPx(box.worldX)}; top:${cssPx(box.worldY)}; width:${cssPx(box.w)}; height:${cssPx(box.h)};
+        z-index:${box.stackRank}; ${shown ? "" : "visibility:hidden;"}
+      }
+      canvas { display:block; image-rendering:pixelated; }
+    `;
+  }
+
+  _clearCanvas() {
+    if (!this._canvas) return;
+    this._canvas.width = 0;
+    this._canvas.height = 0;
+    this._clearCommits += 1;
+  }
+
+  _applyInput() {
+    if (!this._canvas || !this._attrsSeen) return;
+    const declared = readDeclaredAttrs(this);
+    if (!declared.ok) return this._failInput(declared);
+    const attrs = validateWorldAttrs(declared.value);
+    if (!attrs.ok) return this._failInput(attrs);
+    if (this._data === undefined) return;
+    const data = validateMapObjectData(this._data);
+    if (!data.ok) return this._failInput(data);
+    const validated = data.value;
+    const signature = JSON.stringify(validated);
+    const box = this._hostBox(attrs.value, validated, this._displayFrame);
+    const hasLastGood = this._hasLastGoodPaint();
+    const keepBitmaps = signature === this._paintedSignature && this._state === "ready";
+    if (keepBitmaps) {
+      this._writeHost(attrs.value.visible, box);
+      this._syncAnimLoop();
+      return;
+    }
+    if (signature === this._loadingSignature) return;
+    this._stopAnim();
+    if (!hasLastGood) this._writeHost(false, box);
+    this._loadingSignature = signature;
+    this._epoch += 1;
+    const epoch = this._epoch;
+    this._abort?.abort();
+    const controller = new AbortController();
+    this._abort = controller;
+    this._state = "loading";
+    this._code = null;
+    this._detail = "";
+    if (!hasLastGood) {
+      this._releaseBitmaps();
+      this._clearCanvas();
+    }
+    void this._loadFrames(validated, signature, epoch, controller, attrs.value.visible, box);
+  }
+
+  _syncAnimLoop() {
+    const layout = this._validated?.layout;
+    const animate = Boolean(layout)
+      && (this._validated?.frames?.length ?? 0) > 1
+      && mapObjectCycleDurationMs(this._validated.frames) > 0;
+    const scroll = layout?.scroll?.pixelsPerMs;
+    if (!animate && !scroll) {
+      this._stopAnim();
+      return;
+    }
+    if (this._animFrame !== null) return;
+    const tick = (ts) => {
+      if (!this.isConnected || this._state !== "ready") {
+        this._stopAnim();
+        return;
+      }
+      let dirty = false;
+      if (scroll) {
+        if (this._scrollLastTs !== null) {
+          const delta = ts - this._scrollLastTs;
+          this._scrollOffsetX += scroll * delta;
+          const pixel = Math.trunc(this._scrollOffsetX);
+          if (pixel !== this._scrollPixel) {
+            this._scrollPixel = pixel;
+            dirty = true;
+          }
+        }
+        this._scrollLastTs = ts;
+      }
+      if (animate) {
+        const elapsed = ts - this._presentationStart;
+        const nextFrame = mapObjectFrameIndex(this._validated.frames, elapsed);
+        if (nextFrame !== this._displayFrame) {
+          this._displayFrame = nextFrame;
+          const declared = readDeclaredAttrs(this);
+          if (declared.ok) {
+            const attrs = validateWorldAttrs(declared.value);
+            if (attrs.ok) this._writeHost(attrs.value.visible, this._hostBox(attrs.value, this._validated, nextFrame));
+          }
+          dirty = true;
+        } else if (dirty) {
+          // keep host geometry stable when only scroll moves
+        }
+      }
+      if (dirty) {
+        this._redrawFrame(false);
+        this._animationPaints += 1;
+      }
+      this._animFrame = requestAnimationFrame(tick);
+    };
+    this._animFrame = requestAnimationFrame(tick);
+  }
+
+  _redrawFrame(countCommit = true) {
+    if (!this._canvas || !this._validated) return;
+    const bitmap = this._frameBitmaps[this._displayFrame];
+    if (!bitmap) return;
+    const frame = this._validated.frames[this._displayFrame];
+    const context = this._canvas.getContext("2d");
+    const ratio = deviceRatio();
+    if (ratio === null) return;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.imageSmoothingEnabled = false;
+    paintMapObjectFrame(
+      context,
+      bitmap,
+      frame.image,
+      frame.draw,
+      this._validated.layout,
+      this._scrollOffsetX,
+    );
+    if (countCommit) this._paintCommits += 1;
+  }
+
+  async _loadFrames(validated, signature, epoch, controller, visible, box) {
+    const ratio = deviceRatio();
+    const bitmaps = [];
+    let pendingBitmap = null;
+    let adopted = false;
+    try {
+      if (this._context?.resources?.resource === undefined) {
+        throw Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" });
+      }
+      if (ratio === null) {
+        throw Object.assign(new Error("device pixel ratio is outside the field budget"), { code: "RESOURCE_LIMIT" });
+      }
+      const framesToLoad = validated.layout ? validated.frames : validated.frames.slice(0, 1);
+      for (const frame of framesToLoad) {
+        if (epoch !== this._epoch) return;
+        this._resourceReads += 1;
+        const image = frame.image;
+        const resource = await readSharedResource(
+          this._context.resources,
+          image.resource.namespace,
+          image.resource.key,
+          image.resource.contentVersion,
+          controller.signal,
+        );
+        if (epoch !== this._epoch) return;
+        if (resource.contentVersion !== image.resource.contentVersion) {
+          throw Object.assign(new Error("content version mismatch"), { code: "CONTENT_CONFLICT" });
+        }
+        const mime = String(resource.mime).split(";")[0].trim().toLowerCase();
+        if (mime !== "image/png") throw Object.assign(new Error("page mime is not image/png"), { code: "CONTENT_INVALID" });
+        pendingBitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
+        if (epoch !== this._epoch) return;
+        if (pendingBitmap.width !== image.pageWidth || pendingBitmap.height !== image.pageHeight) {
+          throw Object.assign(new Error("decoded dimensions do not match the declared resource page"), { code: "CONTENT_INVALID" });
+        }
+        bitmaps.push(pendingBitmap);
+        pendingBitmap = null;
+      }
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const layout = validated.layout;
+      const frame = validated.frames[0];
+      const canvasW = layout?.canvasWidth ?? frame.image.source.w;
+      const canvasH = layout?.canvasHeight ?? frame.image.source.h;
+      const deviceW = Math.round(canvasW * ratio);
+      const deviceH = Math.round(canvasH * ratio);
+      if (
+        deviceW < 1 || deviceH < 1
+        || deviceW > FIELD_CANVAS_LIMITS.maxCanvasWidth
+        || deviceH > FIELD_CANVAS_LIMITS.maxCanvasHeight
+        || deviceW * deviceH > FIELD_CANVAS_LIMITS.maxCanvasPixels
+      ) {
+        throw Object.assign(new Error("map object canvas budget exceeded"), { code: "RESOURCE_LIMIT" });
+      }
+      this._canvas.width = deviceW;
+      this._canvas.height = deviceH;
+      this._canvas.style.width = cssPx(canvasW);
+      this._canvas.style.height = cssPx(canvasH);
+      const context = this._canvas.getContext("2d");
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.imageSmoothingEnabled = false;
+      this._releaseBitmaps();
+      this._frameBitmaps = bitmaps;
+      adopted = true;
+      this._validated = validated;
+      this._displayFrame = 0;
+      this._presentationStart = performance.now();
+      this._scrollOffsetX = 0;
+      this._scrollPixel = 0;
+      this._redrawFrame();
+      this._paintedSignature = signature;
+      this._loadingSignature = null;
+      this._state = "ready";
+      this._writeHost(visible, box);
+      this._syncAnimLoop();
+    } catch (error) {
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const code = failureCode(error);
+      if (code === "STALE_RENDER_RESULT") return;
+      this._failPaint(epoch, code, error?.message ?? code);
+    } finally {
+      pendingBitmap?.close?.();
+      if (!adopted) {
+        for (const bitmap of bitmaps) bitmap?.close?.();
+      }
+      if (this._abort === controller) this._abort = null;
+    }
+  }
+
+  _failPaint(epoch, code, detail) {
+    if (epoch !== this._epoch) return;
+    this._loadingSignature = null;
+    const hasLastGood = this._hasLastGoodPaint();
+    this._state = code === "INPUT_INVALID" || code === "DEPTH_PLAN_INVALID" ? "invalid" : "failed";
+    this._code = code;
+    this._detail = detail;
+    if (!hasLastGood) {
+      this._paintedSignature = null;
+      this._clearCanvas();
+      this._writeHost(false, this._box ?? { worldX: 0, worldY: 0, stackRank: 1, w: 0, h: 0 });
+      return;
+    }
+    this._writeHost(this._desiredVisible, this._box);
   }
 }
 

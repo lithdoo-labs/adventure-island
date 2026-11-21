@@ -13,7 +13,11 @@ import { prepareCrossMapPortalCommit } from "../systems/adventure-map/portal-run
 import { bootstrapPortalState } from "../systems/adventure-map/portal-runtime-bridge.mjs";
 import { createMovementState } from "../systems/adventure-map/movement-sim.mjs";
 import { idlePortalTravelAfterFailedPrepare } from "../systems/adventure-map/portal-runtime-bridge.mjs";
-import { M6_PORTAL_BUDGETS, M7_PORTAL_BUDGETS } from "../systems/adventure-map/portal-budgets.mjs";
+import {
+  M6_PORTAL_BUDGETS,
+  M7_PORTAL_BUDGETS,
+  M7_5_OBJ_FLOW_BUDGETS,
+} from "../systems/adventure-map/portal-budgets.mjs";
 import { summarizeProjectionCanvasBudget } from "../components/ms-field/test/canonical-budgets.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -50,7 +54,7 @@ test("field plans publish bootstrap plus map222000001 and map230030200 records",
   assert.ok(waterBudget.maxHeight <= M7_PORTAL_BUDGETS.maxWaterMapCanvasHeight);
   assert.ok(waterBudget.maxLocalCanvasPixels <= M7_PORTAL_BUDGETS.maxWaterMapLocalCanvasPixels);
   assert.ok(waterBudget.totalLocalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
-  assert.ok(waterBudget.fieldPlanResourceClosure <= M7_PORTAL_BUDGETS.maxWaterMapFieldPlanResourceClosure);
+  assert.ok(waterBudget.fieldPlanResourceClosure <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapFieldPlanResourceClosure);
   assert.ok(waterBudget.firstFramePaintResources <= M7_PORTAL_BUDGETS.maxWaterMapFirstFramePaintResources);
 });
 
@@ -182,7 +186,7 @@ test("canonical PWA content merges three-map resource closures", async () => {
   );
   assert.equal(fieldRecords.length, 3);
   const mapResources = content.entries.filter((e) => e.kind === "resource" && e.namespace === "resource.Map");
-  assert.equal(mapResources.length, M7_PORTAL_BUDGETS.publishedMapResourceUnion);
+  assert.equal(mapResources.length, M7_5_OBJ_FLOW_BUDGETS.publishedMapResourceUnion);
   const bootstrap = (await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRoot })).plan;
   const portal = bootstrapPortalState(bootstrap);
   assert.equal(portal.portalIndex.entries.some((p) => p.name === "in00" && p.enabled), true);

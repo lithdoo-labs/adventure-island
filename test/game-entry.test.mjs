@@ -526,6 +526,7 @@ test("the root shims and the raw sources must never be published as PWA executab
         "./movement-render-projection.mjs",
         "./movement-sim.mjs",
         "./movement-step.mjs",
+        "./obj-flow-view-projection.mjs",
         "./portal-controls.mjs",
         "./portal-cross-map-commit.mjs",
         "./portal-runtime-bridge.mjs",

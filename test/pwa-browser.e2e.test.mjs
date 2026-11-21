@@ -405,7 +405,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         return scene?.diagnostics?.().state === "ready"
           && document.querySelectorAll("ms-map-back").length === 31
           && document.querySelectorAll("ms-map-batch").length === 65
-          && document.querySelectorAll("ms-map-object").length === 39
+          && document.querySelectorAll("ms-map-object").length === 50
           && document.querySelectorAll("ms-portal-visual").length === 1
           && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 296
           && avatar?.getAttribute("action") === "fly"
@@ -437,7 +437,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       const hosts = [...document.querySelectorAll(
         "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
       )];
-      const inactive = hosts.length === 137 && hosts.every((host) => {
+      const inactive = hosts.length === 148 && hosts.every((host) => {
         const state = host.diagnostics?.();
         return (state?.resourceActive ?? 0) === 0 && state?.paintPending !== true;
       });
@@ -457,6 +457,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
         .map((unit) => unit.diagnostics().paintCommits),
       dynamicBackPaints: [...document.querySelectorAll("ms-map-back")]
+        .map((unit) => unit.diagnostics().animationPaints ?? 0),
+      dynamicObjPaints: [...document.querySelectorAll("ms-map-object")]
         .map((unit) => unit.diagnostics().animationPaints ?? 0),
       avatarRounds: document.querySelector("ms-avatar")?.diagnostics().paintRounds ?? 0,
       avatarFrame: document.querySelector("ms-avatar")?.getAttribute("frame-index") ?? null,
@@ -502,6 +504,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
           .map((unit) => unit.diagnostics().paintCommits),
         dynamicBackPaints: [...document.querySelectorAll("ms-map-back")]
           .map((unit) => unit.diagnostics().animationPaints ?? 0),
+        dynamicObjPaints: [...document.querySelectorAll("ms-map-object")]
+          .map((unit) => unit.diagnostics().animationPaints ?? 0),
         avatarRounds: avatar?.diagnostics().paintRounds ?? 0,
         flyChildren: [...(avatar?.children ?? [])]
           .filter((node) => node.localName === "ms-action" && node.getAttribute("name") === "fly").length,
@@ -509,7 +513,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     });
     assert.equal(waterAfterInput.productState, "ready");
     assert.equal(waterAfterInput.sceneCount, 1);
-    assert.equal(waterAfterInput.visualCount, 137);
+    assert.equal(waterAfterInput.visualCount, 148);
     assert.equal(waterAfterInput.flyChildren, 1, "the committed water avatar must carry one real fly clip");
     assert.ok(waterAfterInput.canvasCount <= M7_PORTAL_BUDGETS.maxWaterMapVisualCanvases);
     assert.ok(waterAfterInput.maxWidth <= M7_PORTAL_BUDGETS.maxWaterMapCanvasWidth);
@@ -520,6 +524,10 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       "a fly frame update must not repaint static map canvases");
     assert.ok(waterAfterInput.dynamicBackPaints.some((count, index) => count > waterBeforeInput.dynamicBackPaints[index]),
       "renderer-local type4 Back phase must advance independently of Avatar and business state");
+    assert.ok(
+      waterAfterInput.dynamicObjPaints.some((count, index) => count > (waterBeforeInput.dynamicObjPaints[index] ?? 0)),
+      "renderer-local Obj flow animation must advance on ms-map-object hosts only",
+    );
     assert.ok(waterAfterInput.avatarRounds > waterBeforeInput.avatarRounds,
       "a fly frame update must repaint only the local avatar canvas");
     assert.ok(waterPortalReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs);
@@ -630,7 +638,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     try {
       await page.waitForFunction(() => {
         const retired = window.__m72RetiredWater;
-        if (!retired || retired.hosts.length !== 136) return false;
+        if (!retired || retired.hosts.length !== 147) return false;
         const currentAvatar = document.querySelector("ms-avatar");
         return retired.hosts.every((host) => !host.isConnected)
           && retired.hosts.every((host) => host.shadowRoot?.querySelector("canvas")?.width === 0)

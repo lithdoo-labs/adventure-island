@@ -500,7 +500,9 @@ export function validateMapObjectData(data) {
   if (!plainObject(data) || typeof data.placementId !== "string" || data.mode !== "local-animation" || !Array.isArray(data.frames)) {
     return invalid("INPUT_INVALID", "data", "map object data must contain placementId, mode, frames");
   }
-  if (data.frames.length < 1) return invalid("INPUT_INVALID", "data.frames", "map object must publish at least one frame");
+  if (data.frames.length < 1 || data.frames.length > FIELD_INPUT_LIMITS.maxObjectFrames) {
+    return invalid("INPUT_INVALID", "data.frames", "map object frame count is outside the field budget");
+  }
   const placementId = idString(data.placementId, "data.placementId");
   if (!placementId.ok) return placementId;
   const frames = [];
@@ -528,12 +530,62 @@ export function validateMapObjectData(data) {
   if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
     return invalid("INPUT_INVALID", "data.provenance.sortKey", "map object provenance sortKey must be finite");
   }
+  const layout = validateMapObjectLayout(data.layout, "data.layout");
+  if (!layout.ok) return layout;
+  let source = null;
+  if (data.source !== undefined && data.source !== null) {
+    if (!plainObject(data.source) || !sameKeys(data.source, ["cx", "cy", "flow", "rx"])) {
+      return invalid("INPUT_INVALID", "data.source", "map object source must be a plain object");
+    }
+    const flow = safeInteger(data.source.flow, "data.source.flow", { min: 1, max: 1 });
+    if (!flow.ok) return flow;
+    const rx = finiteNumber(data.source.rx, "data.source.rx");
+    if (!rx.ok || rx.value === 0) {
+      return invalid("INPUT_INVALID", "data.source.rx", "flow rx must be finite and non-zero");
+    }
+    const cx = safeInteger(data.source.cx, "data.source.cx");
+    if (!cx.ok) return cx;
+    const cy = safeInteger(data.source.cy, "data.source.cy");
+    if (!cy.ok) return cy;
+    source = Object.freeze({
+      flow: flow.value,
+      rx: rx.value,
+      cx: cx.value,
+      cy: cy.value,
+    });
+  }
   return valid({
     placementId: placementId.value,
     mode: "local-animation",
     frames,
+    layout: layout.value,
+    source,
     sortKey: data.provenance.sortKey,
   });
+}
+
+function validateMapObjectLayout(layout, path = "data.layout") {
+  if (layout === undefined || layout === null) return valid(null);
+  if (!plainObject(layout)) return invalid("INPUT_INVALID", path, "layout must be a plain object");
+  const anchorKeys = ["anchorOffsetX", "anchorOffsetY"];
+  if (!anchorKeys.every((key) => Object.prototype.hasOwnProperty.call(layout, key))) {
+    return invalid("INPUT_INVALID", path, "Obj flow layout must contain both anchor offsets");
+  }
+  const base = {};
+  for (const [key, value] of Object.entries(layout)) {
+    if (!anchorKeys.includes(key)) base[key] = value;
+  }
+  const validated = validateBackLayout(base, path);
+  if (!validated.ok) return validated;
+  const anchorOffsetX = finiteNumber(layout.anchorOffsetX, `${path}.anchorOffsetX`);
+  if (!anchorOffsetX.ok) return anchorOffsetX;
+  const anchorOffsetY = finiteNumber(layout.anchorOffsetY, `${path}.anchorOffsetY`);
+  if (!anchorOffsetY.ok) return anchorOffsetY;
+  return valid(Object.freeze({
+    ...validated.value,
+    anchorOffsetX: anchorOffsetX.value,
+    anchorOffsetY: anchorOffsetY.value,
+  }));
 }
 
 function validateBackLayout(layout, path = "data.layout") {
@@ -548,7 +600,10 @@ function validateBackLayout(layout, path = "data.layout") {
   if (!sameKeys(layout, keys)) {
     return invalid("INPUT_INVALID", path, "layout fields must match the candidate Back layout schema");
   }
-  const kinds = new Set(["static-type0", "tile-horizontal", "tile-vertical", "tile-both", "scroll-horizontal"]);
+  const kinds = new Set([
+    "static-type0", "tile-horizontal", "tile-vertical", "tile-both", "scroll-horizontal",
+    "flow-horizontal", "flow-vertical",
+  ]);
   if (!kinds.has(layout.kind)) {
     return invalid("INPUT_INVALID", `${path}.kind`, "layout.kind is not supported");
   }

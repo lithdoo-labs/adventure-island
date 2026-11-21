@@ -13,6 +13,7 @@ export const FIELD_INPUT_LIMITS = Object.freeze({
   maxPages: 64,
   maxItems: 512,
   maxPlacements: 512,
+  maxObjectFrames: 128,
   maxIdLength: 256,
   maxMapIdLength: 12,
   stackRankMax: 2_147_483_646,

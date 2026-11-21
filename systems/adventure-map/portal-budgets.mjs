@@ -24,3 +24,24 @@ export const M7_PORTAL_BUDGETS = Object.freeze({
   maxWaterMapFirstFramePaintResources: 100,
   maxWaterMapBrowserTravelReadyMs: 30_000,
 });
+
+/** M7.5 additive resource and Obj-flow ceilings; M7.1 ceilings above remain immutable evidence. */
+export const M7_5_OBJ_FLOW_BUDGETS = Object.freeze({
+  publishedMapResourceUnion: 322,
+  maxWaterMapFieldPlanResourceClosure: 160,
+  maxWaterMapObjFlowHosts: 11,
+  maxWaterMapObjFlowHostWidth: 1_000,
+  maxWaterMapObjFlowFrameResources: 48,
+  maxContentReadConcurrency: 8,
+});
+
+/** Measured Node 2026-11-21 after M7.5 Obj flow (canonical 1000×700 viewport). */
+export const M7_5_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
+  visualCanvases: 148,
+  totalLocalPixels: 11_701_394,
+  fieldPlanResourceClosure: 154,
+  firstFramePaintResources: 91,
+  fieldPlanVisualCanvases: 148,
+  objFlowHosts: 11,
+  objFlowFrameResources: 36,
+});

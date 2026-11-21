@@ -5,6 +5,7 @@
  * RenderNode data; resources use {namespace,key,contentVersion}.
  */
 import { layoutBackView } from "./back-layout.mjs";
+import { layoutObjFlowView } from "./obj-flow.mjs";
 import { projectionHash } from "./hash.mjs";
 
 function decimalAttr(value) {
@@ -124,7 +125,7 @@ function projectPortal(plan) {
   });
 }
 
-function projectMapObject(plan) {
+function projectMapObject(plan, projectionContext) {
   const d = plan.drawable;
   const frames = Object.freeze(d.frames.map((frame, index) => Object.freeze({
     frame: Number.isFinite(frame.frame) ? frame.frame : index,
@@ -136,12 +137,28 @@ function projectMapObject(plan) {
       opacity: d.opacity ?? 255,
     }),
   })));
+  const firstFrame = d.frames[0];
+  const frameWidth = firstFrame?.width ?? 0;
+  const frameHeight = firstFrame?.height ?? 0;
+  const laidOut = d.flowPlacement && d.bounds && frameWidth > 0 && frameHeight > 0
+    ? layoutObjFlowView({
+      bounds: d.bounds,
+      placement: d.flowPlacement,
+      frameWidth,
+      frameHeight,
+      anchorOffsetX: d.worldX - d.bounds.x,
+      anchorOffsetY: d.worldY - d.bounds.y,
+      cameraX: projectionContext.cameraX,
+      cameraY: projectionContext.cameraY,
+      viewport: projectionContext.viewport,
+    })
+    : { worldX: d.worldX, worldY: d.worldY, layout: null };
   return Object.freeze({
     key: plan.stableId,
     tag: "ms-map-object",
     attrs: Object.freeze({
-      "world-x": decimalAttr(d.worldX),
-      "world-y": decimalAttr(d.worldY),
+      "world-x": decimalAttr(laidOut.worldX),
+      "world-y": decimalAttr(laidOut.worldY),
       "stack-rank": String(plan.stackRank),
       visible: "true",
     }),
@@ -149,6 +166,8 @@ function projectMapObject(plan) {
       placementId: d.stableId,
       mode: "local-animation",
       frames,
+      layout: laidOut.layout,
+      source: d.flowPlacement,
       provenance: Object.freeze({
         mapId: d.mapId,
         group: d.sourceGroup,
@@ -229,7 +248,7 @@ export function projectRenderTree(scene, paintUnits, { cameraX = 0, cameraY = 0,
   const children = paintUnits.map((plan) => {
     if (plan.kind === "ms-map-back") return projectBack(plan, projectionContext);
     if (plan.kind === "ms-portal-visual") return projectPortal(plan);
-    if (plan.kind === "ms-map-object") return projectMapObject(plan);
+    if (plan.kind === "ms-map-object") return projectMapObject(plan, projectionContext);
     if (plan.kind === "ms-map-batch") return projectBatch(plan);
     throw new Error(`unknown paint unit kind ${plan.kind}`);
   });

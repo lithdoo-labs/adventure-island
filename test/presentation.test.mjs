@@ -32,6 +32,7 @@ const EXPECTED_PRESENTATION = Object.freeze({
   styles: Object.freeze([]),
   scripts: Object.freeze([
     Object.freeze({ namespace: "Presentation", key: "controls/device-input.browser.js" }),
+    Object.freeze({ namespace: "Presentation", key: "ms-viewport/ms-viewport.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "ms-field/ms-field.browser.js" }),
     Object.freeze({ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
@@ -115,6 +116,7 @@ test("the root presentation manifest registers Controls, ms-avatar, ms-field, an
     presentation.scripts,
     [
       { namespace: "Presentation", key: "controls/device-input.browser.js" },
+      { namespace: "Presentation", key: "ms-viewport/ms-viewport.browser.js" },
       { namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" },
       { namespace: "Presentation", key: "ms-field/ms-field.browser.js" },
       { namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" },
@@ -136,6 +138,11 @@ test("the root presentation manifest registers Controls, ms-avatar, ms-field, an
   // When the framework build has not run yet, the artifact is allowed to be
   // absent locally — CI builds it before pwa:bundle and the bundle builder
   // fails closed when it is missing.
+
+  const viewportArtifact = await readText(new URL("components/ms-viewport/browser/ms-viewport.browser.js", repoRoot));
+  assert.ok(viewportArtifact.length > 0, "components/ms-viewport/browser/ms-viewport.browser.js must exist");
+  assert.doesNotMatch(viewportArtifact, /(^|\n)\s*(import|export)\s*[({"'\s]/u, "the ms-viewport published entry must be a classic script, not an ES module");
+  assert.match(viewportArtifact, /ms-viewport-frame/u, "the published entry must register the viewport frame");
 
   const fieldArtifact = await readText(new URL("components/ms-field/browser/ms-field.browser.js", repoRoot));
   assert.ok(fieldArtifact.length > 0, "components/ms-field/browser/ms-field.browser.js must exist");

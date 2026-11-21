@@ -1,6 +1,7 @@
 /**
  * Cross-map render replace must succeed before any authority variables commit.
  */
+import { wrapSceneWithViewportFrame } from "./viewport-frame.mjs";
 
 /**
  * @param {object} commit planCrossMapPortalCommit result
@@ -10,7 +11,7 @@ export function applyCrossMapPortalRenderReplace(commit, domain) {
   if (commit === null || typeof commit !== "object" || !commit.renderRoot) {
     throw new TypeError("cross-map commit must carry renderRoot");
   }
-  domain.replace({ zIndex: 0, roots: [commit.renderRoot] });
+  domain.replace({ zIndex: 0, roots: [wrapSceneWithViewportFrame(commit.renderRoot)] });
 }
 
 /**

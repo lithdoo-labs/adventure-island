@@ -14,6 +14,7 @@ import {
   AVATAR_SCRIPT_KEY,
   CONTROLS_SCRIPT_KEY,
   FIELD_SCRIPT_KEY,
+  VIEWPORT_SCRIPT_KEY,
   buildCanonicalAdventurePwaContent,
 } from "../scripts/pwa/build-installation-bundle.mjs";
 import { buildCanonicalSyntheticAvatarContent } from "../scripts/pwa/synthetic-avatar-content.mjs";
@@ -24,11 +25,12 @@ import {
   M7_6_VIEWPORT_BUDGETS,
   M7_PORTAL_BUDGETS,
 } from "../systems/adventure-map/portal-budgets.mjs";
+import { DEFAULT_VIEWPORT_RANGE, resolveViewportFrame } from "../components/ms-viewport/src/layout.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
 const canonicalAdventure = await buildCanonicalAdventurePwaContent();
-const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 4;
+const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 5;
 const FIXTURE_CONTENT_COUNT = buildCanonicalSyntheticAvatarContent().entries.length + 1;
 
 // Resolve Playwright from the exact pinned framework workspace installed by CI.
@@ -96,6 +98,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         presentationState: document.documentElement.dataset.loomrealmPresentation ?? null,
         presentationError: document.documentElement.dataset.loomrealmPresentationError ?? null,
         msSceneViewRegistered: typeof customElements.get("ms-scene-view"),
+        msViewportFrameRegistered: typeof customElements.get("ms-viewport-frame"),
         msAvatarRegistered: typeof customElements.get("ms-avatar"),
         msActionRegistered: typeof customElements.get("ms-action"),
         cmsActorRegistered: typeof customElements.get("cms-actor"),
@@ -115,6 +118,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(evidence.presentationState, "ready", `the canonical presentation bootstrap must succeed: ${JSON.stringify({ diagnostics, evidence })}`);
     assert.equal(evidence.presentationError, null, JSON.stringify({ diagnostics, evidence }));
     assert.equal(evidence.msSceneViewRegistered, "function", "the canonical staging must bootstrap the ms-field classic script through the Service Worker Content route");
+    assert.equal(evidence.msViewportFrameRegistered, "function", "the ms-viewport classic script must register ms-viewport-frame");
     assert.equal(evidence.msAvatarRegistered, "function", "the ms-avatar classic script must register ms-avatar");
     assert.equal(evidence.msActionRegistered, "function", "the ms-avatar classic script must register ms-action");
     assert.equal(evidence.cmsActorRegistered, "function", "the canonical cms-actor classic script must register cms-actor");
@@ -127,6 +131,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(evidence.contentCount, CANONICAL_CONTENT_COUNT);
     assert.deepEqual(evidence.presentationScripts, [
       { namespace: "Presentation", key: CONTROLS_SCRIPT_KEY },
+      { namespace: "Presentation", key: VIEWPORT_SCRIPT_KEY },
       { namespace: "Presentation", key: AVATAR_SCRIPT_KEY },
       { namespace: "Presentation", key: FIELD_SCRIPT_KEY },
       { namespace: "Presentation", key: ACTOR_SCRIPT_KEY },
@@ -268,12 +273,17 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       "avatar action updates must repaint only the local avatar canvas");
 
     await page.setViewportSize({ width: 1000, height: 700 });
-    await page.waitForFunction(() => {
+    const adapted = resolveViewportFrame(1000, 700, DEFAULT_VIEWPORT_RANGE);
+    await page.waitForFunction((expected) => {
       const scene = document.querySelector("ms-scene-view");
       const player = document.querySelector("ms-world-item");
-      return Number(scene?.getAttribute("camera-x")) === Number(player?.getAttribute("world-x")) - 500
-        && scene?.getAttribute("camera-y") === "-490";
-    }, null, { timeout: 20_000 });
+      const frame = document.querySelector("ms-viewport-frame");
+      const frameSize = frame?.diagnostics?.();
+      return frameSize?.width === expected.width
+        && frameSize?.height === expected.height
+        && Number(scene?.getAttribute("camera-x")) === Number(player?.getAttribute("world-x")) - expected.width / 2
+        && scene?.getAttribute("camera-y") === String(210 - expected.height);
+    }, adapted, { timeout: 20_000 });
     const afterResize = await page.evaluate(() => ({
       sceneCount: document.querySelectorAll("ms-scene-view").length,
       productState: document.documentElement.dataset.loomrealmProduct,
@@ -543,10 +553,11 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     // M7.6 bounded viewport relayout soak on live map C via the real Subsystem path.
     const soakBefore = await page.evaluate(() => {
       const hosts = [...document.querySelectorAll("ms-map-back, ms-map-object")];
+      const logicalWidth = document.querySelector("ms-viewport-frame")?.diagnostics?.().width;
       window.__m76RelayoutBacks = [...document.querySelectorAll("ms-map-back")]
-        .filter((host) => getComputedStyle(host).width === `${innerWidth}px`);
+        .filter((host) => getComputedStyle(host).width === `${logicalWidth}px`);
       window.__m76RelayoutObjects = [...document.querySelectorAll("ms-map-object")]
-        .filter((host) => getComputedStyle(host).width === `${innerWidth}px`);
+        .filter((host) => getComputedStyle(host).width === `${logicalWidth}px`);
       const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
       const domNodes = document.getElementsByTagName("*").length;
       return {
@@ -572,6 +583,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       { width: 1000, height: 700 },
     ];
     for (const size of soakSizes) {
+      const logical = resolveViewportFrame(size.width, size.height, DEFAULT_VIEWPORT_RANGE);
       await page.setViewportSize(size);
       try {
         await page.waitForFunction((expected) => {
@@ -584,7 +596,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
             && flows.every((host) => host.isConnected
               && Number(getComputedStyle(host).width.replace("px", "")) === expected
               && host.diagnostics().state === "ready");
-        }, size.width, { timeout: 20_000 });
+        }, logical.width, { timeout: 20_000 });
       } catch (cause) {
         const failure = await page.evaluate(() => ({
           viewport: { width: innerWidth, height: innerHeight },

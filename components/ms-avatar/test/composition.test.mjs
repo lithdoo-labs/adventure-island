@@ -59,8 +59,8 @@ test("slot priority and facing/frame flip retain CMS079 composition semantics", 
   const hidden = occludedLayers([{ layer: low, index: 0 }, { layer: high, index: 1 }], zOrder);
   assert.equal(hidden.has(low), true);
   assert.equal(hidden.has(high), false);
-  assert.equal(shouldMirrorAvatar("right", false), false);
-  assert.equal(shouldMirrorAvatar("left", false), true);
-  assert.equal(shouldMirrorAvatar("right", true), true);
-  assert.equal(shouldMirrorAvatar("left", true), false);
+  assert.equal(shouldMirrorAvatar("right", false), true);
+  assert.equal(shouldMirrorAvatar("left", false), false);
+  assert.equal(shouldMirrorAvatar("right", true), false);
+  assert.equal(shouldMirrorAvatar("left", true), true);
 });

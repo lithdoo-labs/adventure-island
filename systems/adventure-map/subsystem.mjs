@@ -36,6 +36,12 @@ import { projectObjFlowCameraUpdates } from "./obj-flow-view-projection.mjs";
 import { applyProjectionPatches } from "./render-node-patches.mjs";
 import { projectViewportRelayoutUpdates } from "./viewport-view-projection.mjs";
 import { assertViewportRelayoutEnvelope } from "../../components/ms-map-adapter/src/viewport-envelope.mjs";
+import {
+  logicalViewportFromResolutionEvent,
+  logicalViewportFromScreen,
+  VIEWPORT_RESOLUTION_CHANNEL,
+  wrapSceneWithViewportFrame,
+} from "./viewport-frame.mjs";
 import { presentationTimingAttrs } from "../../components/ms-avatar/src/presentation-attrs.mjs";
 import { nextClipBoundaryMs } from "../../components/ms-avatar/src/presentation-timing.mjs";
 import { movementIntentFromHeld } from "./movement-intent.mjs";
@@ -191,6 +197,8 @@ export default defineSubsystem((scope) => ({
     let schedulerDiscardedTicks = 0;
     let projectedViewportWidth = null;
     let projectedViewportHeight = null;
+    let logicalViewport = logicalViewportFromScreen(scope.viewport.current);
+    let closeResolutionEvents = () => {};
 
     const abortWait = createAbortWait(frame.signal);
 
@@ -200,7 +208,7 @@ export default defineSubsystem((scope) => ({
       portalIndex = portalBootstrap.portalIndex;
       sceneEpoch = portalBootstrap.sceneEpoch;
       sceneRootKey = portalBootstrap.sceneRootKey;
-      projection = projectAdventureMapFieldSceneFromPlan(activePlan, scope.viewport.current);
+      projection = projectAdventureMapFieldSceneFromPlan(activePlan, logicalViewport);
       if (!activePlan.footholdCollisionPlan) {
         throw new TypeError("AdventureFieldPlan requires footholdCollisionPlan for Movement");
       }
@@ -225,16 +233,16 @@ export default defineSubsystem((scope) => ({
 
       const initialCamera = applyCameraToFieldState(
         fieldState,
-        scope.viewport.current,
+        logicalViewport,
         activePlan.effectiveBounds,
       );
       fieldState = initialCamera.fieldState;
       const cam0 = initialCamera.camera;
       cameraX = decimalAttr(cam0.cameraX);
       cameraY = decimalAttr(cam0.cameraY);
-      if (scope.viewport.current && typeof scope.viewport.current === "object") {
-        projectedViewportWidth = scope.viewport.current.width;
-        projectedViewportHeight = scope.viewport.current.height;
+      if (logicalViewport) {
+        projectedViewportWidth = logicalViewport.width;
+        projectedViewportHeight = logicalViewport.height;
       }
       projectedWorldX = decimalAttr(fieldState.player.worldX);
       projectedWorldY = decimalAttr(fieldState.player.worldY);
@@ -256,7 +264,7 @@ export default defineSubsystem((scope) => ({
 
       domain = scope.createRenderDomain({
         zIndex: 0,
-        roots: [renderRoot],
+        roots: [wrapSceneWithViewportFrame(renderRoot)],
       });
 
       const diffAttrs = (next, current, keys) => {
@@ -268,8 +276,17 @@ export default defineSubsystem((scope) => ({
         return changed;
       };
 
+      const adoptLogicalViewport = (size) => {
+        if (size === null) return;
+        if (logicalViewport !== null
+          && size.width === logicalViewport.width
+          && size.height === logicalViewport.height) return;
+        logicalViewport = size;
+        projectCamera();
+      };
+
       const projectCamera = () => {
-        const size = scope.viewport.current;
+        const size = logicalViewport;
         if (size === null || typeof size !== "object") return;
         const { width, height } = size;
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
@@ -437,7 +454,7 @@ export default defineSubsystem((scope) => ({
         if (plan.ticksToRun > 0) runSimulationTicks(plan.ticksToRun);
       };
 
-      const viewportSize = () => scope.viewport.current;
+      const viewportSize = () => logicalViewport;
 
       const applySameMapPortalCommit = (commit) => {
         fieldState = commit.fieldState;
@@ -605,8 +622,19 @@ export default defineSubsystem((scope) => ({
       wallClockHandle = globalThis.setInterval(onWallClock, WALL_CLOCK_POLL_MS);
 
       unsubscribeViewport = scope.viewport.subscribe(
-        () => applySafely(projectCamera, ADVENTURE_FAILURE_CODES.viewportProjectionFailed),
+        () => applySafely(
+          () => adoptLogicalViewport(logicalViewportFromScreen(scope.viewport.current)),
+          ADVENTURE_FAILURE_CODES.viewportProjectionFailed,
+        ),
       );
+      const resolutionSubscription = await scope.events.subscribe(
+        [VIEWPORT_RESOLUTION_CHANNEL],
+        (event) => applySafely(
+          () => adoptLogicalViewport(logicalViewportFromResolutionEvent(event)),
+          ADVENTURE_FAILURE_CODES.viewportProjectionFailed,
+        ),
+      );
+      closeResolutionEvents = () => resolutionSubscription?.close?.();
 
       consumer = createControlsConsumer(scope.presentationEvents, frame, {
         onState(state) {
@@ -671,6 +699,7 @@ export default defineSubsystem((scope) => ({
       wallClockHandle = null;
       consumer?.close();
       unsubscribeViewport?.();
+      closeResolutionEvents();
       if (avatarClockHandle !== null) globalThis.clearTimeout(avatarClockHandle);
       avatarClockHandle = null;
       domain?.close();

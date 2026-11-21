@@ -89,7 +89,7 @@ test("first entry at 800x600 relayouts the published canonical FieldPlan immedia
   assert.equal(viewportHosts.length, 23);
   assert.ok(viewportHosts.every((node) => node.data.layout.canvasWidth === 800));
   assert.throws(
-    () => projectAdventureMapFieldSceneFromPlan(plan, { width: 799, height: 600 }),
+    () => projectAdventureMapFieldSceneFromPlan(plan, { width: 639, height: 600 }),
     RangeError,
   );
 });

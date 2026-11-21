@@ -112,6 +112,10 @@ const INPUT_PATHS = Object.freeze({
 export const CONTROLS_SCRIPT_KEY = "controls/device-input.browser.js";
 /** Physical artifact (built inside the fixed gitlink), relative to the game root. */
 export const CONTROLS_SCRIPT_PATH = "loom-realm/game-libs/game-common-controls/dist/browser/device-input.browser.js";
+/** Logical Content key of the fullscreen viewport frame. */
+export const VIEWPORT_SCRIPT_KEY = "ms-viewport/ms-viewport.browser.js";
+/** Physical artifact (generated), relative to the game root. */
+export const VIEWPORT_SCRIPT_PATH = "components/ms-viewport/browser/ms-viewport.browser.js";
 /** Logical Content key of the ms-field classic IIFE (M3 Field scene). */
 export const FIELD_SCRIPT_KEY = "ms-field/ms-field.browser.js";
 /** Physical artifact (generated), relative to the game root. */
@@ -128,9 +132,10 @@ export const ACTOR_SCRIPT_PATH = "components/cms-actor/browser/cms-actor.browser
 /**
  * The frozen Content-script whitelist: Content identity (kind\0namespace\0key)
  * → physical classic-script artifact. The canonical presentation registers
- * exactly the four pinned IIFEs — Controls first (it defines the
- * `game-controls-input` element Base projects), ms-avatar second (it owns
- * the M4 tags), ms-field third, cms-actor fourth — never the ESM
+ * exactly the five pinned IIFEs — Controls first (it defines the
+ * `game-controls-input` element Base projects), ms-viewport second (it owns
+ * the fullscreen screen adapter), ms-avatar third (it owns
+ * the M4 tags), ms-field fourth, cms-actor fifth — never the ESM
  * sources (the builder rejects module syntax below) and never anything from
  * research/**, .raw/**, .work/**, glm-work/** or task/**. The Controls IIFE
  * must be the artifact built inside the fixed gitlink checkout, not a copy
@@ -139,6 +144,7 @@ export const ACTOR_SCRIPT_PATH = "components/cms-actor/browser/cms-actor.browser
 export const CONTENT_SCRIPT_SOURCE_BINDINGS = Object.freeze(
   Object.freeze({
     [`resource\0resource.Presentation\0${CONTROLS_SCRIPT_KEY}`]: CONTROLS_SCRIPT_PATH,
+    [`resource\0resource.Presentation\0${VIEWPORT_SCRIPT_KEY}`]: VIEWPORT_SCRIPT_PATH,
     [`resource\0resource.Presentation\0${FIELD_SCRIPT_KEY}`]: FIELD_SCRIPT_PATH,
     [`resource\0resource.Presentation\0${AVATAR_SCRIPT_KEY}`]: AVATAR_SCRIPT_PATH,
     [`resource\0resource.Presentation\0${ACTOR_SCRIPT_KEY}`]: ACTOR_SCRIPT_PATH,

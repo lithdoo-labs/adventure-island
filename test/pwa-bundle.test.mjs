@@ -46,6 +46,7 @@ import {
   CONTENT_SCRIPT_SOURCE_BINDINGS,
   EXECUTABLE_SOURCE_BINDINGS,
   FIELD_SCRIPT_KEY,
+  VIEWPORT_SCRIPT_KEY,
   assertExecutableGraph,
   buildAdventureIslandInstallationBundle,
   buildCanonicalAdventurePwaContent,
@@ -93,6 +94,7 @@ const EXPECTED_PRESENTATION = Object.freeze({
   styles: Object.freeze([]),
   scripts: Object.freeze([
     Object.freeze({ namespace: "Presentation", key: CONTROLS_SCRIPT_KEY }),
+    Object.freeze({ namespace: "Presentation", key: VIEWPORT_SCRIPT_KEY }),
     Object.freeze({ namespace: "Presentation", key: AVATAR_SCRIPT_KEY }),
     Object.freeze({ namespace: "Presentation", key: FIELD_SCRIPT_KEY }),
     Object.freeze({ namespace: "Presentation", key: ACTOR_SCRIPT_KEY }),
@@ -106,6 +108,7 @@ const canonicalAdventure = await buildCanonicalAdventurePwaContent();
 const expectedContentIdentities = () => [
   ...canonicalAdventure.entries.map(({ kind, namespace, key }) => `${kind}\0${namespace}\0${key}`),
   `resource\0resource.Presentation\0${CONTROLS_SCRIPT_KEY}`,
+  `resource\0resource.Presentation\0${VIEWPORT_SCRIPT_KEY}`,
   `resource\0resource.Presentation\0${FIELD_SCRIPT_KEY}`,
   `resource\0resource.Presentation\0${AVATAR_SCRIPT_KEY}`,
   `resource\0resource.Presentation\0${ACTOR_SCRIPT_KEY}`,
@@ -152,6 +155,11 @@ async function makeIsolatedGameRoot() {
     await mkdir(path.dirname(target), { recursive: true });
     await copyFile(path.join(repoRootPath, physical), target);
   }
+  await mkdir(path.join(isolatedRoot, "components", "ms-viewport", "browser"), { recursive: true });
+  await copyFile(
+    path.join(repoRootPath, "components", "ms-viewport", "browser", "ms-viewport.browser.js"),
+    path.join(isolatedRoot, "components", "ms-viewport", "browser", "ms-viewport.browser.js"),
+  );
   await mkdir(path.join(isolatedRoot, "components", "ms-field", "browser"), { recursive: true });
   await copyFile(
     path.join(repoRootPath, "components", "ms-field", "browser", "ms-field.browser.js"),
@@ -414,6 +422,7 @@ test("the Content whitelist is exact: the three classic scripts plus the read-on
     assert.equal(run.status, 0, `CLI must succeed (stderr: ${run.stderr})`);
     const payload = JSON.parse(await readText(path.join(temp, "bundle.json")));
     const fieldScriptBytes = await readFile(fileURLToPath(new URL("components/ms-field/browser/ms-field.browser.js", repoRoot)));
+    const viewportScriptBytes = await readFile(fileURLToPath(new URL("components/ms-viewport/browser/ms-viewport.browser.js", repoRoot)));
     const avatarScriptBytes = await readFile(fileURLToPath(new URL("components/ms-avatar/browser/ms-avatar.browser.js", repoRoot)));
     const actorScriptBytes = await readFile(fileURLToPath(new URL("components/cms-actor/browser/cms-actor.browser.js", repoRoot)));
     const controlsScriptBytes = await readFile(fileURLToPath(
@@ -426,10 +435,12 @@ test("the Content whitelist is exact: the three classic scripts plus the read-on
       const bytes = Buffer.from(entry.body, "base64");
       assert.equal(bytes.toString("base64"), entry.body, "content bodies must be canonical base64");
       if (entry.kind === "resource" && entry.namespace === "resource.Presentation") {
-        assert.ok([CONTROLS_SCRIPT_KEY, FIELD_SCRIPT_KEY, AVATAR_SCRIPT_KEY, ACTOR_SCRIPT_KEY].includes(entry.key));
+        assert.ok([CONTROLS_SCRIPT_KEY, VIEWPORT_SCRIPT_KEY, FIELD_SCRIPT_KEY, AVATAR_SCRIPT_KEY, ACTOR_SCRIPT_KEY].includes(entry.key));
         assert.equal(entry.mime, "text/javascript; charset=utf-8");
         const expected = entry.key === CONTROLS_SCRIPT_KEY
           ? controlsScriptBytes
+          : entry.key === VIEWPORT_SCRIPT_KEY
+            ? viewportScriptBytes
           : entry.key === FIELD_SCRIPT_KEY
             ? fieldScriptBytes
             : entry.key === AVATAR_SCRIPT_KEY
@@ -1051,6 +1062,11 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
         "launch.pwa.json": manifest,
         "presentation.json": presentation,
       });
+      await mkdir(path.join(fixture, "components", "ms-viewport", "browser"), { recursive: true });
+      await copyFile(
+        path.join(repoRootPath, "components", "ms-viewport", "browser", "ms-viewport.browser.js"),
+        path.join(fixture, "components", "ms-viewport", "browser", "ms-viewport.browser.js"),
+      );
       await mkdir(path.join(fixture, "components", "ms-field", "browser"), { recursive: true });
       await copyFile(
         path.join(repoRootPath, "components", "ms-field", "browser", "ms-field.browser.js"),
@@ -1300,7 +1316,7 @@ test("the artifact carries no research material or sensitive markers", async () 
     for (const input of whitelisted) {
       assert.match(
         input,
-        /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/|components\/(ms-field|ms-avatar|cms-actor)\/browser\/|loom-realm\/game-libs\/game-common-controls\/dist\/browser\/)/u,
+        /^(game\.json|launch\.pwa\.json|presentation\.json|systems\/|components\/(ms-field|ms-avatar|ms-viewport|cms-actor)\/browser\/|loom-realm\/game-libs\/game-common-controls\/dist\/browser\/)/u,
         `input whitelist entry must stay canonical: ${input}`,
       );
     }

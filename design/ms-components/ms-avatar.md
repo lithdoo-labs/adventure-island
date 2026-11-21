@@ -313,7 +313,7 @@ Layer 的字段定义见 [ms-action.md](./ms-action.md)。本节固定 Painter �
 1. 以当前身体局部原点为基准应用 frame move；只作用当前帧，不累计。
 2. 完成锚点布局。
 3. 按 frame rotate 绕身体原点顺时针旋转；V1 只接受 0°、90°、180°、270°。
-4. facing=left 与 frame flip 做 XOR；结果为真时绕身体原点水平镜像整套合成，位置和像素内容同时镜像。
+4. 身体原画朝左。facing=right 与 frame flip 做 XOR；结果为真时绕身体原点水平镜像整套合成，位置和像素内容同时镜像。
 5. 表情 Layer 与身体使用同一套最终变换。
 
 ## 8. 换装一致性与 Renderer 投影完成门闩

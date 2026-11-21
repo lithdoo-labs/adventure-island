@@ -356,16 +356,41 @@ test("T1: each new Base Frame activation owns a fresh single Producer", async ()
 // T2 — Adventure Map static Field scene and camera projection
 // ---------------------------------------------------------------------------
 
-function startMapFrame({ content, viewport, events, domains, failOnAttr } = {}) {
+function createSessionEventHarness() {
+  const listeners = [];
+  return {
+    listeners,
+    client: Object.freeze({
+      publish() {},
+      subscribe(channels, listener) {
+        const entry = { channels: [...channels], listener, closed: false };
+        listeners.push(entry);
+        return {
+          close() { entry.closed = true; },
+          closed: Promise.resolve({ reason: "closed" }),
+        };
+      },
+    }),
+    dispatch(channel, type, payload) {
+      for (const entry of listeners) {
+        if (entry.closed || !entry.channels.includes(channel)) continue;
+        entry.listener({ channel, type, payload, source: { subsystemKey: "adventure-map" } });
+      }
+    },
+  };
+}
+
+function startMapFrame({ content, viewport, events, sessionEvents, domains, failOnAttr } = {}) {
   const domainHarness = domains ?? createDomainHarness({ failOnAttr });
   const viewportHarness = viewport ?? createViewportHarness();
   const eventsHarness = events ?? createPresentationEventsHarness();
+  const sessionHarness = sessionEvents ?? createSessionEventHarness();
   const contentHarness = content ?? createContentHarness();
   const frame = createFrame();
   const scope = Object.freeze({
     signal: new AbortController().signal,
     state: Object.freeze({ read() { throw new Error("no state"); }, subscribe() { throw new Error("no state"); } }),
-    events: Object.freeze({ publish() { throw new Error("no events"); }, subscribe() { throw new Error("no events"); } }),
+    events: sessionHarness.client,
     content: contentHarness,
     viewport: viewportHarness.viewport,
     presentationEvents: eventsHarness.client,
@@ -378,6 +403,7 @@ function startMapFrame({ content, viewport, events, domains, failOnAttr } = {}) 
     domain: () => domainHarness.domains[0],
     viewportHarness,
     eventsHarness,
+    sessionHarness,
     contentHarness,
   };
 }
@@ -395,11 +421,14 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   await settle();
 
   assert.equal(harness.domains.length, 1);
-  const root = harness.domain().initialState.roots[0];
+  const frameRoot = harness.domain().initialState.roots[0];
+  assert.equal(frameRoot.tag, "ms-viewport-frame");
+  assert.equal(frameRoot.key, "viewport:frame");
+  const root = frameRoot.children[0];
   assert.equal(root.key, FIELD_SCENE_ROOT_KEY);
   assert.equal(root.tag, "ms-scene-view");
-  assert.equal(root.attrs["camera-x"], "-492");
-  assert.equal(root.attrs["camera-y"], "-390");
+  assert.equal(root.attrs["camera-x"], "-572");
+  assert.equal(root.attrs["camera-y"], "-510");
   assert.ok(root.children.length > 200, "the Field root carries the full map Paint Unit tree");
   const initialPlayer = root.children.find((child) => child.key === "player:adventure");
   assert.ok(initialPlayer);
@@ -450,8 +479,8 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   harness.viewportHarness.notify({ width: 1000, height: 600 });
   assert.deepEqual(
     latestAttrsFor(FIELD_SCENE_ROOT_KEY),
-    { "camera-x": String(Number(latestWorldX) - 500) },
-    "viewport resize projects clamped camera-x when width changes inside the M7.6 envelope",
+    { "camera-x": String(Number(latestWorldX) - 600) },
+    "a 1000x600 screen adapts to logical 1200x720 and recenters camera-x",
   );
   harness.viewportHarness.notify({ width: 990, height: 600 });
   const widthOnlyAttrs = latestAttrsFor(FIELD_SCENE_ROOT_KEY);
@@ -509,6 +538,47 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   assert.equal(harness.eventsHarness.listeners[0].closed, true);
 });
 
+test("a 1920x1080 screen adapts inside ms-viewport-frame and follows viewport.resolution", async (t) => {
+  const harness = startMapFrame({ viewport: createViewportHarness({ width: 1920, height: 1080 }) });
+  t.after(() => harness.frame.abort());
+  await settle();
+
+  const frameRoot = harness.domain().initialState.roots[0];
+  assert.equal(frameRoot.tag, "ms-viewport-frame");
+  const scene = frameRoot.children[0];
+  assert.equal(scene.tag, "ms-scene-view");
+  assert.equal(scene.attrs["camera-x"], "-732");
+  assert.equal(scene.attrs["camera-y"], "-510");
+
+  harness.sessionHarness.dispatch("viewport.resolution", "viewport.resolution", {
+    domainId: "field",
+    targetKey: "viewport:frame",
+    data: { width: 640, height: 480 },
+  });
+  const camera = [...harness.domain().updates]
+    .reverse()
+    .flatMap((update) => update.nodes ?? [])
+    .find((node) => node.key === FIELD_SCENE_ROOT_KEY)?.attrs?.set ?? {};
+  assert.equal(camera["camera-y"], "-270");
+  assert.equal(camera["camera-x"], "-412");
+
+  const updatesBefore = harness.domain().updates.length;
+  harness.sessionHarness.dispatch("viewport.resolution", "viewport.resolution", {
+    domainId: "field",
+    targetKey: "viewport:frame",
+    data: { width: 640, height: 480 },
+  });
+  harness.sessionHarness.dispatch("viewport.resolution", "viewport.noise", {
+    domainId: "field",
+    targetKey: "viewport:frame",
+    data: { width: 1280, height: 720 },
+  });
+  assert.equal(harness.domain().updates.length, updatesBefore, "an unchanged or mistyped resolution does not relayout");
+
+  harness.frame.abort();
+  assert.deepEqual(await harness.outcome, { type: "cancelled" });
+});
+
 test("M6: state-before-event Up edge performs one atomic cross-map replace", async (t) => {
   const harness = startMapFrame({
     content: createContentHarness({ fieldPlan: fieldPlanAtPortal() }),
@@ -521,7 +591,8 @@ test("M6: state-before-event Up edge performs one atomic cross-map replace", asy
     () => harness.domain().replacements[0],
     "cross-map RenderDomain.replace",
   );
-  const root = replacement.roots[0];
+  const root = replacement.roots[0].children[0];
+  assert.equal(replacement.roots[0].tag, "ms-viewport-frame");
   assert.equal(root.data.mapId, "222000001");
   assert.match(root.key, /^scene:map222000001:e1$/u);
   const player = root.children.find((child) => child.key === "player:adventure");
@@ -591,7 +662,8 @@ test("M7.3: a fresh Up edge in the out00 rope band commits B to A", async (t) =>
     () => harness.domain().replacements[0],
     "out00 B-to-A scene replacement",
   );
-  const root = replacement.roots[0];
+  const root = replacement.roots[0].children[0];
+  assert.equal(replacement.roots[0].tag, "ms-viewport-frame");
   assert.equal(root.data.mapId, "222000000");
   const player = root.children.find((child) => child.key === "player:adventure");
   assert.equal(player.attrs["world-x"], "-508");
@@ -673,7 +745,7 @@ test("M6: replace failure preserves the source scene and reports the stable tran
   const failure = await harness.outcome;
   assert.equal(failure.type, "failed");
   assert.equal(failure.error.code, "ADVENTURE_PORTAL_SCENE_REPLACE_FAILED");
-  assert.equal(harness.domain().initialState.roots[0].data.mapId, "222000000");
+  assert.equal(harness.domain().initialState.roots[0].children[0].data.mapId, "222000000");
   assert.equal(harness.domain().replacements.length, 0, "a rejected replace cannot install the target tree");
   assert.equal(harness.domain().closed, true);
 });
@@ -717,7 +789,7 @@ test("T3: a Viewport projection failure uses its own stable code", async () => {
   const harness = startMapFrame({ domains });
   const outcome = harness.outcome;
   await settle();
-  harness.viewportHarness.notify({ width: 640, height: 480 });
+  harness.viewportHarness.notify({ width: 1280, height: 480 });
   const failure = await outcome;
   assert.equal(failure.type, "failed");
   assert.equal(failure.error.code, "ADVENTURE_VIEWPORT_PROJECTION_FAILED");

@@ -1,12 +1,12 @@
 /**
- * M7.6 bounded viewport relayout envelope — experimental slice only.
- * Sizes outside this box fail closed; they are not an approved adaptive ABI.
+ * Logical relayout range used by ms-viewport-frame.
+ * The component maps the raw screen into this box; sizes outside it fail closed.
  */
 export const VIEWPORT_RELAYOUT_ENVELOPE = Object.freeze({
-  minWidth: 800,
-  maxWidth: 1_000,
-  minHeight: 600,
-  maxHeight: 700,
+  minWidth: 640,
+  maxWidth: 1_280,
+  minHeight: 480,
+  maxHeight: 720,
 });
 
 export const CANONICAL_VIEWPORT_SMALL = Object.freeze({ width: 800, height: 600 });
@@ -22,7 +22,7 @@ export function viewportRelayoutEnvelopeMessage(viewport) {
   }
   const { minWidth, maxWidth, minHeight, maxHeight } = VIEWPORT_RELAYOUT_ENVELOPE;
   if (width < minWidth || width > maxWidth || height < minHeight || height > maxHeight) {
-    return `viewport ${width}x${height} is outside the M7.6 relayout envelope (${minWidth}..${maxWidth} x ${minHeight}..${maxHeight})`;
+    return `viewport ${width}x${height} is outside the viewport frame range (${minWidth}..${maxWidth} x ${minHeight}..${maxHeight})`;
   }
   return null;
 }

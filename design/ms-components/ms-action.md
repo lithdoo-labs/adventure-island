@@ -148,7 +148,7 @@ interface Layer {
 - durationMs 必需，为有限非负整数，单位毫秒。
 - move 是当前帧对整套身体合成的局部平移，不累计；缺省 [0,0]。
 - rotate 只允许 0/90/180/270 度，Canvas 坐标正方向为顺时针；缺省 0。
-- flip 是当前帧的水平镜像许可；最终镜像结果为 attrs.facing=left 与 frame flip 的 XOR；缺省 false。
+- flip 是当前帧的水平镜像许可；身体原画朝左，最终镜像为 attrs.facing=right 与 frame flip 的 XOR；缺省 false。
 - showFace 只控制当前帧是否显示父级表达式 Layer，不改变表情选择或表情时间；缺省 true。
 - layers 必须是数组，可以为空；空数组表示该帧有意不绘制身体 Layer。
 - 多帧 loop 的总时长必须大于零；suffix-loop 的循环后缀总时长必须大于零。允许合法零时长帧；hold 可为零总时长，此时立即保持末帧；全零时长 one-shot 立即结束。

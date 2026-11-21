@@ -40,7 +40,8 @@ test("domain.replace runs before authority variables are read", async () => {
   const domain = {
     replace(state) {
       replaceCalled = true;
-      assert.equal(state.roots[0].key, commit.renderRoot.key);
+      assert.equal(state.roots[0].tag, "ms-viewport-frame");
+  assert.equal(state.roots[0].children[0].key, commit.renderRoot.key);
       authorityMapId = commit.activePlan.mapId;
     },
   };

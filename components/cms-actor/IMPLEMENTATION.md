@@ -139,7 +139,7 @@ expression: { name: "blink", frames: [{ delay: 60, layers: [/* 脸，以及跟�
 4. 带锚点但没有任何可匹配锚点的画布**跳过不画**，并在 `data-skipped-layers` 上给出 `layerId[needs=anchorA+anchorB]` 形式的可定位诊断。
 5. 全部定位后按 `zOrder` 反向（先背景后前景）绘制。表情层用同一次布局记下的锚点摆放，再并进这张绘制顺序，不单独做一次 `layoutFrame`。
 6. 帧上有 `rotate`（90/180/270）时，绕身体原点顺时针转，再做朝向翻转。画布坐标里正角就是顺时针。
-7. `facing=left` 与帧 `flip` 异或后绕身体原点镜像整套合成结果（位置与像素内容同时翻转）。有 `source` 时用九参数 `drawImage` 裁切图集，没有则整张绘制。
+7. 身体原画朝左。`facing=right` 与帧 `flip` 异或后绕身体原点镜像整套合成结果（位置与像素内容同时翻转）。有 `source` 时用九参数 `drawImage` 裁切图集，没有则整张绘制。
 
 ## 5. 动画与事件
 

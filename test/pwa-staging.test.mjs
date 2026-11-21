@@ -48,7 +48,7 @@ const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
 const stagingScriptPath = fileURLToPath(new URL("../scripts/pwa/build-staging.mjs", import.meta.url));
 const canonicalAdventure = await buildCanonicalAdventurePwaContent();
-const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 4;
+const CANONICAL_CONTENT_COUNT = canonicalAdventure.entries.length + 5;
 
 // Absolute sources for the fixture payload builder: esbuild resolves the
 // pinned framework workspace from the REAL repository sources, so isolated
@@ -98,6 +98,11 @@ async function makeStagingFixture() {
     await mkdir(path.dirname(target), { recursive: true });
     await copyFile(path.join(repoRootPath, physical), target);
   }
+  await mkdir(path.join(game, "components", "ms-viewport", "browser"), { recursive: true });
+  await copyFile(
+    fileURLToPath(new URL("components/ms-viewport/browser/ms-viewport.browser.js", repoRoot)),
+    path.join(game, "components", "ms-viewport", "browser", "ms-viewport.browser.js"),
+  );
   await mkdir(path.join(game, "components", "ms-field", "browser"), { recursive: true });
   await copyFile(
     fileURLToPath(new URL("components/ms-field/browser/ms-field.browser.js", repoRoot)),

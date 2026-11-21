@@ -909,9 +909,9 @@ function frameDurationFromClip(frame) {
   return frame.delay ?? 0;
 }
 
-/** Final horizontal mirror is the XOR of retained facing and per-frame flip. */
+/** Body sheets face left. Mirror when facing right; a frame flip XOR-inverts that. */
 function shouldMirrorAvatar(facing, frameFlip = false) {
-  return (facing === "left") !== Boolean(frameFlip);
+  return (facing === "right") !== Boolean(frameFlip);
 }
 
 class MsAction extends (globalThis.HTMLElement ?? class {}) {

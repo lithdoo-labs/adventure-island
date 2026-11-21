@@ -1305,8 +1305,7 @@ class CmsActor extends HTMLElementBase {
     const canvas = this._canvas;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Canvas 2D context is unavailable for cms-actor");
-    const facingLeft = this.getAttribute("facing") === "left";
-    const mirror = Boolean(facingLeft) !== Boolean(frame.flip);
+    const mirror = (this.getAttribute("facing") === "right") !== Boolean(frame.flip);
     const mirrorPivotX = frame.move?.[0] ?? 0;
     const layout = layoutFrame(frame, this._plan.zOrder, 0, 0);
     const base = { x: frame.move?.[0] ?? 0, y: frame.move?.[1] ?? 0 };

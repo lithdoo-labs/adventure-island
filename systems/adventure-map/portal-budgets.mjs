@@ -45,3 +45,27 @@ export const M7_5_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
   objFlowHosts: 11,
   objFlowFrameResources: 36,
 });
+
+/** M7.6 additive viewport relayout + soak ceilings; M7.1–M7.5 gates remain immutable evidence. */
+export const M7_6_VIEWPORT_BUDGETS = Object.freeze({
+  maxViewportRelayoutCycles: 6,
+  maxWaterMapTotalLocalPixelsAtSmallViewport: 11_400_000,
+  maxWaterMapRelayoutPaintCommitsDelta: 150,
+  maxWaterMapRelayoutResourceReads: 0,
+  maxDetachedCanvasDelta: 0,
+  maxDomNodeCount: 500,
+  maxEventLoopLagProxyMs: 250,
+  /** Deterministic proxy when performance.measureUserAgentSpecificMemory is unavailable. */
+  maxHeapDomProxyScore: 20_000,
+  maxHeapDomProxyDelta: 0,
+});
+
+/** Measured Node + Chromium 2026-11-21 after M7.6 bounded relayout soak (800↔1000 × 600↔700). */
+export const M7_6_MEASURED_SOAK_BUDGETS = Object.freeze({
+  maxWaterMapTotalLocalPixelsLarge: 11_701_394,
+  maxWaterMapTotalLocalPixelsSmall: 11_347_794,
+  browserLargeTotalPixels: 11_406_315,
+  browserSmallTotalPixels: 11_250_000,
+  relayoutHostsPerCycle: 23,
+  soakCycles: 6,
+});

@@ -515,6 +515,7 @@ test("the root shims and the raw sources must never be published as PWA executab
       [
         "../../components/ms-avatar/src/presentation-attrs.mjs",
         "../../components/ms-avatar/src/presentation-timing.mjs",
+        "../../components/ms-map-adapter/src/viewport-envelope.mjs",
         "./avatar-locomotion.mjs",
         "./back-view-projection.mjs",
         "./camera-state.mjs",
@@ -530,8 +531,10 @@ test("the root shims and the raw sources must never be published as PWA executab
         "./portal-controls.mjs",
         "./portal-cross-map-commit.mjs",
         "./portal-runtime-bridge.mjs",
+        "./render-node-patches.mjs",
         "./rope-collision-plan.mjs",
         "./simulation-scheduler.mjs",
+        "./viewport-view-projection.mjs",
         "@loomrealm-game/common-controls/subsystem",
         "@loomrealm/subsystem",
       ],

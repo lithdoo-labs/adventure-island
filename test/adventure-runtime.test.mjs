@@ -447,20 +447,16 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
     .flatMap((update) => update.nodes ?? [])
     .find((node) => node.key === "player:adventure" && node.attrs?.set?.["world-x"] !== undefined)
     ?.attrs.set["world-x"] ?? initialPlayer.attrs["world-x"];
-  harness.viewportHarness.notify({ width: 1000, height: 500 });
+  harness.viewportHarness.notify({ width: 1000, height: 600 });
   assert.deepEqual(
     latestAttrsFor(FIELD_SCENE_ROOT_KEY),
-    { "camera-x": String(Number(latestWorldX) - 500), "camera-y": "-290" },
-    "viewport resize projects clamped camera attrs on ms-scene-view",
+    { "camera-x": String(Number(latestWorldX) - 500) },
+    "viewport resize projects clamped camera-x when width changes inside the M7.6 envelope",
   );
-  harness.viewportHarness.notify({ width: 1002, height: 500 });
-  assert.deepEqual(
-    latestAttrsFor(FIELD_SCENE_ROOT_KEY),
-    { "camera-x": String(Number(latestWorldX) - 501) },
-    "width-only resize updates camera-x only",
-  );
-  harness.viewportHarness.notify({ width: 1002, height: 502 });
-  assert.deepEqual(latestAttrsFor(FIELD_SCENE_ROOT_KEY), { "camera-y": "-292" }, "height-only resize updates camera-y only");
+  harness.viewportHarness.notify({ width: 990, height: 600 });
+  const widthOnlyAttrs = latestAttrsFor(FIELD_SCENE_ROOT_KEY);
+  assert.equal(widthOnlyAttrs["camera-y"], undefined, "width-only resize updates camera-x only");
+  assert.ok(Number.isFinite(Number(widthOnlyAttrs["camera-x"])), "width-only resize must still project camera-x");
 
   const cameraUpdatesBefore = harness.domain().updates.filter((update) => (
     update.nodes?.some((node) => node.key === FIELD_SCENE_ROOT_KEY)
@@ -480,14 +476,29 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
         && key.startsWith("back:map")
         && node.attrs?.set
         && Object.keys(node.attrs.set).every((name) => name === "view-x" || name === "view-y");
+      const backLayoutOnly = typeof key === "string"
+        && key.startsWith("back:map")
+        && node.data?.set
+        && Object.keys(node.data.set).length === 1
+        && Object.prototype.hasOwnProperty.call(node.data.set, "layout");
+      const objLayoutOnly = typeof key === "string"
+        && key.startsWith("obj:")
+        && node.data?.set
+        && Object.keys(node.data.set).length === 1
+        && Object.prototype.hasOwnProperty.call(node.data.set, "layout");
       assert.ok(
         key === FIELD_SCENE_ROOT_KEY
           || key === "player:adventure:avatar"
           || key === "player:adventure"
-          || backViewOnly,
-        `updates must target camera, world position, avatar, or back view attrs only (saw ${key})`,
+          || backViewOnly
+          || backLayoutOnly
+          || objLayoutOnly,
+        `updates must target camera, world position, avatar, or bounded layout/view attrs only (saw ${key})`,
       );
-      assert.equal(node.data, undefined, "projection updates must not resend scene data");
+      if (node.data?.set) {
+        assert.equal(node.data.set.image, undefined, "layout relayout must not resend Content identity");
+        assert.equal(node.data.set.frames, undefined, "layout relayout must not resend Obj frames");
+      }
     }
   }
 

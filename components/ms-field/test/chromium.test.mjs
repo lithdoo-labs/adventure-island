@@ -10,6 +10,11 @@ import { buildCanonicalAdventureAvatarContent } from "../../../scripts/pwa/read-
 import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
 import { validateFieldTree } from "../src/validate.mjs";
 import {
+  M7_6_VIEWPORT_BUDGETS,
+  M7_PORTAL_BUDGETS,
+} from "../../../systems/adventure-map/portal-budgets.mjs";
+import { projectViewportRelayoutUpdates } from "../../../systems/adventure-map/viewport-view-projection.mjs";
+import {
   BEARER,
   INSTALLATION_ID,
   SCRIPT_PATH,
@@ -569,5 +574,264 @@ test("retiring Obj flow during a later frame read closes decoded stale bitmaps",
       && window.__resourceActive === 0
       && window.__bitmapCloses >= 1
   ), "retired Obj stale bitmap closed", 20_000);
+  assert.deepEqual(page.__pageErrors, []);
+});
+
+test("M7.6 relayout during Content load cannot restore stale viewport geometry", { timeout: 90_000 }, async (t) => {
+  const { plan } = await buildCanonicalAdventureFieldPlanContent({
+    gameRoot: repoRoot,
+    mapId: "230030200",
+  });
+  const tree = structuredClone(plan.root);
+  const back = tree.children.find((child) => child.tag === "ms-map-back" && child.data?.layout?.tileHorizontal);
+  const object = tree.children.find((child) => child.tag === "ms-map-object" && child.data?.source?.flow === 1);
+  assert.ok(back?.data?.draw);
+  assert.ok(object);
+  tree.children = [back, object];
+  tree.children.forEach((child, index) => {
+    child.attrs["stack-rank"] = String(index + 1);
+  });
+  const index = await loadResourceIndex(tree, repoRoot);
+  const delayedRefs = [];
+  walkResources(tree, delayedRefs);
+  const resourceDelayMs = new Map(delayedRefs.map((ref) => [`${ref.namespace}\0${ref.key}`, 750]));
+  const server = await startFieldServer({ index, scriptBytes, resourceDelayMs });
+  t.after(() => server.close());
+  const prepared = await preparePresentation({
+    origin: server.origin,
+    index,
+    configPath: path.join(componentRoot, "presentation.json"),
+    scriptPath: SCRIPT_PATH,
+  });
+  const page = await openFieldPage(t, {
+    chromium,
+    origin: server.origin,
+    prepared,
+    installationId: INSTALLATION_ID,
+    bearer: BEARER,
+    viewport: { width: 1000, height: 700 },
+  });
+  await page.evaluate((opened) => window.__open(opened), tree);
+  await waitFor(page, () => (
+    document.querySelectorAll("ms-map-back, ms-map-object").length === 2
+      && window.__resourceActive > 0
+  ), "M7.6 delayed Content reads start", 20_000);
+  const camera = {
+    cameraX: Number(tree.attrs["camera-x"]),
+    cameraY: Number(tree.attrs["camera-y"]),
+  };
+  const relayout = projectViewportRelayoutUpdates(tree.children, { width: 800, height: 600 }, camera);
+  await page.evaluate((ops) => window.__update(ops), relayout.map((node) => ({ op: "update", ...node })));
+  await page.setViewportSize({ width: 800, height: 600 });
+  await waitFor(page, () => (
+    [...document.querySelectorAll("ms-map-back, ms-map-object")]
+      .every((host) => host.diagnostics().state === "ready")
+      && window.__resourceActive === 0
+  ), "M7.6 delayed hosts ready at latest viewport", 60_000);
+  const latestGeometry = await page.evaluate(() => [...document.querySelectorAll("ms-map-back, ms-map-object")]
+    .map((host) => ({
+      tag: host.localName,
+      hostWidth: getComputedStyle(host).width,
+      canvasWidth: host.shadowRoot.querySelector("canvas").style.width,
+    })));
+  assert.deepEqual(latestGeometry, [
+    { tag: "ms-map-back", hostWidth: "800px", canvasWidth: "800px" },
+    { tag: "ms-map-object", hostWidth: "800px", canvasWidth: "800px" },
+  ]);
+
+  const beforeDrawChange = await page.evaluate(() => document.querySelector("ms-map-back").diagnostics());
+  const nextDraw = structuredClone(back.data.draw);
+  nextDraw.opacity = nextDraw.opacity === 255 ? 254 : nextDraw.opacity + 1;
+  await page.evaluate(({ key, draw }) => window.__update([{
+    op: "update",
+    key,
+    data: { set: { draw } },
+  }]), { key: back.key, draw: nextDraw });
+  await waitFor(page, (before) => {
+    const diagnostics = document.querySelector("ms-map-back")?.diagnostics();
+    return diagnostics?.state === "ready"
+      && diagnostics.resourceReads === before.resourceReads + 1
+      && diagnostics.paintCommits === before.paintCommits + 1;
+  }, "Back draw change invalidates its content signature", 20_000, beforeDrawChange);
+  assert.deepEqual(page.__pageErrors, []);
+});
+
+test("M7.6 viewport relayout retains decoded Content and bounded animation clocks", { timeout: 180_000 }, async (t) => {
+  const { plan } = await buildCanonicalAdventureFieldPlanContent({
+    gameRoot: repoRoot,
+    mapId: "230030200",
+  });
+  const tree = structuredClone(plan.root);
+  const relayoutHosts = tree.children.filter((child) => (
+    (child.tag === "ms-map-back" && child.data?.layout?.tileHorizontal)
+    || (child.tag === "ms-map-object" && child.data?.source?.flow === 1)
+  ));
+  assert.equal(relayoutHosts.filter((child) => child.tag === "ms-map-back").length, 12);
+  assert.equal(relayoutHosts.filter((child) => child.data?.source?.flow === 1).length, 11);
+  relayoutHosts.forEach((child, index) => {
+    child.attrs["stack-rank"] = String(index + 1);
+  });
+  tree.children = relayoutHosts;
+  const index = await loadResourceIndex(tree, repoRoot);
+  const server = await startFieldServer({ index, scriptBytes });
+  t.after(() => server.close());
+  const prepared = await preparePresentation({
+    origin: server.origin,
+    index,
+    configPath: path.join(componentRoot, "presentation.json"),
+    scriptPath: SCRIPT_PATH,
+  });
+  const page = await openFieldPage(t, {
+    chromium,
+    origin: server.origin,
+    prepared,
+    installationId: INSTALLATION_ID,
+    bearer: BEARER,
+    viewport: { width: 1000, height: 700 },
+  });
+  await page.evaluate((opened) => window.__open(opened), tree);
+  await waitFor(page, () => (
+    document.querySelectorAll("ms-map-back, ms-map-object").length === 23
+      && [...document.querySelectorAll("ms-map-back, ms-map-object")]
+        .every((host) => host.diagnostics().state === "ready")
+      && window.__resourceActive === 0
+  ), "water relayout hosts ready", 90_000);
+  await page.evaluate(() => { window.__settledReads = null; });
+  await waitFor(page, () => {
+    const reads = [...document.querySelectorAll("ms-map-back, ms-map-object")]
+      .reduce((sum, host) => sum + host.diagnostics().resourceReads, 0);
+    if (window.__settledReads === reads && window.__resourceActive === 0) return true;
+    window.__settledReads = reads;
+    return false;
+  }, "Obj multi-frame reads settle", 60_000);
+  const afterReady = await page.evaluate(() => {
+    const hosts = [...document.querySelectorAll("ms-map-back, ms-map-object")];
+    const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+    const domNodes = document.getElementsByTagName("*").length;
+    return {
+      resourceReads: hosts.reduce((sum, host) => sum + host.diagnostics().resourceReads, 0),
+      paintCommits: hosts.reduce((sum, host) => sum + host.diagnostics().paintCommits, 0),
+      backAnims: hosts.filter((host) => host.localName === "ms-map-back")
+        .map((host) => host.diagnostics().animationPaints ?? 0),
+      objAnims: hosts.filter((host) => host.localName === "ms-map-object")
+        .map((host) => host.diagnostics().animationPaints ?? 0),
+      domNodes,
+      heapProxy: domNodes + canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0) / 1_000,
+    };
+  });
+  let liveChildren = tree.children;
+  const camera = {
+    cameraX: Number(tree.attrs["camera-x"]),
+    cameraY: Number(tree.attrs["camera-y"]),
+  };
+  const cycles = [
+    { width: 800, height: 600 },
+    { width: 1000, height: 700 },
+    { width: 800, height: 600 },
+    { width: 1000, height: 700 },
+    { width: 800, height: 600 },
+    { width: 1000, height: 700 },
+  ];
+  let maxEventLoopLagMs = 0;
+  for (const size of cycles) {
+    const readsBeforeCycle = await page.evaluate(() => [...document.querySelectorAll("ms-map-back, ms-map-object")]
+      .reduce((sum, host) => sum + host.diagnostics().resourceReads, 0));
+    const relayout = projectViewportRelayoutUpdates(liveChildren, size, camera);
+    const ops = relayout.map((node) => ({ op: "update", ...node }));
+    await page.evaluate((patchOps) => window.__update(patchOps), ops);
+    for (const node of relayout) {
+      if (!node.data?.set?.layout) continue;
+      const index = liveChildren.findIndex((child) => child.key === node.key);
+      if (index < 0) continue;
+      const child = liveChildren[index];
+      liveChildren[index] = Object.freeze({
+        ...child,
+        data: Object.freeze({ ...child.data, layout: node.data.set.layout }),
+      });
+    }
+    await page.setViewportSize(size);
+    await page.waitForTimeout(80);
+    const eventLoopLagMs = await page.evaluate(() => new Promise((resolve) => {
+      const started = performance.now();
+      setTimeout(() => resolve(performance.now() - started), 0);
+    }));
+    maxEventLoopLagMs = Math.max(maxEventLoopLagMs, eventLoopLagMs);
+    const snap = await page.evaluate((expectedWidth) => {
+      const backs = [...document.querySelectorAll("ms-map-back")]
+        .filter((host) => Number(getComputedStyle(host).width.replace("px", "")) === expectedWidth);
+      const flows = [...document.querySelectorAll("ms-map-object")]
+        .filter((host) => Number(getComputedStyle(host).width.replace("px", "")) === expectedWidth);
+      const canvases = [...document.querySelectorAll("ms-map-back, ms-map-object")]
+        .map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+      return {
+        backs: backs.length,
+        flows: flows.length,
+        backsReady: backs.every((host) => host.diagnostics().state === "ready"),
+        flowsReady: flows.every((host) => host.diagnostics().state === "ready"),
+        totalPixels: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0),
+      };
+    }, size.width);
+    assert.ok(snap.backsReady && snap.flowsReady);
+    assert.equal(snap.backs, 12);
+    assert.equal(snap.flows, 11);
+    assert.ok(snap.totalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
+    await waitFor(page, () => window.__resourceActive === 0, "relayout cycle quiesced", 10_000);
+    const readsAfterCycle = await page.evaluate(() => [...document.querySelectorAll("ms-map-back, ms-map-object")]
+      .reduce((sum, host) => sum + host.diagnostics().resourceReads, 0));
+    assert.equal(readsAfterCycle, readsBeforeCycle,
+      "each Back/Obj relayout cycle must retain decoded Content without extra reads");
+  }
+  await waitFor(page, (before) => {
+    const backs = [...document.querySelectorAll("ms-map-back")]
+      .map((host) => host.diagnostics().animationPaints ?? 0);
+    const objects = [...document.querySelectorAll("ms-map-object")]
+      .map((host) => host.diagnostics().animationPaints ?? 0);
+    return backs.some((count, index) => count > before.backAnims[index])
+      && objects.some((count, index) => count > before.objAnims[index]);
+  }, "Back and Obj animation clocks advance after relayout", 10_000, afterReady);
+  const afterSoak = await page.evaluate(() => {
+    const hosts = [...document.querySelectorAll("ms-map-back, ms-map-object")];
+    const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+    const domNodes = document.getElementsByTagName("*").length;
+    return {
+      resourceReads: hosts.reduce((sum, host) => sum + host.diagnostics().resourceReads, 0),
+      paintCommits: hosts.reduce((sum, host) => sum + host.diagnostics().paintCommits, 0),
+      backAnims: hosts.filter((host) => host.localName === "ms-map-back")
+        .map((host) => host.diagnostics().animationPaints ?? 0),
+      objAnims: hosts.filter((host) => host.localName === "ms-map-object")
+        .map((host) => host.diagnostics().animationPaints ?? 0),
+      domNodes,
+      heapProxy: domNodes + canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0) / 1_000,
+    };
+  });
+  assert.equal(afterSoak.resourceReads, afterReady.resourceReads,
+    "viewport relayout must not re-read decoded Content after soak");
+  assert.ok(afterSoak.domNodes <= M7_6_VIEWPORT_BUDGETS.maxDomNodeCount);
+  assert.ok(afterSoak.heapProxy <= M7_6_VIEWPORT_BUDGETS.maxHeapDomProxyScore);
+  assert.ok(Math.abs(afterSoak.heapProxy - afterReady.heapProxy) <= M7_6_VIEWPORT_BUDGETS.maxHeapDomProxyDelta);
+  assert.ok(
+    afterSoak.paintCommits - afterReady.paintCommits
+      <= M7_6_VIEWPORT_BUDGETS.maxWaterMapRelayoutPaintCommitsDelta,
+  );
+  assert.ok(maxEventLoopLagMs <= M7_6_VIEWPORT_BUDGETS.maxEventLoopLagProxyMs);
+  assert.ok(
+    afterSoak.backAnims.some((count, index) => count > afterReady.backAnims[index]),
+    "a dynamic Back clock must continue advancing across relayout",
+  );
+  assert.ok(
+    afterSoak.objAnims.some((count, index) => count > afterReady.objAnims[index]),
+    "a dynamic Obj clock must continue advancing across relayout",
+  );
+  await page.evaluate(() => {
+    window.__retiredRelayoutHosts = [...document.querySelectorAll("ms-map-back, ms-map-object")];
+    window.__replace([]);
+  });
+  await waitFor(page, () => window.__retiredRelayoutHosts.every((host) => (
+    !host.isConnected && host.shadowRoot?.querySelector("canvas")?.width === 0
+  )), "relayout hosts retire and release canvases", 20_000);
+  const detachedCanvasDelta = await page.evaluate(() => window.__retiredRelayoutHosts
+    .filter((host) => host.shadowRoot?.querySelector("canvas")?.width > 0).length);
+  assert.ok(detachedCanvasDelta <= M7_6_VIEWPORT_BUDGETS.maxDetachedCanvasDelta);
+  t.diagnostic(`M7.6 soak cycles ${cycles.length}; retained Content reads ${afterSoak.resourceReads}; paint commits delta ${afterSoak.paintCommits - afterReady.paintCommits}; event-loop lag proxy ${maxEventLoopLagMs.toFixed(1)} ms`);
   assert.deepEqual(page.__pageErrors, []);
 });

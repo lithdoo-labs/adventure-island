@@ -19,7 +19,11 @@ import {
 import { buildCanonicalSyntheticAvatarContent } from "../scripts/pwa/synthetic-avatar-content.mjs";
 import { FIXTURE_LOGICAL_MODULE, composeAvatarFixturePayload } from "./pwa-avatar-fixture.mjs";
 import { COLORS, FRAME_MARKERS } from "../components/cms-actor/test/synthetic-fsdb.mjs";
-import { M6_PORTAL_BUDGETS, M7_PORTAL_BUDGETS } from "../systems/adventure-map/portal-budgets.mjs";
+import {
+  M6_PORTAL_BUDGETS,
+  M7_6_VIEWPORT_BUDGETS,
+  M7_PORTAL_BUDGETS,
+} from "../systems/adventure-map/portal-budgets.mjs";
 
 const repoRoot = new URL("../", import.meta.url);
 const repoRootPath = fileURLToPath(repoRoot);
@@ -45,7 +49,10 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
   assert.ok(url?.endsWith("/pwa/adventure-island/"), "real upstream loopback E2E URL must use Adventure Island scope");
   const browser = await chromium.launch({ headless: true });
   try {
-    const context = await browser.newContext({ serviceWorkers: "allow" });
+    const context = await browser.newContext({
+      serviceWorkers: "allow",
+      viewport: { width: 900, height: 650 },
+    });
     const page = await context.newPage();
     const diagnostics = [];
     page.on("console", (message) => diagnostics.push(`console:${message.type()}:${message.text()}`));
@@ -533,6 +540,118 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.ok(waterPortalReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs);
     t.diagnostic(`M7.1 water portal ready ${waterPortalReadyMs}ms; Canvas ${waterAfterInput.canvasCount}, max ${waterAfterInput.maxWidth}x${waterAfterInput.maxHeight}, total ${waterAfterInput.totalPixels}px`);
 
+    // M7.6 bounded viewport relayout soak on live map C via the real Subsystem path.
+    const soakBefore = await page.evaluate(() => {
+      const hosts = [...document.querySelectorAll("ms-map-back, ms-map-object")];
+      window.__m76RelayoutBacks = [...document.querySelectorAll("ms-map-back")]
+        .filter((host) => getComputedStyle(host).width === `${innerWidth}px`);
+      window.__m76RelayoutObjects = [...document.querySelectorAll("ms-map-object")]
+        .filter((host) => getComputedStyle(host).width === `${innerWidth}px`);
+      const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+      const domNodes = document.getElementsByTagName("*").length;
+      return {
+        resourceReads: hosts.reduce((sum, host) => sum + (host.diagnostics?.().resourceReads ?? 0), 0),
+        paintCommits: hosts.reduce((sum, host) => sum + host.diagnostics().paintCommits, 0),
+        batchPaints: [...document.querySelectorAll("ms-map-batch")].map((host) => host.diagnostics().paintCommits),
+        staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+          .map((host) => host.diagnostics().paintCommits).join(","),
+        backAnims: [...document.querySelectorAll("ms-map-back")].map((host) => host.diagnostics().animationPaints ?? 0),
+        objAnims: [...document.querySelectorAll("ms-map-object")].map((host) => host.diagnostics().animationPaints ?? 0),
+        relayoutBacks: window.__m76RelayoutBacks.length,
+        relayoutObjects: window.__m76RelayoutObjects.length,
+        domNodes,
+        heapProxy: domNodes + canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0) / 1_000,
+      };
+    });
+    assert.equal(soakBefore.relayoutBacks, 12);
+    assert.equal(soakBefore.relayoutObjects, 11);
+    const soakSizes = [
+      { width: 800, height: 600 },
+      { width: 1000, height: 700 },
+      { width: 800, height: 600 },
+      { width: 1000, height: 700 },
+    ];
+    for (const size of soakSizes) {
+      await page.setViewportSize(size);
+      try {
+        await page.waitForFunction((expected) => {
+          const backs = window.__m76RelayoutBacks ?? [];
+          const flows = window.__m76RelayoutObjects ?? [];
+          return backs.length === 12 && flows.length === 11
+            && backs.every((host) => host.isConnected
+              && Number(getComputedStyle(host).width.replace("px", "")) === expected
+              && host.diagnostics().state === "ready")
+            && flows.every((host) => host.isConnected
+              && Number(getComputedStyle(host).width.replace("px", "")) === expected
+              && host.diagnostics().state === "ready");
+        }, size.width, { timeout: 20_000 });
+      } catch (cause) {
+        const failure = await page.evaluate(() => ({
+          viewport: { width: innerWidth, height: innerHeight },
+          scene: document.querySelector("ms-scene-view")?.diagnostics?.() ?? null,
+          backs: (window.__m76RelayoutBacks ?? []).map((host) => ({
+            width: getComputedStyle(host).width,
+            state: host.diagnostics().state,
+            code: host.diagnostics().code,
+          })),
+          flows: (window.__m76RelayoutObjects ?? []).map((host) => ({
+              width: getComputedStyle(host).width,
+              state: host.diagnostics().state,
+              code: host.diagnostics().code,
+            })),
+        }));
+        throw new Error(`M7.6 viewport ${size.width}x${size.height} did not relayout: ${cause.message}\n${JSON.stringify(failure)}`);
+      }
+    }
+    await page.waitForFunction((before) => {
+      const backs = [...document.querySelectorAll("ms-map-back")]
+        .map((host) => host.diagnostics().animationPaints ?? 0);
+      const objects = [...document.querySelectorAll("ms-map-object")]
+        .map((host) => host.diagnostics().animationPaints ?? 0);
+      return backs.some((count, index) => count > before.backAnims[index])
+        && objects.some((count, index) => count > before.objAnims[index]);
+    }, soakBefore, { timeout: 10_000 });
+    const eventLoopLagMs = await page.evaluate(() => new Promise((resolve) => {
+      const started = performance.now();
+      setTimeout(() => resolve(performance.now() - started), 0);
+    }));
+    const soakAfter = await page.evaluate(() => {
+      const hosts = [...document.querySelectorAll("ms-map-back, ms-map-object")];
+      const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+      const domNodes = document.getElementsByTagName("*").length;
+      return {
+        resourceReads: hosts.reduce((sum, host) => sum + (host.diagnostics?.().resourceReads ?? 0), 0),
+        paintCommits: hosts.reduce((sum, host) => sum + host.diagnostics().paintCommits, 0),
+        batchPaints: [...document.querySelectorAll("ms-map-batch")].map((host) => host.diagnostics().paintCommits),
+        staticStamp: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+          .map((host) => host.diagnostics().paintCommits).join(","),
+        backAnims: [...document.querySelectorAll("ms-map-back")].map((host) => host.diagnostics().animationPaints ?? 0),
+        objAnims: [...document.querySelectorAll("ms-map-object")].map((host) => host.diagnostics().animationPaints ?? 0),
+        domNodes,
+        heapProxy: domNodes + canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0) / 1_000,
+      };
+    });
+    assert.equal(soakAfter.resourceReads, soakBefore.resourceReads,
+      "repeated 800×600↔1000×700 resize must not re-read decoded Content");
+    assert.deepEqual(soakAfter.batchPaints, soakBefore.batchPaints,
+      "viewport relayout must not repaint static batch hosts");
+    assert.notEqual(soakAfter.staticStamp, soakBefore.staticPaints,
+      "bounded Back/Obj layout relayout must commit local pixels without Content reload");
+    assert.ok(soakAfter.backAnims.some((count, index) => count > soakBefore.backAnims[index]),
+      "Back renderer-local scroll clocks stay live across relayout");
+    assert.ok(soakAfter.objAnims.some((count, index) => count > soakBefore.objAnims[index]),
+      "Obj flow clocks stay live across relayout");
+    assert.ok(soakAfter.paintCommits - soakBefore.paintCommits
+      <= M7_6_VIEWPORT_BUDGETS.maxWaterMapRelayoutPaintCommitsDelta);
+    assert.ok(soakSizes.length <= M7_6_VIEWPORT_BUDGETS.maxViewportRelayoutCycles);
+    assert.ok(soakAfter.domNodes <= M7_6_VIEWPORT_BUDGETS.maxDomNodeCount);
+    assert.ok(soakAfter.heapProxy <= M7_6_VIEWPORT_BUDGETS.maxHeapDomProxyScore,
+      "heap uses deterministic DOM+canvas proxy when UA memory is unavailable");
+    assert.ok(Math.abs(soakAfter.heapProxy - soakBefore.heapProxy)
+      <= M7_6_VIEWPORT_BUDGETS.maxHeapDomProxyDelta);
+    assert.ok(eventLoopLagMs <= M7_6_VIEWPORT_BUDGETS.maxEventLoopLagProxyMs);
+    t.diagnostic(`M7.6 PWA soak ${soakSizes.length} cycles; heap proxy ${soakAfter.heapProxy.toFixed(1)}; event-loop lag proxy ${eventLoopLagMs.toFixed(1)}ms`);
+
     // M7.2: audited east00 at x=296/y=-98 matches arrival feet on map C; a fresh
     // trusted Up edge must replace the water scene with map B land/stand at sea00.
     await page.waitForFunction(() => {
@@ -679,12 +798,16 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         animationBefore,
         animationAfter: retired.hosts.map((host) => host.diagnostics().animationPaints ?? 0),
         allDisconnected: retired.hosts.every((host) => !host.isConnected),
+        nonZeroCanvasCount: retired.hosts.filter((host) => (
+          (host.shadowRoot?.querySelector("canvas")?.width ?? 0) !== 0
+        )).length,
         avatarIdentityPreserved: retired.avatar === currentAvatar && currentAvatar?.isConnected === true,
         avatarAction: currentAvatar?.getAttribute("action") ?? null,
         avatarDataAction: currentAvatar?.getAttribute("data-action") ?? null,
       };
     });
     assert.equal(retiredWater.allDisconnected, true);
+    assert.ok(retiredWater.nonZeroCanvasCount <= M7_6_VIEWPORT_BUDGETS.maxDetachedCanvasDelta);
     assert.equal(retiredWater.avatarIdentityPreserved, true,
       "the preserved player/avatar carrier must survive the static scene replacement");
     assert.equal(retiredWater.avatarAction, "stand1");

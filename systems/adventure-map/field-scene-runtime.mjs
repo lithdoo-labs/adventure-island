@@ -5,6 +5,8 @@
 import { cameraForViewport } from "../../components/ms-field/src/camera.mjs";
 import { createStaticFieldState } from "../../components/ms-field/src/field-state.mjs";
 import { validateFieldPlan } from "./field-plan-model.mjs";
+import { applyProjectionPatches } from "./render-node-patches.mjs";
+import { projectViewportRelayoutUpdates } from "./viewport-view-projection.mjs";
 
 function decimalAttr(value) {
   if (!Number.isFinite(value)) throw new TypeError(`non-finite attr value ${value}`);
@@ -12,7 +14,7 @@ function decimalAttr(value) {
   return String(value);
 }
 
-function rootWithCamera(root, camera) {
+function rootWithCamera(root, camera, children = root.children) {
   const attrs = Object.freeze({
     ...root.attrs,
     "camera-x": decimalAttr(camera.cameraX),
@@ -22,7 +24,7 @@ function rootWithCamera(root, camera) {
   return Object.freeze({
     ...root,
     attrs,
-    children: root.children,
+    children,
   });
 }
 
@@ -38,7 +40,13 @@ export function projectAdventureMapFieldSceneFromPlan(planValue, viewport) {
     viewport ?? null,
     { effectiveBounds: plan.effectiveBounds },
   );
-  const root = rootWithCamera(plan.root, camera);
+  const relayout = viewport === null || viewport === undefined
+    ? []
+    : projectViewportRelayoutUpdates(plan.root.children, viewport, camera);
+  const children = relayout.length === 0
+    ? plan.root.children
+    : applyProjectionPatches(plan.root.children, relayout);
+  const root = rootWithCamera(plan.root, camera, children);
   return Object.freeze({
     fieldState,
     effectiveBounds: plan.effectiveBounds,

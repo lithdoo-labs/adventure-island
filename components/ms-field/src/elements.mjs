@@ -50,6 +50,32 @@ function failureCode(error) {
   return "IMAGE_INVALID";
 }
 
+function deviceCanvasFitsBudget(width, height) {
+  return width >= 1
+    && height >= 1
+    && width <= FIELD_CANVAS_LIMITS.maxCanvasWidth
+    && height <= FIELD_CANVAS_LIMITS.maxCanvasHeight
+    && width * height <= FIELD_CANVAS_LIMITS.maxCanvasPixels;
+}
+
+function backContentSignature(data) {
+  const { placementId, front, source, presentation, image, draw } = data;
+  return JSON.stringify({ placementId, front, source, presentation, image, draw });
+}
+
+function backLayoutSignature(data) {
+  return JSON.stringify(data?.layout ?? null);
+}
+
+function mapObjectContentSignature(validated) {
+  const { placementId, mode, frames, source, provenance } = validated;
+  return JSON.stringify({ placementId, mode, frames, source, provenance });
+}
+
+function mapObjectLayoutSignature(validated) {
+  return JSON.stringify(validated.layout ?? null);
+}
+
 class SpikeElement extends SpikeHTMLElement {
   constructor() {
     super();
@@ -535,6 +561,8 @@ export class MsMapBack extends SpikeElement {
     this._scrollLastTs = null;
     this._scrollPixel = 0;
     this._animationPaints = 0;
+    this._contentSignature = null;
+    this._layoutSignature = null;
   }
 
   diagnostics() {
@@ -616,23 +644,63 @@ export class MsMapBack extends SpikeElement {
       w: layout?.canvasWidth ?? image.pageWidth,
       h: layout?.canvasHeight ?? image.pageHeight,
     };
-    const signature = JSON.stringify(this._data);
-    if (signature === this._paintedSignature && this._state === "ready") {
+    const contentSignature = backContentSignature(this._data);
+    const layoutSignature = backLayoutSignature(this._data);
+    const contentReady = this._paintCommits > 0
+      && this._paintedSignature === contentSignature
+      && this._sourceBitmap !== null
+      && this._state === "ready";
+    if (contentReady) {
+      if (layoutSignature !== this._layoutSignature) {
+        this._relayoutViewportSurface(attrs.value.visible, box, this._data.layout, this._data.draw);
+        this._contentSignature = contentSignature;
+        this._layoutSignature = layoutSignature;
+        return;
+      }
       this._writeHost(attrs.value.visible, box);
       this._syncScrollLoop(this._data?.layout, this._data?.draw);
       return;
     }
     this._stopScroll();
     this._writeHost(false, box);
-    if (signature === this._loadingSignature) return;
-    this._loadingSignature = signature;
+    if (contentSignature === this._loadingSignature) return;
+    this._loadingSignature = contentSignature;
     this._epoch += 1;
     const epoch = this._epoch;
     this._abort?.abort();
     const controller = new AbortController();
     this._abort = controller;
     this._state = "loading";
-    void this._paint(image, signature, epoch, controller, attrs.value.visible, box);
+    void this._paint(image, contentSignature, epoch, controller, attrs.value.visible, box);
+  }
+
+  _relayoutViewportSurface(visible, box, layout, draw) {
+    if (!this._canvas || !this._sourceBitmap) return;
+    const image = this._data?.image;
+    if (!image) return;
+    const ratio = deviceRatio();
+    if (ratio === null) {
+      this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
+      return;
+    }
+    const canvasWidth = layout?.canvasWidth ?? image.pageWidth;
+    const canvasHeight = layout?.canvasHeight ?? image.pageHeight;
+    const deviceW = Math.round(canvasWidth * ratio);
+    const deviceH = Math.round(canvasHeight * ratio);
+    if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+      this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "Back canvas budget exceeded" });
+      return;
+    }
+    // The running callback closes over layout/draw. Restart it so the next
+    // animation paint cannot restore stale viewport geometry after relayout.
+    this._stopScroll();
+    this._canvas.width = deviceW;
+    this._canvas.height = deviceH;
+    this._canvas.style.width = cssPx(canvasWidth);
+    this._canvas.style.height = cssPx(canvasHeight);
+    this._redrawTiles(image, layout, draw);
+    this._writeHost(visible, box);
+    this._syncScrollLoop(layout, draw);
   }
 
   _redrawTiles(image, layout, draw, countCommit = true) {
@@ -696,13 +764,32 @@ export class MsMapBack extends SpikeElement {
       if (bitmap.width !== image.pageWidth || bitmap.height !== image.pageHeight) {
         throw Object.assign(new Error("decoded Back dimensions do not match the declared resource page"), { code: "CONTENT_INVALID" });
       }
+      const declared = readDeclaredAttrs(this);
+      if (!declared.ok) return this._failInput(declared);
+      const attrs = validateBackAttrs(declared.value);
+      if (!attrs.ok) return this._failInput(attrs);
+      const latest = validateBackData(this._data);
+      if (!latest.ok) return this._failInput(latest);
+      if (backContentSignature(this._data) !== signature) return;
       const ratio = deviceRatio();
       if (ratio === null) return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
+      const latestImage = this._data.image;
       const layout = this._data?.layout ?? null;
-      const canvasWidth = layout?.canvasWidth ?? image.pageWidth;
-      const canvasHeight = layout?.canvasHeight ?? image.pageHeight;
+      const draw = this._data?.draw ?? null;
+      const canvasWidth = layout?.canvasWidth ?? latestImage.pageWidth;
+      const canvasHeight = layout?.canvasHeight ?? latestImage.pageHeight;
       const deviceW = Math.round(canvasWidth * ratio);
       const deviceH = Math.round(canvasHeight * ratio);
+      if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+        return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "Back canvas budget exceeded" });
+      }
+      const latestBox = {
+        viewX: attrs.value.viewX,
+        viewY: attrs.value.viewY,
+        stackRank: attrs.value.stackRank,
+        w: canvasWidth,
+        h: canvasHeight,
+      };
       if (epoch !== this._epoch || !this.isConnected) return;
       this._canvas.width = deviceW;
       this._canvas.height = deviceH;
@@ -713,12 +800,13 @@ export class MsMapBack extends SpikeElement {
       bitmap = null;
       this._scrollOffsetX = 0;
       this._scrollPixel = 0;
-      const draw = this._data?.draw ?? null;
-      this._redrawTiles(image, layout, draw);
+      this._redrawTiles(latestImage, layout, draw);
       this._paintedSignature = signature;
+      this._contentSignature = backContentSignature(this._data);
+      this._layoutSignature = backLayoutSignature(this._data);
       this._loadingSignature = null;
       this._state = "ready";
-      this._writeHost(visible, box);
+      this._writeHost(attrs.value.visible, latestBox);
       this._syncScrollLoop(layout, draw);
     } catch (error) {
       if (epoch !== this._epoch || !this.isConnected) return;
@@ -944,6 +1032,8 @@ class MsMapObject extends SpikeElement {
     this._scrollPixel = 0;
     this._animationPaints = 0;
     this._displayFrame = 0;
+    this._contentSignature = null;
+    this._layoutSignature = null;
   }
 
   diagnostics() {
@@ -967,7 +1057,9 @@ class MsMapObject extends SpikeElement {
   }
 
   _hasLastGoodPaint() {
-    return this._paintCommits > 0 && this._paintedSignature !== null && this._frameBitmaps.length > 0;
+    return this._paintCommits > 0
+      && this._contentSignature !== null
+      && this._frameBitmaps.length > 0;
   }
 
   _failInput(result) {
@@ -1044,19 +1136,31 @@ class MsMapObject extends SpikeElement {
     const data = validateMapObjectData(this._data);
     if (!data.ok) return this._failInput(data);
     const validated = data.value;
-    const signature = JSON.stringify(validated);
+    const contentSignature = mapObjectContentSignature(validated);
+    const layoutSignature = mapObjectLayoutSignature(validated);
     const box = this._hostBox(attrs.value, validated, this._displayFrame);
     const hasLastGood = this._hasLastGoodPaint();
-    const keepBitmaps = signature === this._paintedSignature && this._state === "ready";
+    if (hasLastGood && contentSignature === this._paintedSignature && this._state === "ready") {
+      if (layoutSignature !== this._layoutSignature) {
+        this._relayoutViewportSurface(attrs.value.visible, box, validated);
+        this._contentSignature = contentSignature;
+        this._layoutSignature = layoutSignature;
+        return;
+      }
+      this._writeHost(attrs.value.visible, box);
+      this._syncAnimLoop();
+      return;
+    }
+    const keepBitmaps = contentSignature === this._paintedSignature && this._state === "ready";
     if (keepBitmaps) {
       this._writeHost(attrs.value.visible, box);
       this._syncAnimLoop();
       return;
     }
-    if (signature === this._loadingSignature) return;
+    if (contentSignature === this._loadingSignature) return;
     this._stopAnim();
     if (!hasLastGood) this._writeHost(false, box);
-    this._loadingSignature = signature;
+    this._loadingSignature = contentSignature;
     this._epoch += 1;
     const epoch = this._epoch;
     this._abort?.abort();
@@ -1069,7 +1173,36 @@ class MsMapObject extends SpikeElement {
       this._releaseBitmaps();
       this._clearCanvas();
     }
-    void this._loadFrames(validated, signature, epoch, controller, attrs.value.visible, box);
+    void this._loadFrames(validated, contentSignature, epoch, controller, attrs.value.visible, box);
+  }
+
+  _relayoutViewportSurface(visible, box, validated) {
+    if (!this._canvas || this._frameBitmaps.length === 0) return;
+    const layout = validated.layout;
+    const frame = validated.frames[this._displayFrame] ?? validated.frames[0];
+    const ratio = deviceRatio();
+    if (ratio === null) {
+      this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
+      return;
+    }
+    const canvasW = layout?.canvasWidth ?? frame.image.source.w;
+    const canvasH = layout?.canvasHeight ?? frame.image.source.h;
+    const deviceW = Math.round(canvasW * ratio);
+    const deviceH = Math.round(canvasH * ratio);
+    if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+      this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "map object canvas budget exceeded" });
+      return;
+    }
+    // Animation callbacks capture the prior scroll/layout values.
+    this._stopAnim();
+    this._canvas.width = deviceW;
+    this._canvas.height = deviceH;
+    this._canvas.style.width = cssPx(canvasW);
+    this._canvas.style.height = cssPx(canvasH);
+    this._validated = validated;
+    this._redrawFrame();
+    this._writeHost(visible, box);
+    this._syncAnimLoop();
   }
 
   _syncAnimLoop() {
@@ -1185,18 +1318,23 @@ class MsMapObject extends SpikeElement {
         pendingBitmap = null;
       }
       if (epoch !== this._epoch || !this.isConnected) return;
+      const declared = readDeclaredAttrs(this);
+      if (!declared.ok) return this._failInput(declared);
+      const attrs = validateWorldAttrs(declared.value);
+      if (!attrs.ok) return this._failInput(attrs);
+      const latest = validateMapObjectData(this._data);
+      if (!latest.ok) return this._failInput(latest);
+      if (mapObjectContentSignature(latest.value) !== signature) return;
+      validated = latest.value;
+      visible = attrs.value.visible;
+      box = this._hostBox(attrs.value, validated, 0);
       const layout = validated.layout;
       const frame = validated.frames[0];
       const canvasW = layout?.canvasWidth ?? frame.image.source.w;
       const canvasH = layout?.canvasHeight ?? frame.image.source.h;
       const deviceW = Math.round(canvasW * ratio);
       const deviceH = Math.round(canvasH * ratio);
-      if (
-        deviceW < 1 || deviceH < 1
-        || deviceW > FIELD_CANVAS_LIMITS.maxCanvasWidth
-        || deviceH > FIELD_CANVAS_LIMITS.maxCanvasHeight
-        || deviceW * deviceH > FIELD_CANVAS_LIMITS.maxCanvasPixels
-      ) {
+      if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
         throw Object.assign(new Error("map object canvas budget exceeded"), { code: "RESOURCE_LIMIT" });
       }
       this._canvas.width = deviceW;
@@ -1216,6 +1354,8 @@ class MsMapObject extends SpikeElement {
       this._scrollPixel = 0;
       this._redrawFrame();
       this._paintedSignature = signature;
+      this._contentSignature = mapObjectContentSignature(validated);
+      this._layoutSignature = mapObjectLayoutSignature(validated);
       this._loadingSignature = null;
       this._state = "ready";
       this._writeHost(visible, box);

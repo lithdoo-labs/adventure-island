@@ -33,6 +33,9 @@ import {
 } from "./avatar-locomotion.mjs";
 import { projectBackCameraUpdates } from "./back-view-projection.mjs";
 import { projectObjFlowCameraUpdates } from "./obj-flow-view-projection.mjs";
+import { applyProjectionPatches } from "./render-node-patches.mjs";
+import { projectViewportRelayoutUpdates } from "./viewport-view-projection.mjs";
+import { assertViewportRelayoutEnvelope } from "../../components/ms-map-adapter/src/viewport-envelope.mjs";
 import { presentationTimingAttrs } from "../../components/ms-avatar/src/presentation-attrs.mjs";
 import { nextClipBoundaryMs } from "../../components/ms-avatar/src/presentation-timing.mjs";
 import { movementIntentFromHeld } from "./movement-intent.mjs";
@@ -186,6 +189,8 @@ export default defineSubsystem((scope) => ({
     let projectedLayer = null;
     let projectedPlatform = null;
     let schedulerDiscardedTicks = 0;
+    let projectedViewportWidth = null;
+    let projectedViewportHeight = null;
 
     const abortWait = createAbortWait(frame.signal);
 
@@ -227,6 +232,10 @@ export default defineSubsystem((scope) => ({
       const cam0 = initialCamera.camera;
       cameraX = decimalAttr(cam0.cameraX);
       cameraY = decimalAttr(cam0.cameraY);
+      if (scope.viewport.current && typeof scope.viewport.current === "object") {
+        projectedViewportWidth = scope.viewport.current.width;
+        projectedViewportHeight = scope.viewport.current.height;
+      }
       projectedWorldX = decimalAttr(fieldState.player.worldX);
       projectedWorldY = decimalAttr(fieldState.player.worldY);
 
@@ -264,6 +273,8 @@ export default defineSubsystem((scope) => ({
         if (size === null || typeof size !== "object") return;
         const { width, height } = size;
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+        assertViewportRelayoutEnvelope(size);
+        const viewportChanged = width !== projectedViewportWidth || height !== projectedViewportHeight;
         const cameraProjection = applyCameraToFieldState(fieldState, size, activePlan.effectiveBounds);
         fieldState = cameraProjection.fieldState;
         const cam = cameraProjection.camera;
@@ -273,12 +284,28 @@ export default defineSubsystem((scope) => ({
         const sceneChanged = diffAttrs({ "camera-x": nextX, "camera-y": nextY }, { "camera-x": cameraX, "camera-y": cameraY }, ["camera-x", "camera-y"]);
         if (Object.keys(sceneChanged).length > 0) {
           nodes.push({ key: sceneRootKey, attrs: { set: sceneChanged } });
-          const backNodes = projectBackCameraUpdates(activeRenderChildren, cam);
-          for (const node of backNodes) nodes.push(node);
-          const objFlowNodes = projectObjFlowCameraUpdates(activeRenderChildren, cam);
-          for (const node of objFlowNodes) nodes.push(node);
           cameraX = nextX;
           cameraY = nextY;
+        }
+        let relayoutChildren = activeRenderChildren;
+        if (viewportChanged) {
+          const relayoutNodes = projectViewportRelayoutUpdates(activeRenderChildren, size, cam);
+          for (const node of relayoutNodes) nodes.push(node);
+          if (relayoutNodes.length > 0) {
+            relayoutChildren = applyProjectionPatches(activeRenderChildren, relayoutNodes);
+          }
+          projectedViewportWidth = width;
+          projectedViewportHeight = height;
+        }
+        const backNodes = projectBackCameraUpdates(relayoutChildren, cam);
+        for (const node of backNodes) nodes.push(node);
+        const objFlowNodes = projectObjFlowCameraUpdates(relayoutChildren, cam);
+        for (const node of objFlowNodes) nodes.push(node);
+        const attrOnlyPatches = [...backNodes, ...objFlowNodes];
+        if (attrOnlyPatches.length > 0) {
+          activeRenderChildren = applyProjectionPatches(relayoutChildren, attrOnlyPatches);
+        } else if (relayoutChildren !== activeRenderChildren) {
+          activeRenderChildren = relayoutChildren;
         }
         if (nodes.length === 0) return;
         domain.update({ nodes });
@@ -458,6 +485,14 @@ export default defineSubsystem((scope) => ({
         sceneEpoch = next.sceneEpoch;
         sceneRootKey = next.sceneRootKey;
         activeRenderChildren = next.activeRenderChildren;
+        const committedViewport = viewportSize();
+        if (committedViewport && typeof committedViewport === "object") {
+          projectedViewportWidth = committedViewport.width;
+          projectedViewportHeight = committedViewport.height;
+        } else {
+          projectedViewportWidth = null;
+          projectedViewportHeight = null;
+        }
         currentRanks = nextRanks;
         projectedLayer = fieldState.player.layer;
         projectedPlatform = fieldState.player.zM;

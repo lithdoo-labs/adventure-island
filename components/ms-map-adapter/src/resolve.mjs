@@ -48,16 +48,18 @@ function worldBoundsFrom(origin, width, height, x, y, flip) {
   return Object.freeze({ x: left, y: top, width, height });
 }
 
-function findBackFrame(frames, bS, no, ani) {
+function findBackFrames(frames, bS, no, ani) {
   const table = frames.back[`map.back.${bS}`];
-  if (!table || table.status !== SOURCE_PRESENT) return { table, frame: null };
-  const kind = ani ? "ani" : "back";
-  const frame = table.rows.find((row) => {
-    if (row.kind !== kind) return false;
-    if (kind === "back") return Number(row.no) === Number(no);
-    return Number(row.no) === Number(no) && Number(row.frame ?? 0) === 0;
-  }) ?? null;
-  return { table, frame };
+  if (!table || table.status !== SOURCE_PRESENT) return { table, framesFor: [] };
+  if (!ani) {
+    const frame = table.rows.find((row) => row.kind === "back" && Number(row.no) === Number(no)) ?? null;
+    return { table, framesFor: frame ? [frame] : [] };
+  }
+  const framesFor = table.rows
+    .filter((row) => row.kind === "ani" && Number(row.no) === Number(no))
+    .slice()
+    .sort((a, b) => Number(a.frame ?? 0) - Number(b.frame ?? 0));
+  return { table, framesFor };
 }
 
 function findTileFrame(frames, tileSet, u, no) {
@@ -132,7 +134,9 @@ export function resolveMapScene(facts) {
     const stableId = stablePlacementId(mapId, "back", row.sourceOrder);
     const front = Number(row.front) !== 0;
     const type = Number(row.type);
-    const { frame } = findBackFrame(facts.frames, row.bS, row.no, Number(row.ani) !== 0);
+    const animated = Number(row.ani) !== 0;
+    const { framesFor } = findBackFrames(facts.frames, row.bS, row.no, animated);
+    const frame = framesFor[0] ?? null;
     const sortKey = backSortKey(row.sourceOrder, front);
     const base = {
       stableId,
@@ -146,7 +150,7 @@ export function resolveMapScene(facts) {
       tieKey: row.sourceOrder,
       sortKeySource: "OPENMS-REFERENCE",
       front,
-      updateClass: "camera-relative",
+      updateClass: framesFor.length > 1 ? "local-animation" : "camera-relative",
       placement: Object.freeze({
         bS: row.bS,
         no: row.no,
@@ -189,35 +193,39 @@ export function resolveMapScene(facts) {
       continue;
     }
 
-    const resource = resourceRef(facts.resources, frame.resource);
-    if (!resource) {
-      diagnostics.push(diagnose(RESOURCE_MISSING, `missing back resource ${frame.resource}`, {
-        mapId,
-        group: "back",
-        sourceOrder: row.sourceOrder,
-        stableId,
-        resourceKey: frame.resource,
-      }));
-    } else {
-      resourcesUsed.set(resource.key, resource);
-    }
-
     const flip = Number(row.f) !== 0;
     const opacity = Number.isInteger(row.a) ? row.a : 255;
-    const resolvedFrame = Object.freeze({
-      origin: Object.freeze([...(frame.origin ?? [0, 0])]),
-      width: frame.width,
-      height: frame.height,
-      z: frame.z,
-      delay: frame.delay,
-      resource,
-    });
+    const resolvedFrames = Object.freeze(framesFor.map((item, index) => Object.freeze({
+      frame: Number.isFinite(item.frame) ? Number(item.frame) : index,
+      origin: Object.freeze([...(item.origin ?? [0, 0])]),
+      width: item.width,
+      height: item.height,
+      z: item.z,
+      delay: item.delay,
+      resource: resourceRef(facts.resources, item.resource),
+    })));
+    for (let index = 0; index < resolvedFrames.length; index += 1) {
+      const item = resolvedFrames[index];
+      if (item.resource) {
+        resourcesUsed.set(item.resource.key, item.resource);
+      } else {
+        diagnostics.push(diagnose(RESOURCE_MISSING, `missing back resource ${framesFor[index].resource}`, {
+          mapId,
+          group: "back",
+          sourceOrder: row.sourceOrder,
+          stableId,
+          resourceKey: framesFor[index].resource,
+          frame: item.frame,
+        }));
+      }
+    }
+    const resource = resolvedFrames[0].resource;
 
     drawables.push(Object.freeze({
       ...base,
-      resolved: Boolean(resource),
+      resolved: resolvedFrames.every((item) => Boolean(item.resource)),
       presentation: backPresentation(type),
-      frames: Object.freeze([resolvedFrame]),
+      frames: resolvedFrames,
       bounds: resource
         ? worldBoundsFrom(frame.origin, frame.width, frame.height, row.x, row.y, flip)
         : null,

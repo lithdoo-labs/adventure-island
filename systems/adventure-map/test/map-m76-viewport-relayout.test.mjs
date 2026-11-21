@@ -6,7 +6,7 @@ import { buildMapProjection } from "../../../components/ms-map-adapter/src/index
 import { CANONICAL_VIEWPORT_LARGE, CANONICAL_VIEWPORT_SMALL } from "../../../components/ms-map-adapter/src/viewport-envelope.mjs";
 import { summarizeProjectionCanvasBudget } from "../../../components/ms-field/test/canonical-budgets.mjs";
 import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
-import { M7_5_OBJ_FLOW_BUDGETS, M7_5_MEASURED_WATER_MAP_BUDGETS, M7_6_VIEWPORT_BUDGETS, M7_6_MEASURED_SOAK_BUDGETS, M7_PORTAL_BUDGETS } from "../portal-budgets.mjs";
+import { M7_5_OBJ_FLOW_BUDGETS, M7_5_MEASURED_WATER_MAP_BUDGETS, M7_6_VIEWPORT_BUDGETS, M7_6_MEASURED_SOAK_BUDGETS, M7_7_MEASURED_WATER_MAP_BUDGETS, M7_PORTAL_BUDGETS } from "../portal-budgets.mjs";
 import { projectViewportRelayoutUpdates } from "../viewport-view-projection.mjs";
 import { projectAdventureMapFieldSceneFromPlan } from "../field-scene-runtime.mjs";
 
@@ -63,15 +63,17 @@ test("800x600 water map projection stays within immutable totals and M7.6 additi
   );
 });
 
-test("canonical FieldPlan at 1000x700 historical closure is unchanged", async () => {
+test("canonical FieldPlan at 1000x700 preserves M7.6 evidence and stays inside the additive M7.7 total", async () => {
   const { plan } = await buildCanonicalAdventureFieldPlanContent({
     gameRoot: repoRoot,
     mapId: "230030200",
   });
   const summary = summarizeProjectionCanvasBudget(plan.root);
-  assert.equal(summary.totalLocalPixels, M7_5_MEASURED_WATER_MAP_BUDGETS.totalLocalPixels);
+  assert.equal(M7_6_MEASURED_SOAK_BUDGETS.maxWaterMapTotalLocalPixelsLarge, 11_701_394,
+    "M7.6 measured evidence must remain immutable after additive animation work");
+  assert.equal(summary.totalLocalPixels, M7_7_MEASURED_WATER_MAP_BUDGETS.totalLocalPixels);
   assert.equal(summary.canvasCount, M7_5_MEASURED_WATER_MAP_BUDGETS.fieldPlanVisualCanvases);
-  assert.ok(summary.totalLocalPixels <= M7_6_MEASURED_SOAK_BUDGETS.maxWaterMapTotalLocalPixelsLarge);
+  assert.ok(summary.totalLocalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
 });
 
 test("first entry at 800x600 relayouts the published canonical FieldPlan immediately", async () => {

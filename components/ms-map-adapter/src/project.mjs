@@ -24,16 +24,47 @@ function imageRegion(frame) {
   });
 }
 
+function backAnimationEnvelope(frames, flip) {
+  const boxes = frames.map((frame) => {
+    const [originX, originY] = frame.origin ?? [0, 0];
+    const left = flip ? -(frame.width - originX) : -originX;
+    const top = -originY;
+    return { left, top, right: left + frame.width, bottom: top + frame.height };
+  });
+  const left = Math.min(...boxes.map((box) => box.left));
+  const top = Math.min(...boxes.map((box) => box.top));
+  const right = Math.max(...boxes.map((box) => box.right));
+  const bottom = Math.max(...boxes.map((box) => box.bottom));
+  return Object.freeze({
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+    offsets: Object.freeze(boxes.map((box) => Object.freeze([box.left - left, box.top - top]))),
+  });
+}
+
 function projectBack(plan, projectionContext) {
   const d = plan.drawable;
   const frame = d.frames[0];
   const type = Number(d.placement.type);
-  const frameWidth = frame?.width ?? 0;
-  const frameHeight = frame?.height ?? 0;
-  const laidOut = d.bounds && frameWidth > 0 && frameHeight > 0
+  const multiFrame = d.frames.length > 1;
+  const flip = Boolean(d.flip);
+  const envelope = multiFrame ? backAnimationEnvelope(d.frames, flip) : null;
+  const frameWidth = envelope?.width ?? frame?.width ?? 0;
+  const frameHeight = envelope?.height ?? frame?.height ?? 0;
+  const layoutBounds = envelope
+    ? Object.freeze({
+      x: d.worldX + envelope.left,
+      y: d.worldY + envelope.top,
+      width: envelope.width,
+      height: envelope.height,
+    })
+    : d.bounds;
+  const laidOut = layoutBounds && frameWidth > 0 && frameHeight > 0
     ? layoutBackView({
       type,
-      bounds: d.bounds,
+      bounds: layoutBounds,
       placement: d.placement,
       frameWidth,
       frameHeight,
@@ -51,6 +82,19 @@ function projectBack(plan, projectionContext) {
   // Resource page dimensions describe the decoded Content identity. The local
   // repeated surface is a separate layout concern and must never rewrite them.
   const image = imageRegion(frame);
+  const frames = multiFrame
+    ? Object.freeze(d.frames.map((item, index) => Object.freeze({
+      frame: Number.isFinite(item.frame) ? item.frame : index,
+      delay: Number.isFinite(item.delay) ? item.delay : null,
+      image: imageRegion(item),
+      offset: envelope.offsets[index],
+      draw: Object.freeze({
+        origin: item.origin ?? [0, 0],
+        flip,
+        opacity: d.opacity ?? 255,
+      }),
+    })))
+    : null;
   return Object.freeze({
     key: plan.stableId,
     tag: "ms-map-back",
@@ -72,12 +116,19 @@ function projectBack(plan, projectionContext) {
       }),
       presentation: d.presentation,
       layout: laidOut.layout,
-      image,
-      draw: Object.freeze({
-        origin: frame?.origin ?? [0, 0],
-        flip: Boolean(d.flip),
-        opacity: d.opacity ?? 255,
-      }),
+      ...(multiFrame
+        ? Object.freeze({
+          mode: "local-animation",
+          frames,
+        })
+        : Object.freeze({
+          image,
+          draw: Object.freeze({
+            origin: frame?.origin ?? [0, 0],
+            flip,
+            opacity: d.opacity ?? 255,
+          }),
+        })),
       provenance: Object.freeze({
         mapId: d.mapId,
         group: d.sourceGroup,

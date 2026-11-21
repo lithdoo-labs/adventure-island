@@ -655,18 +655,89 @@ export function validateBackData(data) {
   if (!plainObject(data)) return invalid("INPUT_INVALID", "data", "back data must be a plain object");
   const placementId = idString(data.placementId, "data.placementId");
   if (!placementId.ok) return placementId;
-  const image = imageRegion(data, "data");
-  if (!image.ok) return image;
   const layout = validateBackLayout(data.layout);
   if (!layout.ok) return layout;
+  if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
+    return invalid("INPUT_INVALID", "data.provenance.sortKey", "back provenance sortKey must be finite");
+  }
+  const sortKey = data.provenance.sortKey;
+  if (data.mode === "local-animation") {
+    if (!Array.isArray(data.frames)) {
+      return invalid("INPUT_INVALID", "data.frames", "animated back data must carry frames");
+    }
+    if (data.frames.length < 2 || data.frames.length > FIELD_INPUT_LIMITS.maxObjectFrames) {
+      return invalid("INPUT_INVALID", "data.frames", "animated back frame count is outside the field budget");
+    }
+    if (data.image !== undefined || data.draw !== undefined) {
+      return invalid("INPUT_INVALID", "data", "animated back data must not mix top-level image/draw with frames");
+    }
+    const frames = [];
+    for (let index = 0; index < data.frames.length; index += 1) {
+      const frame = data.frames[index];
+      const path = `data.frames[${index}]`;
+      if (!plainObject(frame) || !plainObject(frame.image) || !plainObject(frame.draw)) {
+        return invalid("INPUT_INVALID", path, "frame must contain image and draw");
+      }
+      const image = validatedImageRegion(frame.image, `${path}.image`);
+      if (!image.ok) return image;
+      const draw = validateDrawHints(frame.draw, `${path}.draw`);
+      if (!draw.ok) return draw;
+      const frameNo = safeInteger(frame.frame ?? index, `${path}.frame`, { min: 0 });
+      if (!frameNo.ok) return frameNo;
+      let delay = null;
+      if (frame.delay !== null && frame.delay !== undefined) {
+        const checkedDelay = safeInteger(frame.delay, `${path}.delay`, { min: 0 });
+        if (!checkedDelay.ok) return checkedDelay;
+        delay = checkedDelay.value;
+      }
+      if (!Array.isArray(frame.offset) || frame.offset.length !== 2) {
+        return invalid("INPUT_INVALID", `${path}.offset`, "animated Back frame offset must be a two-item array");
+      }
+      const offsetX = safeInteger(frame.offset[0], `${path}.offset[0]`, { min: 0, max: FIELD_CANVAS_LIMITS.maxCanvasWidth });
+      if (!offsetX.ok) return offsetX;
+      const offsetY = safeInteger(frame.offset[1], `${path}.offset[1]`, { min: 0, max: FIELD_CANVAS_LIMITS.maxCanvasHeight });
+      if (!offsetY.ok) return offsetY;
+      frames.push(Object.freeze({
+        frame: frameNo.value,
+        delay,
+        image: image.value,
+        offset: Object.freeze([offsetX.value, offsetY.value]),
+        draw: draw.value,
+      }));
+      if (index > 0 && frames[index - 1].frame >= frameNo.value) {
+        return invalid("INPUT_INVALID", `${path}.frame`, "animated Back frames must be strictly ordered");
+      }
+    }
+    if (!layout.value) {
+      return invalid("INPUT_INVALID", "data.layout", "animated Back requires a stable local animation surface");
+    }
+    for (let index = 0; index < frames.length; index += 1) {
+      const item = frames[index];
+      if (item.offset[0] + item.image.pageWidth > layout.value.frameWidth
+        || item.offset[1] + item.image.pageHeight > layout.value.frameHeight) {
+        return invalid("INPUT_INVALID", `data.frames[${index}].offset`, "animated Back frame must fit its stable local surface");
+      }
+    }
+    return valid(Object.freeze({
+      placementId: placementId.value,
+      mode: "local-animation",
+      frames,
+      layout: layout.value,
+      sortKey,
+    }));
+  }
+  if (data.frames !== undefined || data.mode !== undefined) {
+    return invalid("INPUT_INVALID", "data", "static back data must not declare animation mode or frames");
+  }
+  const image = imageRegion(data, "data");
+  if (!image.ok) return image;
+  const draw = validateDrawHints(data.draw, "data.draw");
+  if (!draw.ok) return draw;
   if (layout.value && (layout.value.frameWidth !== image.value.pageWidth
     || layout.value.frameHeight !== image.value.pageHeight)) {
     return invalid("INPUT_INVALID", "data.layout", "layout frame dimensions must match the declared resource page");
   }
-  if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
-    return invalid("INPUT_INVALID", "data.provenance.sortKey", "back provenance sortKey must be finite");
-  }
-  return valid({ placementId: placementId.value, image: image.value, layout: layout.value, sortKey: data.provenance.sortKey });
+  return valid({ placementId: placementId.value, image: image.value, draw: draw.value, layout: layout.value, sortKey });
 }
 
 export function validateAvatarAttrs(attrs) {

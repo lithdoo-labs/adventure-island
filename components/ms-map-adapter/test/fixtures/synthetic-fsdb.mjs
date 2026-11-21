@@ -46,8 +46,10 @@ export async function writeSyntheticMap({
   malformedTile = false,
   omitTileFrame = false,
   missingResource = false,
+  missingAnimatedBackResource = false,
   authoredSourceOrder,
   animatedObj = false,
+  animatedBack = false,
   portals = [
     { pn: "sp", pt: 0, x: 0, y: 0, tm: 999999999, tn: "" },
     { pn: "east00", pt: 2, x: 10, y: 20, tm: 900000002, tn: "west00" },
@@ -65,10 +67,16 @@ export async function writeSyntheticMap({
   });
 
   await writeJsonl(join(root, "[group]map.Back", `${mapKey}.jsonl`), [
-    { bS: "toy", no: 0, ani: 0, x: 0, y: 0, rx: 0, ry: 0, type: 0, cx: 0, cy: 0, f: 0, a: 255, front: 0 },
+    { bS: "toy", no: 0, ani: animatedBack ? 1 : 0, x: 0, y: 0, rx: 0, ry: 0, type: 0, cx: 0, cy: 0, f: 0, a: 255, front: 0 },
   ]);
   await writeJsonl(join(root, "[group]map.BackFrame", "map.back.toy.jsonl"), [
     { kind: "back", no: 0, origin: [0, 0], z: 0, width: 8, height: 8, resource: "back/toy/back/0" },
+    ...(animatedBack
+      ? [
+        { kind: "ani", no: 0, frame: "0", delay: 90, origin: [0, 0], z: 0, width: 8, height: 8, resource: "back/toy/back/0" },
+        { kind: "ani", no: 0, frame: "1", delay: 110, origin: [1, 0], z: 0, width: 10, height: 9, resource: "back/toy/back/1" },
+      ]
+      : []),
   ]);
 
   if (!omitTile) {
@@ -135,6 +143,7 @@ export async function writeSyntheticMap({
 
   const resources = [
     "back/toy/back/0",
+    ...(animatedBack ? ["back/toy/back/1"] : []),
     "tile/toy/bsc/0",
     "obj/toy/a/b/0/0",
     ...(animatedObj ? ["obj/toy/a/b/0/1"] : []),
@@ -142,7 +151,8 @@ export async function writeSyntheticMap({
   ];
   for (const key of resources) {
     const path = join(root, "[resource]Map", `${key}.png`);
-    if (missingResource && key.startsWith("tile/")) {
+    if ((missingResource && key.startsWith("tile/"))
+      || (missingAnimatedBackResource && key === "back/toy/back/1")) {
       await rm(path, { force: true });
       continue;
     }

@@ -140,7 +140,14 @@ export function collectFirstFramePaintResourceIdentities(root) {
     identities.add(`${resource.namespace}\0${resource.key}\0${resource.contentVersion}`);
   };
   const visit = (node) => {
-    if (node.tag === "ms-map-back" || node.tag === "ms-portal-visual") {
+    if (node.tag === "ms-map-back") {
+      if (node.data?.mode === "local-animation") {
+        const frame = node.data.frames?.[0];
+        if (frame?.image?.resource) add(frame.image.resource);
+      } else if (node.data?.image?.resource) {
+        add(node.data.image.resource);
+      }
+    } else if (node.tag === "ms-portal-visual") {
       if (node.data?.image?.resource) add(node.data.image.resource);
     } else if (node.tag === "ms-map-object") {
       const frame = node.data?.frames?.[0];
@@ -176,6 +183,22 @@ export function collectFirstFramePaintResourceIdentities(root) {
   return identities;
 }
 
+/** Resources eagerly decoded before every animated Back host reports ready. */
+export function collectBrowserReadyPaintResourceIdentities(root) {
+  const identities = collectFirstFramePaintResourceIdentities(root);
+  const visit = (node) => {
+    if (node.tag === "ms-map-back" && node.data?.mode === "local-animation") {
+      for (const frame of node.data.frames ?? []) {
+        const resource = frame?.image?.resource;
+        if (resource) identities.add(`${resource.namespace}\0${resource.key}\0${resource.contentVersion}`);
+      }
+    }
+    for (const child of node.children ?? []) visit(child);
+  };
+  visit(root);
+  return identities;
+}
+
 export function summarizeProjectionCanvasBudget(root) {
   const units = walkVisualPaintUnits(root);
   let maxWidth = 0;
@@ -196,6 +219,7 @@ export function summarizeProjectionCanvasBudget(root) {
   }
   const closure = collectFieldPlanResourceClosure(root);
   const firstFrame = collectFirstFramePaintResourceIdentities(root);
+  const browserReady = collectBrowserReadyPaintResourceIdentities(root);
   return Object.freeze({
     canvasCount: units.length,
     maxWidth,
@@ -204,5 +228,6 @@ export function summarizeProjectionCanvasBudget(root) {
     totalLocalPixels,
     fieldPlanResourceClosure: closure.size,
     firstFramePaintResources: firstFrame.size,
+    browserReadyPaintResources: browserReady.size,
   });
 }

@@ -22,8 +22,9 @@ export const M7_230030200_KNOWN_PRESENTATION_GAPS = Object.freeze({
     bottom: 1058,
   }),
   adapterOnlyResourceCount: 0,
-  fieldPlanTreeResourceCount: 154,
-  adapterClosureResourceCount: 154,
+  fieldPlanTreeResourceCount: 183,
+  adapterClosureResourceCount: 183,
+  animatedBackVisualCount: 21,
 });
 
 const M7_EXTRA_PUBLISHABLE_MAP_IDS = new Set(["230030200"]);
@@ -88,10 +89,20 @@ export function assertM7ExtraMapFieldPlanPublishable(mapId, projection) {
   )) {
     throw new TypeError(`map ${mapId} Back non-zero repeat facts drifted from the audited set`);
   }
-  if (orderedBacks.some((node) => !node.data.layout
-    || node.data.layout.frameWidth !== node.data.image.pageWidth
-    || node.data.layout.frameHeight !== node.data.image.pageHeight)) {
-    throw new TypeError(`map ${mapId} Back layout rewrote or omitted a resource identity dimension`);
+  if (orderedBacks.some((node) => {
+    if (!node.data.layout) return true;
+    if (node.data.mode === "local-animation") {
+      return node.data.frames.some((frame) => (
+        frame.image.pageWidth !== frame.image.source.w
+        || frame.image.pageHeight !== frame.image.source.h
+        || frame.offset[0] + frame.image.pageWidth > node.data.layout.frameWidth
+        || frame.offset[1] + frame.image.pageHeight > node.data.layout.frameHeight
+      ));
+    }
+    return node.data.layout.frameWidth !== node.data.image?.pageWidth
+      || node.data.layout.frameHeight !== node.data.image?.pageHeight;
+  })) {
+    throw new TypeError(`map ${mapId} Back layout rewrote a resource dimension or escaped its local surface`);
   }
 
   const unsupported = (scene.diagnostics ?? []).filter((item) => item.code === UNSUPPORTED);
@@ -109,6 +120,18 @@ export function assertM7ExtraMapFieldPlanPublishable(mapId, projection) {
   }
   if (flowObjects.length !== M7_230030200_KNOWN_PRESENTATION_GAPS.supportedObjFlowVisualCount) {
     throw new TypeError(`map ${mapId} Obj flow publishable count drifted`);
+  }
+  const animatedBacks = orderedBacks.filter((node) => node.data?.mode === "local-animation");
+  if (animatedBacks.length !== M7_230030200_KNOWN_PRESENTATION_GAPS.animatedBackVisualCount) {
+    throw new TypeError(`map ${mapId} animated Back publishable count drifted`);
+  }
+  for (const node of animatedBacks) {
+    if (!Array.isArray(node.data.frames) || node.data.frames.length < 2) {
+      throw new TypeError(`map ${mapId} animated Back must publish ordered multi-frame data for ${node.key}`);
+    }
+    if (node.data.image !== undefined) {
+      throw new TypeError(`map ${mapId} animated Back must not mix top-level image with frames for ${node.key}`);
+    }
   }
   for (const node of flowObjects) {
     if (!node.data.layout?.tileHorizontal || node.data.layout.kind !== "flow-horizontal") {

@@ -29,8 +29,15 @@ test("230030200 has no unsupported Back type 1-4 diagnostics", async () => {
     typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1);
     assert.ok(back.data?.layout, `${back.key} must carry layout metadata`);
     assert.notEqual(back.data.presentation, "layout-pending");
-    assert.equal(back.data.image.pageWidth, back.data.layout.frameWidth,
-      "resource page identity must not be replaced with local Canvas width");
+    if (back.data.mode === "local-animation") {
+      assert.ok(back.data.frames.every((frame) => (
+        frame.image.pageWidth === frame.image.source.w
+        && frame.offset[0] + frame.image.pageWidth <= back.data.layout.frameWidth
+      )), "animated resource identities must fit the stable local surface without dimension rewriting");
+    } else {
+      assert.equal(back.data.image.pageWidth, back.data.layout.frameWidth,
+        "static resource page identity must not be replaced with local Canvas width");
+    }
   }
   assert.deepEqual(Object.fromEntries([...typeCounts].sort(([a], [b]) => a - b)), { 0: 10, 1: 12, 3: 1, 4: 8 });
   assert.equal(backs.filter((back) => back.data.layout.tileHorizontal).length, 12,

@@ -60,6 +60,31 @@ export const M7_6_VIEWPORT_BUDGETS = Object.freeze({
   maxHeapDomProxyDelta: 0,
 });
 
+/** M7.7 additive Back animation ceilings; M7.1–M7.6 gates remain immutable evidence. */
+export const M7_7_BACK_ANIM_BUDGETS = Object.freeze({
+  publishedMapResourceUnion: 351,
+  maxWaterMapFieldPlanResourceClosure: 190,
+  maxWaterMapBackAnimHosts: 21,
+  maxWaterMapBackAnimFrameResources: 80,
+  maxWaterMapBrowserReadyPaintResources: 120,
+  maxContentReadConcurrency: 8,
+  maxWaterMapProjectionMs: 2_000,
+  maxWaterMapBrowserReadyMs: 30_000,
+});
+
+/** Measured Node 2026-11-21 after M7.7 Back animation slice (canonical 1000×700 viewport). */
+export const M7_7_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
+  visualCanvases: 148,
+  totalLocalPixels: 11_718_514,
+  mapResourceClosure: 183,
+  fieldPlanResourceClosure: 187,
+  firstFramePaintResources: 91,
+  browserReadyMapPaintResources: 116,
+  browserReadyFieldPaintResources: 120,
+  backAnimHosts: 21,
+  backAnimFrameResources: 50,
+});
+
 /** Measured Node + Chromium 2026-11-21 after M7.6 bounded relayout soak (800↔1000 × 600↔700). */
 export const M7_6_MEASURED_SOAK_BUDGETS = Object.freeze({
   maxWaterMapTotalLocalPixelsLarge: 11_701_394,

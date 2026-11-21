@@ -37,6 +37,32 @@ test("Back layout validator rejects forged surfaces and zero-step repetition", a
   assert.equal(validateBackData(forgedPage).ok, false);
 });
 
+test("animated Back validator accepts ordered frames and rejects forged identity mixing", async () => {
+  const projection = await buildFieldProjection({
+    gameRoot: process.cwd(),
+    mapId: "230030200",
+    viewport: { width: 1000, height: 700 },
+  });
+  const back = projection.root.children.find((child) => child.tag === "ms-map-back" && child.data?.mode === "local-animation");
+  assert.ok(back);
+  assert.equal(validateBackData(back.data).ok, true);
+  const forged = structuredClone(back.data);
+  forged.image = back.data.frames[0].image;
+  assert.equal(validateBackData(forged).ok, false);
+
+  const outsideSurface = structuredClone(back.data);
+  outsideSurface.frames[0].offset[0] = outsideSurface.layout.frameWidth;
+  assert.equal(validateBackData(outsideSurface).ok, false);
+
+  const missingSurface = structuredClone(back.data);
+  missingSurface.layout = null;
+  assert.equal(validateBackData(missingSurface).ok, false);
+
+  const unordered = structuredClone(back.data);
+  unordered.frames[1].frame = unordered.frames[0].frame;
+  assert.equal(validateBackData(unordered).ok, false);
+});
+
 test("Obj flow validator bounds frames and rejects forged source/layout values", async () => {
   const projection = await buildFieldProjection({
     gameRoot: process.cwd(),

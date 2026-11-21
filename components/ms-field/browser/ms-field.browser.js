@@ -2905,18 +2905,89 @@ function validateBackData(data) {
   if (!plainObject(data)) return invalid("INPUT_INVALID", "data", "back data must be a plain object");
   const placementId = idString(data.placementId, "data.placementId");
   if (!placementId.ok) return placementId;
-  const image = imageRegion(data, "data");
-  if (!image.ok) return image;
   const layout = validateBackLayout(data.layout);
   if (!layout.ok) return layout;
+  if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
+    return invalid("INPUT_INVALID", "data.provenance.sortKey", "back provenance sortKey must be finite");
+  }
+  const sortKey = data.provenance.sortKey;
+  if (data.mode === "local-animation") {
+    if (!Array.isArray(data.frames)) {
+      return invalid("INPUT_INVALID", "data.frames", "animated back data must carry frames");
+    }
+    if (data.frames.length < 2 || data.frames.length > FIELD_INPUT_LIMITS.maxObjectFrames) {
+      return invalid("INPUT_INVALID", "data.frames", "animated back frame count is outside the field budget");
+    }
+    if (data.image !== undefined || data.draw !== undefined) {
+      return invalid("INPUT_INVALID", "data", "animated back data must not mix top-level image/draw with frames");
+    }
+    const frames = [];
+    for (let index = 0; index < data.frames.length; index += 1) {
+      const frame = data.frames[index];
+      const path = `data.frames[${index}]`;
+      if (!plainObject(frame) || !plainObject(frame.image) || !plainObject(frame.draw)) {
+        return invalid("INPUT_INVALID", path, "frame must contain image and draw");
+      }
+      const image = validatedImageRegion(frame.image, `${path}.image`);
+      if (!image.ok) return image;
+      const draw = validateDrawHints(frame.draw, `${path}.draw`);
+      if (!draw.ok) return draw;
+      const frameNo = safeInteger(frame.frame ?? index, `${path}.frame`, { min: 0 });
+      if (!frameNo.ok) return frameNo;
+      let delay = null;
+      if (frame.delay !== null && frame.delay !== undefined) {
+        const checkedDelay = safeInteger(frame.delay, `${path}.delay`, { min: 0 });
+        if (!checkedDelay.ok) return checkedDelay;
+        delay = checkedDelay.value;
+      }
+      if (!Array.isArray(frame.offset) || frame.offset.length !== 2) {
+        return invalid("INPUT_INVALID", `${path}.offset`, "animated Back frame offset must be a two-item array");
+      }
+      const offsetX = safeInteger(frame.offset[0], `${path}.offset[0]`, { min: 0, max: FIELD_CANVAS_LIMITS.maxCanvasWidth });
+      if (!offsetX.ok) return offsetX;
+      const offsetY = safeInteger(frame.offset[1], `${path}.offset[1]`, { min: 0, max: FIELD_CANVAS_LIMITS.maxCanvasHeight });
+      if (!offsetY.ok) return offsetY;
+      frames.push(Object.freeze({
+        frame: frameNo.value,
+        delay,
+        image: image.value,
+        offset: Object.freeze([offsetX.value, offsetY.value]),
+        draw: draw.value,
+      }));
+      if (index > 0 && frames[index - 1].frame >= frameNo.value) {
+        return invalid("INPUT_INVALID", `${path}.frame`, "animated Back frames must be strictly ordered");
+      }
+    }
+    if (!layout.value) {
+      return invalid("INPUT_INVALID", "data.layout", "animated Back requires a stable local animation surface");
+    }
+    for (let index = 0; index < frames.length; index += 1) {
+      const item = frames[index];
+      if (item.offset[0] + item.image.pageWidth > layout.value.frameWidth
+        || item.offset[1] + item.image.pageHeight > layout.value.frameHeight) {
+        return invalid("INPUT_INVALID", `data.frames[${index}].offset`, "animated Back frame must fit its stable local surface");
+      }
+    }
+    return valid(Object.freeze({
+      placementId: placementId.value,
+      mode: "local-animation",
+      frames,
+      layout: layout.value,
+      sortKey,
+    }));
+  }
+  if (data.frames !== undefined || data.mode !== undefined) {
+    return invalid("INPUT_INVALID", "data", "static back data must not declare animation mode or frames");
+  }
+  const image = imageRegion(data, "data");
+  if (!image.ok) return image;
+  const draw = validateDrawHints(data.draw, "data.draw");
+  if (!draw.ok) return draw;
   if (layout.value && (layout.value.frameWidth !== image.value.pageWidth
     || layout.value.frameHeight !== image.value.pageHeight)) {
     return invalid("INPUT_INVALID", "data.layout", "layout frame dimensions must match the declared resource page");
   }
-  if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
-    return invalid("INPUT_INVALID", "data.provenance.sortKey", "back provenance sortKey must be finite");
-  }
-  return valid({ placementId: placementId.value, image: image.value, layout: layout.value, sortKey: data.provenance.sortKey });
+  return valid({ placementId: placementId.value, image: image.value, draw: draw.value, layout: layout.value, sortKey });
 }
 
 function validateAvatarAttrs(attrs) {
@@ -3162,6 +3233,7 @@ function failureCode(error) {
   if (error?.code === "CONTENT_NOT_FOUND") return "RESOURCE_MISSING";
   if (error?.code === "CONTENT_CONFLICT") return "CONTENT_IDENTITY_MISMATCH";
   if (error?.code === "CONTENT_CANCELLED" || error?.name === "AbortError") return "STALE_RENDER_RESULT";
+  if (error?.code === "RESOURCE_LIMIT") return "RESOURCE_LIMIT";
   return "IMAGE_INVALID";
 }
 
@@ -3174,6 +3246,10 @@ function deviceCanvasFitsBudget(width, height) {
 }
 
 function backContentSignature(data) {
+  if (data?.mode === "local-animation") {
+    const { placementId, front, source, presentation, mode, frames } = data;
+    return JSON.stringify({ placementId, front, source, presentation, mode, frames });
+  }
   const { placementId, front, source, presentation, image, draw } = data;
   return JSON.stringify({ placementId, front, source, presentation, image, draw });
 }
@@ -3540,9 +3616,27 @@ class MsMapBatch extends SpikeElement {
   }
 }
 
-function paintBackTiles(context, bitmap, image, layout, draw, scrollOffsetX = 0) {
+function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0) {
+  const source = image?.source ?? {
+    x: 0,
+    y: 0,
+    w: layout?.frameWidth ?? image?.pageWidth ?? 0,
+    h: layout?.frameHeight ?? image?.pageHeight ?? 0,
+  };
   if (!layout) {
-    context.drawImage(bitmap, 0, 0);
+    context.clearRect(0, 0, source.w, source.h);
+    const opacity = Number.isInteger(draw?.opacity) ? draw.opacity : 255;
+    context.globalAlpha = opacity / 255;
+    if (draw?.flip) {
+      context.save();
+      context.translate(source.w, 0);
+      context.scale(-1, 1);
+      context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+      context.restore();
+    } else {
+      context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+    }
+    context.globalAlpha = 1;
     return;
   }
   const frameW = layout.frameWidth;
@@ -3564,16 +3658,19 @@ function paintBackTiles(context, bitmap, image, layout, draw, scrollOffsetX = 0)
   const xEnd = horiz ? canvasW + stepX : frameW;
   const yStep = vert ? stepY : frameH;
   const xStep = horiz ? stepX : frameW;
+  const [offsetX, offsetY] = offset;
   for (let y = vert ? phaseY : 0; y < yEnd; y += yStep) {
     for (let x = horiz ? phaseX : 0; x < xEnd; x += xStep) {
+      const drawX = x + offsetX;
+      const drawY = y + offsetY;
       if (draw?.flip) {
         context.save();
-        context.translate(x + frameW, y);
+        context.translate(drawX + source.w, drawY);
         context.scale(-1, 1);
-        context.drawImage(bitmap, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
+        context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
         context.restore();
       } else {
-        context.drawImage(bitmap, 0, 0, frameW, frameH, x, y, frameW, frameH);
+        context.drawImage(bitmap, source.x, source.y, source.w, source.h, drawX, drawY, source.w, source.h);
       }
     }
   }
@@ -3671,7 +3768,11 @@ class MsMapBack extends SpikeElement {
     this._paintedSignature = null;
     this._loadingSignature = null;
     this._sourceBitmap = null;
-    this._scrollFrame = null;
+    this._frameBitmaps = [];
+    this._validated = null;
+    this._displayFrame = 0;
+    this._presentationStart = 0;
+    this._animFrame = null;
     this._scrollOffsetX = 0;
     this._scrollLastTs = null;
     this._scrollPixel = 0;
@@ -3687,28 +3788,66 @@ class MsMapBack extends SpikeElement {
     });
   }
 
-  _stopScroll() {
-    if (this._scrollFrame !== null) {
-      cancelAnimationFrame(this._scrollFrame);
-      this._scrollFrame = null;
+  _stopAnim() {
+    if (this._animFrame !== null) {
+      cancelAnimationFrame(this._animFrame);
+      this._animFrame = null;
     }
     this._scrollLastTs = null;
   }
 
-  _failInput(result) {
-    this._stopScroll();
+  _releaseBitmaps() {
     this._sourceBitmap?.close?.();
     this._sourceBitmap = null;
+    for (const bitmap of this._frameBitmaps) bitmap?.close?.();
+    this._frameBitmaps = [];
+  }
+
+  _hasLastGoodPaint() {
+    if (this._paintCommits <= 0 || this._contentSignature === null) return false;
+    if (this._validated?.mode === "local-animation") return this._frameBitmaps.length > 0;
+    return this._sourceBitmap !== null;
+  }
+
+  _failInput(result) {
+    this._stopAnim();
+    this._releaseBitmaps();
+    this._validated = null;
     super._failInput(result);
   }
 
   _releaseSurface() {
-    this._stopScroll();
-    this._sourceBitmap?.close?.();
-    this._sourceBitmap = null;
+    this._stopAnim();
+    this._releaseBitmaps();
+    this._validated = null;
+    this._displayFrame = 0;
     this._scrollOffsetX = 0;
     this._scrollPixel = 0;
     super._releaseSurface();
+  }
+
+  _hostBox(attrs, validated) {
+    const layout = validated.layout;
+    if (layout) {
+      return {
+        viewX: attrs.viewX,
+        viewY: attrs.viewY,
+        stackRank: attrs.stackRank,
+        w: layout.canvasWidth,
+        h: layout.canvasHeight,
+      };
+    }
+    const frame = validated.mode === "local-animation"
+      ? validated.frames[0]
+      : { image: validated.image };
+    const image = frame.image;
+    return {
+      viewX: attrs.viewX,
+      viewY: attrs.viewY,
+      stackRank: attrs.stackRank,
+      w: image.pageWidth,
+      h: image.pageHeight,
+    };
   }
 
   _installShadow() {
@@ -3750,35 +3889,25 @@ class MsMapBack extends SpikeElement {
     if (this._data === undefined) return;
     const data = validateBackData(this._data);
     if (!data.ok) return this._failInput(data);
-    const image = this._data.image;
-    const layout = this._data.layout ?? null;
-    const box = {
-      viewX: attrs.value.viewX,
-      viewY: attrs.value.viewY,
-      stackRank: attrs.value.stackRank,
-      w: layout?.canvasWidth ?? image.pageWidth,
-      h: layout?.canvasHeight ?? image.pageHeight,
-    };
+    const validated = data.value;
     const contentSignature = backContentSignature(this._data);
     const layoutSignature = backLayoutSignature(this._data);
-    const contentReady = this._paintCommits > 0
-      && this._paintedSignature === contentSignature
-      && this._sourceBitmap !== null
-      && this._state === "ready";
-    if (contentReady) {
+    const box = this._hostBox(attrs.value, validated);
+    const hasLastGood = this._hasLastGoodPaint();
+    if (hasLastGood && contentSignature === this._paintedSignature && this._state === "ready") {
       if (layoutSignature !== this._layoutSignature) {
-        this._relayoutViewportSurface(attrs.value.visible, box, this._data.layout, this._data.draw);
+        this._relayoutViewportSurface(attrs.value.visible, box, validated);
         this._contentSignature = contentSignature;
         this._layoutSignature = layoutSignature;
         return;
       }
       this._writeHost(attrs.value.visible, box);
-      this._syncScrollLoop(this._data?.layout, this._data?.draw);
+      this._syncAnimLoop();
       return;
     }
-    this._stopScroll();
-    this._writeHost(false, box);
     if (contentSignature === this._loadingSignature) return;
+    this._stopAnim();
+    if (!hasLastGood) this._writeHost(false, box);
     this._loadingSignature = contentSignature;
     this._epoch += 1;
     const epoch = this._epoch;
@@ -3786,20 +3915,35 @@ class MsMapBack extends SpikeElement {
     const controller = new AbortController();
     this._abort = controller;
     this._state = "loading";
-    void this._paint(image, contentSignature, epoch, controller, attrs.value.visible, box);
+    this._code = null;
+    this._detail = "";
+    if (!hasLastGood) {
+      this._releaseBitmaps();
+      this._clearCanvas();
+    }
+    if (validated.mode === "local-animation") {
+      void this._loadFrames(validated, contentSignature, epoch, controller, attrs.value.visible, box);
+      return;
+    }
+    void this._paintStatic(validated, contentSignature, epoch, controller, attrs.value.visible, box);
   }
 
-  _relayoutViewportSurface(visible, box, layout, draw) {
-    if (!this._canvas || !this._sourceBitmap) return;
-    const image = this._data?.image;
-    if (!image) return;
+  _relayoutViewportSurface(visible, box, validated) {
+    const layout = validated.layout;
+    const hasBitmap = validated.mode === "local-animation"
+      ? this._frameBitmaps.length > 0
+      : this._sourceBitmap !== null;
+    if (!this._canvas || !hasBitmap) return;
     const ratio = deviceRatio();
     if (ratio === null) {
       this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
       return;
     }
-    const canvasWidth = layout?.canvasWidth ?? image.pageWidth;
-    const canvasHeight = layout?.canvasHeight ?? image.pageHeight;
+    const frame = validated.mode === "local-animation"
+      ? validated.frames[this._displayFrame] ?? validated.frames[0]
+      : { image: validated.image, draw: validated.draw };
+    const canvasWidth = layout?.canvasWidth ?? frame.image.pageWidth;
+    const canvasHeight = layout?.canvasHeight ?? frame.image.pageHeight;
     const deviceW = Math.round(canvasWidth * ratio);
     const deviceH = Math.round(canvasHeight * ratio);
     if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
@@ -3808,56 +3952,192 @@ class MsMapBack extends SpikeElement {
     }
     // The running callback closes over layout/draw. Restart it so the next
     // animation paint cannot restore stale viewport geometry after relayout.
-    this._stopScroll();
+    this._stopAnim();
     this._canvas.width = deviceW;
     this._canvas.height = deviceH;
     this._canvas.style.width = cssPx(canvasWidth);
     this._canvas.style.height = cssPx(canvasHeight);
-    this._redrawTiles(image, layout, draw);
+    this._validated = validated;
+    this._redrawBack(false);
     this._writeHost(visible, box);
-    this._syncScrollLoop(layout, draw);
+    this._syncAnimLoop();
   }
 
-  _redrawTiles(image, layout, draw, countCommit = true) {
-    if (!this._canvas || !this._sourceBitmap) return;
+  _currentFrame() {
+    if (this._validated?.mode === "local-animation") {
+      return this._validated.frames[this._displayFrame] ?? this._validated.frames[0];
+    }
+    return {
+      image: this._validated?.image ?? this._data?.image,
+      draw: this._validated?.draw ?? this._data?.draw,
+    };
+  }
+
+  _currentBitmap() {
+    if (this._validated?.mode === "local-animation") {
+      return this._frameBitmaps[this._displayFrame] ?? this._frameBitmaps[0];
+    }
+    return this._sourceBitmap;
+  }
+
+  _redrawBack(countCommit = true) {
+    const bitmap = this._currentBitmap();
+    if (!this._canvas || !bitmap) return;
     const ratio = deviceRatio();
     if (ratio === null) return;
+    const frame = this._currentFrame();
+    const layout = this._validated?.layout ?? this._data?.layout ?? null;
     const context = this._canvas.getContext("2d");
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.imageSmoothingEnabled = false;
-    paintBackTiles(context, this._sourceBitmap, image, layout, draw, this._scrollOffsetX);
+    paintBackTiles(context, bitmap, frame.image, layout, frame.draw, frame.offset, this._scrollOffsetX);
     if (countCommit) this._paintCommits += 1;
   }
 
-  _syncScrollLoop(layout, draw) {
-    if (!layout?.scroll?.pixelsPerMs || !this._sourceBitmap) {
-      this._stopScroll();
+  _syncAnimLoop() {
+    const validated = this._validated;
+    const layout = validated?.layout;
+    const scroll = layout?.scroll?.pixelsPerMs;
+    const animate = validated?.mode === "local-animation"
+      && (validated.frames?.length ?? 0) > 1
+      && mapObjectCycleDurationMs(validated.frames) > 0;
+    if (!scroll && !animate) {
+      this._stopAnim();
       return;
     }
-    if (this._scrollFrame !== null) return;
-    const image = this._data?.image;
+    if (this._animFrame !== null) return;
     const tick = (ts) => {
       if (!this.isConnected || this._state !== "ready") {
-        this._stopScroll();
+        this._stopAnim();
         return;
       }
-      if (this._scrollLastTs !== null) {
-        const delta = ts - this._scrollLastTs;
-        this._scrollOffsetX += layout.scroll.pixelsPerMs * delta;
-        const pixel = Math.trunc(this._scrollOffsetX);
-        if (pixel !== this._scrollPixel) {
-          this._scrollPixel = pixel;
-          this._redrawTiles(image, layout, draw, false);
-          this._animationPaints += 1;
+      let dirty = false;
+      if (scroll) {
+        if (this._scrollLastTs !== null) {
+          const delta = ts - this._scrollLastTs;
+          this._scrollOffsetX += scroll * delta;
+          const pixel = Math.trunc(this._scrollOffsetX);
+          if (pixel !== this._scrollPixel) {
+            this._scrollPixel = pixel;
+            dirty = true;
+          }
+        }
+        this._scrollLastTs = ts;
+      }
+      if (animate) {
+        const elapsed = ts - this._presentationStart;
+        const nextFrame = mapObjectFrameIndex(validated.frames, elapsed);
+        if (nextFrame !== this._displayFrame) {
+          this._displayFrame = nextFrame;
+          const declared = readDeclaredAttrs(this);
+          if (declared.ok) {
+            const attrs = validateBackAttrs(declared.value);
+            if (attrs.ok) {
+              this._writeHost(attrs.value.visible, this._hostBox(attrs.value, validated));
+            }
+          }
+          dirty = true;
         }
       }
-      this._scrollLastTs = ts;
-      this._scrollFrame = requestAnimationFrame(tick);
+      if (dirty) {
+        this._redrawBack(false);
+        this._animationPaints += 1;
+      }
+      this._animFrame = requestAnimationFrame(tick);
     };
-    this._scrollFrame = requestAnimationFrame(tick);
+    this._animFrame = requestAnimationFrame(tick);
   }
 
-  async _paint(image, signature, epoch, controller, visible, box) {
+  async _loadFrames(validated, signature, epoch, controller, visible, box) {
+    const ratio = deviceRatio();
+    const bitmaps = [];
+    let pendingBitmap = null;
+    let adopted = false;
+    try {
+      if (this._context?.resources?.resource === undefined) {
+        throw Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" });
+      }
+      if (ratio === null) {
+        throw Object.assign(new Error("device pixel ratio is outside the field budget"), { code: "RESOURCE_LIMIT" });
+      }
+      for (const frame of validated.frames) {
+        if (epoch !== this._epoch) return;
+        this._resourceReads += 1;
+        const image = frame.image;
+        const resource = await readSharedResource(
+          this._context.resources,
+          image.resource.namespace,
+          image.resource.key,
+          image.resource.contentVersion,
+          controller.signal,
+        );
+        if (epoch !== this._epoch) return;
+        const mime = String(resource.mime).split(";")[0].trim().toLowerCase();
+        if (mime !== "image/png") throw Object.assign(new Error("page mime is not image/png"), { code: "CONTENT_INVALID" });
+        pendingBitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
+        if (epoch !== this._epoch) return;
+        if (pendingBitmap.width !== image.pageWidth || pendingBitmap.height !== image.pageHeight) {
+          throw Object.assign(new Error("decoded Back dimensions do not match the declared resource page"), { code: "CONTENT_INVALID" });
+        }
+        bitmaps.push(pendingBitmap);
+        pendingBitmap = null;
+      }
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const declared = readDeclaredAttrs(this);
+      if (!declared.ok) return this._failInput(declared);
+      const attrs = validateBackAttrs(declared.value);
+      if (!attrs.ok) return this._failInput(attrs);
+      const latest = validateBackData(this._data);
+      if (!latest.ok) return this._failInput(latest);
+      if (backContentSignature(this._data) !== signature) return;
+      validated = latest.value;
+      visible = attrs.value.visible;
+      box = this._hostBox(attrs.value, validated);
+      const layout = validated.layout;
+      const frame = validated.frames[0];
+      const canvasW = layout?.canvasWidth ?? frame.image.pageWidth;
+      const canvasH = layout?.canvasHeight ?? frame.image.pageHeight;
+      const deviceW = Math.round(canvasW * ratio);
+      const deviceH = Math.round(canvasH * ratio);
+      if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+        throw Object.assign(new Error("Back canvas budget exceeded"), { code: "RESOURCE_LIMIT" });
+      }
+      this._canvas.width = deviceW;
+      this._canvas.height = deviceH;
+      this._canvas.style.width = cssPx(canvasW);
+      this._canvas.style.height = cssPx(canvasH);
+      this._releaseBitmaps();
+      this._frameBitmaps = bitmaps;
+      adopted = true;
+      this._validated = validated;
+      this._displayFrame = 0;
+      this._presentationStart = performance.now();
+      this._scrollOffsetX = 0;
+      this._scrollPixel = 0;
+      this._redrawBack();
+      this._paintedSignature = signature;
+      this._contentSignature = backContentSignature(this._data);
+      this._layoutSignature = backLayoutSignature(this._data);
+      this._loadingSignature = null;
+      this._state = "ready";
+      this._writeHost(visible, box);
+      this._syncAnimLoop();
+    } catch (error) {
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const code = failureCode(error);
+      if (code === "STALE_RENDER_RESULT") return;
+      this._failPaint(epoch, code, error?.message ?? code);
+    } finally {
+      pendingBitmap?.close?.();
+      if (!adopted) {
+        for (const bitmap of bitmaps) bitmap?.close?.();
+      }
+      if (this._abort === controller) this._abort = null;
+    }
+  }
+
+  async _paintStatic(validated, signature, epoch, controller, visible, box) {
+    const image = validated.image;
     let bitmap;
     try {
       if (this._context?.resources?.resource === undefined) {
@@ -3888,50 +4168,60 @@ class MsMapBack extends SpikeElement {
       if (backContentSignature(this._data) !== signature) return;
       const ratio = deviceRatio();
       if (ratio === null) return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
-      const latestImage = this._data.image;
-      const layout = this._data?.layout ?? null;
-      const draw = this._data?.draw ?? null;
-      const canvasWidth = layout?.canvasWidth ?? latestImage.pageWidth;
-      const canvasHeight = layout?.canvasHeight ?? latestImage.pageHeight;
+      validated = latest.value;
+      const layout = validated.layout;
+      const canvasWidth = layout?.canvasWidth ?? validated.image.pageWidth;
+      const canvasHeight = layout?.canvasHeight ?? validated.image.pageHeight;
       const deviceW = Math.round(canvasWidth * ratio);
       const deviceH = Math.round(canvasHeight * ratio);
       if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
         return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "Back canvas budget exceeded" });
       }
-      const latestBox = {
-        viewX: attrs.value.viewX,
-        viewY: attrs.value.viewY,
-        stackRank: attrs.value.stackRank,
-        w: canvasWidth,
-        h: canvasHeight,
-      };
+      const latestBox = this._hostBox(attrs.value, validated);
       if (epoch !== this._epoch || !this.isConnected) return;
       this._canvas.width = deviceW;
       this._canvas.height = deviceH;
       this._canvas.style.width = cssPx(canvasWidth);
       this._canvas.style.height = cssPx(canvasHeight);
-      this._sourceBitmap?.close?.();
+      this._releaseBitmaps();
       this._sourceBitmap = bitmap;
       bitmap = null;
+      this._validated = validated;
       this._scrollOffsetX = 0;
       this._scrollPixel = 0;
-      this._redrawTiles(latestImage, layout, draw);
+      this._redrawBack();
       this._paintedSignature = signature;
       this._contentSignature = backContentSignature(this._data);
       this._layoutSignature = backLayoutSignature(this._data);
       this._loadingSignature = null;
       this._state = "ready";
       this._writeHost(attrs.value.visible, latestBox);
-      this._syncScrollLoop(layout, draw);
+      this._syncAnimLoop();
     } catch (error) {
       if (epoch !== this._epoch || !this.isConnected) return;
       const code = failureCode(error);
       if (code === "STALE_RENDER_RESULT") return;
-      this._failInput({ code, path: "resource", detail: error?.message ?? code });
+      this._failPaint(epoch, code, error?.message ?? code);
     } finally {
       bitmap?.close?.();
       if (this._abort === controller) this._abort = null;
     }
+  }
+
+  _failPaint(epoch, code, detail) {
+    if (epoch !== this._epoch) return;
+    this._loadingSignature = null;
+    const hasLastGood = this._hasLastGoodPaint();
+    this._state = code === "INPUT_INVALID" || code === "DEPTH_PLAN_INVALID" ? "invalid" : "failed";
+    this._code = code;
+    this._detail = detail;
+    if (!hasLastGood) {
+      this._paintedSignature = null;
+      this._clearCanvas();
+      this._writeHost(false, this._box ?? { viewX: 0, viewY: 0, stackRank: 1, w: 0, h: 0 });
+      return;
+    }
+    this._writeHost(this._desiredVisible, this._box);
   }
 }
 

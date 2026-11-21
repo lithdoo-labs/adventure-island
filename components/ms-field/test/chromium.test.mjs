@@ -11,6 +11,7 @@ import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/re
 import { validateFieldTree } from "../src/validate.mjs";
 import {
   M7_6_VIEWPORT_BUDGETS,
+  M7_7_BACK_ANIM_BUDGETS,
   M7_PORTAL_BUDGETS,
 } from "../../../systems/adventure-map/portal-budgets.mjs";
 import { projectViewportRelayoutUpdates } from "../../../systems/adventure-map/viewport-view-projection.mjs";
@@ -833,5 +834,207 @@ test("M7.6 viewport relayout retains decoded Content and bounded animation clock
     .filter((host) => host.shadowRoot?.querySelector("canvas")?.width > 0).length);
   assert.ok(detachedCanvasDelta <= M7_6_VIEWPORT_BUDGETS.maxDetachedCanvasDelta);
   t.diagnostic(`M7.6 soak cycles ${cycles.length}; retained Content reads ${afterSoak.resourceReads}; paint commits delta ${afterSoak.paintCommits - afterReady.paintCommits}; event-loop lag proxy ${maxEventLoopLagMs.toFixed(1)} ms`);
+  assert.deepEqual(page.__pageErrors, []);
+});
+
+test("M7.7 animated Back loops without further Content reads after frame closure", { timeout: 90_000 }, async (t) => {
+  const projection = await buildFieldProjection({
+    mapId: "230030200",
+    gameRoot: repoRoot,
+    viewport: { width: 96, height: 96 },
+  });
+  const back = projection.root.children.find((child) => (
+    child.tag === "ms-map-back"
+    && child.data?.mode === "local-animation"
+    && child.data.frames.length > 1
+    && child.data.frames.some((frame) => Number(frame.delay) > 0)
+    && child.data.frames.reduce((sum, frame) => sum + (Number(frame.delay) || 0), 0) <= 2_000
+  ));
+  assert.ok(back);
+  const isolatedBack = { ...back, attrs: { ...back.attrs, "stack-rank": "1" } };
+  const tree = { ...projection.root, children: [isolatedBack] };
+  assert.equal(validateFieldTree(tree).ok, true);
+  const index = await loadResourceIndex(tree, repoRoot);
+  const server = await startFieldServer({ index, scriptBytes });
+  t.after(() => server.close());
+  const prepared = await preparePresentation({
+    origin: server.origin,
+    index,
+    configPath: path.join(componentRoot, "presentation.json"),
+    scriptPath: SCRIPT_PATH,
+  });
+  const page = await openFieldPage(t, {
+    chromium,
+    origin: server.origin,
+    prepared,
+    installationId: INSTALLATION_ID,
+    bearer: BEARER,
+  });
+  const readyStarted = performance.now();
+  await page.evaluate((root) => window.__open(root), tree);
+  await waitFor(page, () => {
+    const host = document.querySelector("ms-map-back");
+    return host?.diagnostics?.().state === "ready" && (host.diagnostics().animationPaints ?? 0) > 0;
+  }, "animated Back host reaches ready and paints", 30_000);
+  const readyMs = performance.now() - readyStarted;
+  assert.ok(readyMs <= M7_7_BACK_ANIM_BUDGETS.maxWaterMapBrowserReadyMs);
+  const afterReady = await page.evaluate(() => {
+    const host = document.querySelector("ms-map-back");
+    const canvas = host.shadowRoot.querySelector("canvas");
+    const style = getComputedStyle(host);
+    return {
+      resourceReads: host.diagnostics().resourceReads,
+      animationPaints: host.diagnostics().animationPaints ?? 0,
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      hostLeft: style.left,
+      hostTop: style.top,
+      hostWidth: style.width,
+      hostHeight: style.height,
+    };
+  });
+  assert.ok(afterReady.animationPaints > 0);
+  assert.equal(afterReady.resourceReads, back.data.frames.length);
+  assert.ok(afterReady.resourceReads <= M7_7_BACK_ANIM_BUDGETS.maxWaterMapBackAnimFrameResources);
+  await page.evaluate((target) => { window.__m77AnimationPaintTarget = target; }, afterReady.animationPaints + 2);
+  await waitFor(page, () => (
+    document.querySelector("ms-map-back")?.diagnostics().animationPaints >= window.__m77AnimationPaintTarget
+  ), "animated Back keeps painting", 5_000);
+  const afterLoop = await page.evaluate(() => {
+    const host = document.querySelector("ms-map-back");
+    const canvas = host.shadowRoot.querySelector("canvas");
+    const style = getComputedStyle(host);
+    return {
+      ...host.diagnostics(),
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      hostLeft: style.left,
+      hostTop: style.top,
+      hostWidth: style.width,
+      hostHeight: style.height,
+    };
+  });
+  assert.equal(afterLoop.resourceReads, afterReady.resourceReads);
+  assert.ok(afterLoop.animationPaints > afterReady.animationPaints);
+  assert.deepEqual(
+    [afterLoop.canvasWidth, afterLoop.canvasHeight, afterLoop.hostLeft, afterLoop.hostTop, afterLoop.hostWidth, afterLoop.hostHeight],
+    [afterReady.canvasWidth, afterReady.canvasHeight, afterReady.hostLeft, afterReady.hostTop, afterReady.hostWidth, afterReady.hostHeight],
+    "Back frame changes must retain one stable local Canvas and host box",
+  );
+  const maxActive = await page.evaluate(() => window.__resourceMaxActive);
+  assert.ok(maxActive <= M7_7_BACK_ANIM_BUDGETS.maxContentReadConcurrency);
+  t.diagnostic(`M7.7 isolated Back ready ${readyMs.toFixed(1)}ms; Content concurrency ${maxActive}/${M7_7_BACK_ANIM_BUDGETS.maxContentReadConcurrency}`);
+  assert.deepEqual(page.__pageErrors, []);
+});
+
+test("M7.7 retire during later-frame Back load cannot commit stale bitmaps", { timeout: 60_000 }, async (t) => {
+  const projection = await buildFieldProjection({
+    mapId: "230030200",
+    gameRoot: repoRoot,
+    viewport: { width: 96, height: 96 },
+  });
+  const back = projection.root.children.find((child) => child.tag === "ms-map-back" && child.data?.frames?.length > 1);
+  assert.ok(back);
+  const isolatedBack = { ...back, attrs: { ...back.attrs, "stack-rank": "1" } };
+  const tree = { ...projection.root, children: [isolatedBack] };
+  assert.equal(validateFieldTree(tree).ok, true);
+  const index = await loadResourceIndex(tree, repoRoot);
+  const delayed = back.data.frames[1].image.resource;
+  const resourceDelayMs = delayed
+    ? new Map([[`${delayed.namespace}\0${delayed.key}`, 5_000]])
+    : new Map();
+  const server = await startFieldServer({ index, scriptBytes, resourceDelayMs });
+  t.after(() => server.close());
+  const prepared = await preparePresentation({
+    origin: server.origin,
+    index,
+    configPath: path.join(componentRoot, "presentation.json"),
+    scriptPath: SCRIPT_PATH,
+  });
+  const page = await openFieldPage(t, {
+    chromium,
+    origin: server.origin,
+    prepared,
+    installationId: INSTALLATION_ID,
+    bearer: BEARER,
+  });
+  await page.evaluate((root) => window.__open(root), tree);
+  await waitFor(page, () => document.querySelector("ms-map-back")?.diagnostics()?.resourceReads >= 2,
+    "M7.7 later-frame Back load starts", 5_000);
+  const emptyTree = { ...tree, key: "scene:m77-empty", children: [] };
+  await page.evaluate((root) => {
+    window.__retiredBack = document.querySelector("ms-map-back");
+    window.__replace(root);
+  }, emptyTree);
+  await waitFor(page, () => (
+    !window.__retiredBack?.isConnected
+    && window.__retiredBack?.shadowRoot?.querySelector("canvas")?.width === 0
+  ), "retired Back drops canvas", 30_000);
+  assert.deepEqual(page.__pageErrors, []);
+});
+
+test("M7.7 failed animated Back replacement retains last-good pixels", { timeout: 60_000 }, async (t) => {
+  const projection = await buildFieldProjection({
+    mapId: "230030200",
+    gameRoot: repoRoot,
+    viewport: { width: 96, height: 96 },
+  });
+  const back = projection.root.children.find((child) => child.tag === "ms-map-back" && child.data?.frames?.length > 1);
+  assert.ok(back);
+  const isolatedBack = { ...back, attrs: { ...back.attrs, "stack-rank": "1" } };
+  const tree = { ...projection.root, children: [isolatedBack] };
+  assert.equal(validateFieldTree(tree).ok, true);
+  const index = await loadResourceIndex(tree, repoRoot);
+  const server = await startFieldServer({ index, scriptBytes });
+  t.after(() => server.close());
+  const prepared = await preparePresentation({
+    origin: server.origin,
+    index,
+    configPath: path.join(componentRoot, "presentation.json"),
+    scriptPath: SCRIPT_PATH,
+  });
+  const page = await openFieldPage(t, {
+    chromium,
+    origin: server.origin,
+    prepared,
+    installationId: INSTALLATION_ID,
+    bearer: BEARER,
+  });
+  await page.evaluate((root) => window.__open(root), tree);
+  await waitFor(page, () => document.querySelector("ms-map-back")?.diagnostics()?.state === "ready",
+    "M7.7 Back initial paint reaches ready", 30_000);
+  const before = await page.evaluate(() => {
+    const host = document.querySelector("ms-map-back");
+    const canvas = host.shadowRoot.querySelector("canvas");
+    return {
+      paintCommits: host.diagnostics().paintCommits,
+      width: canvas.width,
+      height: canvas.height,
+      visibility: getComputedStyle(host).visibility,
+    };
+  });
+  const brokenTree = structuredClone(tree);
+  brokenTree.children[0].data.frames[1].image.resource.key += "-missing";
+  assert.equal(validateFieldTree(brokenTree).ok, true);
+  await page.evaluate((root) => window.__replace(root), brokenTree);
+  await waitFor(page, () => document.querySelector("ms-map-back")?.diagnostics()?.state === "failed",
+    "M7.7 Back replacement reports missing later frame", 30_000);
+  const afterFailure = await page.evaluate(() => {
+    const host = document.querySelector("ms-map-back");
+    const canvas = host.shadowRoot.querySelector("canvas");
+    return {
+      ...host.diagnostics(),
+      width: canvas.width,
+      height: canvas.height,
+      visibility: getComputedStyle(host).visibility,
+    };
+  });
+  assert.equal(afterFailure.code, "RESOURCE_MISSING");
+  assert.equal(afterFailure.paintCommits, before.paintCommits);
+  assert.deepEqual(
+    [afterFailure.width, afterFailure.height, afterFailure.visibility],
+    [before.width, before.height, before.visibility],
+  );
+  assert.ok(afterFailure.width > 0 && afterFailure.height > 0);
   assert.deepEqual(page.__pageErrors, []);
 });

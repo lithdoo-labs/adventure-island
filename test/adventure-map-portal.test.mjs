@@ -17,6 +17,7 @@ import {
   M6_PORTAL_BUDGETS,
   M7_PORTAL_BUDGETS,
   M7_5_OBJ_FLOW_BUDGETS,
+  M7_7_BACK_ANIM_BUDGETS,
 } from "../systems/adventure-map/portal-budgets.mjs";
 import { summarizeProjectionCanvasBudget } from "../components/ms-field/test/canonical-budgets.mjs";
 
@@ -54,8 +55,10 @@ test("field plans publish bootstrap plus map222000001 and map230030200 records",
   assert.ok(waterBudget.maxHeight <= M7_PORTAL_BUDGETS.maxWaterMapCanvasHeight);
   assert.ok(waterBudget.maxLocalCanvasPixels <= M7_PORTAL_BUDGETS.maxWaterMapLocalCanvasPixels);
   assert.ok(waterBudget.totalLocalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
-  assert.ok(waterBudget.fieldPlanResourceClosure <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapFieldPlanResourceClosure);
+  assert.ok(waterBudget.fieldPlanResourceClosure <= M7_7_BACK_ANIM_BUDGETS.maxWaterMapFieldPlanResourceClosure);
   assert.ok(waterBudget.firstFramePaintResources <= M7_PORTAL_BUDGETS.maxWaterMapFirstFramePaintResources);
+  assert.ok(waterBudget.browserReadyPaintResources <= M7_7_BACK_ANIM_BUDGETS.maxWaterMapBrowserReadyPaintResources);
+  assert.ok(waterBudget.fieldPlanResourceClosure >= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapFieldPlanResourceClosure);
 });
 
 test("prepareCrossMapPortalCommit loads map222000001 field plan record", async () => {
@@ -186,7 +189,7 @@ test("canonical PWA content merges three-map resource closures", async () => {
   );
   assert.equal(fieldRecords.length, 3);
   const mapResources = content.entries.filter((e) => e.kind === "resource" && e.namespace === "resource.Map");
-  assert.equal(mapResources.length, M7_5_OBJ_FLOW_BUDGETS.publishedMapResourceUnion);
+  assert.equal(mapResources.length, M7_7_BACK_ANIM_BUDGETS.publishedMapResourceUnion);
   const bootstrap = (await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRoot })).plan;
   const portal = bootstrapPortalState(bootstrap);
   assert.equal(portal.portalIndex.entries.some((p) => p.name === "in00" && p.enabled), true);

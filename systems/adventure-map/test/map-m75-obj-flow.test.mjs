@@ -12,6 +12,8 @@ import {
 import {
   M7_5_MEASURED_WATER_MAP_BUDGETS,
   M7_5_OBJ_FLOW_BUDGETS,
+  M7_7_BACK_ANIM_BUDGETS,
+  M7_7_MEASURED_WATER_MAP_BUDGETS,
   M7_PORTAL_BUDGETS,
 } from "../portal-budgets.mjs";
 import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
@@ -49,18 +51,22 @@ test("230030200 Obj flow stays within immutable canvas totals and additive M7.5 
   })));
   assert.equal(flowNodes.length, M7_5_MEASURED_WATER_MAP_BUDGETS.objFlowHosts);
   assert.equal(summary.canvasCount, M7_5_MEASURED_WATER_MAP_BUDGETS.fieldPlanVisualCanvases);
-  assert.equal(summary.totalLocalPixels, M7_5_MEASURED_WATER_MAP_BUDGETS.totalLocalPixels);
+  assert.equal(M7_5_MEASURED_WATER_MAP_BUDGETS.totalLocalPixels, 11_701_394,
+    "M7.5 measured evidence must remain immutable after additive animation work");
   assert.equal(flowFrameResources.size, M7_5_MEASURED_WATER_MAP_BUDGETS.objFlowFrameResources);
   assert.equal(
     collectMapResourceRefsFromFieldTree(plan.root).length,
-    M7_5_MEASURED_WATER_MAP_BUDGETS.fieldPlanResourceClosure,
+    M7_7_MEASURED_WATER_MAP_BUDGETS.mapResourceClosure,
   );
   assert.ok(summary.canvasCount <= M7_PORTAL_BUDGETS.maxWaterMapVisualCanvases);
   assert.ok(summary.totalLocalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
   assert.ok(summary.firstFramePaintResources <= M7_PORTAL_BUDGETS.maxWaterMapFirstFramePaintResources);
+  assert.equal(summary.firstFramePaintResources, M7_5_MEASURED_WATER_MAP_BUDGETS.firstFramePaintResources);
+  assert.ok(summary.browserReadyPaintResources <= M7_7_BACK_ANIM_BUDGETS.maxWaterMapBrowserReadyPaintResources);
+  assert.equal(summary.browserReadyPaintResources, M7_7_MEASURED_WATER_MAP_BUDGETS.browserReadyFieldPaintResources);
   assert.ok(
     collectMapResourceRefsFromFieldTree(plan.root).length
-      <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapFieldPlanResourceClosure,
+      <= M7_7_BACK_ANIM_BUDGETS.maxWaterMapFieldPlanResourceClosure,
   );
   assert.ok(flowNodes.length <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapObjFlowHosts);
   assert.ok(flowFrameResources.size <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapObjFlowFrameResources);

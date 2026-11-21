@@ -4,6 +4,7 @@
  * Candidate only — does not approve ms-* ABI. No WZ/FSDB paths leak into
  * RenderNode data; resources use {namespace,key,contentVersion}.
  */
+import { layoutBackView } from "./back-layout.mjs";
 import { projectionHash } from "./hash.mjs";
 
 function decimalAttr(value) {
@@ -22,19 +23,41 @@ function imageRegion(frame) {
   });
 }
 
-function projectBack(plan) {
+function projectBack(plan, projectionContext) {
   const d = plan.drawable;
   const frame = d.frames[0];
+  const type = Number(d.placement.type);
+  const frameWidth = frame?.width ?? 0;
+  const frameHeight = frame?.height ?? 0;
+  const laidOut = d.bounds && frameWidth > 0 && frameHeight > 0
+    ? layoutBackView({
+      type,
+      bounds: d.bounds,
+      placement: d.placement,
+      frameWidth,
+      frameHeight,
+      cameraX: projectionContext.cameraX,
+      cameraY: projectionContext.cameraY,
+      viewport: projectionContext.viewport,
+    })
+    : {
+      viewX: d.worldX,
+      viewY: d.worldY,
+      canvasWidth: frameWidth,
+      canvasHeight: frameHeight,
+      layout: null,
+    };
+  // Resource page dimensions describe the decoded Content identity. The local
+  // repeated surface is a separate layout concern and must never rewrite them.
+  const image = imageRegion(frame);
   return Object.freeze({
     key: plan.stableId,
     tag: "ms-map-back",
     attrs: Object.freeze({
       "stack-rank": String(plan.stackRank),
       visible: "true",
-      // Camera-relative view coords are filled by runtime Camera projection in M3+.
-      // M2 emits authored world anchors as provisional view values for audit only.
-      "view-x": decimalAttr(d.worldX),
-      "view-y": decimalAttr(d.worldY),
+      "view-x": decimalAttr(laidOut.viewX),
+      "view-y": decimalAttr(laidOut.viewY),
     }),
     data: Object.freeze({
       placementId: d.stableId,
@@ -47,7 +70,8 @@ function projectBack(plan) {
         cy: d.placement.cy,
       }),
       presentation: d.presentation,
-      image: imageRegion(frame),
+      layout: laidOut.layout,
+      image,
       draw: Object.freeze({
         origin: frame?.origin ?? [0, 0],
         flip: Boolean(d.flip),
@@ -200,9 +224,10 @@ function projectBatch(plan) {
   });
 }
 
-export function projectRenderTree(scene, paintUnits, { cameraX = 0, cameraY = 0 } = {}) {
+export function projectRenderTree(scene, paintUnits, { cameraX = 0, cameraY = 0, viewport } = {}) {
+  const projectionContext = { cameraX, cameraY, viewport };
   const children = paintUnits.map((plan) => {
-    if (plan.kind === "ms-map-back") return projectBack(plan);
+    if (plan.kind === "ms-map-back") return projectBack(plan, projectionContext);
     if (plan.kind === "ms-portal-visual") return projectPortal(plan);
     if (plan.kind === "ms-map-object") return projectMapObject(plan);
     if (plan.kind === "ms-map-batch") return projectBatch(plan);

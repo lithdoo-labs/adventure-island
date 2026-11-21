@@ -10,11 +10,10 @@ export const M7_230030200_SWIM_FACT = Object.freeze({ mapId: "230030200", swim: 
 
 /**
  * Presentation gaps audited on 230030200 — excluded from closure.ok but not hidden.
- * Full Back type1–4 repeat/parallax/auto-scroll and Obj flow visuals remain unsupported.
+ * M7.4 closed the bounded Back type1–4 slice on 230030200; Obj flow remains unsupported.
  */
 export const M7_230030200_KNOWN_PRESENTATION_GAPS = Object.freeze({
   mapId: "230030200",
-  unsupportedBackTypeLayouts: Object.freeze([1, 3, 4]),
   unsupportedObjFlowVisualCount: 11,
   minimapProductFallbackBounds: Object.freeze({
     left: -1928,
@@ -29,9 +28,10 @@ export const M7_230030200_KNOWN_PRESENTATION_GAPS = Object.freeze({
 });
 
 const M7_EXTRA_PUBLISHABLE_MAP_IDS = new Set(["230030200"]);
-const EXPECTED_BACK_SOURCE_ORDERS = Object.freeze([
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 25, 29, 30,
+const EXPECTED_BACK_TYPES = Object.freeze([
+  3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4, 4, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 1,
 ]);
+const EXPECTED_REPEATED_BACK_SOURCE_ORDERS = Object.freeze([7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 29, 30]);
 const EXPECTED_FLOW_SOURCE_ORDERS = Object.freeze([22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
 
 function sameNumbers(actual, expected) {
@@ -77,19 +77,28 @@ export function assertM7ExtraMapFieldPlanPublishable(mapId, projection) {
   assertExactBounds(scene.bounds.sourceBounds, M7_230030200_KNOWN_PRESENTATION_GAPS.minimapProductFallbackBounds);
   assertExactBounds(scene.bounds.effectiveBounds, M7_230030200_KNOWN_PRESENTATION_GAPS.minimapProductFallbackBounds);
 
+  const backNodes = (projection.projection?.root?.children ?? []).filter((node) => node.tag === "ms-map-back");
+  const orderedBacks = [...backNodes].sort((a, b) => a.data.provenance.sourceOrder - b.data.provenance.sourceOrder);
+  if (!sameNumbers(orderedBacks.map((node) => Number(node.data.source.type)), EXPECTED_BACK_TYPES)) {
+    throw new TypeError(`map ${mapId} Back type facts drifted from the audited set`);
+  }
+  if (!sameNumbers(
+    orderedBacks.filter((node) => node.data.layout?.tileHorizontal || node.data.layout?.tileVertical)
+      .map((node) => node.data.provenance.sourceOrder),
+    EXPECTED_REPEATED_BACK_SOURCE_ORDERS,
+  )) {
+    throw new TypeError(`map ${mapId} Back non-zero repeat facts drifted from the audited set`);
+  }
+  if (orderedBacks.some((node) => !node.data.layout
+    || node.data.layout.frameWidth !== node.data.image.pageWidth
+    || node.data.layout.frameHeight !== node.data.image.pageHeight)) {
+    throw new TypeError(`map ${mapId} Back layout rewrote or omitted a resource identity dimension`);
+  }
+
   const unsupported = (scene.diagnostics ?? []).filter((item) => item.code === UNSUPPORTED);
-  const backs = unsupported.filter((item) => /^back type [134] layout is not implemented/u.test(item.message));
   const flows = unsupported.filter((item) => item.message === "obj visual field unsupported (flow/r)");
-  if (unsupported.length !== backs.length + flows.length) {
+  if (unsupported.length !== flows.length) {
     throw new TypeError(`map ${mapId} has an unapproved unsupported diagnostic`);
-  }
-  if (!sameNumbers(backs.map((item) => item.sourceOrder), EXPECTED_BACK_SOURCE_ORDERS)
-    || !backs.every((item) => item.stableId === `back:map${mapId}:${item.sourceOrder}`)) {
-    throw new TypeError(`map ${mapId} Back presentation gaps drifted from the audited set`);
-  }
-  const backTypes = new Set(backs.map((item) => Number(item.message.match(/^back type (\d+)/u)?.[1])));
-  if (!sameNumbers([...backTypes].sort(), [...M7_230030200_KNOWN_PRESENTATION_GAPS.unsupportedBackTypeLayouts])) {
-    throw new TypeError(`map ${mapId} Back type set drifted from the audited set`);
   }
   if (!sameNumbers(flows.map((item) => item.sourceOrder), EXPECTED_FLOW_SOURCE_ORDERS)
     || !flows.every((item) => item.stableId === `obj:map${mapId}:${item.sourceOrder}`)) {

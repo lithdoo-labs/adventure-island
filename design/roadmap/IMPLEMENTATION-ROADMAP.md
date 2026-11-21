@@ -358,7 +358,7 @@ validate trigger
 
 ## 11. M7：三图闭环与内容扩展
 
-> **路线图状态：2026-11-21，M7.1 水域纵剖、M7.2 真实返程与 M7.3 Rope/Climb 实验切片完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** M7.1：三 FieldPlan、四条 Portal 边、整图泳态、真实 FSDB `fly` 两帧、Chromium A→B→C。M7.2：east00 Up 审计、Chromium A→B→C→B 与 B↔C 重复、sceneEpoch 隔离。M7.3：真实 RopePlan、Subsystem 权威 grab/climb/exit、`rope` 纸娃娃动作、退役 Back 生命周期修复与 Chromium B→A；详见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)、[M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md) 与 [M7.3-ROPE-CLIMB-EVIDENCE.md](./M7.3-ROPE-CLIMB-EVIDENCE.md)。
+> **路线图状态：2026-11-21，M7.1 水域纵剖、M7.2 真实返程、M7.3 Rope/Climb 与 M7.4 Back type1–4 实验切片完成；M7 全量仍未完成，组件/FieldPlan ABI 未批准。** M7.4：`230030200` 真实 FSDB 非零步长有界重复、零步长单图、type4 水平滚动（证据内闭包）、Subsystem Camera counter-position 与 ms-map-back 局部 Canvas；详见 [M7.4-BACK-LAYOUT-EVIDENCE.md](./M7.4-BACK-LAYOUT-EVIDENCE.md)。M7.1–M7.3 证据链见同目录前述文档。
 
 ### 11.1 三图候选集
 
@@ -374,7 +374,7 @@ validate trigger
 - RopePlan、抓绳、攀爬、离绳与真实 B→A 返回（M7.3 实验切片已完成）；
 - 无完整 VR 时的 effective bounds fallback；
 - 三图 Portal graph、资源闭包和存在性审计；
-- Back repeat/parallax/auto-scroll；
+- Back repeat/parallax/auto-scroll（M7.4：type1–4 有界产品切片已在 230030200 取证；`+0x98` 视差、超出 viewport envelope 的 relayout 与 type5–7 仍缺口）；
 - 独立动态 Obj 与 Portal visual phase；
 - Renderer-local transition；
 - Canvas、DOM、decode、CPU、内存和 composite 性能预算；
@@ -440,6 +440,6 @@ Foothold、Rope、Seat、Camera 和 Portal travel 是业务能力，不因存在
 
 ## 15. 立即下一步
 
-当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1**（三图入水纵剖）、**M7.2**（可信 C→B 返程与重复 replace）与 **M7.3**（真实 Rope/Climb、浏览器 C→B→A）；见 [M7.1-WATER-THREE-MAP-EVIDENCE.md](./M7.1-WATER-THREE-MAP-EVIDENCE.md)、[M7.2-THREE-MAP-RETURN-EVIDENCE.md](./M7.2-THREE-MAP-RETURN-EVIDENCE.md) 与 [M7.3-ROPE-CLIMB-EVIDENCE.md](./M7.3-ROPE-CLIMB-EVIDENCE.md)。**组件 ABI 未批准**；**M7 全量**（Back type 1–4 动态布局、Obj flow、完整泳态 force 方程、Seat/drop-through、性能/内存长跑、13 图）仍有缺口。`ms-world-item` 仍负责世界坐标与排序；Rope、Movement 与 Portal travel 权威均在 `adventure-map` Subsystem。
+当前实施基线已完成 **M0–M6** 逐级证据闭环，并完成 **M7.1–M7.4** 实验切片（见 [M7.1](./M7.1-WATER-THREE-MAP-EVIDENCE.md)–[M7.4](./M7.4-BACK-LAYOUT-EVIDENCE.md)）。**组件 ABI 未批准**；**M7 全量**（`+0x98` 视差、动态 viewport relayout、type5–7、Obj flow、完整泳态 force、Seat/drop-through、性能/内存长跑、13 图）仍有缺口。
 
-2026-11-18–21 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.3-ROPE-CLIMB-EVIDENCE.md](./M7.3-ROPE-CLIMB-EVIDENCE.md)。M0–M6 验收门保持不变；M7.1–M7.3 不降低 M3/M6 预算断言，也不宣称 Back type 1–4 / Obj flow 动态 parity 或正式 ABI 批准。
+2026-11-18–21 的本机记录见 [M0-BASELINE-EVIDENCE.md](M0-BASELINE-EVIDENCE.md) 至 [M7.4-BACK-LAYOUT-EVIDENCE.md](./M7.4-BACK-LAYOUT-EVIDENCE.md)。M0–M6 验收门保持不变；M7 子切片不降低 M3/M6 预算断言，也不宣称 CMS079 像素 parity 或正式 ABI 批准。

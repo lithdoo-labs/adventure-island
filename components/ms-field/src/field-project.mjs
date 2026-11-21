@@ -2,6 +2,7 @@
  * Map Adapter/Projection + static FieldState → ms-scene-view RenderNode tree.
  */
 import { buildMapProjection } from "../../ms-map-adapter/src/index.mjs";
+import { backViewAttrsForCamera } from "../../ms-map-adapter/src/back-layout.mjs";
 import { projectionHash, canonicalJson } from "../../ms-map-adapter/src/hash.mjs";
 import { cameraForViewport } from "./camera.mjs";
 import { createStaticFieldState } from "./field-state.mjs";
@@ -42,6 +43,22 @@ function insertPlayerChildren(children, player, avatarPlan = null) {
   return renumberStackRanks(next);
 }
 
+function projectBackHostsForCamera(children, camera) {
+  return children.map((child) => {
+    if (child.tag !== "ms-map-back" || !child.data?.layout) return child;
+    const view = backViewAttrsForCamera(child.data.layout, camera.cameraX, camera.cameraY);
+    return Object.freeze({
+      ...child,
+      attrs: Object.freeze({
+        ...child.attrs,
+        "view-x": decimalAttr(view.viewX),
+        "view-y": decimalAttr(view.viewY),
+      }),
+      children: child.children,
+    });
+  });
+}
+
 export function stackRankOrder(children) {
   return [...children]
     .map((child, index) => ({
@@ -59,13 +76,14 @@ export function stackRankOrder(children) {
 export async function buildFieldProjection(options = {}) {
   const fieldState = options.fieldState
     ?? createStaticFieldState({ mapId: options.mapId, player: options.player });
+  const viewport = options.viewport ?? null;
+  const explicitCamera = Number.isFinite(options.cameraX) && Number.isFinite(options.cameraY);
   const map = await buildMapProjection({
     mapId: fieldState.mapId,
     gameRoot: options.gameRoot,
     fsdbRoot: options.fsdbRoot,
     budget: options.budget,
-    cameraX: 0,
-    cameraY: 0,
+    viewport,
   });
 
   let children = map.projection.root.children;
@@ -74,12 +92,11 @@ export async function buildFieldProjection(options = {}) {
     children = children.slice(0, cap);
   }
 
-  const viewport = options.viewport ?? null;
-  const explicitCamera = Number.isFinite(options.cameraX) && Number.isFinite(options.cameraY);
   const cam = explicitCamera
     ? { cameraX: options.cameraX, cameraY: options.cameraY }
     : cameraForViewport(fieldState.player, viewport, map.scene.bounds);
 
+  children = projectBackHostsForCamera(children, cam);
   children = insertPlayerChildren(children, fieldState.player, options.avatarPlan ?? null);
 
   const root = Object.freeze({

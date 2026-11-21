@@ -476,11 +476,16 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   for (const update of harness.domain().updates) {
     for (const node of update.nodes ?? []) {
       const key = node.key;
+      const backViewOnly = typeof key === "string"
+        && key.startsWith("back:map")
+        && node.attrs?.set
+        && Object.keys(node.attrs.set).every((name) => name === "view-x" || name === "view-y");
       assert.ok(
         key === FIELD_SCENE_ROOT_KEY
           || key === "player:adventure:avatar"
-          || key === "player:adventure",
-        `updates must target camera, world position, or avatar attrs only (saw ${key})`,
+          || key === "player:adventure"
+          || backViewOnly,
+        `updates must target camera, world position, avatar, or back view attrs only (saw ${key})`,
       );
       assert.equal(node.data, undefined, "projection updates must not resend scene data");
     }

@@ -35,7 +35,10 @@ export const PUBLISHED_FIELD_PLAN_MAP_IDS = Object.freeze(["222000000", "2220000
 
 const canonicalRepoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const RECORD_MIME = "application/json; charset=utf-8";
-export const FIELD_PLAN_DEFAULT_VIEWPORT = Object.freeze({ width: 800, height: 600 });
+// The canonical PWA route resizes to 1000x700 before cross-map travel. Back
+// repeat surfaces are prepared for that bounded envelope so camera updates do
+// not require resource re-decode or a scene-wide rebuild.
+export const FIELD_PLAN_DEFAULT_VIEWPORT = Object.freeze({ width: 1_000, height: 700 });
 
 export { FIELD_PLAN_KEY, FIELD_PLAN_NAMESPACE };
 

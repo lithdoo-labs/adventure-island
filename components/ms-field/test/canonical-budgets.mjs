@@ -33,7 +33,7 @@ export const MEASURED_MAX_CANVAS_HEIGHT = 573;
 export const MEASURED_MAX_LOCAL_CANVAS_PIXELS = 680_208;
 
 /** Sum of local width×height across every visual Canvas host at DPR 1 (excludes ms-avatar — runtime-sized). */
-export const MEASURED_TOTAL_LOCAL_PIXELS = 19_335_752;
+export const MEASURED_TOTAL_LOCAL_PIXELS = 19_783_576;
 
 /** ms-field presentation code caps in-flight underlying reads (PWA rejects above 32). */
 export const RESOURCE_READ_CONCURRENCY = 8;
@@ -66,6 +66,9 @@ export function expectedLocalCanvasSize(node) {
     return { width: node.data.bounds.w, height: node.data.bounds.h };
   }
   const image = node.data?.image;
+  if (node.tag === "ms-map-back" && node.data?.layout) {
+    return { width: node.data.layout.canvasWidth, height: node.data.layout.canvasHeight };
+  }
   if ((node.tag === "ms-map-back" || node.tag === "ms-portal-visual") && image?.source) {
     return { width: image.source.w, height: image.source.h };
   }

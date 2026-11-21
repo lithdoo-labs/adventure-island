@@ -516,6 +516,7 @@ test("the root shims and the raw sources must never be published as PWA executab
         "../../components/ms-avatar/src/presentation-attrs.mjs",
         "../../components/ms-avatar/src/presentation-timing.mjs",
         "./avatar-locomotion.mjs",
+        "./back-view-projection.mjs",
         "./camera-state.mjs",
         "./field-plan-model.mjs",
         "./field-scene-runtime.mjs",

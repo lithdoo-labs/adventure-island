@@ -399,6 +399,46 @@ export class MsMapBatch extends SpikeElement {
   }
 }
 
+function paintBackTiles(context, bitmap, image, layout, draw, scrollOffsetX = 0) {
+  if (!layout) {
+    context.drawImage(bitmap, 0, 0);
+    return;
+  }
+  const frameW = layout.frameWidth;
+  const frameH = layout.frameHeight;
+  const canvasW = layout.canvasWidth;
+  const canvasH = layout.canvasHeight;
+  const stepX = layout.tileStepX > 0 ? layout.tileStepX : frameW;
+  const stepY = layout.tileStepY > 0 ? layout.tileStepY : frameH;
+  context.clearRect(0, 0, canvasW, canvasH);
+  const opacity = Number.isInteger(draw?.opacity) ? draw.opacity : 255;
+  context.globalAlpha = opacity / 255;
+  const originX = Number.isFinite(layout.tileOriginX) ? layout.tileOriginX : 0;
+  const originY = Number.isFinite(layout.tileOriginY) ? layout.tileOriginY : 0;
+  const phaseX = -((((originX + scrollOffsetX) % stepX) + stepX) % stepX);
+  const phaseY = -(((originY % stepY) + stepY) % stepY);
+  const horiz = Boolean(layout.tileHorizontal);
+  const vert = Boolean(layout.tileVertical);
+  const yEnd = vert ? canvasH + stepY : frameH;
+  const xEnd = horiz ? canvasW + stepX : frameW;
+  const yStep = vert ? stepY : frameH;
+  const xStep = horiz ? stepX : frameW;
+  for (let y = vert ? phaseY : 0; y < yEnd; y += yStep) {
+    for (let x = horiz ? phaseX : 0; x < xEnd; x += xStep) {
+      if (draw?.flip) {
+        context.save();
+        context.translate(x + frameW, y);
+        context.scale(-1, 1);
+        context.drawImage(bitmap, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
+        context.restore();
+      } else {
+        context.drawImage(bitmap, 0, 0, frameW, frameH, x, y, frameW, frameH);
+      }
+    }
+  }
+  context.globalAlpha = 1;
+}
+
 export class MsMapBack extends SpikeElement {
   static get observedAttributes() {
     return ["stack-rank", "visible", "view-x", "view-y"];
@@ -409,6 +449,43 @@ export class MsMapBack extends SpikeElement {
     this._abort = null;
     this._paintedSignature = null;
     this._loadingSignature = null;
+    this._sourceBitmap = null;
+    this._scrollFrame = null;
+    this._scrollOffsetX = 0;
+    this._scrollLastTs = null;
+    this._scrollPixel = 0;
+    this._animationPaints = 0;
+  }
+
+  diagnostics() {
+    return Object.freeze({
+      ...super.diagnostics(),
+      animationPaints: this._animationPaints,
+    });
+  }
+
+  _stopScroll() {
+    if (this._scrollFrame !== null) {
+      cancelAnimationFrame(this._scrollFrame);
+      this._scrollFrame = null;
+    }
+    this._scrollLastTs = null;
+  }
+
+  _failInput(result) {
+    this._stopScroll();
+    this._sourceBitmap?.close?.();
+    this._sourceBitmap = null;
+    super._failInput(result);
+  }
+
+  _releaseSurface() {
+    this._stopScroll();
+    this._sourceBitmap?.close?.();
+    this._sourceBitmap = null;
+    this._scrollOffsetX = 0;
+    this._scrollPixel = 0;
+    super._releaseSurface();
   }
 
   _installShadow() {
@@ -451,18 +528,21 @@ export class MsMapBack extends SpikeElement {
     const data = validateBackData(this._data);
     if (!data.ok) return this._failInput(data);
     const image = this._data.image;
+    const layout = this._data.layout ?? null;
     const box = {
       viewX: attrs.value.viewX,
       viewY: attrs.value.viewY,
       stackRank: attrs.value.stackRank,
-      w: image.pageWidth,
-      h: image.pageHeight,
+      w: layout?.canvasWidth ?? image.pageWidth,
+      h: layout?.canvasHeight ?? image.pageHeight,
     };
     const signature = JSON.stringify(this._data);
     if (signature === this._paintedSignature && this._state === "ready") {
       this._writeHost(attrs.value.visible, box);
+      this._syncScrollLoop(this._data?.layout, this._data?.draw);
       return;
     }
+    this._stopScroll();
     this._writeHost(false, box);
     if (signature === this._loadingSignature) return;
     this._loadingSignature = signature;
@@ -473,6 +553,45 @@ export class MsMapBack extends SpikeElement {
     this._abort = controller;
     this._state = "loading";
     void this._paint(image, signature, epoch, controller, attrs.value.visible, box);
+  }
+
+  _redrawTiles(image, layout, draw, countCommit = true) {
+    if (!this._canvas || !this._sourceBitmap) return;
+    const ratio = deviceRatio();
+    if (ratio === null) return;
+    const context = this._canvas.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.imageSmoothingEnabled = false;
+    paintBackTiles(context, this._sourceBitmap, image, layout, draw, this._scrollOffsetX);
+    if (countCommit) this._paintCommits += 1;
+  }
+
+  _syncScrollLoop(layout, draw) {
+    if (!layout?.scroll?.pixelsPerMs || !this._sourceBitmap) {
+      this._stopScroll();
+      return;
+    }
+    if (this._scrollFrame !== null) return;
+    const image = this._data?.image;
+    const tick = (ts) => {
+      if (!this.isConnected || this._state !== "ready") {
+        this._stopScroll();
+        return;
+      }
+      if (this._scrollLastTs !== null) {
+        const delta = ts - this._scrollLastTs;
+        this._scrollOffsetX += layout.scroll.pixelsPerMs * delta;
+        const pixel = Math.trunc(this._scrollOffsetX);
+        if (pixel !== this._scrollPixel) {
+          this._scrollPixel = pixel;
+          this._redrawTiles(image, layout, draw, false);
+          this._animationPaints += 1;
+        }
+      }
+      this._scrollLastTs = ts;
+      this._scrollFrame = requestAnimationFrame(tick);
+    };
+    this._scrollFrame = requestAnimationFrame(tick);
   }
 
   async _paint(image, signature, epoch, controller, visible, box) {
@@ -494,24 +613,33 @@ export class MsMapBack extends SpikeElement {
       if (mime !== "image/png") throw Object.assign(new Error("page mime is not image/png"), { code: "CONTENT_INVALID" });
       bitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
       if (epoch !== this._epoch || !this.isConnected) return;
+      if (bitmap.width !== image.pageWidth || bitmap.height !== image.pageHeight) {
+        throw Object.assign(new Error("decoded Back dimensions do not match the declared resource page"), { code: "CONTENT_INVALID" });
+      }
       const ratio = deviceRatio();
       if (ratio === null) return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
-      const deviceW = Math.round(image.pageWidth * ratio);
-      const deviceH = Math.round(image.pageHeight * ratio);
+      const layout = this._data?.layout ?? null;
+      const canvasWidth = layout?.canvasWidth ?? image.pageWidth;
+      const canvasHeight = layout?.canvasHeight ?? image.pageHeight;
+      const deviceW = Math.round(canvasWidth * ratio);
+      const deviceH = Math.round(canvasHeight * ratio);
       if (epoch !== this._epoch || !this.isConnected) return;
       this._canvas.width = deviceW;
       this._canvas.height = deviceH;
-      this._canvas.style.width = cssPx(image.pageWidth);
-      this._canvas.style.height = cssPx(image.pageHeight);
-      const context = this._canvas.getContext("2d");
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.imageSmoothingEnabled = false;
-      context.drawImage(bitmap, 0, 0);
-      this._paintCommits += 1;
+      this._canvas.style.width = cssPx(canvasWidth);
+      this._canvas.style.height = cssPx(canvasHeight);
+      this._sourceBitmap?.close?.();
+      this._sourceBitmap = bitmap;
+      bitmap = null;
+      this._scrollOffsetX = 0;
+      this._scrollPixel = 0;
+      const draw = this._data?.draw ?? null;
+      this._redrawTiles(image, layout, draw);
       this._paintedSignature = signature;
       this._loadingSignature = null;
       this._state = "ready";
       this._writeHost(visible, box);
+      this._syncScrollLoop(layout, draw);
     } catch (error) {
       if (epoch !== this._epoch || !this.isConnected) return;
       const code = failureCode(error);

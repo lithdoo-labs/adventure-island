@@ -59,7 +59,7 @@ describe("real map 222000000 closure + projection", () => {
     assert.equal(first.projection.hash, second.projection.hash);
     assert.equal(
       first.projection.hash,
-      "sha256:92fa3fc0b3cfd1be8e033f7d0b10691f4c3d6995f854e525a09667cbd22c74bc",
+      "sha256:ae366e03dd3b1d4f87796e26fa7cadfab159df24feb803abceb7953cf814e3b0",
     );
 
     // Spot-check first tile/obj keys against CMS079 formulas.

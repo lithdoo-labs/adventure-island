@@ -22,7 +22,7 @@ import {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 // M6 extends FieldState.portalTravel with token/epoch/crossMap authority, so
 // the exact hash intentionally differs from the M5-only schema baseline.
-const FIELD_HASH_800X600 = "sha256:073874b5c5e683b42a0e5b28381ca826f457d11f9dbd7d3325d7f373769946c2";
+const FIELD_HASH_800X600 = "sha256:98a1d5dbfcd78ed67884d7c70fd0b401f6aab83101a9afa377183cf74ddedc30";
 
 test("canonical 222000000 Node projection: 297 paint units, player, exact ranks, canvas budgets", async () => {
   const started = performance.now();

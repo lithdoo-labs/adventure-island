@@ -536,16 +536,82 @@ export function validateMapObjectData(data) {
   });
 }
 
+function validateBackLayout(layout, path = "data.layout") {
+  if (layout === undefined || layout === null) return valid(null);
+  if (!plainObject(layout)) return invalid("INPUT_INVALID", path, "layout must be a plain object");
+  const keys = [
+    "canvasHeight", "canvasWidth", "frameHeight", "frameWidth", "kind",
+    "pinToViewportX", "pinToViewportY", "scroll", "tileHorizontal",
+    "tileOriginX", "tileOriginY", "tileStepX", "tileStepY", "tileVertical",
+    "worldLeft", "worldTop",
+  ];
+  if (!sameKeys(layout, keys)) {
+    return invalid("INPUT_INVALID", path, "layout fields must match the candidate Back layout schema");
+  }
+  const kinds = new Set(["static-type0", "tile-horizontal", "tile-vertical", "tile-both", "scroll-horizontal"]);
+  if (!kinds.has(layout.kind)) {
+    return invalid("INPUT_INVALID", `${path}.kind`, "layout.kind is not supported");
+  }
+  for (const key of ["worldLeft", "worldTop", "tileOriginX", "tileOriginY"]) {
+    if (!Number.isFinite(layout[key]) || Math.abs(layout[key]) > FIELD_INPUT_LIMITS.maxCoordinate) {
+      return invalid("INPUT_INVALID", `${path}.${key}`, `${key} must be a bounded finite coordinate`);
+    }
+  }
+  for (const key of ["canvasWidth", "frameWidth", "tileStepX"]) {
+    const number = safeInteger(layout[key], `${path}.${key}`, {
+      min: key === "tileStepX" ? 0 : 1,
+      max: FIELD_CANVAS_LIMITS.maxCanvasWidth,
+    });
+    if (!number.ok) return number;
+  }
+  for (const key of ["canvasHeight", "frameHeight", "tileStepY"]) {
+    const number = safeInteger(layout[key], `${path}.${key}`, {
+      min: key === "tileStepY" ? 0 : 1,
+      max: FIELD_CANVAS_LIMITS.maxCanvasHeight,
+    });
+    if (!number.ok) return number;
+  }
+  if (layout.canvasWidth * layout.canvasHeight > FIELD_CANVAS_LIMITS.maxCanvasPixels) {
+    return invalid("RESOURCE_LIMIT", path, "layout Canvas exceeds the local pixel budget");
+  }
+  for (const key of ["pinToViewportX", "pinToViewportY", "tileHorizontal", "tileVertical"]) {
+    if (typeof layout[key] !== "boolean") {
+      return invalid("INPUT_INVALID", `${path}.${key}`, `${key} must be boolean`);
+    }
+  }
+  if (layout.tileHorizontal !== (layout.tileStepX > 0)
+    || layout.tileVertical !== (layout.tileStepY > 0)
+    || layout.pinToViewportX !== layout.tileHorizontal
+    || layout.pinToViewportY !== layout.tileVertical) {
+    return invalid("INPUT_INVALID", path, "repeat, pin, and non-zero step flags must agree");
+  }
+  if (layout.scroll !== null) {
+    if (!plainObject(layout.scroll) || !sameKeys(layout.scroll, ["pixelsPerMs"])
+      || !Number.isFinite(layout.scroll.pixelsPerMs)
+      || layout.scroll.pixelsPerMs === 0
+      || Math.abs(layout.scroll.pixelsPerMs) > 1) {
+      return invalid("INPUT_INVALID", `${path}.scroll`, "scroll must be null or a bounded non-zero pixelsPerMs value");
+    }
+  }
+  return valid(layout);
+}
+
 export function validateBackData(data) {
   if (!plainObject(data)) return invalid("INPUT_INVALID", "data", "back data must be a plain object");
   const placementId = idString(data.placementId, "data.placementId");
   if (!placementId.ok) return placementId;
   const image = imageRegion(data, "data");
   if (!image.ok) return image;
+  const layout = validateBackLayout(data.layout);
+  if (!layout.ok) return layout;
+  if (layout.value && (layout.value.frameWidth !== image.value.pageWidth
+    || layout.value.frameHeight !== image.value.pageHeight)) {
+    return invalid("INPUT_INVALID", "data.layout", "layout frame dimensions must match the declared resource page");
+  }
   if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
     return invalid("INPUT_INVALID", "data.provenance.sortKey", "back provenance sortKey must be finite");
   }
-  return valid({ placementId: placementId.value, image: image.value, sortKey: data.provenance.sortKey });
+  return valid({ placementId: placementId.value, image: image.value, layout: layout.value, sortKey: data.provenance.sortKey });
 }
 
 export function validateAvatarAttrs(attrs) {

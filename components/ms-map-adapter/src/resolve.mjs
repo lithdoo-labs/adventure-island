@@ -13,6 +13,10 @@ import {
   tileSortKey,
 } from "./depth.mjs";
 import {
+  backLayoutUnsupportedMessage,
+  backPresentation,
+} from "./back-layout.mjs";
+import {
   NO_VISUAL_PORTAL,
   RESOURCE_MISSING,
   SOURCE_ABSENT,
@@ -157,8 +161,9 @@ export function resolveMapScene(facts) {
       }),
     };
 
-    if (type !== 0) {
-      diagnostics.push(diagnose(UNSUPPORTED, `back type ${type} layout is not implemented in M2`, {
+    const unsupportedLayout = backLayoutUnsupportedMessage(type);
+    if (unsupportedLayout) {
+      diagnostics.push(diagnose(UNSUPPORTED, unsupportedLayout, {
         mapId,
         group: "back",
         sourceOrder: row.sourceOrder,
@@ -210,7 +215,7 @@ export function resolveMapScene(facts) {
     drawables.push(Object.freeze({
       ...base,
       resolved: Boolean(resource),
-      presentation: type === 0 ? "static-type0" : "layout-pending",
+      presentation: backPresentation(type),
       frames: Object.freeze([resolvedFrame]),
       bounds: resource
         ? worldBoundsFrom(frame.origin, frame.width, frame.height, row.x, row.y, flip)

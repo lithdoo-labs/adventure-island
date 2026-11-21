@@ -28,20 +28,18 @@ test("230030200 publishability allows closure.ok with no missing/fatal/unresolve
   assert.deepEqual(effective, M7_230030200_KNOWN_PRESENTATION_GAPS.minimapProductFallbackBounds);
 });
 
-test("230030200 documents unsupported Back layouts and Obj flow gaps", async () => {
-  const projection = await buildMapProjection({ mapId: "230030200", gameRoot: repoRoot });
+test("230030200 documents Obj flow gaps only after M7.4 Back layout", async () => {
+  const projection = await buildMapProjection({
+    mapId: "230030200",
+    gameRoot: repoRoot,
+    viewport: { width: 800, height: 600 },
+  });
   const diagnostics = projection.scene.diagnostics ?? [];
   const unsupported = diagnostics.filter((item) => item.code === UNSUPPORTED);
   const flowVisuals = unsupported.filter((item) => String(item.message).includes("flow"));
-  const backLayouts = new Set(
-    unsupported
-      .filter((item) => String(item.message).includes("back type"))
-      .map((item) => Number(String(item.message).match(/back type (\d+)/u)?.[1])),
-  );
+  const backUnsupported = unsupported.filter((item) => String(item.message).includes("back type"));
+  assert.equal(backUnsupported.length, 0);
   assert.equal(flowVisuals.length, M7_230030200_KNOWN_PRESENTATION_GAPS.unsupportedObjFlowVisualCount);
-  for (const type of M7_230030200_KNOWN_PRESENTATION_GAPS.unsupportedBackTypeLayouts) {
-    assert.ok(backLayouts.has(type), `expected unsupported back type ${type}`);
-  }
   assert.equal(M7_230030200_SWIM_FACT.swim, 1);
 });
 
@@ -73,13 +71,28 @@ test("230030200 FieldPlan tree resource closure is a documented subset of adapte
   );
 });
 
-test("230030200 publishability rejects presentation-gap drift", async () => {
+test("230030200 publishability rejects Obj flow presentation-gap drift", async () => {
   const projection = await buildMapProjection({ mapId: "230030200", gameRoot: repoRoot });
   const candidate = structuredClone(projection);
   const unsupported = candidate.scene.diagnostics.find((item) => item.code === UNSUPPORTED);
-  unsupported.stableId = "back:map230030200:999";
+  unsupported.stableId = "obj:map230030200:999";
   assert.throws(
     () => assertM7ExtraMapFieldPlanPublishable("230030200", candidate),
-    /presentation gaps drifted|unapproved unsupported/,
+    /presentation gaps drifted|unapproved unsupported|Obj flow/,
+  );
+});
+
+test("230030200 publishability rejects audited Back fact drift", async () => {
+  const projection = await buildMapProjection({
+    mapId: "230030200",
+    gameRoot: repoRoot,
+    viewport: { width: 800, height: 600 },
+  });
+  const candidate = structuredClone(projection);
+  const back = candidate.projection.root.children.find((node) => node.tag === "ms-map-back");
+  back.data.source.type = 2;
+  assert.throws(
+    () => assertM7ExtraMapFieldPlanPublishable("230030200", candidate),
+    /Back type facts drifted/,
   );
 });

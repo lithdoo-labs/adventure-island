@@ -56,13 +56,14 @@ export async function buildMapProjection({
   budget,
   cameraX = 0,
   cameraY = 0,
+  viewport,
 } = {}) {
   const facts = await readMapFacts({ mapId, fsdbRoot, gameRoot });
   const scene = resolveMapScene(facts);
   const ordered = orderDrawables(scene);
   assertStrictlyIncreasingOrder(ordered);
   const paintUnits = planPaintUnits(ordered, scene, budget);
-  const projection = projectRenderTree(scene, paintUnits, { cameraX, cameraY });
+  const projection = projectRenderTree(scene, paintUnits, { cameraX, cameraY, viewport });
   const closure = validateContentClosure(scene);
   return Object.freeze({
     facts,

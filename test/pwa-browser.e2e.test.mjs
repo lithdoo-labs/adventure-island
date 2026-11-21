@@ -231,6 +231,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     const beforeAvatarInput = await page.evaluate(() => ({
       staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
         .map((unit) => unit.diagnostics().paintCommits),
+      dynamicBackPaints: [...document.querySelectorAll("ms-map-back")]
+        .map((unit) => unit.diagnostics().animationPaints ?? 0),
       avatarRounds: document.querySelector("ms-avatar")?.diagnostics().paintRounds ?? 0,
     }));
     await page.keyboard.down("ArrowLeft");
@@ -454,6 +456,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     const waterBeforeInput = await page.evaluate(() => ({
       staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
         .map((unit) => unit.diagnostics().paintCommits),
+      dynamicBackPaints: [...document.querySelectorAll("ms-map-back")]
+        .map((unit) => unit.diagnostics().animationPaints ?? 0),
       avatarRounds: document.querySelector("ms-avatar")?.diagnostics().paintRounds ?? 0,
       avatarFrame: document.querySelector("ms-avatar")?.getAttribute("frame-index") ?? null,
     }));
@@ -475,6 +479,10 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       });
       throw new Error(`water avatar clock did not advance: ${cause.message}\n${JSON.stringify(clockFailure, null, 2)}`);
     }
+    await page.waitForFunction((before) => (
+      [...document.querySelectorAll("ms-map-back")]
+        .some((unit, index) => (unit.diagnostics().animationPaints ?? 0) > (before[index] ?? 0))
+    ), waterBeforeInput.dynamicBackPaints, { timeout: 10_000 });
     const waterAfterInput = await page.evaluate(() => {
       const hosts = [...document.querySelectorAll(
         "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
@@ -492,6 +500,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         totalPixels: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0),
         staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
           .map((unit) => unit.diagnostics().paintCommits),
+        dynamicBackPaints: [...document.querySelectorAll("ms-map-back")]
+          .map((unit) => unit.diagnostics().animationPaints ?? 0),
         avatarRounds: avatar?.diagnostics().paintRounds ?? 0,
         flyChildren: [...(avatar?.children ?? [])]
           .filter((node) => node.localName === "ms-action" && node.getAttribute("name") === "fly").length,
@@ -508,6 +518,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.ok(waterAfterInput.totalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
     assert.deepEqual(waterAfterInput.staticPaints, waterBeforeInput.staticPaints,
       "a fly frame update must not repaint static map canvases");
+    assert.ok(waterAfterInput.dynamicBackPaints.some((count, index) => count > waterBeforeInput.dynamicBackPaints[index]),
+      "renderer-local type4 Back phase must advance independently of Avatar and business state");
     assert.ok(waterAfterInput.avatarRounds > waterBeforeInput.avatarRounds,
       "a fly frame update must repaint only the local avatar canvas");
     assert.ok(waterPortalReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs);
@@ -603,6 +615,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         hosts,
         avatar,
         paintCommits: hosts.map((host) => host.diagnostics().paintCommits),
+        animationPaints: hosts.map((host) => host.diagnostics().animationPaints ?? 0),
       };
     });
     await page.keyboard.down("ArrowUp");
@@ -649,11 +662,14 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     const retiredWater = await page.evaluate(async () => {
       const retired = window.__m72RetiredWater;
       const before = retired.hosts.map((host) => host.diagnostics().paintCommits);
+      const animationBefore = retired.hosts.map((host) => host.diagnostics().animationPaints ?? 0);
       await new Promise((resolve) => setTimeout(resolve, 300));
       const currentAvatar = document.querySelector("ms-avatar");
       return {
         before,
         after: retired.hosts.map((host) => host.diagnostics().paintCommits),
+        animationBefore,
+        animationAfter: retired.hosts.map((host) => host.diagnostics().animationPaints ?? 0),
         allDisconnected: retired.hosts.every((host) => !host.isConnected),
         avatarIdentityPreserved: retired.avatar === currentAvatar && currentAvatar?.isConnected === true,
         avatarAction: currentAvatar?.getAttribute("action") ?? null,
@@ -668,6 +684,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       "the retired water plan must not overwrite the retained avatar with a late fly result");
     assert.deepEqual(retiredWater.after, retiredWater.before,
       "retired water carriers must reject late async paint commits after replacement");
+    assert.deepEqual(retiredWater.animationAfter, retiredWater.animationBefore,
+      "retired type4 Back carriers must cancel renderer-local animation frames");
     const repeatReadyMs = Date.now() - repeatStartedAt;
     assert.ok(repeatReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs + M6_PORTAL_BUDGETS.maxBrowserTravelReadyMs);
     t.diagnostic(`M7.2 B↔C repeat round-trip ${repeatReadyMs}ms`);

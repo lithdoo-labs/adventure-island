@@ -21,7 +21,7 @@ test("initial snapshot uses snapped authority coordinates, camera, and Foothold 
   const cameraProjection = applyCameraToFieldState(
     fieldState,
     { width: 800, height: 600 },
-    plan.effectiveBounds,
+    plan,
   );
   fieldState = cameraProjection.fieldState;
   const camera = cameraProjection.camera;

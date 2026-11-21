@@ -428,7 +428,7 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   assert.equal(root.key, FIELD_SCENE_ROOT_KEY);
   assert.equal(root.tag, "ms-scene-view");
   assert.equal(root.attrs["camera-x"], "-572");
-  assert.equal(root.attrs["camera-y"], "-510");
+  assert.equal(root.attrs["camera-y"], "-210");
   assert.ok(root.children.length > 200, "the Field root carries the full map Paint Unit tree");
   const initialPlayer = root.children.find((child) => child.key === "player:adventure");
   assert.ok(initialPlayer);
@@ -477,10 +477,11 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
     .find((node) => node.key === "player:adventure" && node.attrs?.set?.["world-x"] !== undefined)
     ?.attrs.set["world-x"] ?? initialPlayer.attrs["world-x"];
   harness.viewportHarness.notify({ width: 1000, height: 600 });
-  assert.deepEqual(
-    latestAttrsFor(FIELD_SCENE_ROOT_KEY),
-    { "camera-x": String(Number(latestWorldX) - 600) },
-    "a 1000x600 screen adapts to logical 1200x720 and recenters camera-x",
+  const resized = latestAttrsFor(FIELD_SCENE_ROOT_KEY);
+  assert.equal(resized["camera-y"], undefined, "height stays 720, so the held look point does not change camera-y");
+  assert.ok(
+    Math.abs(Number(resized["camera-x"]) - (Number(latestWorldX) - 600)) <= 28,
+    "camera-x stays within the 28px follow hold of the adapted logical width",
   );
   harness.viewportHarness.notify({ width: 990, height: 600 });
   const widthOnlyAttrs = latestAttrsFor(FIELD_SCENE_ROOT_KEY);
@@ -548,7 +549,7 @@ test("a 1920x1080 screen adapts inside ms-viewport-frame and follows viewport.re
   const scene = frameRoot.children[0];
   assert.equal(scene.tag, "ms-scene-view");
   assert.equal(scene.attrs["camera-x"], "-732");
-  assert.equal(scene.attrs["camera-y"], "-510");
+  assert.equal(scene.attrs["camera-y"], "-210");
 
   harness.sessionHarness.dispatch("viewport.resolution", "viewport.resolution", {
     domainId: "field",
@@ -559,7 +560,7 @@ test("a 1920x1080 screen adapts inside ms-viewport-frame and follows viewport.re
     .reverse()
     .flatMap((update) => update.nodes ?? [])
     .find((node) => node.key === FIELD_SCENE_ROOT_KEY)?.attrs?.set ?? {};
-  assert.equal(camera["camera-y"], "-270");
+  assert.equal(camera["camera-y"], "-47");
   assert.equal(camera["camera-x"], "-412");
 
   const updatesBefore = harness.domain().updates.length;

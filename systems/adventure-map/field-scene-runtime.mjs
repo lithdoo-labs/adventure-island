@@ -2,7 +2,7 @@
  * Browser-safe static Field runtime: project camera attrs onto the published
  * bootstrap AdventureFieldPlan (no Node FSDB, no generated baseline module).
  */
-import { cameraForViewport } from "../../components/ms-field/src/camera.mjs";
+import { cameraForViewport, stepCameraFollow } from "../../components/ms-field/src/camera.mjs";
 import { createStaticFieldState } from "../../components/ms-field/src/field-state.mjs";
 import { validateFieldPlan } from "./field-plan-model.mjs";
 import { applyProjectionPatches } from "./render-node-patches.mjs";
@@ -35,10 +35,11 @@ function rootWithCamera(root, camera, children = root.children) {
 export function projectAdventureMapFieldSceneFromPlan(planValue, viewport) {
   const plan = validateFieldPlan(planValue);
   const fieldState = plan.fieldState ?? createStaticFieldState({ mapId: plan.mapId });
+  const follow = stepCameraFollow(null, fieldState.player, fieldState.movement?.simulationTimeMs ?? 0);
   const camera = cameraForViewport(
-    fieldState.player,
+    { worldX: follow.x, worldY: follow.y },
     viewport ?? null,
-    { effectiveBounds: plan.effectiveBounds },
+    { sourceBounds: plan.sourceBounds, effectiveBounds: plan.effectiveBounds },
   );
   const relayout = viewport === null || viewport === undefined
     ? []

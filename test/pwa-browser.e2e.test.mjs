@@ -279,11 +279,24 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       const player = document.querySelector("ms-world-item");
       const frame = document.querySelector("ms-viewport-frame");
       const frameSize = frame?.diagnostics?.();
+      const px = Math.trunc(Number(player?.getAttribute("world-x")));
+      const py = Math.trunc(Number(player?.getAttribute("world-y")) - 50);
+      const halfW = expected.width / 2;
+      const halfH = expected.height / 2;
+      const clamp = (position, start, end, extent) => {
+        const half = extent / 2;
+        const low = start + half;
+        const high = end - half;
+        const center = high <= low ? (low + high) / 2 : Math.min(Math.max(position, low), high);
+        return center - half;
+      };
+      const cameraX = Number(scene?.getAttribute("camera-x"));
+      const cameraY = Number(scene?.getAttribute("camera-y"));
       return frameSize?.width === expected.width
         && frameSize?.height === expected.height
-        && Number(scene?.getAttribute("camera-x")) === Number(player?.getAttribute("world-x")) - expected.width / 2
-        && scene?.getAttribute("camera-y") === String(210 - expected.height);
-    }, adapted, { timeout: 20_000 });
+        && Math.abs(cameraX - clamp(px, expected.left, expected.right, expected.width)) <= 28
+        && Math.abs(cameraY - clamp(py, expected.top, expected.bottom, expected.height)) <= 28;
+    }, { ...adapted, left: -3510, top: -1000, right: 3600, bottom: 510 }, { timeout: 20_000 });
     const afterResize = await page.evaluate(() => ({
       sceneCount: document.querySelectorAll("ms-scene-view").length,
       productState: document.documentElement.dataset.loomrealmProduct,

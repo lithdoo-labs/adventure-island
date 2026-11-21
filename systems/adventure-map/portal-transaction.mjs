@@ -31,7 +31,7 @@ export function planSameMapPortalCommit({
   const cameraProjection = applyCameraToFieldState(
     nextField,
     viewport,
-    activePlan.effectiveBounds,
+    activePlan,
   );
   return Object.freeze({
     crossMap: false,
@@ -81,7 +81,7 @@ export function planCrossMapPortalCommit({
   const cameraProjection = applyCameraToFieldState(
     stagedField,
     viewport,
-    targetPlan.effectiveBounds,
+    targetPlan,
   );
   const epochRoot = applySceneEpochToRenderRoot(targetPlan.root, nextSceneEpoch);
   const renderRoot = projectInitialMovementRoot(

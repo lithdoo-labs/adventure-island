@@ -10,6 +10,17 @@ import { validatePortalLogicalIndex } from "./portal-logical-index.mjs";
 export const FIELD_PLAN_NAMESPACE = "struct.AdventureFieldPlan";
 export const FIELD_PLAN_KEY = "bootstrap";
 
+function assertFiniteRect(value, label) {
+  if (value === null || typeof value !== "object") {
+    throw new TypeError(`${label} must be an object`);
+  }
+  for (const edge of ["left", "right", "top", "bottom"]) {
+    if (!Number.isFinite(value[edge])) {
+      throw new TypeError(`${label}.${edge} must be finite`);
+    }
+  }
+}
+
 export function validateFieldPlan(value) {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new TypeError("AdventureFieldPlan must be a plain object");
@@ -23,15 +34,8 @@ export function validateFieldPlan(value) {
   if (typeof value.mapProjectionHash !== "string" || !value.mapProjectionHash.startsWith("sha256:")) {
     throw new TypeError("AdventureFieldPlan.mapProjectionHash must be a sha256 content stamp");
   }
-  const bounds = value.effectiveBounds;
-  if (bounds === null || typeof bounds !== "object") {
-    throw new TypeError("AdventureFieldPlan.effectiveBounds must be an object");
-  }
-  for (const edge of ["left", "right", "top", "bottom"]) {
-    if (!Number.isFinite(bounds[edge])) {
-      throw new TypeError(`AdventureFieldPlan.effectiveBounds.${edge} must be finite`);
-    }
-  }
+  assertFiniteRect(value.effectiveBounds, "AdventureFieldPlan.effectiveBounds");
+  assertFiniteRect(value.sourceBounds, "AdventureFieldPlan.sourceBounds");
   const root = value.root;
   if (root === null || typeof root !== "object" || typeof root.key !== "string" || root.tag !== "ms-scene-view") {
     throw new TypeError("AdventureFieldPlan.root must be an ms-scene-view RenderNode");

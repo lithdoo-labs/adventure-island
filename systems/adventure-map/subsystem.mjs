@@ -234,7 +234,7 @@ export default defineSubsystem((scope) => ({
       const initialCamera = applyCameraToFieldState(
         fieldState,
         logicalViewport,
-        activePlan.effectiveBounds,
+        activePlan,
       );
       fieldState = initialCamera.fieldState;
       const cam0 = initialCamera.camera;
@@ -292,7 +292,7 @@ export default defineSubsystem((scope) => ({
         if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
         assertViewportRelayoutEnvelope(size);
         const viewportChanged = width !== projectedViewportWidth || height !== projectedViewportHeight;
-        const cameraProjection = applyCameraToFieldState(fieldState, size, activePlan.effectiveBounds);
+        const cameraProjection = applyCameraToFieldState(fieldState, size, activePlan);
         fieldState = cameraProjection.fieldState;
         const cam = cameraProjection.camera;
         const nextX = decimalAttr(cam.cameraX);

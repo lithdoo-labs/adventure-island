@@ -169,10 +169,14 @@ export async function buildCanonicalAdventureFieldPlanContent({
   if (resolvedForEnv !== FIELD_MAP_222000000) {
     assertPublishedExtraMapFieldPlanPublishable(resolvedForEnv, projection.map);
   }
-  const effectiveBounds = projection.map?.scene?.bounds?.effectiveBounds
-    ?? projection.root?.data?.bounds?.effectiveBounds;
+  const sceneBounds = projection.map?.scene?.bounds ?? projection.root?.data?.bounds;
+  const effectiveBounds = sceneBounds?.effectiveBounds;
+  const sourceBounds = sceneBounds?.sourceBounds;
   if (effectiveBounds === undefined || effectiveBounds === null) {
     throw new TypeError("map projection did not yield effectiveBounds for the bootstrap FieldPlan");
+  }
+  if (sourceBounds === undefined || sourceBounds === null) {
+    throw new TypeError("map projection did not yield sourceBounds for the bootstrap FieldPlan");
   }
   const footholdCollisionPlan = buildFootholdCollisionPlan(projection.map.scene.footholds);
   const ropeGroup = projection.map.facts.groups.rope;
@@ -198,6 +202,7 @@ export async function buildCanonicalAdventureFieldPlanContent({
     mapId: resolvedMapId,
     hash: projection.hash,
     mapProjectionHash: projection.map.projection.hash,
+    sourceBounds,
     effectiveBounds,
     fieldState: projection.fieldState,
     footholdCollisionPlan,

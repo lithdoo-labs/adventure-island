@@ -41,7 +41,7 @@ test("createMovementState snaps canonical spawn onto reachable foothold", async 
   assert.equal(movement.contact.footholdId, 163);
 });
 
-function replayWalkTicks(footholdCollisionPlan, effectiveBounds) {
+function replayWalkTicks(footholdCollisionPlan, bounds) {
   const intents = [
     movementIntentFromHeld(["right"]),
     movementIntentFromHeld(["right"]),
@@ -54,13 +54,13 @@ function replayWalkTicks(footholdCollisionPlan, effectiveBounds) {
     segments: footholdCollisionPlan.segments,
   });
   let fieldState = applyMovementToFieldState(createStaticFieldState(), movement);
-  fieldState = applyCameraToFieldState(fieldState, { width: 800, height: 600 }, effectiveBounds).fieldState;
+  fieldState = applyCameraToFieldState(fieldState, { width: 800, height: 600 }, bounds).fieldState;
   const hashes = [];
   for (const intent of intents) {
     for (let tick = 0; tick < 5; tick += 1) {
       movement = stepMovement(movement, intent, footholdCollisionPlan, movementConfig, {});
       fieldState = applyMovementToFieldState(fieldState, movement);
-      fieldState = applyCameraToFieldState(fieldState, { width: 800, height: 600 }, effectiveBounds).fieldState;
+      fieldState = applyCameraToFieldState(fieldState, { width: 800, height: 600 }, bounds).fieldState;
       hashes.push(stateHash(fieldState));
     }
   }
@@ -70,9 +70,8 @@ function replayWalkTicks(footholdCollisionPlan, effectiveBounds) {
 test("replay hash is stable for walk+release on real foothold plan", async () => {
   const map = await buildMapProjection({ mapId: "222000000", gameRoot: repoRoot });
   const footholdCollisionPlan = buildFootholdCollisionPlan(map.scene.footholds);
-  const effectiveBounds = map.scene.bounds.effectiveBounds;
-  const first = replayWalkTicks(footholdCollisionPlan, effectiveBounds);
-  const second = replayWalkTicks(footholdCollisionPlan, effectiveBounds);
+  const first = replayWalkTicks(footholdCollisionPlan, map.scene.bounds);
+  const second = replayWalkTicks(footholdCollisionPlan, map.scene.bounds);
   assert.deepEqual(first.hashes, second.hashes, "identical intent/tick sequences yield identical hashes");
   assert.ok(first.movement.worldX > -92, "walk moved the player");
   assert.ok(Number.isFinite(first.fieldState.camera.cameraX));

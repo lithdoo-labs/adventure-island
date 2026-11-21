@@ -45,7 +45,7 @@ test("bundle-derived AdventureFieldPlan/bootstrap reprojects through the browser
   );
   assert.match(plan.movementConfig.source.contentVersion, /^sha256:[0-9a-f]{64}$/u);
   assert.equal(projection.root.attrs["camera-x"], "-492");
-  assert.equal(projection.root.attrs["camera-y"], "-390");
+  assert.equal(projection.root.attrs["camera-y"], "-90");
 });
 
 test("adventure-map subsystem reads FieldPlan via scope.content.record", async () => {

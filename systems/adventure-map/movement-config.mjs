@@ -21,7 +21,7 @@ export function validateMovementConfig(value) {
       throw new TypeError(`movementConfig.${key} must be a bounded positive number`);
     }
   }
-  for (const key of ["swimForce", "swimSpeed"]) {
+  for (const key of ["swimForce", "swimSpeed", "floatDrag1"]) {
     if (!Number.isFinite(value[key]) || value[key] <= 0 || value[key] > 1_000_000) {
       throw new TypeError(`movementConfig.${key} must be a bounded positive number`);
     }

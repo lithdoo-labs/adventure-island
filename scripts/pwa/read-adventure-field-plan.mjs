@@ -86,6 +86,7 @@ async function readMovementConfig(gameRoot) {
     swimForce: Number(physics.swimForce),
     swimSpeed: Number(physics.swimSpeed),
     swimSpeedDec: Number(physics.swimSpeedDec),
+    floatDrag1: Number(physics.floatDrag1),
   }));
   return Object.freeze({
     movementConfig,

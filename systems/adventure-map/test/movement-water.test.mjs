@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { movementIntentFromHeld } from "../movement-intent.mjs";
+import { movementIntentFromHeld, movementIntentFromHeldForState } from "../movement-intent.mjs";
 import { hashFieldState } from "../field-state-hash.mjs";
 import { createStaticFieldState } from "../../../components/ms-field/src/field-state.mjs";
-import { applyMovementToFieldState } from "../movement-sim.mjs";
+import { applyMovementToFieldState, BUSINESS_TICK_MS } from "../movement-sim.mjs";
 import {
+  WATER_JUMP_REPEAT_MS,
   WATER_JUMP_SPEED_MULTIPLIER,
   createWaterMovementState,
   stepWaterMovement,
@@ -26,17 +27,21 @@ const movementConfig = validateMovementConfig(Object.freeze({
   swimForce: 120_000,
   swimSpeed: 140,
   swimSpeedDec: 0.9,
+  floatDrag1: 100_000,
 }));
 
-test("water jump impulse uses -(swimSpeed * 5)", () => {
+test("water jump writes -(swimSpeed * 5) and the same tick keeps integrating", () => {
   const state = createWaterMovementState({ worldX: 0, worldY: 100 });
   const next = stepWaterMovement(
     state,
-    movementIntentFromHeld(["up"]),
+    movementIntentFromHeld(["jump"]),
     movementConfig,
     { jumpPressed: true },
   );
-  assert.equal(next.velocityY, -movementConfig.swimSpeed * WATER_JUMP_SPEED_MULTIPLIER);
+  const impulse = -movementConfig.swimSpeed * WATER_JUMP_SPEED_MULTIPLIER;
+  assert.ok(next.velocityY > impulse);
+  assert.ok(next.velocityY < 0);
+  assert.equal(next.jumpRepeatMs, WATER_JUMP_REPEAT_MS);
 });
 
 test("water movement replay hash is stable", () => {
@@ -76,17 +81,87 @@ test("water movement replay hash is stable", () => {
   assert.deepEqual(hashes, again);
 });
 
-test("water state keeps swim locomotion while idle and decays velocity without inventing gravity", () => {
+test("idle water rises through zero and cruises at +swimSpeed", () => {
   const initial = createWaterMovementState({ worldX: 0, worldY: 100 });
   assert.equal(initial.locomotion, "swim");
-  const jumped = stepWaterMovement(
+  let movement = stepWaterMovement(
     initial,
     movementIntentFromHeld([]),
     movementConfig,
     { jumpPressed: true },
   );
-  const settled = stepWaterMovement(jumped, movementIntentFromHeld([]), movementConfig);
-  assert.equal(settled.velocityY, jumped.velocityY * movementConfig.swimSpeedDec);
-  assert.equal(settled.locomotion, "swim");
-  assert.equal(settled.mode, "swim");
+  assert.equal(movement.locomotion, "swim");
+  assert.equal(movement.mode, "swim");
+  let peakY = movement.worldY;
+  let crossedZero = false;
+  for (let tick = 0; tick < 80; tick += 1) {
+    const previousY = movement.velocityY;
+    movement = stepWaterMovement(movement, movementIntentFromHeld([]), movementConfig);
+    assert.ok(movement.velocityY >= previousY);
+    if (movement.worldY < peakY) peakY = movement.worldY;
+    if (movement.velocityY > 0) crossedZero = true;
+  }
+  assert.equal(crossedZero, true);
+  assert.equal(movement.velocityY, movementConfig.swimSpeed);
+  assert.ok(movement.worldY > peakY);
+});
+
+test("held vertical keys approach the swim cruise targets", () => {
+  const idle = createWaterMovementState({ worldX: 0, worldY: 0 });
+  const upIntent = movementIntentFromHeldForState(["up"]);
+  const up = stepWaterMovement(idle, upIntent, movementConfig);
+  assert.ok(up.velocityY < 0);
+  assert.ok(up.velocityY >= -movementConfig.swimSpeed * 0.3);
+  let rising = idle;
+  for (let tick = 0; tick < 8; tick += 1) {
+    rising = stepWaterMovement(rising, upIntent, movementConfig);
+  }
+  assert.equal(rising.velocityY, -movementConfig.swimSpeed * 0.3);
+
+  let sinking = idle;
+  let roseAboveCap = false;
+  for (let tick = 0; tick < 40; tick += 1) {
+    sinking = stepWaterMovement(sinking, movementIntentFromHeld(["down"]), movementConfig);
+    assert.ok(sinking.velocityY > 0);
+    assert.ok(sinking.velocityY < movementConfig.swimSpeed * 1.5);
+    if (sinking.velocityY > movementConfig.swimSpeed) roseAboveCap = true;
+  }
+  assert.equal(roseAboveCap, true);
+});
+
+test("horizontal swim accelerates to the cap and releases toward zero", () => {
+  let movement = createWaterMovementState({ worldX: 0, worldY: 0 });
+  movement = stepWaterMovement(movement, movementIntentFromHeld(["right"]), movementConfig);
+  assert.ok(movement.velocityX > 0);
+  assert.ok(movement.velocityX < movementConfig.swimSpeed);
+  for (let tick = 0; tick < 20; tick += 1) {
+    movement = stepWaterMovement(movement, movementIntentFromHeld(["right"]), movementConfig);
+  }
+  assert.equal(movement.velocityX, movementConfig.swimSpeed);
+  const released = stepWaterMovement(movement, movementIntentFromHeld([]), movementConfig);
+  assert.ok(released.velocityX < movement.velocityX);
+  assert.ok(released.velocityX > 0);
+});
+
+test("holding jump repeats the buoyant impulse on the 300 ms cadence", () => {
+  const intent = movementIntentFromHeld(["jump"]);
+  let movement = stepWaterMovement(
+    createWaterMovementState({ worldX: 0, worldY: 0 }),
+    intent,
+    movementConfig,
+    { jumpPressed: true },
+  );
+  const first = movement.velocityY;
+  let repeated = false;
+  for (let tick = 0; tick < 20; tick += 1) {
+    const previous = movement.velocityY;
+    movement = stepWaterMovement(movement, intent, movementConfig);
+    if (movement.velocityY < previous && movement.jumpRepeatMs === WATER_JUMP_REPEAT_MS) {
+      repeated = true;
+      assert.equal(movement.velocityY, first);
+      break;
+    }
+  }
+  assert.equal(repeated, true);
+  assert.equal(movement.simulationTimeMs, BUSINESS_TICK_MS + WATER_JUMP_REPEAT_MS);
 });

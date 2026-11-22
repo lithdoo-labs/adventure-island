@@ -9,7 +9,7 @@
     "loom-realm/game-libs/*"
   ],
   "scripts": {
-    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/adventure-runtime.test.mjs test/adventure-map-field-bridge.test.mjs test/adventure-map-movement.test.mjs test/adventure-map-portal.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs components/ms-avatar/test/plan-projection.test.mjs components/ms-avatar/test/composition.test.mjs components/ms-avatar/test/presentation-timing.test.mjs components/ms-avatar/test/validate.test.mjs components/ms-field/test/field-project.test.mjs components/ms-field/test/camera.test.mjs components/ms-viewport/test/layout.test.mjs systems/adventure-map/test/*.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
+    "test": "node --test test/game-entry.test.mjs test/presentation.test.mjs test/adventure-runtime.test.mjs test/adventure-map-field-bridge.test.mjs test/adventure-map-movement.test.mjs test/adventure-map-portal.test.mjs test/pwa-bundle.test.mjs test/pwa-staging.test.mjs components/ms-avatar/test/plan-projection.test.mjs components/ms-avatar/test/composition.test.mjs components/ms-avatar/test/presentation-timing.test.mjs components/ms-avatar/test/validate.test.mjs components/ms-field/test/field-project.test.mjs components/ms-field/test/camera.test.mjs components/ms-field/test/batch-canvas-tiles.test.mjs components/ms-viewport/test/layout.test.mjs systems/adventure-map/test/*.test.mjs systems/loomrealm-smoke/test/smoke.test.mjs",
     "pwa:bundle": "node scripts/pwa/build-installation-bundle.mjs --output dist/adventure-island-installation-bundle.json",
     "pwa:staging": "node scripts/pwa/build-staging.mjs"
   },

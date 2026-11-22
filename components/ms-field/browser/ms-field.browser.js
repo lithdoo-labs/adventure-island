@@ -3245,6 +3245,63 @@ function deviceCanvasFitsBudget(width, height) {
     && width * height <= FIELD_CANVAS_LIMITS.maxCanvasPixels;
 }
 
+/**
+ * Split a batch's CSS bounds into abutting slices whose device canvases fit
+ * the field budget. Placement coordinates stay in batch space; each slice
+ * only changes which canvas clips them.
+ */
+function batchCanvasTiles(width, height, ratio) {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) return null;
+  if (!Number.isFinite(ratio) || ratio <= 0 || ratio > FIELD_CANVAS_LIMITS.maxDevicePixelRatio) return null;
+  const limit = FIELD_CANVAS_LIMITS;
+  const maxW = Math.max(1, Math.floor(limit.maxCanvasWidth / ratio));
+  const maxH = Math.max(1, Math.floor(limit.maxCanvasHeight / ratio));
+  const tiles = [];
+  for (let y = 0; y < height; y += maxH) {
+    const tileH = Math.min(maxH, height - y);
+    const deviceH = Math.round(tileH * ratio);
+    let x = 0;
+    while (x < width) {
+      let tileW = Math.min(maxW, width - x);
+      let deviceW = Math.round(tileW * ratio);
+      while (tileW > 1 && deviceW * deviceH > limit.maxCanvasPixels) {
+        tileW -= 1;
+        deviceW = Math.round(tileW * ratio);
+      }
+      if (!deviceCanvasFitsBudget(deviceW, deviceH)) return null;
+      tiles.push({ x, y, w: tileW, h: tileH, deviceW, deviceH });
+      x += tileW;
+    }
+  }
+  return tiles;
+}
+
+function paintBatchPlacement(context, bitmap, placement, item, originX, originY) {
+  const dest = placementDestRect(placement, item);
+  const localX = dest.x - originX;
+  const localY = dest.y - originY;
+  context.save();
+  context.globalAlpha = placement.opacity / 255;
+  if (placement.flip) {
+    context.translate(localX + dest.w, localY);
+    context.scale(-1, 1);
+    context.drawImage(bitmap, item.source.x, item.source.y, item.source.w, item.source.h, 0, 0, dest.w, dest.h);
+  } else {
+    context.drawImage(
+      bitmap,
+      item.source.x,
+      item.source.y,
+      item.source.w,
+      item.source.h,
+      localX,
+      localY,
+      dest.w,
+      dest.h,
+    );
+  }
+  context.restore();
+}
+
 function backContentSignature(data) {
   if (data?.mode === "local-animation") {
     const { placementId, front, source, presentation, mode, frames } = data;
@@ -3443,10 +3500,24 @@ class MsMapBatch extends SpikeElement {
   _installShadow() {
     const shadow = this.attachShadow({ mode: "open" });
     this._style = document.createElement("style");
+    this._surfaces = [];
     this._canvas = document.createElement("canvas");
     this._canvas.setAttribute("aria-hidden", "true");
+    this._surfaces.push(this._canvas);
     shadow.append(this._style, this._canvas);
     this._writeHost(false, { x: 0, y: 0, w: 0, h: 0, stackRank: 1 });
+  }
+
+  _syncSurfaces(count) {
+    const shadow = this._style.getRootNode();
+    while (this._surfaces.length < count) {
+      const canvas = document.createElement("canvas");
+      canvas.setAttribute("aria-hidden", "true");
+      shadow.append(canvas);
+      this._surfaces.push(canvas);
+    }
+    while (this._surfaces.length > count) this._surfaces.pop().remove();
+    this._canvas = this._surfaces[0] ?? null;
   }
 
   _writeHost(shown, box = this._box) {
@@ -3459,14 +3530,15 @@ class MsMapBatch extends SpikeElement {
         left:${cssPx(box.x)}; top:${cssPx(box.y)}; width:${cssPx(box.w)}; height:${cssPx(box.h)};
         z-index:${box.stackRank}; ${shown ? "" : "visibility:hidden;"}
       }
-      canvas { display:block; image-rendering:pixelated; }
+      canvas { position:absolute; margin:0; image-rendering:pixelated; }
     `;
   }
 
   _clearCanvas() {
-    if (!this._canvas) return;
-    this._canvas.width = 0;
-    this._canvas.height = 0;
+    for (const canvas of this._surfaces ?? []) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
     this._clearCommits += 1;
   }
 
@@ -3535,54 +3607,39 @@ class MsMapBatch extends SpikeElement {
         this._failPaint(epoch, "RESOURCE_LIMIT", "device pixel ratio is outside the spike budget");
         return;
       }
-      const deviceW = Math.round(data.bounds.w * ratio);
-      const deviceH = Math.round(data.bounds.h * ratio);
-      if (
-        deviceW < 1 || deviceH < 1
-        || deviceW > FIELD_CANVAS_LIMITS.maxCanvasWidth
-        || deviceH > FIELD_CANVAS_LIMITS.maxCanvasHeight
-        || deviceW * deviceH > FIELD_CANVAS_LIMITS.maxCanvasPixels
-      ) {
+      const tiles = batchCanvasTiles(data.bounds.w, data.bounds.h, ratio);
+      if (!tiles) {
         this._failPaint(epoch, "RESOURCE_LIMIT", "device canvas budget exceeded");
         return;
       }
-      const offscreen = document.createElement("canvas");
-      offscreen.width = deviceW;
-      offscreen.height = deviceH;
-      const context = offscreen.getContext("2d");
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.imageSmoothingEnabled = false;
-      for (const placement of data.placements) {
-        const item = data.items[placement.sprite];
-        const bitmap = decoded.get(item.page);
-        const dest = placementDestRect(placement, item);
-        context.save();
-        context.globalAlpha = placement.opacity / 255;
-        if (placement.flip) {
-          context.translate(dest.x - data.bounds.x + dest.w, dest.y - data.bounds.y);
-          context.scale(-1, 1);
-          context.drawImage(bitmap, item.source.x, item.source.y, item.source.w, item.source.h, 0, 0, dest.w, dest.h);
-        } else {
-          context.drawImage(
-            bitmap,
-            item.source.x,
-            item.source.y,
-            item.source.w,
-            item.source.h,
-            dest.x - data.bounds.x,
-            dest.y - data.bounds.y,
-            dest.w,
-            dest.h,
-          );
+      const slices = tiles.map((tile) => {
+        const offscreen = document.createElement("canvas");
+        offscreen.width = tile.deviceW;
+        offscreen.height = tile.deviceH;
+        const context = offscreen.getContext("2d");
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.imageSmoothingEnabled = false;
+        const originX = data.bounds.x + tile.x;
+        const originY = data.bounds.y + tile.y;
+        for (const placement of data.placements) {
+          const item = data.items[placement.sprite];
+          paintBatchPlacement(context, decoded.get(item.page), placement, item, originX, originY);
         }
-        context.restore();
-      }
+        return { tile, offscreen };
+      });
       if (epoch !== this._epoch) return;
-      this._canvas.width = deviceW;
-      this._canvas.height = deviceH;
-      this._canvas.style.width = cssPx(data.bounds.w);
-      this._canvas.style.height = cssPx(data.bounds.h);
-      this._canvas.getContext("2d").drawImage(offscreen, 0, 0);
+      this._syncSurfaces(slices.length);
+      for (let index = 0; index < slices.length; index += 1) {
+        const { tile, offscreen } = slices[index];
+        const canvas = this._surfaces[index];
+        canvas.width = tile.deviceW;
+        canvas.height = tile.deviceH;
+        canvas.style.left = cssPx(tile.x);
+        canvas.style.top = cssPx(tile.y);
+        canvas.style.width = cssPx(tile.w);
+        canvas.style.height = cssPx(tile.h);
+        canvas.getContext("2d").drawImage(offscreen, 0, 0);
+      }
       this._paintCommits += 1;
       this._paintedSignature = signature;
       this._loadingSignature = null;

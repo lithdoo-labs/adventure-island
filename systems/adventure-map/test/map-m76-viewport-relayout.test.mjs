@@ -9,6 +9,8 @@ import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/re
 import { M7_5_OBJ_FLOW_BUDGETS, M7_5_MEASURED_WATER_MAP_BUDGETS, M7_6_VIEWPORT_BUDGETS, M7_6_MEASURED_SOAK_BUDGETS, M7_7_MEASURED_WATER_MAP_BUDGETS, M7_PORTAL_BUDGETS } from "../portal-budgets.mjs";
 import { projectViewportRelayoutUpdates } from "../viewport-view-projection.mjs";
 import { projectAdventureMapFieldSceneFromPlan } from "../field-scene-runtime.mjs";
+import { planCrossMapPortalCommit } from "../portal-transaction.mjs";
+import { createMovementState } from "../movement-sim.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -92,4 +94,41 @@ test("first entry at 800x600 relayouts the published canonical FieldPlan immedia
     () => projectAdventureMapFieldSceneFromPlan(plan, { width: 639, height: 600 }),
     RangeError,
   );
+});
+
+test("cross-map replace keeps viewport-sized water hosts at the live logical size", async () => {
+  const source = (await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRoot, mapId: "222000001" })).plan;
+  const target = (await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRoot, mapId: "230030200" })).plan;
+  const sourcePortal = source.portalLogicalIndex.entries.find((entry) => (
+    entry.enabled && String(entry.targetMap) === "230030200"
+  ));
+  const targetPortal = target.portalLogicalIndex.entries.find((entry) => entry.name === sourcePortal?.targetName);
+  assert.ok(sourcePortal, "map 222000001 must publish an edge into the water map");
+  assert.ok(targetPortal, "the water map must publish the arrival portal");
+  const viewport = Object.freeze({ width: 996, height: 719 });
+  const commit = planCrossMapPortalCommit({
+    sourcePlan: source,
+    targetPlan: target,
+    fieldState: source.fieldState,
+    movementState: createMovementState({
+      worldX: source.fieldState.player.worldX,
+      worldY: source.fieldState.player.worldY,
+      segments: source.footholdCollisionPlan.segments,
+    }),
+    sourcePortal,
+    targetPortal,
+    viewport,
+    travelToken: 2,
+    nextSceneEpoch: 2,
+  });
+  const pinnedBacks = commit.renderRoot.children.filter((node) => (
+    node.tag === "ms-map-back" && node.data?.layout?.tileHorizontal === true
+  ));
+  const pinnedFlows = commit.renderRoot.children.filter((node) => (
+    node.tag === "ms-map-object" && node.data?.source?.flow === 1
+  ));
+  assert.equal(pinnedBacks.length, 12);
+  assert.equal(pinnedFlows.length, 11);
+  assert.ok(pinnedBacks.every((node) => node.data.layout.canvasWidth === viewport.width));
+  assert.ok(pinnedFlows.every((node) => node.data.layout.canvasWidth === viewport.width));
 });

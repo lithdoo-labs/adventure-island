@@ -679,13 +679,55 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
 
     // M7.2: audited east00 at x=296/y=-98 matches arrival feet on map C; a fresh
     // trusted Up edge must replace the water scene with map B land/stand at sea00.
-    await page.waitForFunction(() => {
-      const player = document.querySelector("ms-world-item");
-      const avatar = document.querySelector("ms-avatar");
-      return Number(player?.getAttribute("world-x")) === 296
-        && Number(player?.getAttribute("world-y")) === -98
-        && avatar?.getAttribute("action") === "fly";
-    }, null, { timeout: 20_000 });
+    // Idle swim sinks during the viewport soak, so steer back into the trigger
+    // before the edge. Up is the swim axis and only the key-down edge travels.
+    const east00 = { x: 296, y: -98, halfX: 20, halfY: 50 };
+    const steerDeadline = Date.now() + 45_000;
+    let heldKey = null;
+    const releaseSteer = async () => {
+      if (!heldKey) return;
+      await page.keyboard.up(heldKey);
+      heldKey = null;
+    };
+    try {
+      let lastPose = null;
+      while (Date.now() < steerDeadline) {
+        lastPose = await page.evaluate(() => {
+          const player = document.querySelector("ms-world-item");
+          const avatar = document.querySelector("ms-avatar");
+          return {
+            x: Number(player?.getAttribute("world-x")),
+            y: Number(player?.getAttribute("world-y")),
+            action: avatar?.getAttribute("action") ?? null,
+          };
+        });
+        const inside = lastPose.action === "fly"
+          && Math.abs(lastPose.x - east00.x) <= east00.halfX
+          && Math.abs(lastPose.y - east00.y) <= east00.halfY;
+        if (inside) break;
+        const key = lastPose.y > east00.y + east00.halfY ? "ArrowUp"
+          : lastPose.y < east00.y - east00.halfY ? "ArrowDown"
+            : lastPose.x > east00.x + east00.halfX ? "ArrowLeft"
+              : lastPose.x < east00.x - east00.halfX ? "ArrowRight"
+                : null;
+        if (key !== heldKey) {
+          await releaseSteer();
+          if (key) {
+            await page.keyboard.down(key);
+            heldKey = key;
+          }
+        }
+        await page.waitForTimeout(40);
+      }
+      await releaseSteer();
+      if (!(lastPose?.action === "fly"
+        && Math.abs(lastPose.x - east00.x) <= east00.halfX
+        && Math.abs(lastPose.y - east00.y) <= east00.halfY)) {
+        throw new Error(`water avatar left east00 during the viewport soak: ${JSON.stringify(lastPose)}`);
+      }
+    } finally {
+      await releaseSteer();
+    }
   const landReturnStartedAt = Date.now();
   await page.keyboard.down("ArrowUp");
   await page.keyboard.up("ArrowUp");
@@ -1042,7 +1084,8 @@ async function waitForEvaluate(page, expression, label, { timeout = 40_000, arg 
   assert.fail(`Timed out waiting for ${label}; last observation: ${JSON.stringify(last)}`);
 }
 
-// Scene-space sample points — identical geometry to the component fixture
+// Scene-space sample points for the unmirrored pose (facing=left). Identical
+// geometry to the component fixture
 // (components/cms-actor/test/integration.chromium.test.mjs): body spans
 // x[-19,8) y[-32,0); head x[-12,12) y[-34,-10); face x[-6,6) y[-29,-19);
 // hair x[-12,12) y[-32,-14) with the transparent hole over the face; weapon

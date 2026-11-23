@@ -17,8 +17,8 @@ export function applyCameraToFieldState(fieldState, viewport, bounds) {
     intent: "filtered-follow",
     cameraX: camera.cameraX,
     cameraY: camera.cameraY,
-    viewportWidth: viewport.width,
-    viewportHeight: viewport.height,
+    viewportWidth: Number.isFinite(viewport?.width) ? viewport.width : null,
+    viewportHeight: Number.isFinite(viewport?.height) ? viewport.height : null,
     follow,
   });
   return Object.freeze({

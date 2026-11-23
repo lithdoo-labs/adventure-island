@@ -414,6 +414,28 @@ function pressDirection(harness, button, held) {
   harness.eventsHarness.dispatch("controls.event", "input.event", { action: "down", button, repeat: false });
 }
 
+test("a missing viewport sample still opens the map scene", async (t) => {
+  const harness = startMapFrame({ viewport: createViewportHarness(null) });
+  t.after(() => harness.frame.abort());
+  await settle();
+
+  assert.equal(harness.domains.length, 1, "map startup must not abort before the first viewport sample");
+  const scene = harness.domain().initialState.roots[0].children[0];
+  assert.equal(scene.tag, "ms-scene-view");
+  assert.match(scene.attrs["camera-x"], /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/);
+  assert.match(scene.attrs["camera-y"], /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/);
+  assert.equal(scene.attrs.visible, "true");
+
+  harness.viewportHarness.notify({ width: 800, height: 600 });
+  await settle();
+  const camera = [...harness.domain().updates]
+    .reverse()
+    .flatMap((update) => update.nodes ?? [])
+    .find((node) => node.key === FIELD_SCENE_ROOT_KEY);
+  assert.equal(camera?.attrs?.set?.["camera-x"], "-572");
+  assert.equal(camera?.attrs?.set?.["camera-y"], "-210");
+});
+
 test("T2: the Map projects the static Field scene and reprojects camera on resize", async (t) => {
   const harness = startMapFrame();
   t.after(() => harness.frame.abort());

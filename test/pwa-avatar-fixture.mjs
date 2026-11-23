@@ -119,7 +119,9 @@ function actorRootWithKey(key, plan, locomotion) {
       x: "0",
       y: "0",
       locomotion: locomotion,
-      facing: "right",
+      // Source art faces left. facing=right mirrors the composite, and the
+      // PWA pixel probes sample the unmirrored pose.
+      facing: "left",
       skin: "0",
       face: LOOK_IDS.face,
       hair: LOOK_IDS.hair,

@@ -83,7 +83,7 @@ export function planCrossMapPortalCommit({
     viewport,
     targetPlan,
   );
-  const epochRoot = applySceneEpochToRenderRoot(targetPlan.root, nextSceneEpoch);
+  const epochRoot = applySceneEpochToRenderRoot(targetProjection.root, nextSceneEpoch);
   const renderRoot = projectInitialMovementRoot(
     epochRoot,
     cameraProjection.fieldState,

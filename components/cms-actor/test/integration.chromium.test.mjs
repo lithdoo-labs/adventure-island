@@ -12,7 +12,8 @@
  *  - Canvas pixels: body/head/face/hair anchor alignment, front/back
  *    z-order (incl. alpha), left/right mirroring around the body origin —
  *    pixel-exact at deviceScaleFactor 1 AND 2, including a frame `move`
- *    mirror pivot;
+ *    mirror pivot. Source art faces left, so facing=left is the unmirrored
+ *    pose and facing=right mirrors it;
  *  - stand1 / walk1 / jump frame advancement per WZ delay;
  *  - one-shot `action` events play once and return to the CURRENT
  *    locomotion; rapid re-trigger restarts from frame 0;
@@ -85,7 +86,7 @@ function actorView({ attrs = {}, plan = avatarPlan, withActor = true } = {}) {
             x: "0",
             y: "0",
             locomotion: "stand",
-            facing: "right",
+            facing: "left",
             skin: "0",
             face: "00020000",
             hair: "00030000",
@@ -183,7 +184,7 @@ test("formal bootstrap registers the classic entry and projects context, attrs a
     };
   });
   assert.deepEqual(projected.attrs, {
-    x: "0", y: "0", locomotion: "stand", facing: "right",
+    x: "0", y: "0", locomotion: "stand", facing: "left",
     skin: "0", face: "00020000", hair: "00030000", expression: "default", equips: "",
   });
   assert.equal(projected.inDocument, true);
@@ -218,8 +219,8 @@ test("anchors align body, head, face and hair; z-order and alpha compose; mirror
   await waitPixel(page, POINTS.faceThroughHairHole, COLORS.face, "face visible through the hair's transparent window");
   await waitPixel(page, POINTS.weaponRight, COLORS.weapon, "weapon aligned to the hand anchor, in front of the body");
 
-  // Facing left mirrors the whole composite around the body origin x.
-  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { x: "40", y: "60", facing: "left" } }));
+  // Facing right mirrors the whole composite around the body origin x.
+  await page.evaluate((view) => window.__applyView(view), actorView({ attrs: { x: "40", y: "60", facing: "right" } }));
   await waitPixel(page, POINTS.weaponLeft, COLORS.weapon, "weapon mirrored to the left side");
   await waitPixel(page, [4, -11], COLORS.head, "right side now shows the head, not the weapon");
   await waitPixel(page, [0, -12], COLORS.head, "anchored parts stay aligned after mirroring");

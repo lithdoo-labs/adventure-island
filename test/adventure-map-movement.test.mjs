@@ -98,9 +98,16 @@ test("subsystem projects world position and camera on simulation tick without sc
   await new Promise((resolve) => setTimeout(resolve, 10));
   eventsHarness.dispatch("controls.state", "input.state", { down: ["right"] });
   eventsHarness.dispatch("controls.event", "input.event", { action: "down", button: "right", repeat: false });
-  await new Promise((resolve) => setTimeout(resolve, 40));
+  // Camera follow holds until the player leaves a 28px dead zone, so a single
+  // 40ms slice can move the avatar without changing camera-x/camera-y.
+  const deadline = Date.now() + 1_000;
+  let domain = domainHarness.domains[0];
+  while (Date.now() < deadline) {
+    domain = domainHarness.domains[0];
+    if (domain?.updates.some((u) => u.nodes?.some((n) => n.key === FIELD_SCENE_ROOT_KEY))) break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 
-  const domain = domainHarness.domains[0];
   assert.ok(domain.updates.length > 0);
   const keys = new Set(domain.updates.flatMap((u) => (u.nodes ?? []).map((n) => n.key)));
   assert.ok(keys.has(PLAYER_WORLD_ITEM_KEY) || domain.updates.some((u) => u.nodes?.some((n) => n.key === PLAYER_WORLD_ITEM_KEY)));

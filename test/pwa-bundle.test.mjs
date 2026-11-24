@@ -519,6 +519,10 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
     assert.equal(plan.locomotionActions.walk, "walk1");
     assert.equal(plan.locomotionActions.swim, "fly");
     assert.equal(plan.locomotionActions.climb, "rope");
+    const standIds = plan.actions.stand1.frames[0].layers.map((layer) => layer.id);
+    assert.equal(standIds.some((id) => id.startsWith("coat")), true, "the published character wears the coat");
+    assert.equal(standIds.some((id) => id.startsWith("pants")), true, "the published character wears the pants");
+    assert.equal(standIds.some((id) => id.startsWith("shoes")), true, "the published character wears the shoes");
     const planDataBytes = measureAvatarPlanDataBytes(plan);
     assert.ok(planDataBytes <= AVATAR_PLAN_DATA_BYTE_LIMIT, `plan data ${planDataBytes}B must stay under the cap`);
     assert.ok(planBytes.length <= AVATAR_PLAN_DATA_BYTE_LIMIT, "the published plan record body itself stays bounded");

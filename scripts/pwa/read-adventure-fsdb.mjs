@@ -3,8 +3,9 @@
  * Island PWA bundle (issue #62).
  *
  * The repository's existing `content/[FSDB]adventure/` library is the ONLY
- * Avatar material source: this helper reads exactly the fixed single-character
- * closure (body/head/face/hair parts, their PartFrame/Resource groups, the
+ * Avatar material source: this helper reads exactly the published character
+ * closure (body, head, face, hair, and the one-hand outfit — cap, coat, pants,
+ * shoes, glove, shield, weapon — plus their PartFrame/Resource groups, the
  * shared DrawOrder/LayerSlot records, and the PNG atlas pages those resource
  * rows actually reference), derives the bootstrap AvatarPlanV1 ONCE through
  * the official `buildAdventureAvatarPlan()` adapter, and returns the entries
@@ -41,12 +42,19 @@ const root = fileURLToPath(new URL("../../", import.meta.url));
 /** Location of the only Avatar material source, relative to the game root. */
 export const ADVENTURE_FSDB_RELATIVE_PATH = "content/[FSDB]adventure";
 
-/** The frozen single-character selection for this slice. */
+/** Published character: skin parts plus the one-hand outfit already in the FSDB. */
 export const ADVENTURE_PART_KEYS = Object.freeze([
   "avatar.part.body.00002000",
   "avatar.part.head.00012000",
   "avatar.part.face.00020100",
   "avatar.part.hair.00030000",
+  "avatar.equip.cap.01000000",
+  "avatar.equip.coat.01040002",
+  "avatar.equip.pants.01062001",
+  "avatar.equip.shoes.01070000",
+  "avatar.equip.glove.01082002",
+  "avatar.equip.shield.01092003",
+  "avatar.equip.weapon.01302000",
 ]);
 export const ADVENTURE_EXPRESSION = "default";
 
@@ -108,7 +116,7 @@ function compareEntries(left, right) {
 }
 
 /**
- * Read the canonical single-character Avatar closure from the existing FSDB
+ * Read the published character Avatar closure from the existing FSDB
  * and derive the bootstrap AvatarPlanV1 through the official adapter.
  *
  * @returns {{

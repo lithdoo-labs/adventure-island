@@ -40,7 +40,7 @@ export const M7_5_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
   visualCanvases: 148,
   totalLocalPixels: 11_701_394,
   fieldPlanResourceClosure: 154,
-  firstFramePaintResources: 91,
+  firstFramePaintResources: 98, // bare-character count plus the seven outfit atlases
   fieldPlanVisualCanvases: 148,
   objFlowHosts: 11,
   objFlowFrameResources: 36,
@@ -63,10 +63,10 @@ export const M7_6_VIEWPORT_BUDGETS = Object.freeze({
 /** M7.7 additive Back animation ceilings; M7.1–M7.6 gates remain immutable evidence. */
 export const M7_7_BACK_ANIM_BUDGETS = Object.freeze({
   publishedMapResourceUnion: 351,
-  maxWaterMapFieldPlanResourceClosure: 190,
+  maxWaterMapFieldPlanResourceClosure: 200,
   maxWaterMapBackAnimHosts: 21,
   maxWaterMapBackAnimFrameResources: 80,
-  maxWaterMapBrowserReadyPaintResources: 120,
+  maxWaterMapBrowserReadyPaintResources: 140,
   maxContentReadConcurrency: 8,
   maxWaterMapProjectionMs: 2_000,
   maxWaterMapBrowserReadyMs: 30_000,
@@ -77,10 +77,10 @@ export const M7_7_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
   visualCanvases: 148,
   totalLocalPixels: 13_722_892,
   mapResourceClosure: 183,
-  fieldPlanResourceClosure: 187,
-  firstFramePaintResources: 91,
+  fieldPlanResourceClosure: 194, // map resources plus the clothed avatar atlases
+  firstFramePaintResources: 98,
   browserReadyMapPaintResources: 116,
-  browserReadyFieldPaintResources: 120,
+  browserReadyFieldPaintResources: 127,
   backAnimHosts: 21,
   backAnimFrameResources: 50,
 });

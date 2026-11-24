@@ -11,16 +11,17 @@ export const MEASURED_CANVAS_COUNT = 298;
  * FieldPlan / published map resource closure (all resource refs reachable from RenderNode data).
  * Matches PWA `collectMapResourceRefsFromFieldTree` walk semantics (Node, 2026-11-19).
  */
-export const MEASURED_FIELD_PLAN_RESOURCE_CLOSURE = 171;
+export const MEASURED_FIELD_PLAN_RESOURCE_CLOSURE = 178;
 
 /** Static first-frame resource identities from the projection walk (Node). */
-export const MEASURED_FIRST_FRAME_PAINT_RESOURCE_IDENTITIES = 150;
+export const MEASURED_FIRST_FRAME_PAINT_RESOURCE_IDENTITIES = 157;
 
 /**
  * Unique Content reads after every visual host is ready.
  * The first-frame set plus the later frames of timed Obj sequences.
+ * The seven extra identities versus the bare character are the one-hand outfit atlases.
  */
-export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 171;
+export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 178;
 
 /** @deprecated Use {@link MEASURED_FIELD_PLAN_RESOURCE_CLOSURE}. */
 export const MEASURED_UNIQUE_CONTENT_READS = MEASURED_FIELD_PLAN_RESOURCE_CLOSURE;

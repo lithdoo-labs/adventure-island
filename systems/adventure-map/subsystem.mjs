@@ -659,14 +659,11 @@ export default defineSubsystem((scope) => ({
               if (movementState.mode === "climb") {
                 // Up is the climb axis while attached. The state publication
                 // already carries it; do not reinterpret the matching event
-                // as the land jump edge and detach from the rope.
+                // as the jump edge and detach from the rope.
                 jumpLatch = false;
-                movementIntent = movementIntentFromHeldForState(heldButtons);
-                return;
               }
-              const nextIntent = movementIntentFromHeld(heldButtons);
-              if (nextIntent.jump && !movementIntent.jump) jumpLatch = true;
-              movementIntent = nextIntent;
+              // Up travels or grabs a rope. It is not the jump button.
+              movementIntent = movementIntentFromHeldForState(heldButtons);
             }
           });
         },

@@ -256,12 +256,12 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     }, null, { timeout: 20_000 });
     await page.keyboard.up("ArrowLeft");
     await page.waitForFunction(() => document.querySelector("ms-avatar")?.getAttribute("action") === "stand1", null, { timeout: 20_000 });
-    await page.keyboard.down("ArrowUp");
+    await page.keyboard.down("KeyZ");
     await page.waitForFunction(() => {
       const avatar = document.querySelector("ms-avatar");
       return avatar?.getAttribute("action") === "jump" && avatar.getAttribute("data-action") === "jump";
     }, null, { timeout: 20_000 });
-    await page.keyboard.up("ArrowUp");
+    await page.keyboard.up("KeyZ");
     const afterAvatarInput = await page.evaluate(() => ({
       staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
         .map((unit) => unit.diagnostics().paintCommits),
@@ -304,7 +304,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.equal(afterResize.sceneCount, 1, "resize must not duplicate the Field root");
     assert.equal(afterResize.productState, "ready", "the product stays active after resize");
 
-    // M6 real travel: approach in00 on the lower foothold, jump into its
+    // M6 real travel: approach in00 on the lower foothold, jump with Z into its
     // x±20/y±50 trigger box, then issue a fresh trusted Up edge. The Portal
     // transaction must replace only the scene root and become ready within
     // the explicit travel budget.
@@ -346,12 +346,12 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       });
       throw new Error(`M6 portal approach failed: ${cause.message}\n${JSON.stringify({ approachFailure, diagnostics }, null, 2)}`);
     }
-    await page.keyboard.down("ArrowUp");
+    await page.keyboard.down("KeyZ");
     await page.waitForFunction(() => (
       document.querySelector("ms-avatar")?.getAttribute("action") === "jump"
       && Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) <= 294
     ), null, { timeout: 5_000 });
-    await page.keyboard.up("ArrowUp");
+    await page.keyboard.up("KeyZ");
     await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)));
     const portalStartedAt = Date.now();
     await page.keyboard.down("ArrowUp");
@@ -438,8 +438,9 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
           && document.querySelectorAll("ms-map-object").length === 50
           && document.querySelectorAll("ms-portal-visual").length === 1
           && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 296
-          && avatar?.getAttribute("action") === "fly"
-          && avatar.getAttribute("data-action") === "fly";
+          && Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) === -94
+          && avatar?.getAttribute("action") === "stand1"
+          && avatar.getAttribute("data-action") === "stand1";
       }, null, { timeout: M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs });
     } catch (cause) {
       const waterFailure = await page.evaluate(() => {
@@ -496,7 +497,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     try {
       await page.waitForFunction((priorFrame) => {
         const avatar = document.querySelector("ms-avatar");
-        return avatar?.getAttribute("action") === "fly"
+        return avatar?.getAttribute("action") === "stand1"
           && avatar.getAttribute("frame-index") !== priorFrame;
       }, waterBeforeInput.avatarFrame, { timeout: 5_000 });
     } catch (cause) {
@@ -549,13 +550,14 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.ok(waterAfterInput.maxWidth <= M7_PORTAL_BUDGETS.maxWaterMapCanvasWidth);
     assert.ok(waterAfterInput.maxHeight <= M7_PORTAL_BUDGETS.maxWaterMapCanvasHeight);
     assert.ok(waterAfterInput.maxPixels <= M7_PORTAL_BUDGETS.maxWaterMapLocalCanvasPixels);
-    assert.ok(waterAfterInput.totalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
+    assert.ok(waterAfterInput.totalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels,
+      `water canvases ${waterAfterInput.canvasCount} total ${waterAfterInput.totalPixels} max ${waterAfterInput.maxWidth}x${waterAfterInput.maxHeight}`);
     assert.equal(waterAfterInput.staticPaints.length, waterBeforeInput.staticPaints.length);
     for (let index = 0; index < waterBeforeInput.staticPaints.length; index += 1) {
       const before = waterBeforeInput.staticPaints[index];
       if (before === 0) continue;
       assert.equal(waterAfterInput.staticPaints[index], before,
-        `a fly frame update must not repaint static map canvas ${index}`);
+        `a stand frame update must not repaint static map canvas ${index}`);
     }
     assert.ok(waterAfterInput.dynamicBackPaints.some((count, index) => count > waterBeforeInput.dynamicBackPaints[index]),
       "renderer-local type4 Back phase must advance independently of Avatar and business state");
@@ -564,7 +566,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       "renderer-local Obj flow animation must advance on ms-map-object hosts only",
     );
     assert.ok(waterAfterInput.avatarRounds > waterBeforeInput.avatarRounds,
-      "a fly frame update must repaint only the local avatar canvas");
+      "a stand frame update must repaint only the local avatar canvas");
     assert.ok(waterPortalReadyMs <= M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs);
     t.diagnostic(`M7.1 water portal ready ${waterPortalReadyMs}ms; Canvas ${waterAfterInput.canvasCount}, max ${waterAfterInput.maxWidth}x${waterAfterInput.maxHeight}, total ${waterAfterInput.totalPixels}px`);
 
@@ -684,57 +686,36 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.ok(eventLoopLagMs <= M7_6_VIEWPORT_BUDGETS.maxEventLoopLagProxyMs);
     t.diagnostic(`M7.6 PWA soak ${soakSizes.length} cycles; heap proxy ${soakAfter.heapProxy.toFixed(1)}; event-loop lag proxy ${eventLoopLagMs.toFixed(1)}ms`);
 
-    // M7.2: audited east00 at x=296/y=-98 matches arrival feet on map C; a fresh
-    // trusted Up edge must replace the water scene with map B land/stand at sea00.
-    // Idle swim sinks during the viewport soak, so steer back into the trigger
-    // before the edge. Up is the swim axis and only the key-down edge travels.
-    const east00 = { x: 296, y: -98, halfX: 20, halfY: 50 };
-    const steerDeadline = Date.now() + 45_000;
-    let heldKey = null;
-    const releaseSteer = async () => {
-      if (!heldKey) return;
-      await page.keyboard.up(heldKey);
-      heldKey = null;
-    };
-    try {
-      let lastPose = null;
-      while (Date.now() < steerDeadline) {
-        lastPose = await page.evaluate(() => {
-          const player = document.querySelector("ms-world-item");
-          const avatar = document.querySelector("ms-avatar");
-          return {
-            x: Number(player?.getAttribute("world-x")),
-            y: Number(player?.getAttribute("world-y")),
-            action: avatar?.getAttribute("action") ?? null,
-          };
-        });
-        const inside = lastPose.action === "fly"
-          && Math.abs(lastPose.x - east00.x) <= east00.halfX
-          && Math.abs(lastPose.y - east00.y) <= east00.halfY;
-        if (inside) break;
-        const key = lastPose.y > east00.y + east00.halfY ? "ArrowUp"
-          : lastPose.y < east00.y - east00.halfY ? "ArrowDown"
-            : lastPose.x > east00.x + east00.halfX ? "ArrowLeft"
-              : lastPose.x < east00.x - east00.halfX ? "ArrowRight"
-                : null;
-        if (key !== heldKey) {
-          await releaseSteer();
-          if (key) {
-            await page.keyboard.down(key);
-            heldKey = key;
-          }
-        }
-        await page.waitForTimeout(40);
-      }
-      await releaseSteer();
-      if (!(lastPose?.action === "fly"
-        && Math.abs(lastPose.x - east00.x) <= east00.halfX
-        && Math.abs(lastPose.y - east00.y) <= east00.halfY)) {
-        throw new Error(`water avatar left east00 during the viewport soak: ${JSON.stringify(lastPose)}`);
-      }
-    } finally {
-      await releaseSteer();
-    }
+    // M7.2: arrival is portal.y - 10, then the body stands on foothold 42
+    // (y=-94) inside east00. Up travels only while that foothold is installed.
+    const standingAtEast = await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      const avatar = document.querySelector("ms-avatar");
+      const x = Number(player?.getAttribute("world-x"));
+      const y = Number(player?.getAttribute("world-y"));
+      return avatar?.getAttribute("action") === "stand1"
+        && Math.abs(x - 296) <= 20
+        && y === -94;
+    }, null, { timeout: 5_000 }).then(async () => page.evaluate(() => {
+      const player = document.querySelector("ms-world-item");
+      return {
+        x: Number(player?.getAttribute("world-x")),
+        y: Number(player?.getAttribute("world-y")),
+        action: document.querySelector("ms-avatar")?.getAttribute("action") ?? null,
+      };
+    })).catch(async (cause) => {
+      const lastPose = await page.evaluate(() => {
+        const player = document.querySelector("ms-world-item");
+        return {
+          x: Number(player?.getAttribute("world-x")),
+          y: Number(player?.getAttribute("world-y")),
+          action: document.querySelector("ms-avatar")?.getAttribute("action") ?? null,
+        };
+      });
+      throw new Error(`water avatar left the east00 foothold during the viewport soak: ${cause.message} ${JSON.stringify(lastPose)}`);
+    });
+    assert.equal(standingAtEast.action, "stand1");
+    assert.equal(standingAtEast.y, -94);
   const landReturnStartedAt = Date.now();
   await page.keyboard.down("ArrowUp");
   await page.keyboard.up("ArrowUp");
@@ -804,8 +785,9 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       const avatar = document.querySelector("ms-avatar");
       return document.querySelectorAll("ms-scene-view").length === 1
         && document.querySelectorAll("ms-map-back").length === 31
-        && avatar?.getAttribute("action") === "fly"
-        && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 296;
+        && avatar?.getAttribute("action") === "stand1"
+        && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 296
+        && Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) === -94;
     }, null, { timeout: M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs });
     await page.evaluate(() => {
       const hosts = [...document.querySelectorAll(

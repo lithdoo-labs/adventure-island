@@ -1,7 +1,7 @@
 import { mapEnvironmentIsSwim } from "./map-environment.mjs";
 import { createMovementState, stepMovement } from "./movement-sim.mjs";
 import { stepClimbMovement, stepLandMovementWithRope } from "./movement-rope.mjs";
-import { createWaterMovementState, stepWaterMovement } from "./movement-water.mjs";
+import { createWaterMovementState, stepSwimMapMovement } from "./movement-water.mjs";
 
 /**
  * @param {object} [params]
@@ -39,8 +39,7 @@ export function stepMovementForMap(
   edges = {},
 ) {
   if (mapEnvironmentIsSwim(mapEnvironment)) {
-    const next = stepWaterMovement(state, intent, movementConfig, edges);
-    return Object.freeze({ ...next, ropeContact: null });
+    return stepSwimMapMovement(state, intent, footholdCollisionPlan, movementConfig, edges);
   }
   if (state.mode === "climb" && state.ropeContact) {
     const next = stepClimbMovement(state, intent, ropeCollisionPlan, footholdCollisionPlan, edges);

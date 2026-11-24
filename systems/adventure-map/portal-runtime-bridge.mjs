@@ -2,6 +2,7 @@ import { ContentReadError } from "@loomrealm/subsystem";
 import { validateFieldPlan, FIELD_PLAN_NAMESPACE } from "./field-plan-model.mjs";
 import { fieldPlanRecordKeyForMap } from "./field-plan-keys.mjs";
 import { sceneRootKeyFromPlan } from "./field-scene-runtime.mjs";
+import { mapEnvironmentIsSwim } from "./map-environment.mjs";
 import { selectPortalTriggerCandidate } from "./portal-trigger.mjs";
 import { resolveTravelTarget } from "./portal-target-resolve.mjs";
 import {
@@ -39,6 +40,13 @@ export function evaluatePortalOnUpEdge({
   viewport,
 }) {
   if (fieldState.portalTravel?.phase === "preparing") {
+    return Object.freeze({ type: "none" });
+  }
+  // On a swim map, Up travels only while a foothold is installed.
+  // Airborne Up stays on the swim axis. Land maps still accept an Up edge
+  // inside the trigger box during a jump.
+  if (mapEnvironmentIsSwim(activePlan?.mapEnvironment)
+    && (movementState?.grounded !== true || movementState.contact == null)) {
     return Object.freeze({ type: "none" });
   }
   const candidate = selectPortalTriggerCandidate(portalIndex, fieldState.player, true);

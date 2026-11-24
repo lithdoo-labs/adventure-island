@@ -19,7 +19,8 @@ export const M7_PORTAL_BUDGETS = Object.freeze({
   maxWaterMapCanvasWidth: 2_500,
   maxWaterMapCanvasHeight: 900,
   maxWaterMapLocalCanvasPixels: 900_000,
-  maxWaterMapTotalCanvasPixels: 14_000_000,
+  // Browser sum at the east00 stand (y=-94, 1000×700) measured 14,022,088 on 2026-11-24.
+  maxWaterMapTotalCanvasPixels: 14_200_000,
   maxWaterMapFieldPlanResourceClosure: 140,
   maxWaterMapFirstFramePaintResources: 100,
   maxWaterMapBrowserTravelReadyMs: 30_000,

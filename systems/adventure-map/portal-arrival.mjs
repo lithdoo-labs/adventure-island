@@ -1,10 +1,13 @@
 import { createMovementStateForMap } from "./movement-step.mjs";
 
+/** CMS079 cross-map spawn writes the portal anchor, then adds y - 0xA. */
+export const PORTAL_ARRIVAL_Y_OFFSET = 10;
+
 /** Destination feet position from target portal anchor (Subsystem authority). */
 export function arrivalPositionFromPortal(portal) {
   return Object.freeze({
     worldX: portal.x,
-    worldY: portal.y,
+    worldY: portal.y - PORTAL_ARRIVAL_Y_OFFSET,
   });
 }
 

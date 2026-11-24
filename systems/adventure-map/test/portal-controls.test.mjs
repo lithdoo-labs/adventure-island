@@ -17,11 +17,13 @@ test("controlsUpEdgeFromEvent rejects repeat only", () => {
   assert.equal(controlsUpEdgeFromEvent({ action: "up", button: "up", repeat: false }), false);
 });
 
-test("movementIntentFromHeldForState does not treat up as jump", () => {
+test("movement intent does not treat up as jump", () => {
   const stateIntent = movementIntentFromHeldForState(["up", "right"]);
   const fullIntent = movementIntentFromHeld(["up", "right"]);
   assert.equal(stateIntent.jump, false);
-  assert.equal(fullIntent.jump, true);
+  assert.equal(fullIntent.jump, false);
+  assert.equal(stateIntent.up, true);
+  assert.equal(fullIntent.up, true);
 });
 
 test("south and jump still latch jump on state path", () => {

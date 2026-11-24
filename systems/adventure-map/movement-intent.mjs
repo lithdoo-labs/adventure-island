@@ -25,7 +25,7 @@ export function movementIntentFromHeld(held = []) {
   const buttons = new Set(Array.isArray(held) ? held : []);
   const left = buttons.has("left");
   const right = buttons.has("right");
-  const jump = buttons.has("up") || buttons.has("jump") || buttons.has("south");
+  const jump = buttons.has("jump") || buttons.has("south");
   const { up, down } = verticalHeld(buttons);
   let facing = null;
   if (left !== right) facing = left ? "left" : "right";

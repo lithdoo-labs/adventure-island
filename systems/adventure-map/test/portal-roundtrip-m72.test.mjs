@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
 import { resolveTravelTarget } from "../portal-target-resolve.mjs";
 import { planCrossMapPortalCommit } from "../portal-transaction.mjs";
-import { buildArrivalMovementState } from "../portal-arrival.mjs";
+import { PORTAL_ARRIVAL_Y_OFFSET, buildArrivalMovementState } from "../portal-arrival.mjs";
 import { playerInPortalTriggerBox } from "../portal-trigger.mjs";
 import { selectPortalTriggerCandidate } from "../portal-trigger.mjs";
 import { evaluatePortalOnUpEdge } from "../portal-runtime-bridge.mjs";
@@ -56,7 +56,8 @@ test("east00 audited Up trigger covers sea00→east00 arrival feet on map C", ()
     mapEnvironment: mapC.mapEnvironment,
   });
   assert.equal(arrival.worldX, 296);
-  assert.equal(arrival.worldY, -98);
+  assert.equal(arrival.worldY, east00.y - PORTAL_ARRIVAL_Y_OFFSET);
+  assert.equal(arrival.grounded, false);
   assert.equal(arrival.medium, "water");
   assert.equal(arrival.locomotion, "swim");
   assert.ok(playerInPortalTriggerBox({ worldX: arrival.worldX, worldY: arrival.worldY }, east00));
@@ -102,10 +103,25 @@ test("C→B commit restores land stand and zeros velocity at sea00", () => {
   });
   assert.equal(commit.fieldState.mapId, "222000001");
   assert.equal(commit.movementState.medium, "land");
-  assert.equal(commit.movementState.locomotion, "stand");
   assert.equal(commit.movementState.velocityX, 0);
   assert.equal(commit.movementState.velocityY, 0);
   assert.equal(commit.movementState.worldX, 6);
+  assert.equal(commit.movementState.worldY, sea00.y - PORTAL_ARRIVAL_Y_OFFSET);
+  let landed = commit.movementState;
+  for (let tick = 0; tick < 20 && landed.grounded !== true; tick += 1) {
+    landed = stepMovementForMap(
+      landed,
+      movementIntentFromHeld([]),
+      mapB.footholdCollisionPlan,
+      mapB.ropeCollisionPlan,
+      mapB.movementConfig,
+      mapB.mapEnvironment,
+      {},
+    );
+  }
+  assert.equal(landed.grounded, true);
+  assert.equal(landed.locomotion, "stand");
+  assert.equal(landed.worldY, 514);
   assert.ok(commit.renderRoot.key.endsWith(":e3"));
   assert.ok(staticChildKeys(commit.renderRoot).every((k) => k.endsWith(":e3")));
 });
@@ -247,33 +263,64 @@ test("B sea00 return feet bind Up to water sea00; rope authority is published in
   assert.equal(mapB.ropeCollisionPlan.segments[0].x, -51);
 });
 
-test("evaluatePortalOnUpEdge on C at east00 feet schedules cross-map prepare", () => {
+test("east00 arrival stands on foothold 42 and only then accepts Up", () => {
   const mapC = plans["230030200"];
-  const fieldState = Object.freeze({
+  const east00 = portalByName(mapC.portalLogicalIndex, "east00");
+  let movement = buildArrivalMovementState(east00, mapC.footholdCollisionPlan, {
+    mapEnvironment: mapC.mapEnvironment,
+  });
+  const airborneField = Object.freeze({
     ...mapC.fieldState,
     mapId: "230030200",
     player: Object.freeze({
-      worldX: 296,
-      worldY: -98,
+      ...mapC.fieldState.player,
+      worldX: movement.worldX,
+      worldY: movement.worldY,
       facing: "right",
-      locomotion: "swim",
-      layer: 0,
-      zM: 0,
-      expression: "default",
+      locomotion: movement.locomotion,
     }),
     portalTravel: Object.freeze({ phase: "idle", activeToken: 2, sceneEpoch: 2, crossMap: false }),
   });
-  const movementState = createMovementStateForMap({
-    mapEnvironment: mapC.mapEnvironment,
-    worldX: 296,
-    worldY: -98,
-    segments: mapC.footholdCollisionPlan.segments,
+  assert.equal(evaluatePortalOnUpEdge({
+    activePlan: mapC,
+    portalIndex: mapC.portalLogicalIndex,
+    fieldState: airborneField,
+    movementState: movement,
+    viewport,
+  }).type, "none");
+  for (let tick = 0; tick < 40 && movement.grounded !== true; tick += 1) {
+    movement = stepMovementForMap(
+      movement,
+      movementIntentFromHeld([]),
+      mapC.footholdCollisionPlan,
+      mapC.ropeCollisionPlan,
+      mapC.movementConfig,
+      mapC.mapEnvironment,
+      {},
+    );
+  }
+  assert.equal(movement.grounded, true);
+  assert.equal(movement.worldX, 296);
+  assert.equal(movement.worldY, -94);
+  assert.equal(movement.velocityY, 0);
+  assert.equal(movement.locomotion, "stand");
+  assert.equal(movement.contact.footholdId, 42);
+  const fieldState = Object.freeze({
+    ...airborneField,
+    player: Object.freeze({
+      ...airborneField.player,
+      worldX: movement.worldX,
+      worldY: movement.worldY,
+      locomotion: movement.locomotion,
+      layer: movement.layer,
+      zM: movement.platform,
+    }),
   });
   const decision = evaluatePortalOnUpEdge({
     activePlan: mapC,
     portalIndex: mapC.portalLogicalIndex,
     fieldState,
-    movementState,
+    movementState: movement,
     viewport,
   });
   assert.equal(decision.type, "cross-map");

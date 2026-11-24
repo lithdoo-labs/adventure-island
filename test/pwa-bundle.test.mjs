@@ -546,6 +546,12 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
     assert.ok(fieldPlanMapSea !== undefined, "M7 map230030200 FieldPlan record must be published");
     const mapSeaRoot = validateFieldPlan(JSON.parse(Buffer.from(fieldPlanMapSea.body, "base64").toString("utf8"))).root;
     assert.equal(mapSeaRoot.data.mapId, "230030200");
+    const fieldPlanMapLink = payload.content.find(
+      (entry) => entry.kind === "record" && entry.namespace === FIELD_PLAN_NAMESPACE && entry.key === "map230030100",
+    );
+    assert.ok(fieldPlanMapLink !== undefined, "map230030100 FieldPlan record must be published");
+    const mapLinkRoot = validateFieldPlan(JSON.parse(Buffer.from(fieldPlanMapLink.body, "base64").toString("utf8"))).root;
+    assert.equal(mapLinkRoot.data.mapId, "230030100");
     const findNode = (node, predicate) => {
       if (predicate(node)) return node;
       for (const child of node.children ?? []) {
@@ -559,7 +565,7 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
     const flyAction = seaAvatar.children.find((node) => node.tag === "ms-action" && node.attrs?.name === "fly");
     assert.ok(flyAction, "water FieldPlan must carry the real fly action clip");
     assert.deepEqual(flyAction.data.clip.frames.map((frame) => frame.durationMs), [300, 300]);
-    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root, [mapBRoot, mapSeaRoot]);
+    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root, [mapBRoot, mapSeaRoot, mapLinkRoot]);
     const publishedMapResources = new Map(payload.content
       .filter((entry) => entry.kind === "resource" && entry.namespace === "resource.Map")
       .map((entry) => [entry.key, Buffer.from(entry.body, "base64")]));

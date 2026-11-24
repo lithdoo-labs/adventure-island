@@ -63,7 +63,8 @@ export const M7_6_VIEWPORT_BUDGETS = Object.freeze({
 
 /** M7.7 additive Back animation ceilings; M7.1–M7.6 gates remain immutable evidence. */
 export const M7_7_BACK_ANIM_BUDGETS = Object.freeze({
-  publishedMapResourceUnion: 351,
+  // 351 on the first three maps, plus 26 resources unique to published 230030100.
+  publishedMapResourceUnion: 377,
   maxWaterMapFieldPlanResourceClosure: 200,
   maxWaterMapBackAnimHosts: 21,
   maxWaterMapBackAnimFrameResources: 80,
@@ -73,10 +74,10 @@ export const M7_7_BACK_ANIM_BUDGETS = Object.freeze({
   maxWaterMapBrowserReadyMs: 30_000,
 });
 
-/** Measured Node 2026-11-21 after M7.7 Back animation slice (canonical 1000×700 viewport). */
+/** Measured Node 2026-11-24. Flow fish are one sprite, so the 1000×700 total no longer includes viewport-wide fish strips. */
 export const M7_7_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
   visualCanvases: 148,
-  totalLocalPixels: 13_722_892,
+  totalLocalPixels: 13_465_756,
   mapResourceClosure: 183,
   fieldPlanResourceClosure: 194, // map resources plus the clothed avatar atlases
   firstFramePaintResources: 98,

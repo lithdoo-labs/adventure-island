@@ -4,9 +4,11 @@ import { movementIntentFromHeld, movementIntentFromHeldForState } from "../movem
 import { hashFieldState } from "../field-state-hash.mjs";
 import { createStaticFieldState } from "../../../components/ms-field/src/field-state.mjs";
 import { applyMovementToFieldState, BUSINESS_TICK_MS } from "../movement-sim.mjs";
+import { createMovementStateForMap } from "../movement-step.mjs";
 import {
   WATER_JUMP_SPEED_MULTIPLIER,
   createWaterMovementState,
+  physicalBoundsFromFootholds,
   stepSwimMapMovement,
   stepWaterMovement,
 } from "../movement-water.mjs";
@@ -179,7 +181,16 @@ const lowerFloor = Object.freeze({
   x2: 309,
   y2: 220,
 });
-const swimFootholds = Object.freeze({ segments: Object.freeze([portalLedge, lowerFloor]) });
+// Extrema sit on the real seabed so the ledge is not the map wall.
+const mapWest = Object.freeze({
+  layer: 3, platform: 5, id: 1, x1: -1861, y1: 895, x2: -1860, y2: 895,
+});
+const mapEast = Object.freeze({
+  layer: 3, platform: 5, id: 2, x1: 542, y1: 895, x2: 543, y2: 895,
+});
+const swimFootholds = Object.freeze({
+  segments: Object.freeze([portalLedge, lowerFloor, mapWest, mapEast]),
+});
 
 function settleOnFoothold(start) {
   let movement = start;
@@ -267,4 +278,56 @@ test("a grounded swim jump uses the water impulse once", () => {
   assert.ok(jumped.velocityY > impulse);
   const held = stepSwimMapMovement(jumped, intent, swimFootholds, movementConfig);
   assert.ok(held.velocityY > jumped.velocityY);
+});
+
+test("swim body stops at the physical sides and the top, and the bottom is not a floor", () => {
+  const floor = Object.freeze({
+    layer: 3, platform: 6, id: 7, x1: -1861, y1: 895, x2: 543, y2: 895,
+  });
+  const ceiling = Object.freeze({
+    layer: 3, platform: 113, id: 42, x1: 230, y1: -94, x2: 364, y2: -94,
+  });
+  const plan = Object.freeze({ segments: Object.freeze([floor, ceiling]) });
+  const bounds = physicalBoundsFromFootholds(plan.segments);
+  assert.deepEqual(bounds, { left: -1831, right: 513, top: -394, bottom: 905 });
+
+  let grounded = createWaterMovementState({ worldX: 500, worldY: 895 });
+  grounded = Object.freeze({
+    ...grounded,
+    grounded: true,
+    mode: "stand",
+    locomotion: "stand",
+    contact: Object.freeze({ layer: 3, platform: 6, footholdId: 7 }),
+  });
+  for (let tick = 0; tick < 30; tick += 1) {
+    grounded = stepSwimMapMovement(
+      grounded,
+      movementIntentFromHeld(["right"]),
+      plan,
+      movementConfig,
+    );
+  }
+  assert.equal(grounded.worldX, 513);
+  assert.equal(grounded.velocityX, 0);
+  assert.equal(grounded.grounded, true);
+  assert.equal(grounded.worldY, 895);
+
+  let rising = createWaterMovementState({ worldX: 296, worldY: -390 });
+  rising = Object.freeze({ ...rising, velocityY: -2000 });
+  rising = stepSwimMapMovement(rising, movementIntentFromHeld(["up"]), plan, movementConfig);
+  assert.equal(rising.worldY, bounds.top);
+  assert.equal(rising.velocityY, 0);
+
+  let sinking = createWaterMovementState({ worldX: 0, worldY: 1000 });
+  sinking = stepSwimMapMovement(sinking, movementIntentFromHeld(["down"]), plan, movementConfig);
+  assert.ok(sinking.worldY > bounds.bottom);
+
+  const spawned = createMovementStateForMap({
+    mapEnvironment: { swim: 1 },
+    worldX: 800,
+    worldY: -900,
+    segments: plan.segments,
+  });
+  assert.equal(spawned.worldX, 513);
+  assert.equal(spawned.worldY, -394);
 });

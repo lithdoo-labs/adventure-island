@@ -71,9 +71,7 @@ test("230030200 Obj flow stays within immutable canvas totals and additive M7.5 
   assert.ok(flowNodes.length <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapObjFlowHosts);
   assert.ok(flowFrameResources.size <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapObjFlowFrameResources);
   assert.equal(M7_5_OBJ_FLOW_BUDGETS.maxContentReadConcurrency, RESOURCE_READ_CONCURRENCY);
-  assert.ok(flowNodes.every(
-    (node) => node.data.layout.canvasWidth <= M7_5_OBJ_FLOW_BUDGETS.maxWaterMapObjFlowHostWidth,
-  ));
+  assert.ok(flowNodes.every((node) => node.data.layout == null));
 });
 
 test("camera updates move flow ms-map-object hosts without republishing data", () => {

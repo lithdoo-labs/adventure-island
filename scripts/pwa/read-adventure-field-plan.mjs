@@ -31,7 +31,12 @@ import { FIELD_MAP_222000000 } from "../../components/ms-field/src/field-state.m
 import { fieldPlanContentKey } from "../../systems/adventure-map/field-plan-keys.mjs";
 
 /** Maps with independently publishable derived FieldPlans (M6 + M7.1). */
-export const PUBLISHED_FIELD_PLAN_MAP_IDS = Object.freeze(["222000000", "222000001", "230030200"]);
+export const PUBLISHED_FIELD_PLAN_MAP_IDS = Object.freeze([
+  "222000000",
+  "222000001",
+  "230030200",
+  "230030100",
+]);
 
 const canonicalRepoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const RECORD_MIME = "application/json; charset=utf-8";

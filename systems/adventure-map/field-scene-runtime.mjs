@@ -3,6 +3,7 @@
  * bootstrap AdventureFieldPlan (no Node FSDB, no generated baseline module).
  */
 import { cameraForViewport, stepCameraFollow } from "../../components/ms-field/src/camera.mjs";
+import { cameraBoundsForPlan } from "./camera-state.mjs";
 import { createStaticFieldState } from "../../components/ms-field/src/field-state.mjs";
 import { validateFieldPlan } from "./field-plan-model.mjs";
 import { applyProjectionPatches } from "./render-node-patches.mjs";
@@ -39,7 +40,7 @@ export function projectAdventureMapFieldSceneFromPlan(planValue, viewport) {
   const camera = cameraForViewport(
     { worldX: follow.x, worldY: follow.y },
     viewport ?? null,
-    { sourceBounds: plan.sourceBounds, effectiveBounds: plan.effectiveBounds },
+    cameraBoundsForPlan(plan),
   );
   const relayout = viewport === null || viewport === undefined
     ? []

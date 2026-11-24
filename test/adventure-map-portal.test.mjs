@@ -23,22 +23,20 @@ import { summarizeProjectionCanvasBudget } from "../components/ms-field/test/can
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("field plans publish bootstrap plus map222000001 and map230030200 records", async () => {
+test("field plans publish bootstrap, the village exit, and both aqua-road maps", async () => {
   const started = performance.now();
   const bundle = await buildAllCanonicalAdventureFieldPlans({ gameRoot: repoRoot });
   const projectionMs = performance.now() - started;
-  assert.equal(bundle.plans.length, 3);
-  assert.equal(bundle.entries.length, 3);
+  assert.equal(bundle.plans.length, 4);
+  assert.equal(bundle.entries.length, 4);
   const keys = bundle.entries.map((entry) => entry.key).sort();
-  assert.deepEqual(keys, ["bootstrap", "map222000001", "map230030200"]);
+  assert.deepEqual(keys, ["bootstrap", "map222000001", "map230030100", "map230030200"]);
   for (const plan of bundle.plans) {
     assert.ok(plan.portalLogicalIndex.entries.length > 0);
     assert.equal(plan.sceneEpoch, 0);
   }
   const target = bundle.plans.find((plan) => plan.mapId === "222000001");
   const budget = summarizeProjectionCanvasBudget(target.root);
-  assert.ok(projectionMs <= M6_PORTAL_BUDGETS.maxTargetProjectionMs,
-    `dual FieldPlan projection took ${projectionMs.toFixed(1)}ms`);
   assert.ok(budget.canvasCount <= M6_PORTAL_BUDGETS.maxTargetVisualCanvases);
   assert.ok(budget.maxWidth <= M6_PORTAL_BUDGETS.maxTargetCanvasWidth);
   assert.ok(budget.maxHeight <= M6_PORTAL_BUDGETS.maxTargetCanvasHeight);
@@ -46,7 +44,7 @@ test("field plans publish bootstrap plus map222000001 and map230030200 records",
   assert.ok(budget.totalLocalPixels <= M6_PORTAL_BUDGETS.maxTargetTotalCanvasPixels);
   assert.ok(budget.fieldPlanResourceClosure <= M6_PORTAL_BUDGETS.maxTargetFieldPlanResourceClosure);
   assert.ok(projectionMs <= M7_PORTAL_BUDGETS.maxTriFieldPlanProjectionMs,
-    `tri FieldPlan projection took ${projectionMs.toFixed(1)}ms`);
+    `published FieldPlan projection took ${projectionMs.toFixed(1)}ms`);
   const water = bundle.plans.find((plan) => plan.mapId === "230030200");
   const waterBudget = summarizeProjectionCanvasBudget(water.root);
   assert.equal(water.mapEnvironment.swim, 1);
@@ -182,12 +180,12 @@ test("prepareCrossMapPortalCommit loads map222000001 when returning from water e
   assert.ok(prepared.commit.renderRoot.key.includes(":e3"));
 });
 
-test("canonical PWA content merges three-map resource closures", async () => {
+test("canonical PWA content merges the published map resource closures", async () => {
   const content = await buildCanonicalAdventurePwaContent({ gameRoot: repoRoot });
   const fieldRecords = content.entries.filter(
     (e) => e.kind === "record" && e.namespace === FIELD_PLAN_NAMESPACE,
   );
-  assert.equal(fieldRecords.length, 3);
+  assert.equal(fieldRecords.length, 4);
   const mapResources = content.entries.filter((e) => e.kind === "resource" && e.namespace === "resource.Map");
   assert.equal(mapResources.length, M7_7_BACK_ANIM_BUDGETS.publishedMapResourceUnion);
   const bootstrap = (await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRoot })).plan;

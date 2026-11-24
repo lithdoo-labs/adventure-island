@@ -76,3 +76,27 @@ test("an expanded foothold fallback keeps the larger rectangle", () => {
   );
   assert.equal(camera.cameraY, 80);
 });
+
+test("cameraBounds replaces a published minimap rectangle", () => {
+  const published = { left: -1928, top: -459, right: 636, bottom: 1058 };
+  const cameraBounds = { left: -1851, top: -454, right: 533, bottom: 1005 };
+  const bounds = { sourceBounds: published, effectiveBounds: published, cameraBounds };
+  assert.equal(cameraClampRectangle(bounds), cameraBounds);
+  const camera = cameraForViewport(
+    { worldX: 296, worldY: -144 },
+    { width: 1280, height: 720 },
+    bounds,
+  );
+  assert.equal(camera.cameraX, -747);
+  assert.equal(camera.cameraY, -454);
+});
+
+test("the viewport origin is truncated toward zero", () => {
+  const camera = cameraForViewport(
+    { worldX: 100, worldY: -0.2 },
+    { width: 101, height: 51 },
+    { left: 0, top: -1000, right: 1000, bottom: 1000 },
+  );
+  assert.equal(camera.cameraX, 49);
+  assert.equal(camera.cameraY, -25);
+});

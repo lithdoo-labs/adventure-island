@@ -596,7 +596,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       };
     });
     assert.equal(soakBefore.relayoutBacks, 21);
-    assert.equal(soakBefore.relayoutObjects, 11);
+    assert.equal(soakBefore.relayoutObjects, 0);
     const soakSizes = [
       { width: 800, height: 600 },
       { width: 1000, height: 700 },
@@ -610,11 +610,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         await page.waitForFunction((expected) => {
           const backs = window.__m76RelayoutBacks ?? [];
           const flows = window.__m76RelayoutObjects ?? [];
-          return backs.length === 21 && flows.length === 11
+          return backs.length === 21 && flows.length === 0
             && backs.every((host) => host.isConnected
-              && Number(getComputedStyle(host).width.replace("px", "")) === expected
-              && host.diagnostics().state === "ready")
-            && flows.every((host) => host.isConnected
               && Number(getComputedStyle(host).width.replace("px", "")) === expected
               && host.diagnostics().state === "ready");
         }, logical.width, { timeout: 20_000 });
@@ -669,8 +666,8 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       "repeated 800×600↔1000×700 resize must not re-read decoded Content");
     assert.deepEqual(soakAfter.batchPaints, soakBefore.batchPaints,
       "viewport relayout must not repaint static batch hosts");
-    assert.notEqual(soakAfter.staticStamp, soakBefore.staticPaints,
-      "bounded Back/Obj layout relayout must commit local pixels without Content reload");
+    assert.equal(soakAfter.staticStamp, soakBefore.staticPaints,
+      "viewport relayout redraws local pixels without a new content paint commit");
     assert.ok(soakAfter.backAnims.some((count, index) => count > soakBefore.backAnims[index]),
       "Back renderer-local scroll clocks stay live across relayout");
     assert.ok(soakAfter.objAnims.some((count, index) => count > soakBefore.objAnims[index]),
@@ -691,31 +688,53 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     const standingAtEast = await page.waitForFunction(() => {
       const player = document.querySelector("ms-world-item");
       const avatar = document.querySelector("ms-avatar");
+      const scene = document.querySelector("ms-scene-view");
+      const frame = document.querySelector("ms-viewport-frame")?.diagnostics?.();
       const x = Number(player?.getAttribute("world-x"));
       const y = Number(player?.getAttribute("world-y"));
+      const cameraX = Number(scene?.getAttribute("camera-x"));
+      const width = frame?.width;
+      const viewRight = cameraX + width;
+      const cameraAtWall = width > 0 && Math.abs(viewRight - 533) <= 28;
       return avatar?.getAttribute("action") === "stand1"
         && Math.abs(x - 296) <= 20
-        && y === -94;
+        && y === -94
+        && cameraAtWall;
     }, null, { timeout: 5_000 }).then(async () => page.evaluate(() => {
       const player = document.querySelector("ms-world-item");
+      const scene = document.querySelector("ms-scene-view");
+      const frame = document.querySelector("ms-viewport-frame")?.diagnostics?.() ?? null;
       return {
         x: Number(player?.getAttribute("world-x")),
         y: Number(player?.getAttribute("world-y")),
         action: document.querySelector("ms-avatar")?.getAttribute("action") ?? null,
+        cameraX: Number(scene?.getAttribute("camera-x")),
+        cameraY: Number(scene?.getAttribute("camera-y")),
+        frameWidth: frame?.width ?? null,
+        frameHeight: frame?.height ?? null,
       };
     })).catch(async (cause) => {
       const lastPose = await page.evaluate(() => {
         const player = document.querySelector("ms-world-item");
+        const scene = document.querySelector("ms-scene-view");
+        const frame = document.querySelector("ms-viewport-frame")?.diagnostics?.() ?? null;
         return {
           x: Number(player?.getAttribute("world-x")),
           y: Number(player?.getAttribute("world-y")),
           action: document.querySelector("ms-avatar")?.getAttribute("action") ?? null,
+          cameraX: Number(scene?.getAttribute("camera-x")),
+          cameraY: Number(scene?.getAttribute("camera-y")),
+          frame,
         };
       });
       throw new Error(`water avatar left the east00 foothold during the viewport soak: ${cause.message} ${JSON.stringify(lastPose)}`);
     });
     assert.equal(standingAtEast.action, "stand1");
     assert.equal(standingAtEast.y, -94);
+    assert.ok(
+      Math.abs(standingAtEast.cameraX + standingAtEast.frameWidth - 533) <= 28,
+      "the water view stops at the foothold camera's right edge",
+    );
   const landReturnStartedAt = Date.now();
   await page.keyboard.down("ArrowUp");
   await page.keyboard.up("ArrowUp");

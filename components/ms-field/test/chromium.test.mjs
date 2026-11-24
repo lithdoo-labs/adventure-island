@@ -510,16 +510,22 @@ test("Obj flow camera attrs retain decoded frames and static paint commits", { t
       && objects.every((object) => object.diagnostics().state === "ready")
       && window.__resourceActive === 0;
   }, "Obj flow hosts ready", 30_000);
+  const fishCanvasWidths = await page.evaluate(() => [...document.querySelectorAll("ms-map-object")]
+    .map((host) => host.shadowRoot?.querySelector("canvas")?.width ?? 0));
+  assert.equal(fishCanvasWidths.length, 11);
+  assert.ok(fishCanvasWidths.every((width) => width > 0 && width < 200),
+    `flow fish must stay on their own sprite, got ${fishCanvasWidths.join(",")}`);
   assert.ok(server.metrics.maxConcurrentContentReads <= RESOURCE_READ_CONCURRENCY);
   t.diagnostic(`Obj flow max concurrent Content reads ${server.metrics.maxConcurrentContentReads}/${RESOURCE_READ_CONCURRENCY}`);
   const before = await page.evaluate(() => document.querySelector("ms-map-object").diagnostics());
+  const beforeLeft = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.querySelector("ms-map-object")).left));
   const nextWorldX = Number(flowObject.attrs["world-x"]) + 25;
   await page.evaluate(({ key, worldX }) => window.__update([{
     op: "update",
     key,
     attrs: { set: { "world-x": String(worldX) } },
   }]), { key: flowObject.key, worldX: nextWorldX });
-  await waitFor(page, (expected) => getComputedStyle(document.querySelector("ms-map-object")).left === `${expected}px`, "Obj flow moved", 20_000, nextWorldX);
+  await waitFor(page, (expected) => getComputedStyle(document.querySelector("ms-map-object")).left === `${expected}px`, "Obj flow moved", 20_000, beforeLeft + 25);
   const after = await page.evaluate(() => document.querySelector("ms-map-object").diagnostics());
   assert.equal(after.state, "ready");
   assert.equal(after.resourceReads, before.resourceReads, "camera-only attrs must not reload Obj frames");
@@ -584,11 +590,12 @@ test("M7.6 relayout during Content load cannot restore stale viewport geometry",
     mapId: "230030200",
   });
   const tree = structuredClone(plan.root);
-  const back = tree.children.find((child) => child.tag === "ms-map-back" && child.data?.layout?.tileHorizontal);
-  const object = tree.children.find((child) => child.tag === "ms-map-object" && child.data?.source?.flow === 1);
+  const tiledBacks = tree.children.filter((child) => child.tag === "ms-map-back" && child.data?.layout?.tileHorizontal);
+  const back = tiledBacks[0];
+  const otherBack = tiledBacks[1];
   assert.ok(back?.data?.draw);
-  assert.ok(object);
-  tree.children = [back, object];
+  assert.ok(otherBack);
+  tree.children = [back, otherBack];
   tree.children.forEach((child, index) => {
     child.attrs["stack-rank"] = String(index + 1);
   });
@@ -637,7 +644,7 @@ test("M7.6 relayout during Content load cannot restore stale viewport geometry",
     })));
   assert.deepEqual(latestGeometry, [
     { tag: "ms-map-back", hostWidth: "800px", canvasWidth: "800px" },
-    { tag: "ms-map-object", hostWidth: "800px", canvasWidth: "800px" },
+    { tag: "ms-map-back", hostWidth: "800px", canvasWidth: "800px" },
   ]);
 
   const beforeDrawChange = await page.evaluate(() => document.querySelector("ms-map-back").diagnostics());
@@ -774,7 +781,7 @@ test("M7.6 viewport relayout retains decoded Content and bounded animation clock
     }, size.width);
     assert.ok(snap.backsReady && snap.flowsReady);
     assert.equal(snap.backs, 21);
-    assert.equal(snap.flows, 11);
+    assert.equal(snap.flows, 0);
     assert.ok(snap.totalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
     await waitFor(page, () => window.__resourceActive === 0, "relayout cycle quiesced", 10_000);
     const readsAfterCycle = await page.evaluate(() => [...document.querySelectorAll("ms-map-back, ms-map-object")]

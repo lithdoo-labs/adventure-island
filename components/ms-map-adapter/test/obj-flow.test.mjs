@@ -30,11 +30,10 @@ test("230030200 flow placements project ms-map-object hosts with bounded layout"
   );
   assert.equal(flowNodes.length, 11);
   for (const node of flowNodes) {
-    assert.equal(node.data.layout.kind, "flow-horizontal");
-    assert.equal(node.data.layout.canvasWidth, 1000);
+    assert.equal(node.data.layout, null);
     assert.ok(node.data.frames.length >= 4);
-    assert.equal(node.data.layout.frameWidth, node.data.frames[0].image.pageWidth);
-    assert.ok(node.data.layout.scroll?.pixelsPerMs);
+    assert.ok(Number.isFinite(Number(node.attrs["world-x"])));
+    assert.ok(Number.isFinite(Number(node.attrs["world-y"])));
   }
 });
 
@@ -48,7 +47,7 @@ test("synthetic animated Obj without flow stays a non-tiled ms-map-object", asyn
   assert.equal(objectNode.data.frames.length, 2);
 });
 
-test("layoutObjFlowView uses frame width when cx is zero", () => {
+test("layoutObjFlowView places one sprite at the authored anchor", () => {
   const laidOut = layoutObjFlowView({
     bounds: { x: 10, y: 20, width: 32, height: 32 },
     placement: { flow: 1, rx: -8, cx: 0, cy: 0 },
@@ -60,9 +59,9 @@ test("layoutObjFlowView uses frame width when cx is zero", () => {
     cameraY: 0,
     viewport: { width: 1000, height: 700 },
   });
-  assert.equal(laidOut.layout.tileStepX, 32);
-  assert.equal(laidOut.layout.anchorOffsetX, 16);
-  assert.equal(laidOut.layout.anchorOffsetY, 16);
-  assert.equal(laidOut.worldX, 5);
-  assert.equal(laidOut.canvasWidth, 1000);
+  assert.equal(laidOut.layout, null);
+  assert.equal(laidOut.worldX, 26);
+  assert.equal(laidOut.worldY, 36);
+  assert.equal(laidOut.canvasWidth, 32);
+  assert.equal(laidOut.canvasHeight, 32);
 });

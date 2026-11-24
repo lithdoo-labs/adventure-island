@@ -1,7 +1,11 @@
 import { mapEnvironmentIsSwim } from "./map-environment.mjs";
 import { createMovementState, stepMovement } from "./movement-sim.mjs";
 import { stepClimbMovement, stepLandMovementWithRope } from "./movement-rope.mjs";
-import { createWaterMovementState, stepSwimMapMovement } from "./movement-water.mjs";
+import {
+  createWaterMovementState,
+  physicalBoundsFromFootholds,
+  stepSwimMapMovement,
+} from "./movement-water.mjs";
 
 /**
  * @param {object} [params]
@@ -16,7 +20,14 @@ export function createMovementStateForMap({
   platform,
 } = {}) {
   if (mapEnvironmentIsSwim(mapEnvironment)) {
-    return createWaterMovementState({ worldX, worldY, facing, layer, platform });
+    const bounds = physicalBoundsFromFootholds(segments);
+    let x = worldX;
+    let y = worldY;
+    if (bounds) {
+      x = Math.min(bounds.right, Math.max(bounds.left, x));
+      y = Math.min(bounds.bottom, Math.max(bounds.top, y));
+    }
+    return createWaterMovementState({ worldX: x, worldY: y, facing, layer, platform });
   }
   const movement = createMovementState({
     worldX,

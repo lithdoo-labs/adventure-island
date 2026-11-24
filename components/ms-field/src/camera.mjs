@@ -8,8 +8,10 @@
  * coefficient * 1000. The clamp then runs once on that look point.
  *
  * The clamp rectangle is the raw map rectangle. A VR map's effectiveBounds is
- * already inset by a fixed 400×300. Foothold fallback bounds are expanded, so
- * that larger rectangle stays the clamp.
+ * already inset by a fixed 400×300, so the larger raw VR stays the clamp.
+ * A map without VR may carry cameraBounds: the foothold rectangle inset by
+ * 10px on x and expanded by 360/110 on y. That rectangle wins over the
+ * published minimap or expanded foothold fallback.
  */
 
 /** Look point is this far above the feet. Y grows downward. */
@@ -36,6 +38,8 @@ function finiteRect(rect) {
  */
 export function cameraClampRectangle(bounds) {
   if (bounds === null || bounds === undefined || typeof bounds !== "object") return null;
+  const camera = finiteRect(bounds.cameraBounds);
+  if (camera) return camera;
   const source = finiteRect(bounds.sourceBounds);
   const effective = finiteRect(bounds.effectiveBounds);
   if (source && effective) {
@@ -60,9 +64,9 @@ function cameraOrigin(position, start, end, extent) {
   const low = start + half;
   const high = end - half;
   const center = high <= low
-    ? (low + high) / 2
+    ? Math.trunc((low + high) / 2)
     : Math.min(Math.max(position, low), high);
-  return center - half;
+  return Math.trunc(center - half);
 }
 
 /**

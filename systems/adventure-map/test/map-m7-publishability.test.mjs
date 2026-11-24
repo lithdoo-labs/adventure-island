@@ -26,6 +26,13 @@ test("230030200 publishability allows closure.ok with no missing/fatal/unresolve
   assert.doesNotThrow(() => assertM7ExtraMapFieldPlanPublishable("230030200", projection));
   const effective = projection.scene.bounds.effectiveBounds;
   assert.deepEqual(effective, M7_230030200_KNOWN_PRESENTATION_GAPS.minimapProductFallbackBounds);
+  assert.deepEqual(projection.scene.bounds.sourceBounds, effective);
+  assert.deepEqual(projection.scene.bounds.cameraBounds, {
+    left: -1851,
+    top: -454,
+    right: 533,
+    bottom: 1005,
+  });
 });
 
 test("230030200 carries supported Obj flow visuals after M7.5", async () => {
@@ -81,7 +88,7 @@ test("230030200 publishability rejects Obj flow RenderNode drift", async () => {
   const flow = candidate.projection.root.children.find(
     (node) => node.tag === "ms-map-object" && node.data?.source?.flow === 1,
   );
-  flow.data.layout.kind = "flow-vertical";
+  flow.data.layout = { kind: "flow-horizontal", tileHorizontal: true };
   assert.throws(
     () => assertM7ExtraMapFieldPlanPublishable("230030200", candidate),
     /Obj flow layout drifted/,

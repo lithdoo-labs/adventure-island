@@ -1,17 +1,13 @@
 /**
- * CMS079-PROVEN Obj flow=1 horizontal tiling shares 0x66A8D5 mode bit0 with Back type1.
- * Bounded M7.5 product slice: flow=1 only, rx scroll interval 20000/|rx|, zero cx/cy → frame size step.
+ * Flow objects on these maps are one animated sprite at the authored anchor.
+ * OpenMS does not read flow, rx, or cx when placing objects. Tiling a missing
+ * cx at the sprite width stamped each fish across the whole viewport.
+ * flow=2/3 stays unsupported. rx is retained on the source and is not a scroll.
  */
-import {
-  BACK_LAYOUT_LIMITS,
-  authoredTileStep,
-  scrollPixelsPerMs,
-} from "./back-layout.mjs";
+import { BACK_LAYOUT_LIMITS } from "./back-layout.mjs";
 
 /** FSDB-FACT on the 13-map scope: every flow placement uses flow=1 (horizontal bit). */
 export const SUPPORTED_OBJ_FLOW_VALUES = new Set([1]);
-
-const DEFAULT_VIEWPORT = Object.freeze({ width: 800, height: 600 });
 
 function positiveFinite(value, fallback, name) {
   const candidate = value ?? fallback;
@@ -50,13 +46,6 @@ export function objFlowUnsupportedMessage(row) {
   return null;
 }
 
-export function objFlowPresentation(flow) {
-  const bits = Number(flow);
-  if ((bits & 1) !== 0) return "flow-horizontal";
-  if ((bits & 2) !== 0) return "flow-vertical";
-  return "static";
-}
-
 export function objFlowViewAttrsForCamera(layout, cameraX, cameraY) {
   if (!layout || typeof layout !== "object") throw new TypeError("layout is required");
   if (!Number.isFinite(cameraX) || !Number.isFinite(cameraY)) {
@@ -69,7 +58,8 @@ export function objFlowViewAttrsForCamera(layout, cameraX, cameraY) {
 }
 
 /**
- * Viewport-bounded horizontal flow surface with optional authored rx scroll.
+ * One sprite at the placement anchor. The anchor offsets recover authored
+ * (x, y) from the origin-adjusted bounds. No viewport tile and no rx scroll.
  */
 export function layoutObjFlowView({
   bounds,
@@ -78,74 +68,23 @@ export function layoutObjFlowView({
   frameHeight,
   anchorOffsetX,
   anchorOffsetY,
-  cameraX = 0,
-  cameraY = 0,
-  viewport = DEFAULT_VIEWPORT,
 }) {
   if (!bounds || !Number.isFinite(bounds.x) || !Number.isFinite(bounds.y)) {
     throw new TypeError("obj flow layout requires finite bounds");
   }
   const flow = Number(placement.flow);
-  const horizontal = (flow & 1) !== 0;
-  const vertical = (flow & 2) !== 0;
+  if (!Number.isFinite(flow)) throw new TypeError("obj flow layout requires a numeric flow");
   const sourceW = positiveFinite(frameWidth, null, "frameWidth");
   const sourceH = positiveFinite(frameHeight, null, "frameHeight");
   if (!Number.isFinite(anchorOffsetX) || !Number.isFinite(anchorOffsetY)) {
     throw new TypeError("obj flow layout requires finite anchor offsets");
   }
-  if (!horizontal && !vertical) {
-    return Object.freeze({
-      worldX: bounds.x,
-      worldY: bounds.y,
-      canvasWidth: sourceW,
-      canvasHeight: sourceH,
-      layout: null,
-    });
-  }
-  const vpW = positiveFinite(viewport?.width, DEFAULT_VIEWPORT.width, "viewport.width");
-  const vpH = positiveFinite(viewport?.height, DEFAULT_VIEWPORT.height, "viewport.height");
-  const stepX = horizontal
-    ? (authoredTileStep(Number(placement.cx)) || sourceW)
-    : 0;
-  const stepY = vertical
-    ? (authoredTileStep(Number(placement.cy)) || sourceH)
-    : 0;
-  const repeatX = horizontal && stepX > 0;
-  const repeatY = vertical && stepY > 0;
-  const canvasWidth = repeatX ? vpW : sourceW;
-  const canvasHeight = repeatY ? vpH : sourceH;
-  assertCanvasSize(canvasWidth, canvasHeight);
-  const scrollRate = placement.rx === undefined ? null : scrollPixelsPerMs(Number(placement.rx));
-  const layout = Object.freeze({
-    kind: objFlowPresentation(flow),
-    worldLeft: bounds.x,
-    worldTop: bounds.y,
-    canvasWidth,
-    canvasHeight,
-    frameWidth: sourceW,
-    frameHeight: sourceH,
-    anchorOffsetX,
-    anchorOffsetY,
-    tileStepX: stepX,
-    tileStepY: stepY,
-    tileHorizontal: repeatX,
-    tileVertical: repeatY,
-    pinToViewportX: repeatX,
-    pinToViewportY: repeatY,
-    parallaxRx: null,
-    parallaxRy: null,
-    viewportWidth: vpW,
-    viewportHeight: vpH,
-    tileOriginX: repeatX ? bounds.x % stepX : 0,
-    tileOriginY: repeatY ? bounds.y % stepY : 0,
-    scroll: scrollRate === null ? null : Object.freeze({ pixelsPerMs: scrollRate }),
-  });
-  const view = objFlowViewAttrsForCamera(layout, cameraX, cameraY);
+  assertCanvasSize(sourceW, sourceH);
   return Object.freeze({
-    worldX: view.worldX,
-    worldY: view.worldY,
-    canvasWidth,
-    canvasHeight,
-    layout,
+    worldX: bounds.x + anchorOffsetX,
+    worldY: bounds.y + anchorOffsetY,
+    canvasWidth: sourceW,
+    canvasHeight: sourceH,
+    layout: null,
   });
 }

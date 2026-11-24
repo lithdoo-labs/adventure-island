@@ -20,6 +20,9 @@
  * - Position uses the average of the pre- and post-integration velocities.
  * - Downward crossings install the highest crossed walkable segment.
  * - Avatar projection maps locomotion swim → fly, and stand/walk while grounded.
+ * - After the step, X is clamped to the physical rectangle and horizontal
+ *   speed is cleared at a side. Y stops only above the top. The bottom is
+ *   not a floor. Spawn and arrival clamp Y into the rectangle once.
  */
 import {
   BUSINESS_TICK_MS,
@@ -33,6 +36,69 @@ export const WATER_JUMP_SPEED_MULTIPLIER = 5;
 
 function q(value) {
   return Math.round(value * 1000) / 1000;
+}
+
+/**
+ * OpenMS prepareBounds margins, recovered from the physical rectangle
+ * (left/right inset 30, top expanded 300, bottom expanded 10). No VRLimit
+ * on these swim maps, so the foothold extrema are the whole wall.
+ * A reversed rectangle (a fixture narrower than the margins) is not a wall.
+ */
+export function physicalBoundsFromFootholds(segments) {
+  if (!Array.isArray(segments) || segments.length === 0) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const row of segments) {
+    const x1 = row?.x1;
+    const x2 = row?.x2;
+    const y1 = row?.y1;
+    const y2 = row?.y2;
+    if (![x1, x2, y1, y2].every(Number.isFinite)) return null;
+    minX = Math.min(minX, x1, x2);
+    maxX = Math.max(maxX, x1, x2);
+    minY = Math.min(minY, y1, y2);
+    maxY = Math.max(maxY, y1, y2);
+  }
+  const bounds = {
+    left: minX + 30,
+    right: maxX - 30,
+    top: minY - 300,
+    bottom: maxY + 10,
+  };
+  if (bounds.left > bounds.right || bounds.top > bounds.bottom) return null;
+  return bounds;
+}
+
+function clipSwimBody(worldX, worldY, velocityX, velocityY, bounds, clampBottom) {
+  if (!bounds) {
+    return { worldX, worldY, velocityX, velocityY };
+  }
+  let x = worldX;
+  let y = worldY;
+  let vx = velocityX;
+  let vy = velocityY;
+  if (x < bounds.left) {
+    x = bounds.left;
+    vx = 0;
+  } else if (x > bounds.right) {
+    x = bounds.right;
+    vx = 0;
+  }
+  if (y < bounds.top) {
+    y = bounds.top;
+    vy = 0;
+  } else if (clampBottom && y > bounds.bottom) {
+    y = bounds.bottom;
+    vy = 0;
+  }
+  return {
+    worldX: q(x),
+    worldY: q(y),
+    velocityX: q(vx),
+    velocityY: q(vy),
+  };
 }
 
 function horizontalDirection(intent) {
@@ -269,13 +335,15 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     }
   }
 
+  const bounds = physicalBoundsFromFootholds(segments);
   if (grounded) {
     const mode = dir !== 0 ? "walk" : "stand";
+    const clipped = clipSwimBody(worldX, worldY, velocityX, velocityY, bounds, false);
     return freezeSwimStep(state, {
-      worldX,
-      worldY,
-      velocityX,
-      velocityY,
+      worldX: clipped.worldX,
+      worldY: clipped.worldY,
+      velocityX: clipped.velocityX,
+      velocityY: clipped.velocityY,
       facing,
       mode,
       grounded: true,
@@ -307,16 +375,25 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     edges,
   );
   const resolvedX = horizontalIntegrated ? steppedX : swam.worldX;
-  const landing = swam.velocityY >= 0
-    ? findLandingSegment(resolvedX, previousY, swam.worldY, segments)
+  const clippedMove = clipSwimBody(resolvedX, swam.worldY, swam.velocityX, swam.velocityY, bounds, false);
+  const landing = clippedMove.velocityY >= 0
+    ? findLandingSegment(clippedMove.worldX, previousY, clippedMove.worldY, segments)
     : null;
-  if (landing !== null && swam.worldY >= landing.surfaceY - GROUND_EPSILON_PX) {
+  if (landing !== null && clippedMove.worldY >= landing.surfaceY - GROUND_EPSILON_PX) {
     const mode = dir !== 0 ? "walk" : "stand";
+    const clippedLand = clipSwimBody(
+      clippedMove.worldX,
+      landing.surfaceY,
+      dir !== 0 ? dir * walkSpeed : 0,
+      0,
+      bounds,
+      false,
+    );
     return freezeSwimStep(state, {
-      worldX: resolvedX,
-      worldY: landing.surfaceY,
-      velocityX: dir !== 0 ? dir * walkSpeed : 0,
-      velocityY: 0,
+      worldX: clippedLand.worldX,
+      worldY: clippedLand.worldY,
+      velocityX: clippedLand.velocityX,
+      velocityY: clippedLand.velocityY,
       facing: swam.facing,
       mode,
       grounded: true,
@@ -325,6 +402,20 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
       jumpRepeatMs: 0,
     });
   }
-  if (!horizontalIntegrated) return swam;
-  return Object.freeze({ ...swam, worldX: resolvedX });
+  if (
+    clippedMove.worldX === swam.worldX
+    && clippedMove.worldY === swam.worldY
+    && clippedMove.velocityX === swam.velocityX
+    && clippedMove.velocityY === swam.velocityY
+    && !horizontalIntegrated
+  ) {
+    return swam;
+  }
+  return Object.freeze({
+    ...swam,
+    worldX: clippedMove.worldX,
+    worldY: clippedMove.worldY,
+    velocityX: clippedMove.velocityX,
+    velocityY: clippedMove.velocityY,
+  });
 }

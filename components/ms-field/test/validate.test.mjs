@@ -80,7 +80,7 @@ test("Obj flow validator bounds frames and rejects forged source/layout values",
   assert.equal(validateMapObjectData(invalidRx).ok, false);
 
   const missingAnchor = structuredClone(object.data);
-  delete missingAnchor.layout.anchorOffsetX;
+  missingAnchor.layout = { kind: "flow-horizontal", tileHorizontal: true };
   assert.equal(validateMapObjectData(missingAnchor).ok, false);
 
   const excessiveFrames = structuredClone(object.data);

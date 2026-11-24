@@ -136,14 +136,11 @@ export function assertM7ExtraMapFieldPlanPublishable(mapId, projection) {
     }
   }
   for (const node of flowObjects) {
-    if (!node.data.layout?.tileHorizontal || node.data.layout.kind !== "flow-horizontal") {
+    if (node.data.layout != null) {
       throw new TypeError(`map ${mapId} Obj flow layout drifted for ${node.key}`);
     }
     if (node.data.frames.length < 2) {
       throw new TypeError(`map ${mapId} Obj flow must publish a multi-frame sequence for ${node.key}`);
-    }
-    if (node.data.layout.frameWidth !== node.data.frames[0].image.pageWidth) {
-      throw new TypeError(`map ${mapId} Obj flow rewrote resource page width for ${node.key}`);
     }
   }
 
@@ -157,6 +154,35 @@ export function assertM7ExtraMapFieldPlanPublishable(mapId, projection) {
  * @param {string} mapId
  * @param {object} closure
  */
+/**
+ * 230030100 is the west00 destination. Closure is complete: no missing
+ * resources, fatal diagnostics, unresolved drawables, or unsupported visuals.
+ * @param {string} mapId
+ * @param {object} projection buildMapProjection result
+ */
+export function assertM7AquaLinkFieldPlanPublishable(mapId, projection) {
+  if (mapId !== "230030100") {
+    throw new TypeError(`map ${mapId} is not the aqua-road link FieldPlan`);
+  }
+  const closure = projection?.closure;
+  if (!closure || closure.ok !== true) {
+    throw new TypeError(`map ${mapId} projection closure is not publishable`);
+  }
+  if ((closure.missingResources?.length ?? 0) > 0) {
+    throw new TypeError(`map ${mapId} has missing resources — not publishable`);
+  }
+  if ((closure.fatalDiagnostics?.length ?? 0) > 0) {
+    throw new TypeError(`map ${mapId} has fatal diagnostics — not publishable`);
+  }
+  if ((closure.unresolvedDrawables?.length ?? 0) > 0) {
+    throw new TypeError(`map ${mapId} has unresolved drawables — not publishable`);
+  }
+  const unsupported = (projection.scene?.diagnostics ?? []).filter((item) => item.code === UNSUPPORTED);
+  if (unsupported.length > 0) {
+    throw new TypeError(`map ${mapId} has an unapproved unsupported diagnostic: ${unsupported[0].message}`);
+  }
+}
+
 export function assertPublishedExtraMapFieldPlanPublishable(mapId, projection) {
   if (mapId === "222000001") {
     assertM6ExtraMapFieldPlanPublishable(mapId, projection?.closure ?? projection);
@@ -164,6 +190,10 @@ export function assertPublishedExtraMapFieldPlanPublishable(mapId, projection) {
   }
   if (mapId === "230030200") {
     assertM7ExtraMapFieldPlanPublishable(mapId, projection);
+    return;
+  }
+  if (mapId === "230030100") {
+    assertM7AquaLinkFieldPlanPublishable(mapId, projection);
     return;
   }
   throw new TypeError(`map ${mapId} has no extra-map publishability gate`);

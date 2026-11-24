@@ -31,7 +31,9 @@ const M7_EXTRA_PUBLISHABLE_MAP_IDS = new Set(["230030200"]);
 const EXPECTED_BACK_TYPES = Object.freeze([
   3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4, 4, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 1,
 ]);
-const EXPECTED_REPEATED_BACK_SOURCE_ORDERS = Object.freeze([7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 29, 30]);
+const EXPECTED_REPEATED_BACK_SOURCE_ORDERS = Object.freeze([
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 25, 29, 30,
+]);
 const EXPECTED_OBJ_FLOW_SOURCE_ORDERS = Object.freeze([22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
 
 function sameNumbers(actual, expected) {
@@ -87,7 +89,7 @@ export function assertM7ExtraMapFieldPlanPublishable(mapId, projection) {
       .map((node) => node.data.provenance.sourceOrder),
     EXPECTED_REPEATED_BACK_SOURCE_ORDERS,
   )) {
-    throw new TypeError(`map ${mapId} Back non-zero repeat facts drifted from the audited set`);
+    throw new TypeError(`map ${mapId} Back repeat source orders drifted from the audited set`);
   }
   if (orderedBacks.some((node) => {
     if (!node.data.layout) return true;

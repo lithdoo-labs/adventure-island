@@ -11,7 +11,10 @@ function decimalAttr(value) {
 
 function needsCameraRelativeBackUpdates(layout) {
   if (!layout || typeof layout !== "object") return false;
-  return layout.pinToViewportX === true || layout.pinToViewportY === true;
+  return layout.pinToViewportX === true
+    || layout.pinToViewportY === true
+    || Number.isInteger(layout.parallaxRx)
+    || Number.isInteger(layout.parallaxRy);
 }
 
 /**

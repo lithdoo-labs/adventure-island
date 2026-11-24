@@ -19,7 +19,7 @@ export const M7_PORTAL_BUDGETS = Object.freeze({
   maxWaterMapCanvasWidth: 2_500,
   maxWaterMapCanvasHeight: 900,
   maxWaterMapLocalCanvasPixels: 900_000,
-  maxWaterMapTotalCanvasPixels: 12_000_000,
+  maxWaterMapTotalCanvasPixels: 14_000_000,
   maxWaterMapFieldPlanResourceClosure: 140,
   maxWaterMapFirstFramePaintResources: 100,
   maxWaterMapBrowserTravelReadyMs: 30_000,
@@ -49,7 +49,7 @@ export const M7_5_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
 /** M7.6 additive viewport relayout + soak ceilings; M7.1–M7.5 gates remain immutable evidence. */
 export const M7_6_VIEWPORT_BUDGETS = Object.freeze({
   maxViewportRelayoutCycles: 6,
-  maxWaterMapTotalLocalPixelsAtSmallViewport: 11_400_000,
+  maxWaterMapTotalLocalPixelsAtSmallViewport: 13_000_000,
   maxWaterMapRelayoutPaintCommitsDelta: 150,
   maxWaterMapRelayoutResourceReads: 0,
   maxDetachedCanvasDelta: 0,
@@ -75,7 +75,7 @@ export const M7_7_BACK_ANIM_BUDGETS = Object.freeze({
 /** Measured Node 2026-11-21 after M7.7 Back animation slice (canonical 1000×700 viewport). */
 export const M7_7_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
   visualCanvases: 148,
-  totalLocalPixels: 11_718_514,
+  totalLocalPixels: 13_722_892,
   mapResourceClosure: 183,
   fieldPlanResourceClosure: 187,
   firstFramePaintResources: 91,

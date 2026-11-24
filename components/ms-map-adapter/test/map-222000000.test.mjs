@@ -59,7 +59,7 @@ describe("real map 222000000 closure + projection", () => {
     assert.equal(first.projection.hash, second.projection.hash);
     assert.equal(
       first.projection.hash,
-      "sha256:e28f3b8816d8d6c16c16f6b8be629f0d3a39bba4ccea72c81882514f0b531c33",
+      "sha256:363f2af2130b856026cc554469092345578af3b6429497d9e9b60b018d2b487a",
     );
 
     // Spot-check first tile/obj keys against CMS079 formulas.
@@ -80,6 +80,10 @@ describe("real map 222000000 closure + projection", () => {
     assert.ok(first.paintUnits.some((u) => u.kind === "ms-map-batch"));
     assert.ok(first.paintUnits.every((u, index) => u.stackRank === index + 1));
     assert.equal(first.paintUnits.length, 297);
+    const backs = first.ordered.filter((item) => item.sourceKind === "back");
+    const backAt = (no) => backs.findIndex((item) => Number(item.placement.no) === no);
+    assert.ok(backAt(2) < backAt(4), "distant lake stays behind the meadow");
+    assert.ok(backAt(2) < backAt(6), "distant lake stays behind the near forest");
     assert.equal(first.paintUnits.filter((u) => u.kind === "ms-map-back").length, 16);
     assert.equal(first.paintUnits.filter((u) => u.kind === "ms-map-batch").length, 253);
     assert.equal(first.paintUnits.filter((u) => u.kind === "ms-map-object").length, 25);

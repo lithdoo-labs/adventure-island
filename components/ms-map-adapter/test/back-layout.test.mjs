@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   BACK_SCROLL_MS_DIVISOR,
   backViewAttrsForCamera,
+  horizontalScreenAnchor,
   layoutBackView,
   scrollPixelsPerMs,
 } from "../src/back-layout.mjs";
@@ -27,13 +28,14 @@ test("a non-zero horizontal step uses one viewport-sized bounded surface", () =>
   assert.equal(laidOut.canvasWidth, 800);
   assert.equal(laidOut.canvasHeight, 32);
   assert.equal(laidOut.viewX, 100, "world-plane -camera and host +camera cancel exactly once");
-  assert.equal(laidOut.viewY, 72);
+  assert.equal(laidOut.viewY, 370);
+  assert.equal(laidOut.layout.parallaxRy, -15);
   assert.equal(laidOut.layout.tileStepX, 800);
   assert.equal(laidOut.layout.tileHorizontal, true);
   assert.equal(laidOut.layout.pinToViewportX, true);
 });
 
-test("cx/cy zero stays zero and draws one authored frame", () => {
+test("cx/cy zero on a repeating type uses the frame size and covers the viewport", () => {
   const laidOut = layoutBackView({
     type: 3,
     bounds: { x: -20, y: 40, width: 64, height: 32 },
@@ -44,12 +46,93 @@ test("cx/cy zero stays zero and draws one authored frame", () => {
     cameraY: 200,
     viewport: { width: 800, height: 600 },
   });
-  assert.equal(laidOut.canvasWidth, 64);
-  assert.equal(laidOut.canvasHeight, 32);
-  assert.equal(laidOut.layout.tileHorizontal, false);
+  assert.equal(laidOut.canvasWidth, 800);
+  assert.equal(laidOut.canvasHeight, 600);
+  assert.equal(laidOut.layout.tileStepX, 64);
+  assert.equal(laidOut.layout.tileStepY, 32);
+  assert.equal(laidOut.layout.tileHorizontal, true);
+  assert.equal(laidOut.layout.tileVertical, true);
+  assert.equal(laidOut.viewX, 500);
+  assert.equal(laidOut.viewY, 200);
+});
+
+test("type 1 with cx zero repeats horizontally and keeps the authored vertical frame", () => {
+  const laidOut = layoutBackView({
+    type: 1,
+    bounds: { x: 10, y: -80, width: 50, height: 550 },
+    placement: { cx: 0, cy: 0, rx: 0, ry: -10 },
+    frameWidth: 50,
+    frameHeight: 550,
+    cameraX: 120,
+    cameraY: 40,
+    viewport: { width: 996, height: 719 },
+  });
+  assert.equal(laidOut.layout.tileStepX, 50);
+  assert.equal(laidOut.layout.tileHorizontal, true);
   assert.equal(laidOut.layout.tileVertical, false);
-  assert.equal(laidOut.viewX, -20);
-  assert.equal(laidOut.viewY, 40);
+  assert.equal(laidOut.canvasWidth, 996);
+  assert.equal(laidOut.canvasHeight, 550);
+  assert.equal(laidOut.viewX, 120);
+  assert.equal(laidOut.viewY, 280);
+});
+
+test("horizontal repeat anchor follows rx and type 4 stays on the authored left", () => {
+  const meadow = layoutBackView({
+    type: 1,
+    bounds: { x: -565, y: 0, width: 100, height: 40 },
+    placement: { cx: 2046, cy: 0, rx: -25, ry: -40 },
+    frameWidth: 1023,
+    frameHeight: 40,
+    cameraX: -993,
+    cameraY: -210,
+    viewport: { width: 1078, height: 720 },
+  });
+  assert.equal(meadow.layout.parallaxRx, -25);
+  assert.equal(horizontalScreenAnchor(meadow.layout, -993, 0), 87);
+  const mountains = layoutBackView({
+    type: 4,
+    bounds: { x: -400, y: -20, width: 80, height: 40 },
+    placement: { cx: 1000, cy: 0, rx: 4, ry: -12 },
+    frameWidth: 80,
+    frameHeight: 40,
+    cameraX: -993,
+    cameraY: -210,
+    viewport: { width: 1078, height: 720 },
+  });
+  assert.equal(mountains.layout.parallaxRx, null);
+  assert.equal(horizontalScreenAnchor(mountains.layout, -993, 0), -400 - (-993));
+  assert.equal(horizontalScreenAnchor(mountains.layout, -993, 6), -400 - (-993) - 6);
+});
+
+test("vertical parallax follows ry and leaves ry -100 on the authored top", () => {
+  const shared = {
+    type: 1,
+    bounds: { x: 0, y: 28, width: 100, height: 40 },
+    frameWidth: 100,
+    frameHeight: 40,
+    cameraX: 0,
+    viewport: { width: 800, height: 720 },
+  };
+  const far = layoutBackView({
+    ...shared,
+    placement: { cx: 100, cy: 0, rx: 0, ry: -30 },
+    cameraY: -210,
+  });
+  const near = layoutBackView({
+    ...shared,
+    placement: { cx: 100, cy: 0, rx: 0, ry: -70 },
+    cameraY: -210,
+  });
+  const locked = layoutBackView({
+    ...shared,
+    placement: { cx: 100, cy: 0, rx: 0, ry: -100 },
+    cameraY: -210,
+  });
+  assert.equal(far.viewY, 28 + 105);
+  assert.equal(near.viewY, 28 + 45);
+  assert.equal(locked.viewY, 28);
+  const moved = backViewAttrsForCamera(near.layout, 0, -110);
+  assert.equal(moved.viewY, 28 + 75);
 });
 
 test("camera-only projection counter-positions only repeated axes", () => {

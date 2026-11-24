@@ -1,3 +1,4 @@
+import { horizontalScreenAnchor } from "../../ms-map-adapter/src/back-layout.mjs";
 import { FIELD_CANVAS_LIMITS } from "./limits.mjs";
 import { readSharedResource } from "./resource-read-pool.mjs";
 import {
@@ -487,7 +488,12 @@ export class MsMapBatch extends SpikeElement {
   }
 }
 
-function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0) {
+function repeatPhase(anchor, step) {
+  const mod = ((anchor % step) + step) % step;
+  return mod === 0 ? 0 : mod - step;
+}
+
+function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null) {
   const source = image?.source ?? {
     x: 0,
     y: 0,
@@ -521,7 +527,9 @@ function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], s
   context.globalAlpha = opacity / 255;
   const originX = Number.isFinite(layout.tileOriginX) ? layout.tileOriginX : 0;
   const originY = Number.isFinite(layout.tileOriginY) ? layout.tileOriginY : 0;
-  const phaseX = -((((originX + scrollOffsetX) % stepX) + stepX) % stepX);
+  const phaseX = Number.isFinite(screenAnchorX)
+    ? repeatPhase(screenAnchorX, stepX)
+    : -((((originX + scrollOffsetX) % stepX) + stepX) % stepX);
   const phaseY = -(((originY % stepY) + stepY) % stepY);
   const horiz = Boolean(layout.tileHorizontal);
   const vert = Boolean(layout.tileVertical);
@@ -569,6 +577,12 @@ function mapObjectFrameIndex(frames, elapsedMs) {
     cursor -= delay;
   }
   return frames.length - 1;
+}
+
+function mapObjectFramesToDecode(validated) {
+  const frames = validated?.frames ?? [];
+  if (validated?.layout || mapObjectCycleDurationMs(frames) > 0) return frames;
+  return frames.slice(0, 1);
 }
 
 function paintMapObjectFrame(context, bitmap, image, draw, layout, scrollOffsetX = 0) {
@@ -774,6 +788,7 @@ export class MsMapBack extends SpikeElement {
       }
       this._writeHost(attrs.value.visible, box);
       this._syncAnimLoop();
+      if (this._horizontalAnchor() !== this._paintedAnchorX) this._redrawBack(false);
       return;
     }
     if (contentSignature === this._loadingSignature) return;
@@ -851,6 +866,12 @@ export class MsMapBack extends SpikeElement {
     return this._sourceBitmap;
   }
 
+  _horizontalAnchor() {
+    const layout = this._validated?.layout ?? this._data?.layout ?? null;
+    const cameraX = Number(this.getAttribute("view-x"));
+    return horizontalScreenAnchor(layout, cameraX, Math.trunc(this._scrollOffsetX));
+  }
+
   _redrawBack(countCommit = true) {
     const bitmap = this._currentBitmap();
     if (!this._canvas || !bitmap) return;
@@ -861,7 +882,18 @@ export class MsMapBack extends SpikeElement {
     const context = this._canvas.getContext("2d");
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.imageSmoothingEnabled = false;
-    paintBackTiles(context, bitmap, frame.image, layout, frame.draw, frame.offset, this._scrollOffsetX);
+    const anchor = this._horizontalAnchor();
+    this._paintedAnchorX = anchor;
+    paintBackTiles(
+      context,
+      bitmap,
+      frame.image,
+      layout,
+      frame.draw,
+      frame.offset,
+      anchor === null ? this._scrollOffsetX : 0,
+      anchor,
+    );
     if (countCommit) this._paintCommits += 1;
   }
 
@@ -1481,10 +1513,25 @@ class MsMapObject extends SpikeElement {
     this._syncAnimLoop();
   }
 
+  _fitUnlaidFrameCanvas(frame) {
+    if (!this._canvas || !frame || this._validated?.layout) return;
+    const canvasW = frame.image.source.w;
+    const canvasH = frame.image.source.h;
+    if (this._canvas.style.width === cssPx(canvasW) && this._canvas.style.height === cssPx(canvasH)) return;
+    const ratio = deviceRatio();
+    if (ratio === null) return;
+    const deviceW = Math.round(canvasW * ratio);
+    const deviceH = Math.round(canvasH * ratio);
+    if (!deviceCanvasFitsBudget(deviceW, deviceH)) return;
+    this._canvas.width = deviceW;
+    this._canvas.height = deviceH;
+    this._canvas.style.width = cssPx(canvasW);
+    this._canvas.style.height = cssPx(canvasH);
+  }
+
   _syncAnimLoop() {
     const layout = this._validated?.layout;
-    const animate = Boolean(layout)
-      && (this._validated?.frames?.length ?? 0) > 1
+    const animate = (this._validated?.frames?.length ?? 0) > 1
       && mapObjectCycleDurationMs(this._validated.frames) > 0;
     const scroll = layout?.scroll?.pixelsPerMs;
     if (!animate && !scroll) {
@@ -1520,6 +1567,7 @@ class MsMapObject extends SpikeElement {
             const attrs = validateWorldAttrs(declared.value);
             if (attrs.ok) this._writeHost(attrs.value.visible, this._hostBox(attrs.value, this._validated, nextFrame));
           }
+          this._fitUnlaidFrameCanvas(this._validated.frames[nextFrame]);
           dirty = true;
         } else if (dirty) {
           // keep host geometry stable when only scroll moves
@@ -1567,7 +1615,7 @@ class MsMapObject extends SpikeElement {
       if (ratio === null) {
         throw Object.assign(new Error("device pixel ratio is outside the field budget"), { code: "RESOURCE_LIMIT" });
       }
-      const framesToLoad = validated.layout ? validated.frames : validated.frames.slice(0, 1);
+      const framesToLoad = mapObjectFramesToDecode(validated);
       for (const frame of framesToLoad) {
         if (epoch !== this._epoch) return;
         this._resourceReads += 1;

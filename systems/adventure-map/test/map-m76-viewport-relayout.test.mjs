@@ -39,7 +39,7 @@ test("230030200 viewport relayout only touches bounded Back and flow Obj hosts",
   }
   const backs = relayout.filter((node) => children.find((c) => c.key === node.key)?.tag === "ms-map-back");
   const flows = relayout.filter((node) => children.find((c) => c.key === node.key)?.data?.source?.flow === 1);
-  assert.equal(backs.length, 12);
+  assert.equal(backs.length, 21);
   assert.equal(flows.length, 11);
   const sample = backs[0];
   assert.equal(sample.data.set.layout.canvasWidth, 800);
@@ -88,7 +88,7 @@ test("first entry at 800x600 relayouts the published canonical FieldPlan immedia
     (node.tag === "ms-map-back" && node.data?.layout?.tileHorizontal)
     || (node.tag === "ms-map-object" && node.data?.source?.flow === 1)
   ));
-  assert.equal(viewportHosts.length, 23);
+  assert.equal(viewportHosts.length, 32);
   assert.ok(viewportHosts.every((node) => node.data.layout.canvasWidth === 800));
   assert.throws(
     () => projectAdventureMapFieldSceneFromPlan(plan, { width: 639, height: 600 }),
@@ -127,7 +127,7 @@ test("cross-map replace keeps viewport-sized water hosts at the live logical siz
   const pinnedFlows = commit.renderRoot.children.filter((node) => (
     node.tag === "ms-map-object" && node.data?.source?.flow === 1
   ));
-  assert.equal(pinnedBacks.length, 12);
+  assert.equal(pinnedBacks.length, 21);
   assert.equal(pinnedFlows.length, 11);
   assert.ok(pinnedBacks.every((node) => node.data.layout.canvasWidth === viewport.width));
   assert.ok(pinnedFlows.every((node) => node.data.layout.canvasWidth === viewport.width));

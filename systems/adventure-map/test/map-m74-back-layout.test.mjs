@@ -40,11 +40,13 @@ test("230030200 has no unsupported Back type 1-4 diagnostics", async () => {
     }
   }
   assert.deepEqual(Object.fromEntries([...typeCounts].sort(([a], [b]) => a - b)), { 0: 10, 1: 12, 3: 1, 4: 8 });
-  assert.equal(backs.filter((back) => back.data.layout.tileHorizontal).length, 12,
-    "only four type1 and eight type4 rows have a non-zero authored cx");
+  assert.equal(backs.filter((back) => back.data.layout.tileHorizontal).length, 21,
+    "every type1, type3, and type4 row repeats horizontally, including cx=0");
   const zeroStepType3 = backs.find((back) => Number(back.data.source.type) === 3);
-  assert.equal(zeroStepType3.data.layout.tileHorizontal, false);
-  assert.equal(zeroStepType3.data.layout.tileVertical, false);
+  assert.equal(zeroStepType3.data.layout.tileHorizontal, true);
+  assert.equal(zeroStepType3.data.layout.tileVertical, true);
+  assert.equal(zeroStepType3.data.layout.tileStepX, zeroStepType3.data.layout.frameWidth);
+  assert.equal(zeroStepType3.data.layout.tileStepY, zeroStepType3.data.layout.frameHeight);
 });
 
 test("230030200 FieldPlan back layout stays within M7 canvas budgets", async () => {
@@ -54,7 +56,7 @@ test("230030200 FieldPlan back layout stays within M7 canvas budgets", async () 
   });
   const summary = summarizeProjectionCanvasBudget(plan.root);
   const repeated = plan.root.children.filter((child) => child.tag === "ms-map-back" && child.data.layout?.tileHorizontal);
-  assert.equal(repeated.length, 12);
+  assert.equal(repeated.length, 21);
   assert.ok(repeated.every((child) => child.data.layout.canvasWidth === 1_000),
     "canonical PWA Back surfaces must cover the bounded 1000px route viewport");
   assert.ok(summary.canvasCount <= M7_PORTAL_BUDGETS.maxWaterMapVisualCanvases);

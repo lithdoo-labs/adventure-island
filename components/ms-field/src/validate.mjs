@@ -593,7 +593,8 @@ function validateBackLayout(layout, path = "data.layout") {
   if (!plainObject(layout)) return invalid("INPUT_INVALID", path, "layout must be a plain object");
   const keys = [
     "canvasHeight", "canvasWidth", "frameHeight", "frameWidth", "kind",
-    "pinToViewportX", "pinToViewportY", "scroll", "tileHorizontal",
+    "parallaxRx", "parallaxRy", "pinToViewportX", "pinToViewportY", "scroll", "tileHorizontal",
+    "viewportHeight", "viewportWidth",
     "tileOriginX", "tileOriginY", "tileStepX", "tileStepY", "tileVertical",
     "worldLeft", "worldTop",
   ];
@@ -629,6 +630,25 @@ function validateBackLayout(layout, path = "data.layout") {
   if (layout.canvasWidth * layout.canvasHeight > FIELD_CANVAS_LIMITS.maxCanvasPixels) {
     return invalid("RESOURCE_LIMIT", path, "layout Canvas exceeds the local pixel budget");
   }
+  for (const key of ["parallaxRx", "parallaxRy"]) {
+    if (layout[key] !== null) {
+      const rate = safeInteger(layout[key], `${path}.${key}`, {
+        min: -FIELD_INPUT_LIMITS.maxCoordinate,
+        max: FIELD_INPUT_LIMITS.maxCoordinate,
+      });
+      if (!rate.ok) return rate;
+    }
+  }
+  const viewportWidth = safeInteger(layout.viewportWidth, `${path}.viewportWidth`, {
+    min: 1,
+    max: FIELD_CANVAS_LIMITS.maxCanvasWidth,
+  });
+  if (!viewportWidth.ok) return viewportWidth;
+  const viewportHeight = safeInteger(layout.viewportHeight, `${path}.viewportHeight`, {
+    min: layout.parallaxRy === null ? 0 : 1,
+    max: FIELD_CANVAS_LIMITS.maxCanvasHeight,
+  });
+  if (!viewportHeight.ok) return viewportHeight;
   for (const key of ["pinToViewportX", "pinToViewportY", "tileHorizontal", "tileVertical"]) {
     if (typeof layout[key] !== "boolean") {
       return invalid("INPUT_INVALID", `${path}.${key}`, `${key} must be boolean`);

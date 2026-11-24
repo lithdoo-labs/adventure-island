@@ -587,7 +587,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         heapProxy: domNodes + canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0) / 1_000,
       };
     });
-    assert.equal(soakBefore.relayoutBacks, 12);
+    assert.equal(soakBefore.relayoutBacks, 21);
     assert.equal(soakBefore.relayoutObjects, 11);
     const soakSizes = [
       { width: 800, height: 600 },
@@ -602,7 +602,7 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
         await page.waitForFunction((expected) => {
           const backs = window.__m76RelayoutBacks ?? [];
           const flows = window.__m76RelayoutObjects ?? [];
-          return backs.length === 12 && flows.length === 11
+          return backs.length === 21 && flows.length === 11
             && backs.every((host) => host.isConnected
               && Number(getComputedStyle(host).width.replace("px", "")) === expected
               && host.diagnostics().state === "ready")

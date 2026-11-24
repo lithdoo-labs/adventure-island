@@ -667,7 +667,7 @@ test("M7.6 viewport relayout retains decoded Content and bounded animation clock
     (child.tag === "ms-map-back" && child.data?.layout?.tileHorizontal)
     || (child.tag === "ms-map-object" && child.data?.source?.flow === 1)
   ));
-  assert.equal(relayoutHosts.filter((child) => child.tag === "ms-map-back").length, 12);
+  assert.equal(relayoutHosts.filter((child) => child.tag === "ms-map-back").length, 21);
   assert.equal(relayoutHosts.filter((child) => child.data?.source?.flow === 1).length, 11);
   relayoutHosts.forEach((child, index) => {
     child.attrs["stack-rank"] = String(index + 1);
@@ -692,7 +692,7 @@ test("M7.6 viewport relayout retains decoded Content and bounded animation clock
   });
   await page.evaluate((opened) => window.__open(opened), tree);
   await waitFor(page, () => (
-    document.querySelectorAll("ms-map-back, ms-map-object").length === 23
+    document.querySelectorAll("ms-map-back, ms-map-object").length === 32
       && [...document.querySelectorAll("ms-map-back, ms-map-object")]
         .every((host) => host.diagnostics().state === "ready")
       && window.__resourceActive === 0
@@ -773,7 +773,7 @@ test("M7.6 viewport relayout retains decoded Content and bounded animation clock
       };
     }, size.width);
     assert.ok(snap.backsReady && snap.flowsReady);
-    assert.equal(snap.backs, 12);
+    assert.equal(snap.backs, 21);
     assert.equal(snap.flows, 11);
     assert.ok(snap.totalPixels <= M7_PORTAL_BUDGETS.maxWaterMapTotalCanvasPixels);
     await waitFor(page, () => window.__resourceActive === 0, "relayout cycle quiesced", 10_000);

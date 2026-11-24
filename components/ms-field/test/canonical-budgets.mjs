@@ -13,27 +13,25 @@ export const MEASURED_CANVAS_COUNT = 298;
  */
 export const MEASURED_FIELD_PLAN_RESOURCE_CLOSURE = 171;
 
-/**
- * Underlying Content reads for static first-frame painting on the full 298-host scene.
- * Smaller than the closure because batch nodes ship extra sprite pages not painted on frame 0.
- * Measured after all visual hosts reach `ready` with `resourceActive === 0` (Chromium, 2026-11-19).
- */
-/** Static first-frame resource identities from projection walk (Node). */
+/** Static first-frame resource identities from the projection walk (Node). */
 export const MEASURED_FIRST_FRAME_PAINT_RESOURCE_IDENTITIES = 150;
 
-/** Underlying client Content reads after full canonical Chromium first paint. */
-export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 150;
+/**
+ * Unique Content reads after every visual host is ready.
+ * The first-frame set plus the later frames of timed Obj sequences.
+ */
+export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 171;
 
 /** @deprecated Use {@link MEASURED_FIELD_PLAN_RESOURCE_CLOSURE}. */
 export const MEASURED_UNIQUE_CONTENT_READS = MEASURED_FIELD_PLAN_RESOURCE_CLOSURE;
 
 /** Largest local Canvas edge at devicePixelRatio 1 from projection bounds. */
 export const MEASURED_MAX_CANVAS_WIDTH = 1890;
-export const MEASURED_MAX_CANVAS_HEIGHT = 573;
+export const MEASURED_MAX_CANVAS_HEIGHT = 600;
 export const MEASURED_MAX_LOCAL_CANVAS_PIXELS = 680_208;
 
 /** Sum of local width×height across every visual Canvas host at DPR 1 (excludes ms-avatar — runtime-sized). */
-export const MEASURED_TOTAL_LOCAL_PIXELS = 19_783_576;
+export const MEASURED_TOTAL_LOCAL_PIXELS = 20_754_365;
 
 /** ms-field presentation code caps in-flight underlying reads (PWA rejects above 32). */
 export const RESOURCE_READ_CONCURRENCY = 8;
@@ -46,7 +44,7 @@ export const CANONICAL_FIELD_BUDGETS = Object.freeze({
   maxLocalCanvasPixels: FIELD_CANVAS_LIMITS.maxCanvasPixels,
   maxTotalLocalPixels: 24_000_000,
   maxFieldPlanResourceClosure: 190,
-  maxFirstFrameUnderlyingReads: 170,
+  maxFirstFrameUnderlyingReads: 190,
   maxReadConcurrency: RESOURCE_READ_CONCURRENCY,
   belowPwaContentLimit: PWA_CONTENT_CONCURRENCY_LIMIT,
   maxReadyMs: 240_000,

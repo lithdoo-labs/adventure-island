@@ -11,17 +11,18 @@ export const MEASURED_CANVAS_COUNT = 298;
  * FieldPlan / published map resource closure (all resource refs reachable from RenderNode data).
  * Matches PWA `collectMapResourceRefsFromFieldTree` walk semantics (Node, 2026-11-19).
  */
-export const MEASURED_FIELD_PLAN_RESOURCE_CLOSURE = 178;
+export const MEASURED_FIELD_PLAN_RESOURCE_CLOSURE = 198;
 
 /** Static first-frame resource identities from the projection walk (Node). */
 export const MEASURED_FIRST_FRAME_PAINT_RESOURCE_IDENTITIES = 157;
 
 /**
  * Unique Content reads after every visual host is ready.
- * The first-frame set plus the later frames of timed Obj sequences.
+ * The first-frame set, later frames of timed Obj sequences, the pv halo loop,
+ * and every hidden-portal Start/Continue/Exit frame.
  * The seven extra identities versus the bare character are the one-hand outfit atlases.
  */
-export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 178;
+export const MEASURED_FIRST_FRAME_UNDERLYING_READS = 198;
 
 /** @deprecated Use {@link MEASURED_FIELD_PLAN_RESOURCE_CLOSURE}. */
 export const MEASURED_UNIQUE_CONTENT_READS = MEASURED_FIELD_PLAN_RESOURCE_CLOSURE;
@@ -44,8 +45,8 @@ export const CANONICAL_FIELD_BUDGETS = Object.freeze({
   maxCanvasHeight: FIELD_CANVAS_LIMITS.maxCanvasHeight,
   maxLocalCanvasPixels: FIELD_CANVAS_LIMITS.maxCanvasPixels,
   maxTotalLocalPixels: 24_000_000,
-  maxFieldPlanResourceClosure: 190,
-  maxFirstFrameUnderlyingReads: 190,
+  maxFieldPlanResourceClosure: 203,
+  maxFirstFrameUnderlyingReads: 203,
   maxReadConcurrency: RESOURCE_READ_CONCURRENCY,
   belowPwaContentLimit: PWA_CONTENT_CONCURRENCY_LIMIT,
   maxReadyMs: 240_000,
@@ -67,6 +68,14 @@ export function expectedLocalCanvasSize(node) {
   const image = node.data?.image;
   if (node.tag === "ms-map-back" && node.data?.layout) {
     return { width: node.data.layout.canvasWidth, height: node.data.layout.canvasHeight };
+  }
+  if (node.tag === "ms-portal-visual" && node.data?.phase === "loop") {
+    const source = node.data.frames?.[0]?.image?.source;
+    if (source) return { width: source.w, height: source.h };
+  }
+  if (node.tag === "ms-portal-visual" && node.data?.phase === "sequence") {
+    const source = node.data.clips?.portalContinue?.[0]?.image?.source;
+    if (source) return { width: source.w, height: source.h };
   }
   if ((node.tag === "ms-map-back" || node.tag === "ms-portal-visual") && image?.source) {
     return { width: image.source.w, height: image.source.h };
@@ -147,7 +156,12 @@ export function collectFirstFramePaintResourceIdentities(root) {
         add(node.data.image.resource);
       }
     } else if (node.tag === "ms-portal-visual") {
-      if (node.data?.image?.resource) add(node.data.image.resource);
+      const resource = node.data?.phase === "sequence"
+        ? node.data.clips?.portalContinue?.[0]?.image?.resource
+        : node.data?.phase === "loop"
+          ? node.data.frames?.[0]?.image?.resource
+          : node.data?.image?.resource;
+      if (resource) add(resource);
     } else if (node.tag === "ms-map-object") {
       const frame = node.data?.frames?.[0];
       if (frame?.image?.resource) add(frame.image.resource);
@@ -187,6 +201,12 @@ export function collectBrowserReadyPaintResourceIdentities(root) {
   const identities = collectFirstFramePaintResourceIdentities(root);
   const visit = (node) => {
     if (node.tag === "ms-map-back" && node.data?.mode === "local-animation") {
+      for (const frame of node.data.frames ?? []) {
+        const resource = frame?.image?.resource;
+        if (resource) identities.add(`${resource.namespace}\0${resource.key}\0${resource.contentVersion}`);
+      }
+    }
+    if (node.tag === "ms-portal-visual" && (node.data?.phase === "loop" || node.data?.phase === "sequence")) {
       for (const frame of node.data.frames ?? []) {
         const resource = frame?.image?.resource;
         if (resource) identities.add(`${resource.namespace}\0${resource.key}\0${resource.contentVersion}`);

@@ -26,7 +26,18 @@ export function buildFootholdCollisionPlan(footholds) {
     y1: Number(row.y1),
     x2: Number(row.x2),
     y2: Number(row.y2),
+    prev: integerLink(row.prev),
+    next: integerLink(row.next),
   })));
+  const ids = new Set(segments.map((segment) => segment.id));
+  for (const segment of segments) {
+    if (segment.prev !== 0 && !ids.has(segment.prev)) {
+      throw new TypeError(`foothold ${segment.id} prev ${segment.prev} does not resolve`);
+    }
+    if (segment.next !== 0 && !ids.has(segment.next)) {
+      throw new TypeError(`foothold ${segment.id} next ${segment.next} does not resolve`);
+    }
+  }
   const body = Object.freeze({ formatVersion: 1, segments });
   return Object.freeze({
     ...body,
@@ -38,6 +49,12 @@ export function assertFootholdCollisionPlanHash(plan) {
   validateFootholdCollisionPlan(plan);
   const expect = projectionHash({ formatVersion: 1, segments: plan.segments });
   if (plan.hash !== expect) throw new TypeError("footholdCollisionPlan.hash does not match segments");
+}
+
+function integerLink(value) {
+  const id = Number(value ?? 0);
+  if (!Number.isSafeInteger(id)) throw new TypeError("foothold prev/next must be an integer");
+  return id;
 }
 
 export function buildAndAssertFootholdCollisionPlan(footholds) {

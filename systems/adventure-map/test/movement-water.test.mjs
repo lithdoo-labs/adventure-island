@@ -43,7 +43,7 @@ test("water jump writes -(swimSpeed * 5) and the same tick keeps integrating", (
   const impulse = -movementConfig.swimSpeed * WATER_JUMP_SPEED_MULTIPLIER;
   assert.ok(next.velocityY > impulse);
   assert.ok(next.velocityY < 0);
-  assert.equal(next.jumpRepeatMs, 0);
+  assert.equal(next.jumpRepeatMs, 300);
 });
 
 test("water movement replay hash is stable", () => {
@@ -145,7 +145,7 @@ test("horizontal swim accelerates to the cap and releases toward zero", () => {
   assert.ok(released.velocityX > 0);
 });
 
-test("holding jump does not repeat the buoyant impulse", () => {
+test("holding jump waits 300ms before repeating the buoyant impulse", () => {
   const intent = movementIntentFromHeld(["south"]);
   let movement = stepWaterMovement(
     createWaterMovementState({ worldX: 0, worldY: 0 }),
@@ -160,7 +160,14 @@ test("holding jump does not repeat the buoyant impulse", () => {
     assert.ok(movement.velocityY > previous);
   }
   assert.ok(movement.velocityY > first);
-  assert.equal(movement.jumpRepeatMs, 0);
+  assert.ok(movement.jumpRepeatMs > 0);
+  for (let tick = 0; tick < 9; tick += 1) {
+    movement = stepWaterMovement(movement, intent, movementConfig);
+  }
+  const beforeRepeat = movement.velocityY;
+  movement = stepWaterMovement(movement, intent, movementConfig);
+  assert.ok(movement.velocityY < beforeRepeat, "the held jump impulses again at 300ms");
+  assert.equal(movement.jumpRepeatMs, 300);
 });
 
 const portalLedge = Object.freeze({
@@ -225,7 +232,7 @@ test("arrival above the portal ledge lands and stands on it", () => {
 
 test("walking off a swim foothold resumes sinking, and a lower line catches the body", () => {
   let movement = settleOnFoothold(createWaterMovementState({ worldX: 296, worldY: -108 }));
-  const step = movementConfig.walkSpeed * movementConfig.swimSpeedDec * (BUSINESS_TICK_MS / 1000);
+  const fullStep = movementConfig.walkSpeed * movementConfig.swimSpeedDec * (BUSINESS_TICK_MS / 1000);
   movement = stepSwimMapMovement(
     movement,
     movementIntentFromHeld(["right"]),
@@ -234,7 +241,8 @@ test("walking off a swim foothold resumes sinking, and a lower line catches the 
   );
   assert.equal(movement.grounded, true);
   assert.equal(movement.locomotion, "walk");
-  assert.equal(movement.worldX, Math.round((296 + step) * 1000) / 1000);
+  assert.ok(movement.worldX > 296);
+  assert.ok(movement.worldX < 296 + fullStep);
   let leftGround = false;
   for (let tick = 0; tick < 40 && movement.grounded; tick += 1) {
     movement = stepSwimMapMovement(

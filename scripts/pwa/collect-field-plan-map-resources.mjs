@@ -119,7 +119,7 @@ function collectNestedMapResources(value, sink, seen = new WeakSet()) {
  */
 export function assertM7WaterMapResourceBoundary(left, right, scene, label) {
   assertExactMapResourceRefSets(left, right, `${label}: field tree vs adapter closure`);
-  if (left.length !== 183 || right.length !== 183) {
+  if (left.length !== 190 || right.length !== 190) {
     throw new TypeError(`${label}: audited water resource counts drifted (field tree ${left.length}, adapter ${right.length})`);
   }
   const unsupported = (scene?.diagnostics ?? []).filter((item) => item.code === "UNSUPPORTED");

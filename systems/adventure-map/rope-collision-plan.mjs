@@ -85,8 +85,8 @@ export function validateRopeCollisionPlan(plan, expectedGroupStatus = null) {
 }
 
 /**
- * CMS079 C-069 spatial query: caller rectangle overlaps [y1,y2] and the
- * rope's audited horizontal hit band.
+ * Rope hit. The caller passes the body probe. X hits when that probe meets
+ * the rope's ±10 band. Y hits only when the whole probe sits inside [y1, y2].
  * @param {object[]} segments
  * @param {number} xMin
  * @param {number} xMax
@@ -94,12 +94,14 @@ export function validateRopeCollisionPlan(plan, expectedGroupStatus = null) {
  * @param {number} yMax
  */
 export function queryRopeSegments(segments, xMin, xMax, yMin, yMax) {
+  const probeTop = Math.min(yMin, yMax);
+  const probeBottom = Math.max(yMin, yMax);
   const hits = [];
   for (const segment of segments) {
     const ropeXMin = segment.x - ROPE_HIT_HALF_WIDTH_PX;
     const ropeXMax = segment.x + ROPE_HIT_HALF_WIDTH_PX;
     if (xMax < ropeXMin || xMin > ropeXMax) continue;
-    if (yMax < segment.y1 || yMin > segment.y2) continue;
+    if (probeTop < segment.y1 || probeBottom > segment.y2) continue;
     hits.push(segment);
   }
   if (hits.length === 0) return null;

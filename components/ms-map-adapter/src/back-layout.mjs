@@ -1,14 +1,16 @@
 /**
  * Candidate Back type 0-4 layout algebra.
  *
- * CMS079 proves the type axes, exact cx/cy steps, and type 4 scroll interval.
+ * CMS079 proves the type axes and exact cx/cy steps. Type 4 scroll uses the
+ * CMS 20000 divisor and the OpenMS 100px period.
  * The viewport-sized local surface and horizontal pinning are explicit M7.4
  * product decisions. Vertical placement uses the OpenMS-REFERENCE camera term
  * because the CMS079 +0x98 body is not in the game image.
  */
 
-/** CMS079-VERIFIED: type 4/6 horizontal scroll interval divisor. */
+/** CMS079 0x66A56E divisor. OpenMS 0063df23 travels 100px in trunc(divisor/|rx|) ms. */
 export const BACK_SCROLL_MS_DIVISOR = 20_000;
+export const BACK_SCROLL_DISTANCE_PX = 100;
 
 /** Adapter-side fail-closed caps; the renderer independently validates them. */
 export const BACK_LAYOUT_LIMITS = Object.freeze({
@@ -97,8 +99,9 @@ export function verticalParallaxOffset(ry, cameraY, viewportHeight, combined = f
 
 /**
  * Screen X of a horizontally repeated copy, including type 4 world lock.
- * Type 4 keeps rx as the scroll rate, so its X is authored left minus the
- * camera. Integrated scroll keeps its existing leftward sign. Other types
+ * Type 4 keeps its X at the authored left minus the camera, then subtracts
+ * the integrated offset. OpenMS adds that offset, so scrollPixelsPerMs stores
+ * the opposite of rx and a positive rx moves the picture right. Other types
  * use the camera term. The host stays pinned, so this value is a screen X.
  * Returns null when this layout does not tile horizontally.
  */
@@ -114,9 +117,10 @@ export function horizontalScreenAnchor(layout, cameraX, scrollPixels = 0) {
 
 export function scrollPixelsPerMs(rx) {
   if (!Number.isFinite(rx) || rx === 0) return null;
-  const intervalMs = BACK_SCROLL_MS_DIVISOR / Math.abs(rx);
-  if (!Number.isFinite(intervalMs) || intervalMs <= 0) return null;
-  return (rx > 0 ? 1 : -1) / intervalMs;
+  const durationMs = Math.trunc(BACK_SCROLL_MS_DIVISOR / Math.abs(rx));
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0) return null;
+  const distance = rx > 0 ? -BACK_SCROLL_DISTANCE_PX : BACK_SCROLL_DISTANCE_PX;
+  return distance / durationMs;
 }
 
 function integerParallaxRate(value) {

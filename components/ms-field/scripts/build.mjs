@@ -18,6 +18,7 @@ const sources = [
   path.join(componentRoot, "..", "ms-avatar", "src", "ms-action.mjs"),
   path.join(componentRoot, "..", "ms-avatar", "src", "ms-avatar.mjs"),
   path.join(componentRoot, "src", "validate.mjs"),
+  path.join(componentRoot, "src", "portal-sequence.mjs"),
   path.join(componentRoot, "..", "ms-map-adapter", "src", "back-layout.mjs"),
   path.join(componentRoot, "src", "elements.mjs"),
 ];

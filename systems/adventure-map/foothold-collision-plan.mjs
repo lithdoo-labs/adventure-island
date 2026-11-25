@@ -22,7 +22,15 @@ export function finiteFootholdSegment(raw) {
     y1: raw.y1,
     x2: raw.x2,
     y2: raw.y2,
+    prev: linkId(raw.prev),
+    next: linkId(raw.next),
   });
+}
+
+function linkId(value) {
+  if (value === undefined || value === null) return 0;
+  if (!Number.isSafeInteger(value)) throw new TypeError("foothold prev/next must be a safe integer");
+  return value;
 }
 
 export function validateFootholdCollisionPlan(plan) {

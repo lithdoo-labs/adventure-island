@@ -11,7 +11,7 @@ import { playerInPortalTriggerBox } from "../portal-trigger.mjs";
 import { selectPortalTriggerCandidate } from "../portal-trigger.mjs";
 import { evaluatePortalOnUpEdge } from "../portal-runtime-bridge.mjs";
 import { createMovementStateForMap, stepMovementForMap } from "../movement-step.mjs";
-import { movementIntentFromHeld, movementIntentFromHeldForState } from "../movement-intent.mjs";
+import { movementIntentFromHeld } from "../movement-intent.mjs";
 import { CLIMB_DELTA_PER_TICK } from "../movement-rope.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -183,32 +183,27 @@ test("B shaft rope climbs to out00 portal band without teleport", () => {
   const out00 = portalByName(mapB.portalLogicalIndex, "out00");
   let movement = createMovementStateForMap({
     mapEnvironment: mapB.mapEnvironment,
-    worldX: 6,
+    worldX: rope.x,
     worldY: 514,
     facing: "right",
     segments: mapB.footholdCollisionPlan.segments,
   });
-  for (let index = 0; index < 22; index += 1) {
+  let jumped = false;
+  for (let index = 0; index < 80 && movement.mode !== "climb"; index += 1) {
     movement = stepMovementForMap(
       movement,
-      movementIntentFromHeldForState(["left"]),
+      movementIntentFromHeld(["up", "jump"]),
       mapB.footholdCollisionPlan,
       mapB.ropeCollisionPlan,
       mapB.movementConfig,
       mapB.mapEnvironment,
-      {},
+      { jumpPressed: !jumped, jumpHeld: true },
     );
+    jumped = true;
   }
-  movement = stepMovementForMap(
-    movement,
-    movementIntentFromHeldForState(["down"]),
-    mapB.footholdCollisionPlan,
-    mapB.ropeCollisionPlan,
-    mapB.movementConfig,
-    mapB.mapEnvironment,
-    {},
-  );
   assert.equal(movement.mode, "climb");
+  assert.equal(movement.layer, rope.page);
+  assert.equal(movement.platform, 0);
   const ticks = Math.ceil((rope.y2 - (out00.y + 5)) / CLIMB_DELTA_PER_TICK) + 2;
   for (let index = 0; index < ticks; index += 1) {
     movement = stepMovementForMap(

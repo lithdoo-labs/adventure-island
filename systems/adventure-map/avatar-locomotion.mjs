@@ -14,6 +14,7 @@ const LOCOMOTION_ACTION_FALLBACK = Object.freeze({
   stand: "stand1",
   walk: "walk1",
   jump: "jump",
+  prone: "prone",
   swim: "fly",
   climb: "rope",
 });
@@ -27,6 +28,11 @@ export function projectAvatarLocomotionAttrs(fieldState = null, timingState = nu
     action = resolveActionName(planRef, locomotion);
   } else {
     action = LOCOMOTION_ACTION_FALLBACK[locomotion] ?? LOCOMOTION_ACTION_FALLBACK.stand;
+  }
+  // l selects the ladder clip when that action is actually in the plan.
+  // A rope (l 0), and a ladder whose clip was not published, stay on rope.
+  if (locomotion === "climb" && fieldState?.movement?.ropeContact?.l === 1 && planRef?.actions?.ladder) {
+    action = "ladder";
   }
 
   const timing = timingState?.clip

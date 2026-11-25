@@ -53,7 +53,10 @@ export function stepMovementForMap(
     return stepSwimMapMovement(state, intent, footholdCollisionPlan, movementConfig, edges);
   }
   if (state.mode === "climb" && state.ropeContact) {
-    const next = stepClimbMovement(state, intent, ropeCollisionPlan, footholdCollisionPlan, edges);
+    const next = stepClimbMovement(state, intent, ropeCollisionPlan, footholdCollisionPlan, {
+      ...edges,
+      movementConfig,
+    });
     return Object.freeze({ ...next, medium: "land" });
   }
   const next = stepLandMovementWithRope(

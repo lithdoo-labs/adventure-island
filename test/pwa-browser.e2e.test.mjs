@@ -317,13 +317,16 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     // browser can coalesce several fixed ticks between DOM polls. Finish the
     // approach with short trusted key pulses so the test exercises the real
     // input path without skipping across the trigger rectangle.
-    for (let pulse = 0; pulse < 32; pulse += 1) {
+    for (let pulse = 0; pulse < 48; pulse += 1) {
       const worldX = await page.evaluate(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")));
-      if (worldX <= -488) break;
-      await page.keyboard.down("ArrowLeft");
+      // Aim inside the band. Releasing the key still coasts, and one extra
+      // pulse can leave x just below -528.
+      if (worldX >= -520 && worldX <= -496) break;
+      const key = worldX > -496 ? "ArrowLeft" : "ArrowRight";
+      await page.keyboard.down(key);
       await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 25)));
-      await page.keyboard.up("ArrowLeft");
-      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 25)));
+      await page.keyboard.up(key);
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 40)));
     }
     try {
       await page.waitForFunction(() => {
@@ -915,20 +918,73 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       return Number(player?.getAttribute("world-y")) >= 500
         && document.querySelector("ms-avatar")?.getAttribute("action") === "stand1";
     }, null, { timeout: 20_000 });
+  // The rope ends 40px above this floor. Up from a stand cannot reach it;
+  // jump, then catch the rope while falling. Bleed horizontal speed inside
+  // x±10 first, or the jump drifts out of the band.
   await page.keyboard.down("ArrowLeft");
-  await page.waitForFunction(() => {
-    const player = document.querySelector("ms-world-item");
-    return Number(player?.getAttribute("world-x")) <= -50
-      && Number(player?.getAttribute("world-y")) >= 500;
-  }, null, { timeout: 90_000 });
-  await page.keyboard.up("ArrowLeft");
-  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 250)));
-  const beforeClimbPaints = await page.evaluate(() => ({
-    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
-      .map((host) => host.diagnostics().paintCommits),
-    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
-  }));
-  await page.keyboard.down("ArrowDown");
+  let holdingLeft = true;
+  const ropeApproachDeadline = Date.now() + 90_000;
+  let ropePose = null;
+  while (Date.now() < ropeApproachDeadline) {
+    ropePose = await page.evaluate(() => {
+      const player = document.querySelector("ms-world-item");
+      return {
+        x: Number(player?.getAttribute("world-x")),
+        y: Number(player?.getAttribute("world-y")),
+      };
+    });
+    if (ropePose.y >= 500 && ropePose.x <= -41 && ropePose.x >= -61) break;
+    if (ropePose.y >= 500 && ropePose.x > -41 && !holdingLeft) {
+      await page.keyboard.down("ArrowLeft");
+      holdingLeft = true;
+    }
+    if (ropePose.y >= 500 && ropePose.x < -61) {
+      if (holdingLeft) {
+        await page.keyboard.up("ArrowLeft");
+        holdingLeft = false;
+      }
+      await page.keyboard.down("ArrowRight");
+      await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) >= -58, null, { timeout: 10_000 });
+      await page.keyboard.up("ArrowRight");
+    }
+  }
+  if (!(ropePose && ropePose.y >= 500 && ropePose.x <= -41 && ropePose.x >= -61)) {
+    throw new Error(`M7.3 rope approach left the shaft window ${JSON.stringify(ropePose)}`);
+  }
+  if (holdingLeft) await page.keyboard.up("ArrowLeft");
+  await page.keyboard.up("ArrowRight");
+  const settleDeadline = Date.now() + 8_000;
+  let previousX = null;
+  ropePose = null;
+  while (Date.now() < settleDeadline) {
+    const pose = await page.evaluate(() => ({
+      x: Number(document.querySelector("ms-world-item")?.getAttribute("world-x")),
+      y: Number(document.querySelector("ms-world-item")?.getAttribute("world-y")),
+    }));
+    if (pose.y >= 500 && pose.x >= -61 && pose.x <= -41 && pose.x === previousX) {
+      ropePose = pose;
+      break;
+    }
+    previousX = pose.x;
+    if (pose.y >= 500 && pose.x < -61) {
+      await page.keyboard.down("ArrowRight");
+      await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) >= -55, null, { timeout: 5_000 });
+      await page.keyboard.up("ArrowRight");
+      previousX = null;
+    } else if (pose.y >= 500 && pose.x > -41) {
+      await page.keyboard.down("ArrowLeft");
+      await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) <= -48, null, { timeout: 5_000 });
+      await page.keyboard.up("ArrowLeft");
+      previousX = null;
+    } else {
+      await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 40)));
+    }
+  }
+  if (!(ropePose && ropePose.x >= -61 && ropePose.x <= -41)) {
+    throw new Error(`M7.3 rope approach slid out of the shaft window ${JSON.stringify(ropePose)}`);
+  }
+  await page.keyboard.down("ArrowUp");
+  await page.keyboard.down("KeyZ");
   try {
     await page.waitForFunction(() => {
       const avatar = document.querySelector("ms-avatar");
@@ -947,6 +1003,36 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     });
     throw new Error(`M7.3 rope grab failed: ${cause.message}\n${JSON.stringify(grabFailure)}`);
   }
+  await page.keyboard.up("KeyZ");
+  await page.keyboard.up("ArrowUp");
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 500)));
+  const heldFrame = await page.evaluate(() => {
+    const player = document.querySelector("ms-world-item");
+    const avatar = document.querySelector("ms-avatar");
+    return {
+      y: player?.getAttribute("world-y") ?? null,
+      frame: avatar?.getAttribute("frame-index") ?? null,
+      action: avatar?.getAttribute("action") ?? null,
+    };
+  });
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 400)));
+  const stillFrame = await page.evaluate(() => {
+    const player = document.querySelector("ms-world-item");
+    const avatar = document.querySelector("ms-avatar");
+    return {
+      y: player?.getAttribute("world-y") ?? null,
+      frame: avatar?.getAttribute("frame-index") ?? null,
+      action: avatar?.getAttribute("action") ?? null,
+    };
+  });
+  assert.equal(stillFrame.action, "rope", "releasing the key keeps the rope action");
+  assert.equal(stillFrame.y, heldFrame.y, "releasing the key does not leave the rope");
+  assert.equal(stillFrame.frame, heldFrame.frame, "an unchanged climb holds its frame");
+  const beforeClimbPaints = await page.evaluate(() => ({
+    staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
+      .map((host) => host.diagnostics().paintCommits),
+    avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
+  }));
   await page.keyboard.up("ArrowDown");
   await page.keyboard.down("ArrowUp");
   await page.waitForFunction(() => {

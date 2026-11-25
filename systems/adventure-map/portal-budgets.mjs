@@ -63,9 +63,11 @@ export const M7_6_VIEWPORT_BUDGETS = Object.freeze({
 
 /** M7.7 additive Back animation ceilings; M7.1–M7.6 gates remain immutable evidence. */
 export const M7_7_BACK_ANIM_BUDGETS = Object.freeze({
-  // 351 on the first three maps, plus 26 resources unique to published 230030100.
-  publishedMapResourceUnion: 377,
-  maxWaterMapFieldPlanResourceClosure: 200,
+  // 351 on the first three maps, plus 26 resources unique to published 230030100,
+  // plus pv frames 1–7 shared by the looping halo,
+  // plus the 13 hidden-portal frames beyond ph/default Continue 0.
+  publishedMapResourceUnion: 397,
+  maxWaterMapFieldPlanResourceClosure: 207,
   maxWaterMapBackAnimHosts: 21,
   maxWaterMapBackAnimFrameResources: 80,
   maxWaterMapBrowserReadyPaintResources: 140,
@@ -78,11 +80,11 @@ export const M7_7_BACK_ANIM_BUDGETS = Object.freeze({
 export const M7_7_MEASURED_WATER_MAP_BUDGETS = Object.freeze({
   visualCanvases: 148,
   totalLocalPixels: 13_465_756,
-  mapResourceClosure: 183,
-  fieldPlanResourceClosure: 194, // map resources plus the clothed avatar atlases
+  mapResourceClosure: 190,
+  fieldPlanResourceClosure: 201, // map resources plus the clothed avatar atlases
   firstFramePaintResources: 98,
-  browserReadyMapPaintResources: 116,
-  browserReadyFieldPaintResources: 127,
+  browserReadyMapPaintResources: 123,
+  browserReadyFieldPaintResources: 134,
   backAnimHosts: 21,
   backAnimFrameResources: 50,
 });

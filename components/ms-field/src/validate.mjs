@@ -474,8 +474,106 @@ function validateDrawHints(draw, path) {
   return valid({ origin: [originX.value, originY.value], flip: draw.flip, opacity: opacity.value });
 }
 
+const HIDDEN_PORTAL_CLIPS = Object.freeze(["portalStart", "portalContinue", "portalExit"]);
+
+function validatePortalFrameList(frames, path, { min, max }) {
+  if (!Array.isArray(frames) || frames.length < min || frames.length > max) {
+    return invalid("INPUT_INVALID", path, "portal frame count is outside the field budget");
+  }
+  const validated = [];
+  for (let index = 0; index < frames.length; index += 1) {
+    const frame = frames[index];
+    const framePath = `${path}[${index}]`;
+    if (!plainObject(frame) || !plainObject(frame.image) || !plainObject(frame.draw)) {
+      return invalid("INPUT_INVALID", framePath, "frame must contain image and draw");
+    }
+    const image = validatedImageRegion(frame.image, `${framePath}.image`);
+    if (!image.ok) return image;
+    const draw = validateDrawHints(frame.draw, `${framePath}.draw`);
+    if (!draw.ok) return draw;
+    const frameNo = safeInteger(frame.frame ?? index, `${framePath}.frame`, { min: 0 });
+    if (!frameNo.ok) return frameNo;
+    const delay = safeInteger(frame.delay ?? 0, `${framePath}.delay`, { min: 0 });
+    if (!delay.ok) return delay;
+    validated.push(Object.freeze({
+      frame: frameNo.value,
+      delay: delay.value,
+      image: image.value,
+      draw: draw.value,
+    }));
+  }
+  return valid(validated);
+}
+
+function validatePortalLoopData(data) {
+  return validatePortalFrameList(data.frames, "data.frames", {
+    min: 2,
+    max: FIELD_INPUT_LIMITS.maxObjectFrames,
+  });
+}
+
+function validatePortalSequenceData(data) {
+  if (!plainObject(data.clips) || !sameKeys(data.clips, HIDDEN_PORTAL_CLIPS)) {
+    return invalid("INPUT_INVALID", "data.clips", "hidden portal clips must be portalStart, portalContinue, and portalExit");
+  }
+  const clips = {};
+  let count = 0;
+  for (const name of HIDDEN_PORTAL_CLIPS) {
+    const frames = validatePortalFrameList(data.clips[name], `data.clips.${name}`, {
+      min: 1,
+      max: FIELD_INPUT_LIMITS.maxObjectFrames,
+    });
+    if (!frames.ok) return frames;
+    clips[name] = frames.value;
+    count += frames.value.length;
+  }
+  const flat = validatePortalFrameList(data.frames, "data.frames", {
+    min: count,
+    max: count,
+  });
+  if (!flat.ok) return flat;
+  return valid({
+    clips: Object.freeze(clips),
+    frames: flat.value,
+  });
+}
+
 export function validatePortalVisualData(data) {
-  if (!plainObject(data) || typeof data.visualId !== "string" || data.phase !== "static" || !plainObject(data.image)) {
+  if (!plainObject(data) || typeof data.visualId !== "string" || (data.phase !== "static" && data.phase !== "loop" && data.phase !== "sequence")) {
+    return invalid("INPUT_INVALID", "data", "portal data must contain visualId and phase");
+  }
+  if (data.phase === "sequence") {
+    const visualId = idString(data.visualId, "data.visualId");
+    if (!visualId.ok) return visualId;
+    const sequence = validatePortalSequenceData(data);
+    if (!sequence.ok) return sequence;
+    if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
+      return invalid("INPUT_INVALID", "data.provenance.sortKey", "portal provenance sortKey must be finite");
+    }
+    return valid({
+      visualId: visualId.value,
+      phase: "sequence",
+      clips: sequence.value.clips,
+      frames: sequence.value.frames,
+      sortKey: data.provenance.sortKey,
+    });
+  }
+  if (data.phase === "loop") {
+    const visualId = idString(data.visualId, "data.visualId");
+    if (!visualId.ok) return visualId;
+    const frames = validatePortalLoopData(data);
+    if (!frames.ok) return frames;
+    if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
+      return invalid("INPUT_INVALID", "data.provenance.sortKey", "portal provenance sortKey must be finite");
+    }
+    return valid({
+      visualId: visualId.value,
+      phase: "loop",
+      frames: frames.value,
+      sortKey: data.provenance.sortKey,
+    });
+  }
+  if (!plainObject(data.image)) {
     return invalid("INPUT_INVALID", "data", "portal data must contain visualId, phase, image, and draw");
   }
   const visualId = idString(data.visualId, "data.visualId");

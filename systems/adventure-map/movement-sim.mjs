@@ -1,10 +1,18 @@
 /**
- * Pure deterministic ground/air Movement on Foothold segments (M5 minimal loop).
+ * Land movement on foothold segments.
  *
- * EXPERIMENTAL-MODEL (not CMS079-trapezoid): constant walk speed and gravity.
- * Maple-style Y-down world coordinates; vy < 0 is upward.
+ * CMS079 0x9BD757 ground step, 0x9BDF18 air step, 0x9BCFED drop.
+ * Y-down world coordinates; vy < 0 is upward. The business tick stays 20ms.
  */
 import { footholdYAtX } from "./foothold-collision-plan.mjs";
+import {
+  dropVerticalSpeed,
+  integrateFoothold,
+  jumpHorizontal,
+  projectOntoFoothold,
+  settleGroundTravel,
+  stepAirVelocity,
+} from "./movement-dynamics.mjs";
 
 export const BUSINESS_TICK_MS = 20;
 export const BUSINESS_TICK_S = BUSINESS_TICK_MS / 1000;
@@ -99,10 +107,11 @@ export function findSpawnSupportSegment(x, feetY, segments) {
  * @param {number} nextFeetY
  * @param {object[]} segments
  */
-export function findLandingSegment(x, previousFeetY, nextFeetY, segments) {
+export function findLandingSegment(x, previousFeetY, nextFeetY, segments, ignoredFootholdId = null) {
   if (nextFeetY < previousFeetY) return null;
   let best = null;
   for (const segment of segments) {
+    if (ignoredFootholdId !== null && segment.id === ignoredFootholdId) continue;
     const hit = segmentHorizontalSpan(segment, x);
     if (!hit) continue;
     const surfaceY = hit.y;
@@ -113,6 +122,49 @@ export function findLandingSegment(x, previousFeetY, nextFeetY, segments) {
     }
   }
   return best;
+}
+
+/**
+ * Foothold below the body that a down-jump can fall toward.
+ * OpenMS dropTarget: nearest floor at or above y+300, otherwise the nearest
+ * in y+300..y+600. The current foothold and a surface within 5px do not count.
+ */
+export function findDropTarget(x, y, segments, currentId) {
+  let nearest = null;
+  for (const segment of segments) {
+    const hit = segmentHorizontalSpan(segment, x);
+    if (!hit || hit.y > y + 300) continue;
+    if (nearest === null || hit.y > nearest.surfaceY) nearest = pickSupportHit(hit, segment);
+  }
+  let chosen = nearest;
+  if (!chosen || chosen.footholdId === currentId) {
+    chosen = null;
+    for (const segment of segments) {
+      const hit = segmentHorizontalSpan(segment, x);
+      if (!hit || hit.y < y + 300 || hit.y >= y + 600) continue;
+      if (chosen === null || hit.y < chosen.surfaceY) chosen = pickSupportHit(hit, segment);
+    }
+  }
+  if (!chosen || chosen.footholdId === currentId) return null;
+  if (chosen.surfaceY > y - 5 && chosen.surfaceY < y + 5) return null;
+  return chosen;
+}
+
+function portalBlocksDrop(entries, x, y) {
+  if (!Array.isArray(entries)) return false;
+  for (const entry of entries) {
+    if (entry?.type !== 12 && entry?.type !== 13) continue;
+    if (Math.abs(entry.x - x) <= 20 && Math.abs(entry.y - y) <= 50) return true;
+  }
+  return false;
+}
+
+function contactOf(support) {
+  return Object.freeze({
+    layer: support.layer,
+    platform: support.platform,
+    footholdId: support.footholdId,
+  });
 }
 
 /**
@@ -152,6 +204,7 @@ export function createMovementState({
     platform: grounded ? support.platform : platform,
     locomotion: grounded ? "stand" : "jump",
     ropeContact: null,
+    ignoredFootholdId: null,
   });
 }
 
@@ -173,7 +226,7 @@ function nextFacing(current, intent) {
  * @param {object} intent from movementIntentFromHeld
  * @param {object} footholdCollisionPlan validated plan with segments[]
  * @param {object} movementConfig FSDB-derived validated physics constants
- * @param {{ jumpPressed?: boolean }} [edges] jump edge this tick
+ * @param {{ jumpPressed?: boolean, jumpHeld?: boolean, dropPressed?: boolean, portalEntries?: object[] }} [edges]
  */
 export function stepMovement(state, intent, footholdCollisionPlan, movementConfig, edges = {}) {
   const segments = footholdCollisionPlan.segments;
@@ -190,84 +243,111 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
   let velocityX = state.velocityX;
   let velocityY = state.velocityY;
   let mode = state.mode;
-  let grounded = state.grounded;
-  let contact = state.contact;
+  let grounded = state.grounded === true && state.contact !== null;
+  let contact = grounded ? state.contact : null;
   let facing = nextFacing(state.facing, intent);
+  let ignoredFootholdId = state.ignoredFootholdId ?? null;
   const dir = horizontalDirection(intent);
-  let horizontalIntegrated = false;
+  let ranFoothold = false;
 
   if (grounded) {
     const support = findSupportSegment(worldX, worldY, segments, contact);
-    if (!support || worldX < support.minX - 1e-6 || worldX > support.maxX + 1e-6) {
+    const onSegment = support !== null
+      && worldX >= support.minX - 1e-6
+      && worldX <= support.maxX + 1e-6;
+    if (!onSegment) {
       grounded = false;
       contact = null;
       mode = "fall";
       velocityY = Math.max(velocityY, 0);
     } else {
       worldY = support.surfaceY;
-      contact = Object.freeze({
-        layer: support.layer,
-        platform: support.platform,
-        footholdId: support.footholdId,
-      });
-      if (edges.jumpPressed) {
+      contact = contactOf(support);
+      const wantsDrop = edges.dropPressed === true;
+      const wantsJump = (edges.jumpPressed === true || edges.jumpHeld === true) && !intent.down;
+      const dropTarget = wantsDrop && !portalBlocksDrop(edges.portalEntries, worldX, worldY)
+        ? findDropTarget(worldX, worldY, segments, contact.footholdId)
+        : null;
+      if (dropTarget) {
+        ignoredFootholdId = contact.footholdId;
+        velocityX = 0;
+        velocityY = dropVerticalSpeed(jumpSpeed);
         grounded = false;
         contact = null;
-        mode = "jump";
+        mode = "fall";
+      } else if (wantsJump) {
         velocityY = -jumpSpeed;
-        velocityX = dir * walkSpeed;
-      } else if (dir !== 0) {
-        mode = "walk";
-        velocityX = dir * walkSpeed;
-        worldX = q(worldX + velocityX * dt);
-        horizontalIntegrated = true;
-        const edgeSupport = findSupportSegment(worldX, worldY, segments, contact);
-        if (!edgeSupport) {
+        velocityX = jumpHorizontal(velocityX, dir, walkSpeed);
+        grounded = false;
+        contact = null;
+        ignoredFootholdId = null;
+        mode = "jump";
+      } else if (intent.down && dir === 0) {
+        velocityX = 0;
+        velocityY = 0;
+        mode = "prone";
+        ranFoothold = true;
+      } else {
+        const moved = integrateFoothold(
+          worldX,
+          worldY,
+          velocityX,
+          velocityY,
+          support.segment,
+          dir,
+          movementConfig,
+          dt,
+          false,
+        );
+        const settled = settleGroundTravel(moved, support.segment, segments, dt);
+        worldX = settled.worldX;
+        worldY = settled.worldY;
+        velocityX = settled.velocityX;
+        velocityY = settled.velocityY;
+        ranFoothold = true;
+        if (!settled.on) {
           grounded = false;
           contact = null;
           mode = "fall";
-          velocityY = 0;
         } else {
-          worldY = edgeSupport.surfaceY;
-          contact = Object.freeze({
-            layer: edgeSupport.layer,
-            platform: edgeSupport.platform,
-            footholdId: edgeSupport.footholdId,
+          contact = contactOf({
+            layer: settled.segment.layer,
+            platform: settled.segment.platform,
+            footholdId: settled.segment.id,
           });
+          mode = dir !== 0 ? "walk" : "stand";
         }
-      } else {
-        mode = "stand";
-        velocityX = 0;
       }
     }
   }
 
-  if (!grounded) {
-    if (dir !== 0) velocityX = dir * walkSpeed;
-    const previousY = worldY;
-    velocityY = Math.min(velocityY + gravityAcc * dt, fallSpeed);
-    if (!horizontalIntegrated) worldX = q(worldX + velocityX * dt);
-    worldY = q(worldY + velocityY * dt);
+  if (!grounded && !ranFoothold) {
+    const previousX = velocityX;
+    const previousY = velocityY;
+    const previousFeetY = worldY;
+    const air = stepAirVelocity(velocityX, velocityY, dir, movementConfig, dt);
+    velocityX = air.velocityX;
+    velocityY = air.velocityY;
+    worldX += (previousX + velocityX) * dt * 0.5;
+    worldY += (previousY + velocityY) * dt * 0.5;
     const landing = velocityY >= 0
-      ? findLandingSegment(worldX, previousY, worldY, segments)
+      ? findLandingSegment(worldX, previousFeetY, worldY, segments, ignoredFootholdId)
       : null;
     if (landing !== null && worldY >= landing.surfaceY - GROUND_EPSILON_PX) {
+      const tangent = projectOntoFoothold(velocityX, velocityY, landing.segment);
       worldY = landing.surfaceY;
-      velocityY = 0;
-      velocityX = dir !== 0 ? dir * walkSpeed : 0;
+      velocityX = tangent.velocityX;
+      velocityY = tangent.velocityY;
       grounded = true;
-      contact = Object.freeze({
-        layer: landing.layer,
-        platform: landing.platform,
-        footholdId: landing.footholdId,
-      });
+      contact = contactOf(landing);
+      ignoredFootholdId = null;
       mode = dir !== 0 ? "walk" : "stand";
     } else {
       mode = velocityY < 0 ? "jump" : "fall";
     }
   }
 
-  const locomotion = mode === "walk" ? "walk" : (mode === "stand" ? "stand" : "jump");
+  const locomotion = mode === "walk" ? "walk" : (mode === "stand" ? "stand" : (mode === "prone" ? "prone" : "jump"));
   const tickIndex = state.tickIndex + 1;
   const simulationTimeMs = state.simulationTimeMs + BUSINESS_TICK_MS;
 
@@ -287,6 +367,7 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
     platform: contact?.platform ?? state.platform,
     locomotion,
     ropeContact: null,
+    ignoredFootholdId,
   });
 }
 

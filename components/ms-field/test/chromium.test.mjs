@@ -342,13 +342,13 @@ test("initial standalone resource failure stays hidden with an empty canvas", { 
   const root = structuredClone(projection.root);
   const standalone = root.children.find((child) => child.tag === "ms-map-object" || child.tag === "ms-portal-visual");
   assert.ok(standalone, "projection must include a standalone paint unit");
-  if (standalone.tag === "ms-map-object") {
-    standalone.data.frames[0].image.resource.key = "missing/frame";
-    standalone.data.frames[0].image.resource.contentVersion = `sha256:${"0".repeat(64)}`;
-  } else {
-    standalone.data.image.resource.key = "missing/frame";
-    standalone.data.image.resource.contentVersion = `sha256:${"0".repeat(64)}`;
-  }
+  const frameImage = standalone.data?.phase === "sequence"
+    ? standalone.data.frames[0].image
+    : standalone.tag === "ms-map-object" || standalone.data?.phase === "loop"
+      ? standalone.data.frames[0].image
+      : standalone.data.image;
+  frameImage.resource.key = "missing/frame";
+  frameImage.resource.contentVersion = `sha256:${"0".repeat(64)}`;
   const index = await loadResourceIndex(projection.root, repoRoot);
   const server = await startFieldServer({ index, scriptBytes });
   t.after(() => server.close());

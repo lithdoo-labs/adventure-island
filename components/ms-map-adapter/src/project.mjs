@@ -141,19 +141,58 @@ function projectBack(plan, projectionContext) {
   });
 }
 
+function projectPortalFrame(item, index) {
+  return Object.freeze({
+    frame: Number.isFinite(Number(item.frame)) ? Number(item.frame) : index,
+    delay: Number.isFinite(item.delay) ? item.delay : 0,
+    image: imageRegion(item),
+    draw: Object.freeze({
+      origin: item.origin ?? [0, 0],
+      flip: false,
+      opacity: 255,
+    }),
+  });
+}
+
+function projectPortalFrames(frames) {
+  return Object.freeze((frames ?? []).map((item, index) => projectPortalFrame(item, index)));
+}
+
 function projectPortal(plan) {
   const d = plan.drawable;
   const frame = d.frames[0];
-  return Object.freeze({
-    key: plan.stableId,
-    tag: "ms-portal-visual",
-    attrs: Object.freeze({
-      "world-x": decimalAttr(d.worldX),
-      "world-y": decimalAttr(d.worldY),
-      "stack-rank": String(plan.stackRank),
-      visible: "true",
-    }),
-    data: Object.freeze({
+  const provenance = Object.freeze({
+    mapId: d.mapId,
+    group: d.sourceGroup,
+    sourceOrder: d.sourceOrder,
+    portalStableId: d.portalStableId,
+    visualName: d.visualName,
+    sortKey: d.sortKey,
+    sortKeySource: d.sortKeySource,
+  });
+  let data;
+  let visible = "true";
+  if (d.presentation === "sequence") {
+    const portalStart = projectPortalFrames(d.clips?.portalStart);
+    const portalContinue = projectPortalFrames(d.clips?.portalContinue);
+    const portalExit = projectPortalFrames(d.clips?.portalExit);
+    visible = "false";
+    data = Object.freeze({
+      visualId: d.stableId,
+      phase: "sequence",
+      clips: Object.freeze({ portalStart, portalContinue, portalExit }),
+      frames: Object.freeze([...portalStart, ...portalContinue, ...portalExit]),
+      provenance,
+    });
+  } else if (d.presentation === "loop") {
+    data = Object.freeze({
+      visualId: d.stableId,
+      phase: "loop",
+      frames: projectPortalFrames(d.frames),
+      provenance,
+    });
+  } else {
+    data = Object.freeze({
       visualId: d.stableId,
       phase: "static",
       image: imageRegion(frame),
@@ -162,16 +201,19 @@ function projectPortal(plan) {
         flip: false,
         opacity: 255,
       }),
-      provenance: Object.freeze({
-        mapId: d.mapId,
-        group: d.sourceGroup,
-        sourceOrder: d.sourceOrder,
-        portalStableId: d.portalStableId,
-        visualName: d.visualName,
-        sortKey: d.sortKey,
-        sortKeySource: d.sortKeySource,
-      }),
+      provenance,
+    });
+  }
+  return Object.freeze({
+    key: plan.stableId,
+    tag: "ms-portal-visual",
+    attrs: Object.freeze({
+      "world-x": decimalAttr(d.worldX),
+      "world-y": decimalAttr(d.worldY),
+      "stack-rank": String(plan.stackRank),
+      visible,
     }),
+    data,
     children: Object.freeze([]),
   });
 }

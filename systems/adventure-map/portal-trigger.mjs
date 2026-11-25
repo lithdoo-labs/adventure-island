@@ -1,5 +1,22 @@
 import { PORTAL_TRIGGER_HALF_X, PORTAL_TRIGGER_HALF_Y } from "./portal-constants.mjs";
 
+/** Nearby hidden-portal artwork. Right and bottom edges are excluded. */
+export const PORTAL_REVEAL_HALF_X = 100;
+export const PORTAL_REVEAL_HALF_Y = 50;
+
+/**
+ * @param {{ worldX: number, worldY: number }} player feet
+ * @param {{ x: number, y: number }} portal
+ */
+export function playerInPortalRevealBox(player, portal) {
+  const x = Math.trunc(player.worldX);
+  const y = Math.trunc(player.worldY);
+  return x >= portal.x - PORTAL_REVEAL_HALF_X
+    && x < portal.x + PORTAL_REVEAL_HALF_X
+    && y >= portal.y - PORTAL_REVEAL_HALF_Y
+    && y < portal.y + PORTAL_REVEAL_HALF_Y;
+}
+
 /**
  * CMS079 / MAP-SCENE-PLAN-V1 fixed trigger box (Up-edge portals only).
  * @param {{ worldX: number, worldY: number }} player feet

@@ -2724,8 +2724,106 @@ function validateDrawHints(draw, path) {
   return valid({ origin: [originX.value, originY.value], flip: draw.flip, opacity: opacity.value });
 }
 
+const HIDDEN_PORTAL_CLIPS = Object.freeze(["portalStart", "portalContinue", "portalExit"]);
+
+function validatePortalFrameList(frames, path, { min, max }) {
+  if (!Array.isArray(frames) || frames.length < min || frames.length > max) {
+    return invalid("INPUT_INVALID", path, "portal frame count is outside the field budget");
+  }
+  const validated = [];
+  for (let index = 0; index < frames.length; index += 1) {
+    const frame = frames[index];
+    const framePath = `${path}[${index}]`;
+    if (!plainObject(frame) || !plainObject(frame.image) || !plainObject(frame.draw)) {
+      return invalid("INPUT_INVALID", framePath, "frame must contain image and draw");
+    }
+    const image = validatedImageRegion(frame.image, `${framePath}.image`);
+    if (!image.ok) return image;
+    const draw = validateDrawHints(frame.draw, `${framePath}.draw`);
+    if (!draw.ok) return draw;
+    const frameNo = safeInteger(frame.frame ?? index, `${framePath}.frame`, { min: 0 });
+    if (!frameNo.ok) return frameNo;
+    const delay = safeInteger(frame.delay ?? 0, `${framePath}.delay`, { min: 0 });
+    if (!delay.ok) return delay;
+    validated.push(Object.freeze({
+      frame: frameNo.value,
+      delay: delay.value,
+      image: image.value,
+      draw: draw.value,
+    }));
+  }
+  return valid(validated);
+}
+
+function validatePortalLoopData(data) {
+  return validatePortalFrameList(data.frames, "data.frames", {
+    min: 2,
+    max: FIELD_INPUT_LIMITS.maxObjectFrames,
+  });
+}
+
+function validatePortalSequenceData(data) {
+  if (!plainObject(data.clips) || !sameKeys(data.clips, HIDDEN_PORTAL_CLIPS)) {
+    return invalid("INPUT_INVALID", "data.clips", "hidden portal clips must be portalStart, portalContinue, and portalExit");
+  }
+  const clips = {};
+  let count = 0;
+  for (const name of HIDDEN_PORTAL_CLIPS) {
+    const frames = validatePortalFrameList(data.clips[name], `data.clips.${name}`, {
+      min: 1,
+      max: FIELD_INPUT_LIMITS.maxObjectFrames,
+    });
+    if (!frames.ok) return frames;
+    clips[name] = frames.value;
+    count += frames.value.length;
+  }
+  const flat = validatePortalFrameList(data.frames, "data.frames", {
+    min: count,
+    max: count,
+  });
+  if (!flat.ok) return flat;
+  return valid({
+    clips: Object.freeze(clips),
+    frames: flat.value,
+  });
+}
+
 function validatePortalVisualData(data) {
-  if (!plainObject(data) || typeof data.visualId !== "string" || data.phase !== "static" || !plainObject(data.image)) {
+  if (!plainObject(data) || typeof data.visualId !== "string" || (data.phase !== "static" && data.phase !== "loop" && data.phase !== "sequence")) {
+    return invalid("INPUT_INVALID", "data", "portal data must contain visualId and phase");
+  }
+  if (data.phase === "sequence") {
+    const visualId = idString(data.visualId, "data.visualId");
+    if (!visualId.ok) return visualId;
+    const sequence = validatePortalSequenceData(data);
+    if (!sequence.ok) return sequence;
+    if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
+      return invalid("INPUT_INVALID", "data.provenance.sortKey", "portal provenance sortKey must be finite");
+    }
+    return valid({
+      visualId: visualId.value,
+      phase: "sequence",
+      clips: sequence.value.clips,
+      frames: sequence.value.frames,
+      sortKey: data.provenance.sortKey,
+    });
+  }
+  if (data.phase === "loop") {
+    const visualId = idString(data.visualId, "data.visualId");
+    if (!visualId.ok) return visualId;
+    const frames = validatePortalLoopData(data);
+    if (!frames.ok) return frames;
+    if (!plainObject(data.provenance) || !Number.isFinite(data.provenance.sortKey)) {
+      return invalid("INPUT_INVALID", "data.provenance.sortKey", "portal provenance sortKey must be finite");
+    }
+    return valid({
+      visualId: visualId.value,
+      phase: "loop",
+      frames: frames.value,
+      sortKey: data.provenance.sortKey,
+    });
+  }
+  if (!plainObject(data.image)) {
     return invalid("INPUT_INVALID", "data", "portal data must contain visualId, phase, image, and draw");
   }
   const visualId = idString(data.visualId, "data.visualId");
@@ -3221,16 +3319,39 @@ function validateFieldTree(node) {
 }
 
 /**
+ * Hidden portal (type 10/11) clip choice.
+ * Approaching plays portalStart once, then portalContinue loops.
+ * Leaving plays portalExit once and then hides. An in-flight Start is not reversed.
+ */
+
+function hiddenPortalClipForDesire(clip, desired) {
+  if (desired) {
+    if (clip === "portalStart" || clip === "portalContinue") return clip;
+    return "portalStart";
+  }
+  if (clip === "portalStart" || clip === "portalContinue") return "portalExit";
+  return clip === "portalExit" ? "portalExit" : "hidden";
+}
+
+function hiddenPortalClipAfterFinish(clip, desired) {
+  if (clip === "portalStart") return desired ? "portalContinue" : "portalExit";
+  if (clip === "portalExit") return "hidden";
+  return clip;
+}
+
+/**
  * Candidate Back type 0-4 layout algebra.
  *
- * CMS079 proves the type axes, exact cx/cy steps, and type 4 scroll interval.
+ * CMS079 proves the type axes and exact cx/cy steps. Type 4 scroll uses the
+ * CMS 20000 divisor and the OpenMS 100px period.
  * The viewport-sized local surface and horizontal pinning are explicit M7.4
  * product decisions. Vertical placement uses the OpenMS-REFERENCE camera term
  * because the CMS079 +0x98 body is not in the game image.
  */
 
-/** CMS079-VERIFIED: type 4/6 horizontal scroll interval divisor. */
+/** CMS079 0x66A56E divisor. OpenMS 0063df23 travels 100px in trunc(divisor/|rx|) ms. */
 const BACK_SCROLL_MS_DIVISOR = 20_000;
+const BACK_SCROLL_DISTANCE_PX = 100;
 
 /** Adapter-side fail-closed caps; the renderer independently validates them. */
 const BACK_LAYOUT_LIMITS = Object.freeze({
@@ -3319,8 +3440,9 @@ function verticalParallaxOffset(ry, cameraY, viewportHeight, combined = false) {
 
 /**
  * Screen X of a horizontally repeated copy, including type 4 world lock.
- * Type 4 keeps rx as the scroll rate, so its X is authored left minus the
- * camera. Integrated scroll keeps its existing leftward sign. Other types
+ * Type 4 keeps its X at the authored left minus the camera, then subtracts
+ * the integrated offset. OpenMS adds that offset, so scrollPixelsPerMs stores
+ * the opposite of rx and a positive rx moves the picture right. Other types
  * use the camera term. The host stays pinned, so this value is a screen X.
  * Returns null when this layout does not tile horizontally.
  */
@@ -3336,9 +3458,10 @@ function horizontalScreenAnchor(layout, cameraX, scrollPixels = 0) {
 
 function scrollPixelsPerMs(rx) {
   if (!Number.isFinite(rx) || rx === 0) return null;
-  const intervalMs = BACK_SCROLL_MS_DIVISOR / Math.abs(rx);
-  if (!Number.isFinite(intervalMs) || intervalMs <= 0) return null;
-  return (rx > 0 ? 1 : -1) / intervalMs;
+  const durationMs = Math.trunc(BACK_SCROLL_MS_DIVISOR / Math.abs(rx));
+  if (!Number.isSafeInteger(durationMs) || durationMs <= 0) return null;
+  const distance = rx > 0 ? -BACK_SCROLL_DISTANCE_PX : BACK_SCROLL_DISTANCE_PX;
+  return distance / durationMs;
 }
 
 function integerParallaxRate(value) {
@@ -4006,6 +4129,30 @@ function mapObjectCycleDurationMs(frames) {
     if (Number.isFinite(delay) && delay > 0) sum += delay;
   }
   return sum;
+}
+
+function clipDelayMs(frame) {
+  const delay = Number(frame?.delay ?? 0);
+  return Number.isFinite(delay) && delay > 0 ? delay : 0;
+}
+
+function clipDurationMs(frames) {
+  let sum = 0;
+  for (const frame of frames ?? []) sum += clipDelayMs(frame);
+  return sum;
+}
+
+function clipFrameIndex(frames, elapsedMs, loop) {
+  const duration = clipDurationMs(frames);
+  if (duration <= 0) return 0;
+  let cursor = loop ? elapsedMs % duration : Math.min(elapsedMs, Math.max(0, duration - 1));
+  for (let index = 0; index < frames.length; index += 1) {
+    const delay = clipDelayMs(frames[index]);
+    if (delay <= 0) continue;
+    if (cursor < delay) return index;
+    cursor -= delay;
+  }
+  return Math.max(0, frames.length - 1);
 }
 
 function mapObjectFrameIndex(frames, elapsedMs) {
@@ -5158,12 +5305,503 @@ class MsMapObject extends SpikeElement {
 }
 
 class MsPortalVisual extends MsStandalonePaintUnit {
+  constructor() {
+    super();
+    this._frameBitmaps = [];
+    this._presentationStart = 0;
+    this._animFrame = null;
+    this._displayFrame = 0;
+    this._validated = null;
+    this._animationPaints = 0;
+    this._clipName = "hidden";
+    this._clipStartedAt = 0;
+    this._revealDesired = null;
+    this._clipSpans = null;
+  }
+
+  diagnostics() {
+    return Object.freeze({
+      ...super.diagnostics(),
+      animationPaints: this._animationPaints,
+    });
+  }
+
   _validatePaintData(data) {
     return validatePortalVisualData(data);
   }
 
   _firstPaintFrame(validated) {
+    if (validated.phase === "loop") {
+      const frame = validated.frames[0];
+      return { image: frame.image, draw: frame.draw };
+    }
+    if (validated.phase === "sequence") {
+      const frame = validated.clips.portalContinue[0];
+      return { image: frame.image, draw: frame.draw };
+    }
     return { image: validated.image, draw: validated.draw };
+  }
+
+  _stopPortalAnim() {
+    if (this._animFrame !== null) cancelAnimationFrame(this._animFrame);
+    this._animFrame = null;
+  }
+
+  _releasePortalBitmaps() {
+    for (const bitmap of this._frameBitmaps) bitmap?.close?.();
+    this._frameBitmaps = [];
+    this._validated = null;
+    this._displayFrame = 0;
+    this._clipName = "hidden";
+    this._clipSpans = null;
+    this._revealDesired = null;
+  }
+
+  _failInput(result) {
+    this._stopPortalAnim();
+    this._releasePortalBitmaps();
+    super._failInput(result);
+  }
+
+  _releaseSurface() {
+    this._stopPortalAnim();
+    this._releasePortalBitmaps();
+    super._releaseSurface();
+  }
+
+  _applyInput() {
+    if (this._data?.phase === "loop") {
+      this._applyLoopInput();
+      return;
+    }
+    if (this._data?.phase === "sequence") {
+      this._applySequenceInput();
+      return;
+    }
+    this._stopPortalAnim();
+    this._releasePortalBitmaps();
+    super._applyInput();
+  }
+
+  _applyLoopInput() {
+    if (!this._canvas || !this._attrsSeen) return;
+    const declared = readDeclaredAttrs(this);
+    if (!declared.ok) return this._failInput(declared);
+    const attrs = validateWorldAttrs(declared.value);
+    if (!attrs.ok) return this._failInput(attrs);
+    if (this._data === undefined) return;
+    const data = validatePortalVisualData(this._data);
+    if (!data.ok) return this._failInput(data);
+    const validated = data.value;
+    const signature = JSON.stringify(validated);
+    const box = standaloneHostBox(
+      attrs.value,
+      validated.frames[this._displayFrame].image,
+      validated.frames[this._displayFrame].draw,
+    );
+    if (
+      this._state === "ready"
+      && signature === this._paintedSignature
+      && this._frameBitmaps.length === validated.frames.length
+    ) {
+      this._validated = validated;
+      this._writeHost(attrs.value.visible, box);
+      this._syncPortalLoop();
+      return;
+    }
+    if (signature === this._loadingSignature) return;
+    this._stopPortalAnim();
+    if (!this._hasLastGoodPaint()) this._writeHost(false, box);
+    this._loadingSignature = signature;
+    this._epoch += 1;
+    const epoch = this._epoch;
+    this._abort?.abort();
+    const controller = new AbortController();
+    this._abort = controller;
+    this._state = "loading";
+    this._code = null;
+    this._detail = "";
+    if (!this._hasLastGoodPaint()) {
+      this._releasePortalBitmaps();
+      this._clearCanvas();
+    }
+    void this._loadPortalFrames(validated, signature, epoch, controller, attrs.value.visible, box);
+  }
+
+  _syncPortalLoop() {
+    const frames = this._validated?.frames;
+    if (!frames || mapObjectCycleDurationMs(frames) <= 0) {
+      this._stopPortalAnim();
+      return;
+    }
+    if (this._animFrame !== null) return;
+    const tick = (ts) => {
+      if (!this.isConnected || this._state !== "ready" || this._validated?.phase !== "loop") {
+        this._stopPortalAnim();
+        return;
+      }
+      const nextFrame = mapObjectFrameIndex(this._validated.frames, ts - this._presentationStart);
+      if (nextFrame !== this._displayFrame) {
+        this._displayFrame = nextFrame;
+        const frame = this._validated.frames[nextFrame];
+        const declared = readDeclaredAttrs(this);
+        if (declared.ok) {
+          const attrs = validateWorldAttrs(declared.value);
+          if (attrs.ok) {
+            this._writeHost(attrs.value.visible, standaloneHostBox(attrs.value, frame.image, frame.draw));
+          }
+        }
+        this._fitPortalFrame(frame);
+        this._redrawPortalFrame(false);
+        this._animationPaints += 1;
+      }
+      this._animFrame = requestAnimationFrame(tick);
+    };
+    this._animFrame = requestAnimationFrame(tick);
+  }
+
+  _fitPortalFrame(frame) {
+    if (!this._canvas || !frame) return;
+    const canvasW = frame.image.source.w;
+    const canvasH = frame.image.source.h;
+    if (this._canvas.style.width === cssPx(canvasW) && this._canvas.style.height === cssPx(canvasH)) return;
+    const ratio = deviceRatio();
+    if (ratio === null) return;
+    const deviceW = Math.round(canvasW * ratio);
+    const deviceH = Math.round(canvasH * ratio);
+    if (!deviceCanvasFitsBudget(deviceW, deviceH)) return;
+    this._canvas.width = deviceW;
+    this._canvas.height = deviceH;
+    this._canvas.style.width = cssPx(canvasW);
+    this._canvas.style.height = cssPx(canvasH);
+  }
+
+  _redrawPortalFrame(countCommit = true) {
+    if (!this._canvas || !this._validated) return;
+    const bitmap = this._frameBitmaps[this._displayFrame];
+    const frame = this._validated.frames[this._displayFrame];
+    if (!bitmap || !frame) return;
+    const ratio = deviceRatio();
+    if (ratio === null) return;
+    const context = this._canvas.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, frame.image.source.w, frame.image.source.h);
+    context.globalAlpha = frame.draw.opacity / 255;
+    if (frame.draw.flip) {
+      context.translate(frame.image.source.w, 0);
+      context.scale(-1, 1);
+    }
+    const { source } = frame.image;
+    context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    if (countCommit) this._paintCommits += 1;
+  }
+
+  async _loadPortalFrames(validated, signature, epoch, controller, visible, box) {
+    const ratio = deviceRatio();
+    const bitmaps = [];
+    let pendingBitmap = null;
+    let adopted = false;
+    try {
+      if (this._context?.resources?.resource === undefined) {
+        throw Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" });
+      }
+      if (ratio === null) {
+        throw Object.assign(new Error("device pixel ratio is outside the field budget"), { code: "RESOURCE_LIMIT" });
+      }
+      for (const frame of validated.frames) {
+        if (epoch !== this._epoch) return;
+        this._resourceReads += 1;
+        const image = frame.image;
+        const resource = await readSharedResource(
+          this._context.resources,
+          image.resource.namespace,
+          image.resource.key,
+          image.resource.contentVersion,
+          controller.signal,
+        );
+        if (epoch !== this._epoch) return;
+        if (resource.contentVersion !== image.resource.contentVersion) {
+          throw Object.assign(new Error("content version mismatch"), { code: "CONTENT_CONFLICT" });
+        }
+        const mime = String(resource.mime).split(";")[0].trim().toLowerCase();
+        if (mime !== "image/png") throw Object.assign(new Error("page mime is not image/png"), { code: "CONTENT_INVALID" });
+        pendingBitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
+        if (epoch !== this._epoch) return;
+        if (pendingBitmap.width !== image.pageWidth || pendingBitmap.height !== image.pageHeight) {
+          throw Object.assign(new Error("decoded dimensions do not match the declared resource page"), { code: "CONTENT_INVALID" });
+        }
+        bitmaps.push(pendingBitmap);
+        pendingBitmap = null;
+      }
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const frame = validated.frames[0];
+      const deviceW = Math.round(frame.image.source.w * ratio);
+      const deviceH = Math.round(frame.image.source.h * ratio);
+      if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+        throw Object.assign(new Error("portal canvas budget exceeded"), { code: "RESOURCE_LIMIT" });
+      }
+      this._canvas.width = deviceW;
+      this._canvas.height = deviceH;
+      this._canvas.style.width = cssPx(frame.image.source.w);
+      this._canvas.style.height = cssPx(frame.image.source.h);
+      this._releasePortalBitmaps();
+      this._frameBitmaps = bitmaps;
+      adopted = true;
+      this._validated = validated;
+      this._displayFrame = 0;
+      this._presentationStart = performance.now();
+      this._redrawPortalFrame();
+      this._paintedSignature = signature;
+      this._loadingSignature = null;
+      this._state = "ready";
+      this._code = null;
+      this._detail = "";
+      this._box = box;
+      this._writeHost(visible, box);
+      this._syncPortalLoop();
+    } catch (error) {
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const code = failureCode(error);
+      if (code === "STALE_RENDER_RESULT") return;
+      this._failPaint(epoch, code, error?.message ?? code, signature);
+    } finally {
+      pendingBitmap?.close?.();
+      if (!adopted) {
+        for (const bitmap of bitmaps) bitmap?.close?.();
+      }
+      if (this._abort === controller) this._abort = null;
+    }
+  }
+
+  _sequenceAttrs() {
+    const declared = readDeclaredAttrs(this);
+    if (!declared.ok) return null;
+    const attrs = validateWorldAttrs(declared.value);
+    if (!attrs.ok) return null;
+    return attrs.value;
+  }
+
+  _sequenceFrame(clip, index) {
+    const frames = this._validated?.clips?.[clip];
+    const span = this._clipSpans?.[clip];
+    if (!frames || !span) return null;
+    const frame = frames[index];
+    const bitmap = this._frameBitmaps[span[0] + index];
+    if (!frame || !bitmap) return null;
+    return { frame, bitmap };
+  }
+
+  _paintSequenceFrame(clip, index, { shown, countCommit, countAnimation }) {
+    const current = this._sequenceFrame(clip, index);
+    const attrs = this._sequenceAttrs();
+    if (!current || !attrs) return;
+    const box = standaloneHostBox(attrs, current.frame.image, current.frame.draw);
+    this._displayFrame = index;
+    this._fitPortalFrame(current.frame);
+    const ratio = deviceRatio();
+    if (!this._canvas || ratio === null) return;
+    const context = this._canvas.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, current.frame.image.source.w, current.frame.image.source.h);
+    context.globalAlpha = current.frame.draw.opacity / 255;
+    const { source } = current.frame.image;
+    context.drawImage(current.bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    if (countCommit) this._paintCommits += 1;
+    if (countAnimation) this._animationPaints += 1;
+    this._box = box;
+    this._writeHost(shown, box);
+  }
+
+  _beginSequenceClip(clip) {
+    this._clipName = clip;
+    this._clipStartedAt = performance.now();
+    this._paintSequenceFrame(clip, 0, { shown: true, countCommit: false, countAnimation: false });
+    this._ensureSequenceClock();
+  }
+
+  _syncSequenceReveal(desired) {
+    const next = hiddenPortalClipForDesire(this._clipName, desired);
+    this._revealDesired = desired;
+    if (next === "hidden") {
+      this._clipName = "hidden";
+      this._stopPortalAnim();
+      this._paintSequenceFrame("portalContinue", 0, {
+        shown: false,
+        countCommit: this._paintCommits === 0,
+        countAnimation: false,
+      });
+      return;
+    }
+    if (next !== this._clipName) this._beginSequenceClip(next);
+  }
+
+  _ensureSequenceClock() {
+    if (this._animFrame !== null) return;
+    const tick = (ts) => {
+      if (!this.isConnected || this._state !== "ready" || this._validated?.phase !== "sequence") {
+        this._stopPortalAnim();
+        return;
+      }
+      const clip = this._clipName;
+      if (clip === "hidden") {
+        this._stopPortalAnim();
+        return;
+      }
+      const frames = this._validated.clips[clip];
+      const elapsed = ts - this._clipStartedAt;
+      const loop = clip === "portalContinue";
+      if (!loop && elapsed >= clipDurationMs(frames)) {
+        const finished = hiddenPortalClipAfterFinish(clip, this._revealDesired);
+        if (finished === "hidden") {
+          this._clipName = "hidden";
+          this._stopPortalAnim();
+          this._paintSequenceFrame("portalContinue", 0, {
+            shown: false,
+            countCommit: false,
+            countAnimation: false,
+          });
+          return;
+        }
+        this._beginSequenceClip(finished);
+        this._animFrame = requestAnimationFrame(tick);
+        return;
+      }
+      const nextFrame = clipFrameIndex(frames, elapsed, loop);
+      if (nextFrame !== this._displayFrame) {
+        this._paintSequenceFrame(clip, nextFrame, { shown: true, countCommit: false, countAnimation: true });
+      }
+      this._animFrame = requestAnimationFrame(tick);
+    };
+    this._animFrame = requestAnimationFrame(tick);
+  }
+
+  _applySequenceInput() {
+    if (!this._canvas || !this._attrsSeen) return;
+    const declared = readDeclaredAttrs(this);
+    if (!declared.ok) return this._failInput(declared);
+    const attrs = validateWorldAttrs(declared.value);
+    if (!attrs.ok) return this._failInput(attrs);
+    if (this._data === undefined) return;
+    const data = validatePortalVisualData(this._data);
+    if (!data.ok) return this._failInput(data);
+    const validated = data.value;
+    const signature = JSON.stringify(validated);
+    const resting = validated.clips.portalContinue[0];
+    const box = standaloneHostBox(attrs.value, resting.image, resting.draw);
+    if (
+      this._state === "ready"
+      && signature === this._paintedSignature
+      && this._frameBitmaps.length === validated.frames.length
+    ) {
+      this._validated = validated;
+      this._syncSequenceReveal(attrs.value.visible);
+      return;
+    }
+    if (signature === this._loadingSignature) return;
+    this._stopPortalAnim();
+    if (!this._hasLastGoodPaint()) this._writeHost(false, box);
+    this._loadingSignature = signature;
+    this._epoch += 1;
+    const epoch = this._epoch;
+    this._abort?.abort();
+    const controller = new AbortController();
+    this._abort = controller;
+    this._state = "loading";
+    this._code = null;
+    this._detail = "";
+    if (!this._hasLastGoodPaint()) {
+      this._releasePortalBitmaps();
+      this._clearCanvas();
+    }
+    void this._loadSequenceFrames(validated, signature, epoch, controller, attrs.value.visible, box);
+  }
+
+  async _loadSequenceFrames(validated, signature, epoch, controller, visible, box) {
+    const ratio = deviceRatio();
+    const bitmaps = [];
+    let pendingBitmap = null;
+    let adopted = false;
+    const order = ["portalStart", "portalContinue", "portalExit"];
+    try {
+      if (this._context?.resources?.resource === undefined) {
+        throw Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" });
+      }
+      if (ratio === null) {
+        throw Object.assign(new Error("device pixel ratio is outside the field budget"), { code: "RESOURCE_LIMIT" });
+      }
+      const spans = {};
+      let cursor = 0;
+      for (const clip of order) {
+        const frames = validated.clips[clip];
+        spans[clip] = [cursor, cursor + frames.length];
+        cursor += frames.length;
+        for (const frame of frames) {
+          if (epoch !== this._epoch) return;
+          this._resourceReads += 1;
+          const image = frame.image;
+          const resource = await readSharedResource(
+            this._context.resources,
+            image.resource.namespace,
+            image.resource.key,
+            image.resource.contentVersion,
+            controller.signal,
+          );
+          if (epoch !== this._epoch) return;
+          if (resource.contentVersion !== image.resource.contentVersion) {
+            throw Object.assign(new Error("content version mismatch"), { code: "CONTENT_CONFLICT" });
+          }
+          const mime = String(resource.mime).split(";")[0].trim().toLowerCase();
+          if (mime !== "image/png") throw Object.assign(new Error("page mime is not image/png"), { code: "CONTENT_INVALID" });
+          pendingBitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
+          if (epoch !== this._epoch) return;
+          if (pendingBitmap.width !== image.pageWidth || pendingBitmap.height !== image.pageHeight) {
+            throw Object.assign(new Error("decoded dimensions do not match the declared resource page"), { code: "CONTENT_INVALID" });
+          }
+          bitmaps.push(pendingBitmap);
+          pendingBitmap = null;
+        }
+      }
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const resting = validated.clips.portalContinue[0];
+      const deviceW = Math.round(resting.image.source.w * ratio);
+      const deviceH = Math.round(resting.image.source.h * ratio);
+      if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+        throw Object.assign(new Error("portal canvas budget exceeded"), { code: "RESOURCE_LIMIT" });
+      }
+      this._canvas.width = deviceW;
+      this._canvas.height = deviceH;
+      this._canvas.style.width = cssPx(resting.image.source.w);
+      this._canvas.style.height = cssPx(resting.image.source.h);
+      this._releasePortalBitmaps();
+      this._frameBitmaps = bitmaps;
+      this._clipSpans = spans;
+      adopted = true;
+      this._validated = validated;
+      this._clipName = "hidden";
+      this._revealDesired = null;
+      this._paintedSignature = signature;
+      this._loadingSignature = null;
+      this._state = "ready";
+      this._code = null;
+      this._detail = "";
+      this._box = box;
+      this._syncSequenceReveal(visible);
+    } catch (error) {
+      if (epoch !== this._epoch || !this.isConnected) return;
+      const code = failureCode(error);
+      if (code === "STALE_RENDER_RESULT") return;
+      this._failPaint(epoch, code, error?.message ?? code, signature);
+    } finally {
+      pendingBitmap?.close?.();
+      if (!adopted) {
+        for (const bitmap of bitmaps) bitmap?.close?.();
+      }
+      if (this._abort === controller) this._abort = null;
+    }
   }
 }
 

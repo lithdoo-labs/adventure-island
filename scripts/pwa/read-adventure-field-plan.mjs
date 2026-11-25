@@ -85,6 +85,10 @@ async function readMovementConfig(gameRoot) {
       contentVersion: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
     }),
     walkSpeed: Number(physics.walkSpeed),
+    walkForce: Number(physics.walkForce),
+    walkDrag: Number(physics.walkDrag),
+    slipForce: Number(physics.slipForce),
+    slipSpeed: Number(physics.slipSpeed),
     gravityAcc: Number(physics.gravityAcc),
     fallSpeed: Number(physics.fallSpeed),
     jumpSpeed: Number(physics.jumpSpeed),
@@ -92,6 +96,8 @@ async function readMovementConfig(gameRoot) {
     swimSpeed: Number(physics.swimSpeed),
     swimSpeedDec: Number(physics.swimSpeedDec),
     floatDrag1: Number(physics.floatDrag1),
+    floatDrag2: Number(physics.floatDrag2),
+    floatCoefficient: Number(physics.floatCoefficient),
   }));
   return Object.freeze({
     movementConfig,

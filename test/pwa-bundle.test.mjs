@@ -509,16 +509,20 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
       "the published plan must equal the adapter-derived plan",
     );
     const plan = validateAvatarPlan(JSON.parse(planBytes.toString("utf8")));
-    assert.deepEqual(Object.keys(plan.actions).sort(), ["fly", "jump", "rope", "stand1", "walk1"], "M7.1 swim + M7.3 climb actions");
+    assert.deepEqual(Object.keys(plan.actions).sort(), ["fly", "jump", "ladder", "prone", "rope", "stand1", "walk1"], "M7.1 swim + M7.3 climb + prone actions");
     assert.equal(plan.actions.jump.loop, false, "jump is the one-shot action");
     assert.equal(plan.actions.fly.loop, true, "fly is the sustained swim action");
     assert.deepEqual(plan.actions.fly.frames.map((frame) => frame.delay), [300, 300]);
     assert.equal(plan.actions.rope.loop, true, "rope is the sustained climb action");
     assert.deepEqual(plan.actions.rope.frames.map((frame) => frame.delay), [250, 250]);
+    assert.equal(plan.actions.ladder.loop, true, "ladder is the sustained climb action");
+    assert.deepEqual(plan.actions.ladder.frames.map((frame) => frame.delay), [250, 250]);
     assert.equal(plan.locomotionActions.stand, "stand1");
     assert.equal(plan.locomotionActions.walk, "walk1");
     assert.equal(plan.locomotionActions.swim, "fly");
     assert.equal(plan.locomotionActions.climb, "rope");
+    assert.equal(plan.locomotionActions.prone, "prone");
+    assert.equal(plan.actions.prone.loop, true, "prone is the sustained crouch action");
     const standIds = plan.actions.stand1.frames[0].layers.map((layer) => layer.id);
     assert.equal(standIds.some((id) => id.startsWith("coat")), true, "the published character wears the coat");
     assert.equal(standIds.some((id) => id.startsWith("pants")), true, "the published character wears the pants");

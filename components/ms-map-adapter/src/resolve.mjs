@@ -95,12 +95,58 @@ function findObjFrames(frames, oS, l0, l1, l2) {
   return { table, framesFor };
 }
 
+/** OpenMS portalFrames default: 0043f768 pushes 0x78 before the delay read. */
+const PORTAL_FRAME_DELAY_MS = 120;
+
 function findHelperFrames(helper, name) {
   if (!helper || helper.status !== SOURCE_PRESENT) return [];
   return helper.rows
     .filter((row) => row.branch === "portal" && row.use === "game" && row.name === name)
     .slice()
     .sort((a, b) => String(a.frame).localeCompare(String(b.frame), "en"));
+}
+
+/** Empty or absent portal image uses ph/psh default. A nonempty unknown variant must not fall back. */
+export function portalImageVariant(image) {
+  if (image === undefined || image === null || image === "") return "default";
+  if (typeof image !== "string" && typeof image !== "number") return null;
+  const variant = String(image);
+  if (!/^[A-Za-z0-9_-]{1,128}$/u.test(variant)) return null;
+  return variant;
+}
+
+/**
+ * Type 10 uses ph for every clip. Type 11 uses psh for Start and Exit, and ph for Continue.
+ * @returns {Record<string, [string, string]> | null}
+ */
+export function hiddenPortalClipSources(pt, variant) {
+  if (pt === 10) {
+    return {
+      portalStart: ["ph", variant],
+      portalContinue: ["ph", variant],
+      portalExit: ["ph", variant],
+    };
+  }
+  if (pt === 11) {
+    return {
+      portalStart: ["psh", variant],
+      portalContinue: ["ph", variant],
+      portalExit: ["psh", variant],
+    };
+  }
+  return null;
+}
+
+function findHelperClip(helper, name, variant, clip) {
+  if (!helper || helper.status !== SOURCE_PRESENT) return [];
+  return helper.rows
+    .filter((row) => row.branch === "portal"
+      && row.use === "game"
+      && row.name === name
+      && String(row.variant ?? "default") === variant
+      && row.clip === clip)
+    .slice()
+    .sort((a, b) => Number(a.frame) - Number(b.frame));
 }
 
 function stablePlacementId(mapId, group, sourceOrder) {
@@ -545,10 +591,11 @@ export function resolveMapScene(facts) {
     const pt = Number(row.pt);
     const visualName = portalVisualName(pt);
     const visualStatus = visualName ? VISUAL_PORTAL : NO_VISUAL_PORTAL;
-    const helperFrames = visualName ? findHelperFrames(facts.frames.helper, visualName) : [];
+    const hidden = pt === 10 || pt === 11;
+    const helperFrames = visualName && !hidden ? findHelperFrames(facts.frames.helper, visualName) : [];
     const first = helperFrames[0] ?? null;
     let resource = null;
-    if (visualName && !first) {
+    if (visualName && !hidden && !first) {
       diagnostics.push(diagnose("portal-helper-frame-missing", `no HelperFrame for portal/${visualName}`, {
         mapId,
         group: "portal",
@@ -601,9 +648,19 @@ export function resolveMapScene(facts) {
       continue;
     }
 
-    // Visual portals become drawables; phase animation beyond first frame is deferred.
+    // pt 2/4/7 loop every pv frame. A missing canvas delay is 120ms
+    // (OpenMS 0043f768 pushes 0x78 before reading delay). pt 10/11 keep
+    // portalStart, portalContinue, and portalExit as separate clips.
     const sortKey = portalVisualSortKey(row.sourceOrder);
-    drawables.push(Object.freeze({
+    const placement = Object.freeze({
+      pn: row.pn,
+      pt,
+      x: row.x,
+      y: row.y,
+      tm: row.tm,
+      tn: row.tn,
+    });
+    const visualBase = {
       stableId: `${stableId}:visual`,
       sourceKind: "portal-visual",
       sourceGroup: "portal",
@@ -614,34 +671,123 @@ export function resolveMapScene(facts) {
       sortKey,
       tieKey: row.sourceOrder,
       sortKeySource: "PRODUCT-DECISION",
-      updateClass: helperFrames.length > 1 ? "local-animation" : "static",
-      resolved: Boolean(resource),
-      presentation: "static-first-frame",
       visualName,
       portalStableId: stableId,
-      frames: first
-        ? Object.freeze([Object.freeze({
-          origin: Object.freeze([...(first.origin ?? [0, 0])]),
-          width: first.width,
-          height: first.height,
-          resource,
-          frame: first.frame,
-        })])
-        : Object.freeze([]),
+      flip: false,
+      opacity: 255,
+      placement,
+    };
+    if (hidden) {
+      const variant = portalImageVariant(row.image);
+      const sources = variant === null ? null : hiddenPortalClipSources(pt, variant);
+      const clips = {};
+      const clipNames = ["portalStart", "portalContinue", "portalExit"];
+      if (sources === null) {
+        diagnostics.push(diagnose("portal-helper-frame-missing", `portal image variant is not usable`, {
+          mapId,
+          group: "portal",
+          sourceOrder: row.sourceOrder,
+          stableId,
+          visualName,
+          image: row.image ?? null,
+        }));
+      }
+      for (const clip of clipNames) {
+        const source = sources?.[clip];
+        const rows = source ? findHelperClip(facts.frames.helper, source[0], source[1], clip) : [];
+        if (sources !== null && rows.length === 0) {
+          diagnostics.push(diagnose("portal-helper-frame-missing", `no HelperFrame for portal/${source?.[0] ?? visualName}/${source?.[1] ?? "?"}/${clip}`, {
+            mapId,
+            group: "portal",
+            sourceOrder: row.sourceOrder,
+            stableId,
+            visualName,
+            clip,
+          }));
+        }
+        clips[clip] = Object.freeze(rows.map((item) => {
+          const frameResource = resourceRef(facts.resources, item.resource);
+          if (frameResource) resourcesUsed.set(frameResource.key, frameResource);
+          else {
+            diagnostics.push(diagnose(RESOURCE_MISSING, `missing portal resource ${item.resource}`, {
+              mapId,
+              group: "portal",
+              sourceOrder: row.sourceOrder,
+              stableId,
+              resourceKey: item.resource,
+            }));
+          }
+          const delay = Number.isFinite(item.delay) && item.delay >= 0
+            ? item.delay
+            : PORTAL_FRAME_DELAY_MS;
+          return Object.freeze({
+            origin: Object.freeze([...(item.origin ?? [0, 0])]),
+            width: item.width,
+            height: item.height,
+            resource: frameResource,
+            frame: item.frame,
+            delay,
+          });
+        }));
+      }
+      const frames = Object.freeze(clipNames.flatMap((clip) => clips[clip] ?? []));
+      const resting = clips.portalContinue?.[0] ?? null;
+      const restingResource = resting?.resource ?? null;
+      drawables.push(Object.freeze({
+        ...visualBase,
+        updateClass: "local-animation",
+        resolved: clipNames.every((clip) => (clips[clip]?.length ?? 0) > 0)
+          && frames.every((item) => item.resource),
+        presentation: "sequence",
+        frames,
+        clips: Object.freeze({
+          portalStart: clips.portalStart ?? Object.freeze([]),
+          portalContinue: clips.portalContinue ?? Object.freeze([]),
+          portalExit: clips.portalExit ?? Object.freeze([]),
+        }),
+        bounds: resting
+          ? worldBoundsFrom(resting.origin, resting.width, resting.height, row.x, row.y, false)
+          : null,
+        resource: restingResource,
+      }));
+      continue;
+    }
+    const loop = visualName === "pv" && helperFrames.length > 1;
+    const selectedFrames = loop ? helperFrames : helperFrames.slice(0, 1);
+    const frames = Object.freeze(selectedFrames.map((item) => {
+      const frameResource = resourceRef(facts.resources, item.resource);
+      if (frameResource) resourcesUsed.set(frameResource.key, frameResource);
+      else if (item !== first) {
+        diagnostics.push(diagnose(RESOURCE_MISSING, `missing portal resource ${item.resource}`, {
+          mapId,
+          group: "portal",
+          sourceOrder: row.sourceOrder,
+          stableId,
+          resourceKey: item.resource,
+        }));
+      }
+      const delay = Number.isFinite(item.delay) && item.delay >= 0
+        ? item.delay
+        : PORTAL_FRAME_DELAY_MS;
+      return Object.freeze({
+        origin: Object.freeze([...(item.origin ?? [0, 0])]),
+        width: item.width,
+        height: item.height,
+        resource: frameResource,
+        frame: item.frame,
+        ...(loop ? { delay } : {}),
+      });
+    }));
+    drawables.push(Object.freeze({
+      ...visualBase,
+      updateClass: loop || helperFrames.length > 1 ? "local-animation" : "static",
+      resolved: frames.length > 0 && frames.every((item) => item.resource),
+      presentation: loop ? "loop" : "static-first-frame",
+      frames,
       bounds: resource && first
         ? worldBoundsFrom(first.origin, first.width, first.height, row.x, row.y, false)
         : null,
-      flip: false,
-      opacity: 255,
       resource,
-      placement: Object.freeze({
-        pn: row.pn,
-        pt,
-        x: row.x,
-        y: row.y,
-        tm: row.tm,
-        tn: row.tn,
-      }),
     }));
   }
 

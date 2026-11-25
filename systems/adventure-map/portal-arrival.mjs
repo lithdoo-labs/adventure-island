@@ -1,4 +1,6 @@
+import { mapEnvironmentIsSwim } from "./map-environment.mjs";
 import { createMovementStateForMap } from "./movement-step.mjs";
+import { GROUND_EPSILON_PX } from "./movement-sim.mjs";
 
 /** CMS079 cross-map spawn writes the portal anchor, then adds y - 0xA. */
 export const PORTAL_ARRIVAL_Y_OFFSET = 10;
@@ -19,13 +21,28 @@ export function arrivalPositionFromPortal(portal) {
  */
 export function buildArrivalMovementState(targetPortal, footholdCollisionPlan, options = {}) {
   const pos = arrivalPositionFromPortal(targetPortal);
-  return createMovementStateForMap({
+  const arrived = createMovementStateForMap({
     mapEnvironment: options.mapEnvironment,
     worldX: pos.worldX,
     worldY: pos.worldY,
     facing: options.facing ?? "right",
     segments: footholdCollisionPlan.segments,
   });
+  // Spawn support snaps to any surface above the feet. A portal arrival is
+  // portal.y - 10, which is just above its own floor, so that query can grab
+  // a higher platform. Keep the arrival point and let the next ticks fall.
+  if (!mapEnvironmentIsSwim(options.mapEnvironment)
+    && arrived.grounded === true
+    && pos.worldY - arrived.worldY > GROUND_EPSILON_PX) {
+    return createMovementStateForMap({
+      mapEnvironment: options.mapEnvironment,
+      worldX: pos.worldX,
+      worldY: pos.worldY,
+      facing: options.facing ?? "right",
+      segments: [],
+    });
+  }
+  return arrived;
 }
 
 export function portalTravelFieldPatch(fieldState, movementState, portalTravelPatch) {

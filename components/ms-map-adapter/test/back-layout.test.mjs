@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BACK_SCROLL_DISTANCE_PX,
   BACK_SCROLL_MS_DIVISOR,
   backViewAttrsForCamera,
   horizontalScreenAnchor,
@@ -8,10 +9,16 @@ import {
   scrollPixelsPerMs,
 } from "../src/back-layout.mjs";
 
-test("type 4 scroll uses the proven 20000/abs(rx) interval", () => {
-  assert.equal(scrollPixelsPerMs(4), 1 / (BACK_SCROLL_MS_DIVISOR / 4));
-  assert.equal(scrollPixelsPerMs(-5), -1 / (BACK_SCROLL_MS_DIVISOR / 5));
+test("type 4 scroll travels 100px in trunc(20000/abs(rx)) ms", () => {
+  const rate = (rx) => {
+    const duration = Math.trunc(BACK_SCROLL_MS_DIVISOR / Math.abs(rx));
+    return (rx > 0 ? -BACK_SCROLL_DISTANCE_PX : BACK_SCROLL_DISTANCE_PX) / duration;
+  };
+  assert.equal(scrollPixelsPerMs(4), rate(4));
+  assert.equal(scrollPixelsPerMs(-5), rate(-5));
+  assert.equal(scrollPixelsPerMs(3), rate(3));
   assert.equal(scrollPixelsPerMs(0), null);
+  assert.ok(scrollPixelsPerMs(5) < -20 / 1000);
 });
 
 test("a non-zero horizontal step uses one viewport-sized bounded surface", () => {
@@ -102,6 +109,10 @@ test("horizontal repeat anchor follows rx and type 4 stays on the authored left"
   assert.equal(mountains.layout.parallaxRx, null);
   assert.equal(horizontalScreenAnchor(mountains.layout, -993, 0), -400 - (-993));
   assert.equal(horizontalScreenAnchor(mountains.layout, -993, 6), -400 - (-993) - 6);
+  assert.ok(mountains.layout.scroll.pixelsPerMs < 0);
+  const start = horizontalScreenAnchor(mountains.layout, -993, 0);
+  const later = horizontalScreenAnchor(mountains.layout, -993, mountains.layout.scroll.pixelsPerMs * 1000);
+  assert.ok(later > start, "positive rx moves the picture right");
 });
 
 test("vertical parallax follows ry and leaves ry -100 on the authored top", () => {

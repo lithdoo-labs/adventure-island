@@ -36,6 +36,7 @@ export function orderDrawables(scene, { includeUnresolved = false } = {}) {
       opacity: item.opacity,
       resource: item.resource,
       frames: item.frames,
+      clips: item.clips,
       placement: item.placement,
       flowPlacement: item.flowPlacement,
       presentation: item.presentation,

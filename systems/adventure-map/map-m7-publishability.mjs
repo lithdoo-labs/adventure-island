@@ -22,8 +22,8 @@ export const M7_230030200_KNOWN_PRESENTATION_GAPS = Object.freeze({
     bottom: 1058,
   }),
   adapterOnlyResourceCount: 0,
-  fieldPlanTreeResourceCount: 183,
-  adapterClosureResourceCount: 183,
+  fieldPlanTreeResourceCount: 190,
+  adapterClosureResourceCount: 190,
   animatedBackVisualCount: 21,
 });
 

@@ -36,11 +36,28 @@ test("bundle-derived AdventureFieldPlan/bootstrap reprojects through the browser
   assert.deepEqual(
     {
       walkSpeed: plan.movementConfig.walkSpeed,
+      walkForce: plan.movementConfig.walkForce,
+      walkDrag: plan.movementConfig.walkDrag,
+      slipForce: plan.movementConfig.slipForce,
+      slipSpeed: plan.movementConfig.slipSpeed,
       gravityAcc: plan.movementConfig.gravityAcc,
       fallSpeed: plan.movementConfig.fallSpeed,
       jumpSpeed: plan.movementConfig.jumpSpeed,
+      floatDrag2: plan.movementConfig.floatDrag2,
+      floatCoefficient: plan.movementConfig.floatCoefficient,
     },
-    { walkSpeed: 125, gravityAcc: 2000, fallSpeed: 670, jumpSpeed: 555 },
+    {
+      walkSpeed: 125,
+      walkForce: 140000,
+      walkDrag: 80000,
+      slipForce: 60000,
+      slipSpeed: 120,
+      gravityAcc: 2000,
+      fallSpeed: 670,
+      jumpSpeed: 555,
+      floatDrag2: 10000,
+      floatCoefficient: 0.01,
+    },
     "Movement constants come from the canonical physics FSDB record",
   );
   assert.match(plan.movementConfig.source.contentVersion, /^sha256:[0-9a-f]{64}$/u);

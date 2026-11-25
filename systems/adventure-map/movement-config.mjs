@@ -29,6 +29,16 @@ export function validateMovementConfig(value) {
   if (!Number.isFinite(value.swimSpeedDec) || value.swimSpeedDec <= 0 || value.swimSpeedDec > 1) {
     throw new TypeError("movementConfig.swimSpeedDec must be in (0, 1]");
   }
+  for (const key of ["walkForce", "walkDrag", "slipForce", "slipSpeed", "floatDrag2"]) {
+    if (value[key] === undefined) continue;
+    if (!Number.isFinite(value[key]) || value[key] <= 0 || value[key] > 1_000_000) {
+      throw new TypeError(`movementConfig.${key} must be a bounded positive number`);
+    }
+  }
+  if (value.floatCoefficient !== undefined
+    && (!Number.isFinite(value.floatCoefficient) || value.floatCoefficient <= 0 || value.floatCoefficient > 1)) {
+    throw new TypeError("movementConfig.floatCoefficient must be in (0, 1]");
+  }
   return Object.freeze({
     ...value,
     source: Object.freeze({ ...source }),

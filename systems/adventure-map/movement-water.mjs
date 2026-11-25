@@ -14,9 +14,9 @@
  *   pulled back on the next tick and does not stay at 1.5 * swimSpeed.
  * - Horizontal: brake outside ±swimSpeed, accelerate with the key while held,
  *   and drag toward 0 when released.
- * - A jump edge writes vy = -(swimSpeed * 5), including the edge that leaves
- *   a foothold, then this same tick integrates. Holding the button does not
- *   repeat that impulse.
+ * - A jump writes vy = -(swimSpeed * 5), including the press that leaves a
+ *   foothold, then this same tick integrates. Holding it repeats that impulse
+ *   every 300ms while airborne. Landing while it is still held jumps again.
  * - Position uses the average of the pre- and post-integration velocities.
  * - Downward crossings install the highest crossed walkable segment.
  * - Avatar projection maps locomotion swim → fly, and stand/walk while grounded.
@@ -25,9 +25,17 @@
  *   not a floor. Spawn and arrival clamp Y into the rectangle once.
  */
 import {
+  HELD_BUOYANT_JUMP_MS,
+  dropVerticalSpeed,
+  integrateFoothold,
+  settleGroundTravel,
+  jumpHorizontal,
+} from "./movement-dynamics.mjs";
+import {
   BUSINESS_TICK_MS,
   BUSINESS_TICK_S,
   GROUND_EPSILON_PX,
+  findDropTarget,
   findLandingSegment,
   findSupportSegment,
 } from "./movement-sim.mjs";
@@ -186,6 +194,7 @@ export function createWaterMovementState({
     locomotion: "swim",
     ropeContact: null,
     jumpRepeatMs: 0,
+    ignoredFootholdId: null,
   });
 }
 
@@ -206,7 +215,14 @@ export function stepWaterMovement(state, intent, movementConfig, edges = {}) {
   const facing = nextFacing(state.facing, intent);
   let velocityX = state.velocityX;
   let velocityY = state.velocityY;
-  if (edges.jumpPressed) velocityY = -swimSpeed * WATER_JUMP_SPEED_MULTIPLIER;
+  let jumpRepeatMs = Math.max(0, (state.jumpRepeatMs ?? 0) - BUSINESS_TICK_MS);
+  const jumpHeld = intent.jump === true;
+  const repeatArmed = edges.jumpPressed === true || (state.jumpRepeatMs ?? 0) > 0;
+  if (!jumpHeld) jumpRepeatMs = 0;
+  else if (edges.jumpPressed === true || (repeatArmed && jumpRepeatMs === 0)) {
+    velocityY = -swimSpeed * WATER_JUMP_SPEED_MULTIPLIER;
+    jumpRepeatMs = HELD_BUOYANT_JUMP_MS;
+  }
   const previousX = velocityX;
   const previousY = velocityY;
   const integrated = integrateSwim(
@@ -236,7 +252,8 @@ export function stepWaterMovement(state, intent, movementConfig, edges = {}) {
     platform: state.platform,
     locomotion: "swim",
     ropeContact: null,
-    jumpRepeatMs: 0,
+    jumpRepeatMs,
+    ignoredFootholdId: state.ignoredFootholdId ?? null,
   });
 }
 
@@ -266,6 +283,7 @@ function freezeSwimStep(state, fields) {
     locomotion: fields.locomotion,
     ropeContact: null,
     jumpRepeatMs: fields.jumpRepeatMs,
+    ignoredFootholdId: fields.ignoredFootholdId ?? null,
   });
 }
 
@@ -297,6 +315,8 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
   let grounded = state.grounded === true && state.contact !== null;
   let contact = grounded ? state.contact : null;
   let horizontalIntegrated = false;
+  let ignoredFootholdId = state.ignoredFootholdId ?? null;
+  let leaveForJump = false;
 
   if (grounded) {
     const support = findSupportSegment(worldX, worldY, segments, contact);
@@ -310,27 +330,49 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     } else {
       worldY = support.surfaceY;
       contact = contactOf(support);
-      if (edges.jumpPressed) {
+      const dropTarget = edges.dropPressed === true
+        ? findDropTarget(worldX, worldY, segments, contact.footholdId)
+        : null;
+      if (dropTarget) {
+        ignoredFootholdId = contact.footholdId;
+        velocityX = 0;
+        velocityY = dropVerticalSpeed(movementConfig.jumpSpeed);
         grounded = false;
         contact = null;
-        velocityX = dir * walkSpeed;
-      } else if (dir !== 0) {
-        velocityX = dir * walkSpeed;
-        velocityY = 0;
-        worldX = q(worldX + velocityX * dt);
+      } else if ((edges.jumpPressed === true || edges.jumpHeld === true) && !intent.down) {
+        velocityX = jumpHorizontal(velocityX, dir, walkSpeed);
+        grounded = false;
+        contact = null;
+        ignoredFootholdId = null;
+        leaveForJump = true;
+      } else {
+        const moved = integrateFoothold(
+          worldX,
+          worldY,
+          velocityX,
+          velocityY,
+          support.segment,
+          dir,
+          movementConfig,
+          dt,
+          true,
+        );
+        const settled = settleGroundTravel(moved, support.segment, segments, dt);
+        worldX = settled.worldX;
+        worldY = settled.worldY;
+        velocityX = settled.velocityX;
+        velocityY = settled.velocityY;
         horizontalIntegrated = true;
-        const edgeSupport = findSupportSegment(worldX, worldY, segments, contact);
-        if (edgeSupport === null) {
+        if (!settled.on) {
           grounded = false;
           contact = null;
-          velocityY = 0;
         } else {
-          worldY = edgeSupport.surfaceY;
-          contact = contactOf(edgeSupport);
+          contact = contactOf({
+            layer: settled.segment.layer,
+            platform: settled.segment.platform,
+            footholdId: settled.segment.id,
+          });
         }
-      } else {
-        velocityX = 0;
-        velocityY = 0;
       }
     }
   }
@@ -350,6 +392,7 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
       contact,
       locomotion: mode,
       jumpRepeatMs: 0,
+      ignoredFootholdId: null,
     });
   }
 
@@ -367,24 +410,25 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
       contact: null,
       mode: "swim",
       locomotion: "swim",
-      jumpRepeatMs: 0,
+      jumpRepeatMs: leaveForJump ? 0 : (state.jumpRepeatMs ?? 0),
+      ignoredFootholdId,
       medium: "water",
     },
     intent,
     movementConfig,
-    edges,
+    leaveForJump ? { ...edges, jumpPressed: true } : edges,
   );
   const resolvedX = horizontalIntegrated ? steppedX : swam.worldX;
   const clippedMove = clipSwimBody(resolvedX, swam.worldY, swam.velocityX, swam.velocityY, bounds, false);
   const landing = clippedMove.velocityY >= 0
-    ? findLandingSegment(clippedMove.worldX, previousY, clippedMove.worldY, segments)
+    ? findLandingSegment(clippedMove.worldX, previousY, clippedMove.worldY, segments, ignoredFootholdId)
     : null;
   if (landing !== null && clippedMove.worldY >= landing.surfaceY - GROUND_EPSILON_PX) {
     const mode = dir !== 0 ? "walk" : "stand";
     const clippedLand = clipSwimBody(
       clippedMove.worldX,
       landing.surfaceY,
-      dir !== 0 ? dir * walkSpeed : 0,
+      clippedMove.velocityX,
       0,
       bounds,
       false,
@@ -400,6 +444,7 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
       contact: contactOf(landing),
       locomotion: mode,
       jumpRepeatMs: 0,
+      ignoredFootholdId: null,
     });
   }
   if (

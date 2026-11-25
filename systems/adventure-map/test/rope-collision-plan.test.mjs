@@ -57,6 +57,9 @@ test("C-069 query respects x±10 and y containment", async () => {
   const built = await buildCanonicalAdventureFieldPlanContent({ gameRoot: repoRoot, mapId: "222000001" });
   const segment = built.plan.ropeCollisionPlan.segments[0];
   assert.ok(queryRopeSegments([segment], -61, -41, 470, 474));
+  assert.ok(queryRopeSegments([segment], -61, -61, 470, 474));
+  assert.equal(queryRopeSegments([segment], -62, -62, 470, 474), null);
+  assert.equal(queryRopeSegments([segment], -51, -51, 470, 480), null);
   assert.equal(queryRopeSegments([segment], -80, -70, 470, 474), null);
 });
 

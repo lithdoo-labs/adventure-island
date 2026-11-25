@@ -12,6 +12,7 @@ import {
   tileSortKey,
   objSortKey,
 } from "../src/index.mjs";
+import { hiddenPortalClipSources } from "../src/resolve.mjs";
 import { assertTraceable } from "../src/validate.mjs";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -51,6 +52,30 @@ describe("real map 222000000 closure + projection", () => {
     assert.ok(noVisual.some((p) => p.pt === 0 || p.pt === 1 || p.pt === 6));
     assert.ok(visual.some((p) => p.pt === 2 || p.pt === 10));
 
+    const east = first.scene.drawables.find((d) => d.sourceKind === "portal-visual" && d.placement?.pn === "east00");
+    assert.equal(east.presentation, "loop");
+    assert.equal(east.visualName, "pv");
+    assert.equal(east.frames.length, 8);
+    assert.deepEqual(east.frames.map((frame) => frame.delay), [120, 120, 120, 120, 120, 120, 120, 120]);
+    assert.deepEqual(east.frames[0].origin, [43, 173]);
+    assert.deepEqual(east.frames[6].origin, [41, 248]);
+    const eastNode = first.projection.root.children.find((child) => child.key === east.stableId);
+    assert.equal(eastNode.data.phase, "loop");
+    assert.equal(eastNode.data.frames[2].delay, 120);
+    assert.deepEqual(eastNode.data.frames[2].draw.origin, east.frames[2].origin);
+    const hidden = first.scene.drawables.find((d) => d.sourceKind === "portal-visual" && d.placement?.pn === "ph00");
+    assert.equal(hidden.presentation, "sequence");
+    assert.equal(hidden.clips.portalStart.length, 4);
+    assert.equal(hidden.clips.portalContinue.length, 7);
+    assert.equal(hidden.clips.portalExit.length, 3);
+    assert.equal(hidden.frames.length, 14);
+    assert.ok(hidden.frames.every((frame) => frame.delay === 120));
+    const hiddenNode = first.projection.root.children.find((child) => child.key === hidden.stableId);
+    assert.equal(hiddenNode.data.phase, "sequence");
+    assert.equal(hiddenNode.attrs.visible, "false");
+    assert.equal(hiddenNode.data.clips.portalContinue[0].delay, 120);
+    assert.equal(hiddenNode.data.frames.length, 14);
+
     for (const drawable of first.scene.drawables) {
       assertTraceable(drawable);
     }
@@ -59,7 +84,7 @@ describe("real map 222000000 closure + projection", () => {
     assert.equal(first.projection.hash, second.projection.hash);
     assert.equal(
       first.projection.hash,
-      "sha256:363f2af2130b856026cc554469092345578af3b6429497d9e9b60b018d2b487a",
+      "sha256:db247ee94f52a0b174ba2bc4e1036cdbb184a3c32f98018c4e5220b7d9c4bfda",
     );
 
     // Spot-check first tile/obj keys against CMS079 formulas.
@@ -123,5 +148,15 @@ describe("real map 222000000 closure + projection", () => {
     assert.equal(first.closure.missingResources.length, 0);
     assert.ok(first.closure.absentGroups.includes("seat"));
     assert.ok(first.closure.noVisualPortals.length > 0);
+    assert.deepEqual(hiddenPortalClipSources(10, "default"), {
+      portalStart: ["ph", "default"],
+      portalContinue: ["ph", "default"],
+      portalExit: ["ph", "default"],
+    });
+    assert.deepEqual(hiddenPortalClipSources(11, "2"), {
+      portalStart: ["psh", "2"],
+      portalContinue: ["ph", "2"],
+      portalExit: ["psh", "2"],
+    });
   });
 });

@@ -59,6 +59,25 @@ test("validated portal index freezes the nested entries", () => {
   assert.equal(Object.isFrozen(validated.entries[0]), true);
 });
 
+test("hidden portals travel when the target map is published", () => {
+  const rows = [
+    { sourceOrder: 0, pn: "ph00", pt: 10, x: 0, y: 0, tm: 222000000, tn: "ph00_1" },
+    { sourceOrder: 1, pn: "ph00_1", pt: 10, x: 10, y: 0, tm: 222000000, tn: "ph00" },
+    { sourceOrder: 2, pn: "secret", pt: 11, x: 0, y: 0, tm: 222000001, tn: "out" },
+    { sourceOrder: 3, pn: "later", pt: 10, x: 0, y: 0, tm: 999999999, tn: "x" },
+    { sourceOrder: 4, pn: "tower00", pt: 1, x: 0, y: 0, tm: 222000001, tn: "out" },
+    { sourceOrder: 5, pn: "east00", pt: 2, x: 0, y: 0, tm: 222010000, tn: "west00" },
+  ];
+  const index = buildPortalLogicalIndex("222000000", rows, new Set(["222000000", "222000001"]));
+  const byName = (name) => index.entries.find((entry) => entry.name === name);
+  assert.equal(byName("ph00").enabled, true);
+  assert.equal(byName("ph00_1").enabled, true);
+  assert.equal(byName("secret").enabled, true);
+  assert.equal(byName("later").enabled, false);
+  assert.equal(byName("tower00").enabled, true);
+  assert.equal(byName("east00").enabled, false);
+});
+
 test("fieldPlanContentKey rejects omitted and non-canonical map ids", () => {
   assert.throws(() => fieldPlanContentKey(), /numeric map id/u);
   assert.throws(() => fieldPlanContentKey("map222000001"), /numeric map id/u);

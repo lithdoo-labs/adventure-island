@@ -17,6 +17,7 @@ import {
   movementIntentAfterPortal,
   movementIntentFromHeldForState,
 } from "./portal-controls.mjs";
+import { playerInPortalRevealBox } from "./portal-trigger.mjs";
 import {
   bootstrapPortalState,
   contentErrorCode as portalContentErrorCode,
@@ -185,8 +186,10 @@ export default defineSubsystem((scope) => ({
     let avatarElapsedMs = 0;
     let avatarProjectedElapsed = "0";
     let avatarProjectedFrame = "0";
-    let avatarClockLast = null;
-    let avatarClockHandle = null;
+      let avatarClockLast = null;
+      let avatarClockHandle = null;
+      // A climb whose Y did not change holds the current rope frame.
+      let climbMoved = true;
     let avatarNode = null;
     let simAccumulatorMs = 0;
     let wallClockHandle = null;
@@ -194,7 +197,8 @@ export default defineSubsystem((scope) => ({
     let currentRanks = null;
     let projectedLayer = null;
     let projectedPlatform = null;
-    let schedulerDiscardedTicks = 0;
+      let schedulerDiscardedTicks = 0;
+      let hiddenPortalShown = new Map();
     let projectedViewportWidth = null;
     let projectedViewportHeight = null;
     let logicalViewport = logicalViewportFromScreen(scope.viewport.current);
@@ -402,6 +406,12 @@ export default defineSubsystem((scope) => ({
         if (avatarClockLast === null) avatarClockLast = time;
         const delta = Math.max(1, time - avatarClockLast);
         avatarClockLast = time;
+        const holdClimbFrame = movementState?.mode === "climb" && !climbMoved;
+        climbMoved = false;
+        if (holdClimbFrame) {
+          avatarClockHandle = globalThis.setTimeout(tickAvatarClock, 20);
+          return;
+        }
         avatarElapsedMs += delta;
         const clip = findAvatarActionClip(avatarNode, avatarAction);
         const timing = clip
@@ -417,6 +427,8 @@ export default defineSubsystem((scope) => ({
         for (let index = 0; index < count; index += 1) {
           const jumpPressed = jumpLatch;
           if (jumpPressed) jumpLatch = false;
+          const previousMode = movementState.mode;
+          const previousY = movementState.worldY;
           movementState = stepMovementForMap(
             movementState,
             movementIntent,
@@ -424,13 +436,25 @@ export default defineSubsystem((scope) => ({
             ropeCollisionPlan,
             movementConfig,
             activePlan.mapEnvironment,
-            { jumpPressed },
+            {
+              jumpPressed: jumpPressed && !movementIntent.down,
+              jumpHeld: movementIntent.jump === true,
+              dropPressed: jumpPressed && movementIntent.down === true,
+              portalEntries: portalIndex?.entries,
+            },
           );
+          if (movementState.mode === "climb") {
+            if (previousMode === "climb" && movementState.worldY !== previousY) climbMoved = true;
+            else if (previousMode !== "climb") climbMoved = false;
+          } else {
+            climbMoved = true;
+          }
           fieldState = applyMovementToFieldState(fieldState, movementState);
         }
         projectWorldPosition();
         projectPlayerDepth();
         projectCamera();
+        projectHiddenPortals();
         syncAvatarOnActionChange();
       };
 
@@ -462,7 +486,32 @@ export default defineSubsystem((scope) => ({
         projectWorldPosition();
         projectPlayerDepth();
         projectCamera();
+        projectHiddenPortals();
         syncAvatarOnActionChange();
+      };
+
+      const rebindHiddenPortals = (children) => {
+        hiddenPortalShown = new Map();
+        for (const child of children ?? []) {
+          if (child?.data?.phase === "sequence") {
+            hiddenPortalShown.set(child.key, child.attrs?.visible ?? "false");
+          }
+        }
+      };
+
+      const projectHiddenPortals = () => {
+        if (!portalIndex?.entries || !fieldState?.player) return;
+        const nodes = [];
+        for (const entry of portalIndex.entries) {
+          if (entry.type !== 10 && entry.type !== 11) continue;
+          const key = `portal:map${portalIndex.mapId}:${entry.sourceOrder}:visual`;
+          if (!hiddenPortalShown.has(key)) continue;
+          const visible = playerInPortalRevealBox(fieldState.player, entry) ? "true" : "false";
+          if (hiddenPortalShown.get(key) === visible) continue;
+          hiddenPortalShown.set(key, visible);
+          nodes.push({ key, attrs: { set: { visible } } });
+        }
+        if (nodes.length > 0) domain.update({ nodes });
       };
 
       const cancelPortalPrepare = () => {
@@ -502,6 +551,7 @@ export default defineSubsystem((scope) => ({
         sceneEpoch = next.sceneEpoch;
         sceneRootKey = next.sceneRootKey;
         activeRenderChildren = next.activeRenderChildren;
+        rebindHiddenPortals(activeRenderChildren);
         const committedViewport = viewportSize();
         if (committedViewport && typeof committedViewport === "object") {
           projectedViewportWidth = committedViewport.width;
@@ -528,6 +578,7 @@ export default defineSubsystem((scope) => ({
         movementIntent = nextMovementIntent;
         clearAvatarClock();
         scheduleAvatarClock();
+        projectHiddenPortals();
       };
 
       const startCrossMapPortalPrepare = (cross) => {
@@ -672,6 +723,8 @@ export default defineSubsystem((scope) => ({
       syncAvatarOnActionChange();
       projectWorldPosition();
       projectCamera();
+      rebindHiddenPortals(renderRoot.children);
+      projectHiddenPortals();
 
       await Promise.race([abortWait.promise, fatalPromise]);
       if (frame.signal.aborted) return cancelled();

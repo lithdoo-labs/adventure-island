@@ -4,18 +4,16 @@
 import {
   DISABLED_TARGET_MAP,
   PORTAL_LOGICAL_INDEX_MAX,
-  isM7EnabledPortalEdge,
 } from "./portal-constants.mjs";
 
-function portalRowEnabled(mapId, row, publishedTargetMapIds) {
+function portalRowEnabled(_mapId, row, publishedTargetMapIds) {
   const pt = Number(row.pt);
   if (pt === 0) return false;
   const targetName = typeof row.tn === "string" ? row.tn : "";
   if (targetName.length === 0) return false;
   const targetMap = String(row.tm);
   if (targetMap === DISABLED_TARGET_MAP) return false;
-  if (!publishedTargetMapIds.has(targetMap)) return false;
-  return isM7EnabledPortalEdge(mapId, row.pn);
+  return publishedTargetMapIds.has(targetMap);
 }
 
 function freezePortalEntry(entry) {

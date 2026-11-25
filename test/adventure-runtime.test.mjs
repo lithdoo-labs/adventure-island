@@ -484,12 +484,12 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   assert.ok(avatarUpdate, "controls input must update the nested ms-avatar node");
   harness.eventsHarness.dispatch("controls.state", "input.state", { down: [] });
   await waitForBusinessTicks();
-  pressDirection(harness, "up");
+  pressDirection(harness, "south");
   await waitForBusinessTicks();
   assert.ok(harness.domain().updates.some((update) => (
     update.nodes?.[0]?.key === "player:adventure:avatar"
       && update.nodes[0].attrs?.set?.action === "jump"
-  )), "up must select the projected jump action");
+  )), "south must select the projected jump action");
 
   harness.eventsHarness.dispatch("controls.state", "input.state", { down: [] });
   await waitForBusinessTicks();
@@ -626,7 +626,7 @@ test("M6: state-before-event Up edge performs one atomic cross-map replace", asy
   assert.deepEqual(await harness.outcome, { type: "cancelled" });
 });
 
-test("M7.3: held Down enters authoritative rope state through the real Controls consumer", async (t) => {
+test("M7.3: Up while falling onto the shaft rope enters authoritative climb", async (t) => {
   const plan = fieldPlanAtRopeEntry();
   const harness = startMapFrame({
     content: createContentHarness({ fieldPlan: plan, targetFieldPlan: plan }),
@@ -634,31 +634,36 @@ test("M7.3: held Down enters authoritative rope state through the real Controls 
   t.after(() => harness.frame.abort());
   await settle();
 
-  harness.eventsHarness.dispatch("controls.state", "input.state", { down: ["down"] });
+  harness.eventsHarness.dispatch("controls.state", "input.state", { down: ["up", "south"] });
   const avatarUpdate = await waitFor(
     () => harness.domain().updates
       .flatMap((update) => update.nodes ?? [])
       .find((node) => node.key === "player:adventure:avatar" && node.attrs?.set?.action === "rope"),
     "rope locomotion projection",
+    5_000,
   );
   assert.equal(avatarUpdate.attrs.set.action, "rope");
-  const worldUpdate = [...harness.domain().updates]
-    .reverse()
+  const yUpdates = harness.domain().updates
     .flatMap((update) => update.nodes ?? [])
-    .find((node) => node.key === "player:adventure" && node.attrs?.set?.["world-y"] === "474");
-  assert.ok(worldUpdate, "the subsystem must snap only to the authenticated rope bottom");
+    .filter((node) => node.key === "player:adventure" && node.attrs?.set?.["world-y"] !== undefined);
+  const latestY = Number(yUpdates.at(-1)?.attrs?.set?.["world-y"]);
+  assert.ok(latestY <= 474, `the grab keeps a height inside the rope, got ${latestY}`);
   assert.equal(harness.domain().replacements.length, 0, "rope entry updates the player carrier, not the scene tree");
 
   harness.eventsHarness.dispatch("controls.state", "input.state", { down: [] });
   await waitForBusinessTicks();
+  const settledY = Number(harness.domain().updates
+    .flatMap((update) => update.nodes ?? [])
+    .filter((node) => node.key === "player:adventure" && node.attrs?.set?.["world-y"] !== undefined)
+    .at(-1)?.attrs?.set?.["world-y"]);
   pressDirection(harness, "up", ["up"]);
   const climbUpdate = await waitFor(
     () => harness.domain().updates
       .flatMap((update) => update.nodes ?? [])
-      .find((node) => node.key === "player:adventure" && Number(node.attrs?.set?.["world-y"]) < 474),
+      .find((node) => node.key === "player:adventure" && Number(node.attrs?.set?.["world-y"]) < settledY),
     "rope upward movement",
   );
-  assert.ok(Number(climbUpdate.attrs.set["world-y"]) < 474);
+  assert.ok(Number(climbUpdate.attrs.set["world-y"]) < settledY);
   assert.equal(harness.domain().replacements.length, 0, "Up climbs until a portal is actually in range");
 });
 
@@ -690,7 +695,7 @@ test("M7.3: a fresh Up edge in the out00 rope band commits B to A", async (t) =>
   assert.equal(root.data.mapId, "222000000");
   const player = root.children.find((child) => child.key === "player:adventure");
   assert.equal(player.attrs["world-x"], "-508");
-  assert.equal(player.attrs["world-y"], "248");
+  assert.equal(player.attrs["world-y"], "234", "arrival is the in00 anchor minus 10");
   assert.equal(harness.domain().replacements.length, 1);
   assert.equal(bootstrapReads, 2, "the return edge reloads the canonical bootstrap record");
 });

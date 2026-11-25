@@ -65,7 +65,9 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test "$(git rev-parse HEAD:loom-realm)" = "93648192323bf5f57996b7b54cbae641d8a53fdb"
-          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          # The labs runner reuses its git directory, so origin/main can point at an
+          # old diverged commit. The leading + updates only that local tracking ref.
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           current="$(git rev-parse origin/main)"
           if [ "$current" != "$EXPECTED_SHA" ]; then
             echo "Skipping superseded Adventure Island commit $EXPECTED_SHA (main=$current)"

@@ -19,6 +19,7 @@ on:
       - "loom-realm"
       - "README.md"
       - ".github/workflows/pwa-ci.yml"
+      - ".github/workflows/pwa-deploy.yml"
   push:
     branches: [main]
     paths:
@@ -37,6 +38,7 @@ on:
       - "loom-realm"
       - "README.md"
       - ".github/workflows/pwa-ci.yml"
+      - ".github/workflows/pwa-deploy.yml"
   workflow_dispatch:
 
 permissions:

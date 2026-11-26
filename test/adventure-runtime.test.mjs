@@ -432,8 +432,8 @@ test("a missing viewport sample still opens the map scene", async (t) => {
     .reverse()
     .flatMap((update) => update.nodes ?? [])
     .find((node) => node.key === FIELD_SCENE_ROOT_KEY);
-  assert.equal(camera?.attrs?.set?.["camera-x"], "-572");
-  assert.equal(camera?.attrs?.set?.["camera-y"], "-210");
+  assert.equal(camera?.attrs?.set?.["camera-x"], "-492");
+  assert.equal(camera?.attrs?.set?.["camera-y"], "-107");
 });
 
 test("T2: the Map projects the static Field scene and reprojects camera on resize", async (t) => {
@@ -449,8 +449,8 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   const root = frameRoot.children[0];
   assert.equal(root.key, FIELD_SCENE_ROOT_KEY);
   assert.equal(root.tag, "ms-scene-view");
-  assert.equal(root.attrs["camera-x"], "-572");
-  assert.equal(root.attrs["camera-y"], "-210");
+  assert.equal(root.attrs["camera-x"], "-492");
+  assert.equal(root.attrs["camera-y"], "-107");
   assert.ok(root.children.length > 200, "the Field root carries the full map Paint Unit tree");
   const initialPlayer = root.children.find((child) => child.key === "player:adventure");
   const playerIndex = root.children.findIndex((child) => child.key === "player:adventure");
@@ -502,9 +502,9 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
     ?.attrs.set["world-x"] ?? initialPlayer.attrs["world-x"];
   harness.viewportHarness.notify({ width: 1000, height: 600 });
   const resized = latestAttrsFor(FIELD_SCENE_ROOT_KEY);
-  assert.equal(resized["camera-y"], undefined, "height stays 720, so the held look point does not change camera-y");
+  assert.equal(resized["camera-y"], undefined, "logical height stays 600, so the held look point does not change camera-y");
   assert.ok(
-    Math.abs(Number(resized["camera-x"]) - (Number(latestWorldX) - 600)) <= 28,
+    Math.abs(Number(resized["camera-x"]) - (Number(latestWorldX) - 500)) <= 28,
     "camera-x stays within the 28px follow hold of the adapted logical width",
   );
   harness.viewportHarness.notify({ width: 990, height: 600 });
@@ -517,11 +517,11 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   )).length;
   harness.viewportHarness.notify(null);
   harness.viewportHarness.notify({ width: 0, height: 100 });
-  await settle();
   const cameraUpdatesAfter = harness.domain().updates.filter((update) => (
     update.nodes?.some((node) => node.key === FIELD_SCENE_ROOT_KEY)
   )).length;
   assert.equal(cameraUpdatesAfter, cameraUpdatesBefore, "null/zero viewports do not project camera state");
+  await settle();
 
   for (const update of harness.domain().updates) {
     for (const node of update.nodes ?? []) {

@@ -37,11 +37,21 @@ export function viewportRangeAttributeNames() {
   return RANGE_ATTRIBUTE_NAMES;
 }
 
+function integerInside(value, minimum, maximum) {
+  const rounded = Math.round(value);
+  if (rounded < minimum) return minimum;
+  if (rounded > maximum) return maximum;
+  return rounded;
+}
+
 /**
  * Choose the logical resolution for a screen of `screenWidth` × `screenHeight`.
  *
- * When the screen aspect can sit inside the range, keep that aspect and use the
- * largest legal logical size, which is the smallest uniform scale.
+ * When both screen edges already lie inside the range, render at that screen
+ * size. An integer screen keeps scale 1.
+ * When either edge is outside the range but the aspect can sit inside it, keep
+ * that aspect and use the largest legal logical size, which is the smallest
+ * uniform scale.
  * When the aspect is too tall, render at maximum width and minimum height.
  * When the aspect is too wide, render at minimum width and maximum height.
  * The caller stretches those corner sizes to cover the screen.
@@ -49,6 +59,18 @@ export function viewportRangeAttributeNames() {
 export function resolveViewportFrame(screenWidth, screenHeight, range) {
   if (!Number.isFinite(screenWidth) || !Number.isFinite(screenHeight) || screenWidth <= 0 || screenHeight <= 0) {
     return null;
+  }
+  if (screenWidth >= range.minWidth && screenWidth <= range.maxWidth
+    && screenHeight >= range.minHeight && screenHeight <= range.maxHeight) {
+    const width = integerInside(screenWidth, range.minWidth, range.maxWidth);
+    const height = integerInside(screenHeight, range.minHeight, range.maxHeight);
+    return Object.freeze({
+      mode: "uniform",
+      width,
+      height,
+      scaleX: screenWidth / width,
+      scaleY: screenHeight / height,
+    });
   }
   const aspect = screenWidth / screenHeight;
   const minAspect = range.minWidth / range.maxHeight;

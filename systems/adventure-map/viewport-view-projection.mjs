@@ -22,6 +22,8 @@ function shallowLayoutChanged(before, after) {
   if (!before || !after) return before !== after;
   return before.canvasWidth !== after.canvasWidth
     || before.canvasHeight !== after.canvasHeight
+    || before.viewportWidth !== after.viewportWidth
+    || before.viewportHeight !== after.viewportHeight
     || before.tileOriginX !== after.tileOriginX
     || before.tileOriginY !== after.tileOriginY
     || before.tileStepX !== after.tileStepX

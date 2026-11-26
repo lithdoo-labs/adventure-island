@@ -8,15 +8,20 @@ import {
 
 const range = DEFAULT_VIEWPORT_RANGE;
 
-test("an aspect inside the range uses the largest logical size and one scale", () => {
+test("a screen already inside the range renders at that size with scale 1", () => {
   const frame = resolveViewportFrame(800, 600, range);
   assert.deepEqual(frame, {
     mode: "uniform",
-    width: 960,
-    height: 720,
-    scaleX: 800 / 960,
-    scaleY: 800 / 960,
+    width: 800,
+    height: 600,
+    scaleX: 1,
+    scaleY: 1,
   });
+  const fitted = resolveViewportFrame(640, 480, range);
+  assert.equal(fitted.width, 640);
+  assert.equal(fitted.height, 480);
+  assert.equal(fitted.scaleX, 1);
+  assert.equal(fitted.scaleY, 1);
 });
 
 test("a 16:9 window above the range lands on 1280×720 at scale 1.5", () => {
@@ -83,16 +88,33 @@ test("boundary aspects stay uniform and fill the matching corner", () => {
   assert.equal(widest.scaleX, 1);
 });
 
-test("non-integer screens still produce an integer logical size inside the range", () => {
+test("an integer screen inside the range keeps that exact logical size", () => {
   const frame = resolveViewportFrame(1000, 700, range);
+  assert.deepEqual(frame, {
+    mode: "uniform",
+    width: 1000,
+    height: 700,
+    scaleX: 1,
+    scaleY: 1,
+  });
+});
+
+test("a fractional screen inside the range rounds to an integer logical size near scale 1", () => {
+  const frame = resolveViewportFrame(1000.4, 700.2, range);
   assert.equal(frame.mode, "uniform");
-  assert.equal(Number.isSafeInteger(frame.width), true);
-  assert.equal(Number.isSafeInteger(frame.height), true);
-  assert.equal(frame.width, 1028);
-  assert.equal(frame.height, 720);
-  assert.equal(frame.scaleX, frame.scaleY);
-  assert.ok(frame.width >= range.minWidth && frame.width <= range.maxWidth);
-  assert.ok(frame.height >= range.minHeight && frame.height <= range.maxHeight);
+  assert.equal(frame.width, 1000);
+  assert.equal(frame.height, 700);
+  assert.ok(Math.abs(frame.scaleX - 1) < 0.001);
+  assert.ok(Math.abs(frame.scaleY - 1) < 0.001);
+});
+
+test("one edge outside the range still uses the largest logical size and the smallest scale", () => {
+  const frame = resolveViewportFrame(1500, 600, range);
+  assert.equal(frame.mode, "uniform");
+  assert.equal(frame.width, 1280);
+  assert.equal(frame.height, 512);
+  assert.equal(frame.scaleX, 1500 / 1280);
+  assert.equal(frame.scaleY, frame.scaleX);
 });
 
 test("omitted range attributes use the default and illegal attributes fail closed", () => {

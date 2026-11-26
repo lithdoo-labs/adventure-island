@@ -85,8 +85,8 @@ test("ms-viewport-frame fills the screen, scales, and emits a resolution only wh
       };
     });
     assert.equal(initial.diagnostics.mode, "uniform");
-    assert.equal(initial.diagnostics.width, 960);
-    assert.equal(initial.diagnostics.height, 720);
+    assert.equal(initial.diagnostics.width, 800);
+    assert.equal(initial.diagnostics.height, 600);
     assert.equal(initial.diagnostics.scaleX, initial.diagnostics.scaleY);
     nearly(initial.host.width, 800);
     nearly(initial.host.height, 600);
@@ -112,7 +112,7 @@ test("ms-viewport-frame fills the screen, scales, and emits a resolution only wh
     const firstEvent = await page.evaluate(() => window.__viewportEvents);
     assert.deepEqual(firstEvent, [{
       name: "viewport.resolution",
-      data: { width: 960, height: 720 },
+      data: { width: 800, height: 600 },
       options: { broadcast: false, channel: "viewport.resolution" },
     }]);
 

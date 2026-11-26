@@ -173,12 +173,36 @@ test("camera update keeps static batch paint counts stable", { timeout: 120_000 
   await waitFor(page, () => {
     const scene = document.querySelector("ms-scene-view");
     const batches = [...document.querySelectorAll("ms-map-batch")];
+    const backs = [...document.querySelectorAll("ms-map-back")];
     return scene?.diagnostics().state === "ready"
       && batches.length > 0
-      && batches.every((batch) => batch.diagnostics().state === "ready");
+      && batches.every((batch) => batch.diagnostics().state === "ready")
+      && backs.every((back) => back.diagnostics().state === "ready");
   }, "field ready");
-  const before = await page.evaluate(() => [...document.querySelectorAll("ms-map-batch")]
-    .map((batch) => batch.diagnostics().paintCommits));
+  const before = await page.evaluate(() => {
+    const readBacks = () => [...document.querySelectorAll("ms-map-back")].map((host) => {
+      const canvas = host.shadowRoot.querySelector("canvas");
+      const style = getComputedStyle(host);
+      const context = canvas.getContext("2d");
+      const pixel = canvas.width > 0 && canvas.height > 0
+        ? Array.from(context.getImageData(0, 0, 1, 1).data)
+        : [];
+      return {
+        paints: host.diagnostics().paintCommits,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        hostWidth: Number.parseFloat(style.width),
+        hostHeight: Number.parseFloat(style.height),
+        transform: canvas.style.transform,
+        pixel,
+      };
+    });
+    return {
+      paints: [...document.querySelectorAll("ms-map-batch")].map((batch) => batch.diagnostics().paintCommits),
+      backs: readBacks(),
+      devicePixelRatio: window.devicePixelRatio || 1,
+    };
+  });
   await page.evaluate(() => window.__update([{
     op: "update",
     key: "scene:map222000000",
@@ -191,10 +215,40 @@ test("camera update keeps static batch paint counts stable", { timeout: 120_000 
     return {
       paints: batches.map((batch) => batch.diagnostics().paintCommits),
       cameraX: getComputedStyle(scene.shadowRoot.querySelector(".world-plane")).getPropertyValue("--ms-scene-camera-x"),
+      backs: [...document.querySelectorAll("ms-map-back")].map((host) => {
+        const canvas = host.shadowRoot.querySelector("canvas");
+        const style = getComputedStyle(host);
+        const context = canvas.getContext("2d");
+        const pixel = canvas.width > 0 && canvas.height > 0
+          ? Array.from(context.getImageData(0, 0, 1, 1).data)
+          : [];
+        return {
+          paints: host.diagnostics().paintCommits,
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height,
+          hostWidth: Number.parseFloat(style.width),
+          hostHeight: Number.parseFloat(style.height),
+          transform: canvas.style.transform,
+          pixel,
+        };
+      }),
     };
   });
-  assert.deepEqual(after.paints, before);
+  assert.deepEqual(after.paints, before.paints);
   assert.equal(after.cameraX.trim(), "10px");
+  assert.equal(after.backs.length, before.backs.length);
+  for (let index = 0; index < before.backs.length; index += 1) {
+    const earlier = before.backs[index];
+    const later = after.backs[index];
+    assert.equal(later.paints, earlier.paints);
+    const widened = earlier.canvasWidth > earlier.hostWidth * before.devicePixelRatio + 1
+      || earlier.canvasHeight > earlier.hostHeight * before.devicePixelRatio + 1;
+    if (!widened) continue;
+    assert.deepEqual(later.pixel, earlier.pixel);
+    assert.equal(later.canvasWidth, earlier.canvasWidth);
+    assert.equal(later.canvasHeight, earlier.canvasHeight);
+    assert.match(later.transform, /^translate\(/);
+  }
 
   const batch = projection.root.children.find((child) => child.tag === "ms-map-batch");
   const nextRank = batch.attrs["stack-rank"] === "1" ? "2" : "1";
@@ -217,7 +271,7 @@ test("camera update keeps static batch paint counts stable", { timeout: 120_000 
       zIndex: getComputedStyle(host).zIndex,
     };
   });
-  assert.deepEqual(afterRank.paints, before);
+  assert.deepEqual(afterRank.paints, before.paints);
   assert.equal(afterRank.zIndex, nextRank);
 });
 
@@ -666,10 +720,32 @@ test("M7.6 relayout during Content load cannot restore stale viewport geometry",
       hostWidth: getComputedStyle(host).width,
       canvasWidth: host.shadowRoot.querySelector("canvas").style.width,
     })));
-  assert.deepEqual(latestGeometry, [
-    { tag: "ms-map-back", hostWidth: "800px", canvasWidth: "800px" },
-    { tag: "ms-map-back", hostWidth: "800px", canvasWidth: "800px" },
-  ]);
+  const fittedWidth = (layout) => {
+    const stepX = layout?.tileHorizontal
+      ? (layout.tileStepX > 0 ? layout.tileStepX : layout.frameWidth)
+      : 0;
+    const stepY = layout?.tileVertical
+      ? (layout.tileStepY > 0 ? layout.tileStepY : layout.frameHeight)
+      : 0;
+    const width = (layout?.canvasWidth ?? 0) + (stepX > 0 ? stepX : 0);
+    const height = (layout?.canvasHeight ?? 0) + (stepY > 0 ? stepY : 0);
+    const deviceW = Math.round(width);
+    const deviceH = Math.round(height);
+    const fits = (stepX > 0 || stepY > 0)
+      && deviceW <= 2048
+      && deviceH <= 2048
+      && deviceW * deviceH <= 4_194_304;
+    return `${fits ? width : layout.canvasWidth}px`;
+  };
+  assert.deepEqual(latestGeometry, [back, otherBack].map((child) => {
+    const patch = relayout.find((node) => node.key === child.key);
+    const layout = patch?.data?.set?.layout ?? child.data.layout;
+    return {
+      tag: "ms-map-back",
+      hostWidth: `${layout.canvasWidth}px`,
+      canvasWidth: fittedWidth(layout),
+    };
+  }));
 
   const beforeDrawChange = await page.evaluate(() => document.querySelector("ms-map-back").diagnostics());
   const nextDraw = structuredClone(back.data.draw);

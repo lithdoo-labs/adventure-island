@@ -3632,6 +3632,15 @@ const HOST_STATIC_CANVAS = `
   canvas { display:block; image-rendering:pixelated; }
 `;
 
+const HOST_STATIC_BACK = `
+  :host {
+    position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:none;
+    overflow:hidden;
+    left:0px; top:0px; width:0px; height:0px; z-index:1; visibility:hidden;
+  }
+  canvas { display:block; image-rendering:pixelated; transform-origin:0 0; }
+`;
+
 const HOST_STATIC_SCENE = `
   :host { display:block; position:absolute; inset:0; margin:0; visibility:hidden; }
   .viewport { position:absolute; inset:0; overflow:hidden; }
@@ -3669,6 +3678,30 @@ function deviceRatio() {
   const value = globalThis.devicePixelRatio || 1;
   if (!Number.isFinite(value) || value <= 0 || value > FIELD_CANVAS_LIMITS.maxDevicePixelRatio) return null;
   return value;
+}
+
+/**
+ * The stage keeps its fill scale. Bricks are copied on the logical pixel grid
+ * so that scale is the only resample. When the fill scale already lands on a
+ * whole device pixel, paint at that integer instead and skip the resample.
+ */
+function viewportPaintRatio(element) {
+  const screen = deviceRatio();
+  if (screen === null) return null;
+  const diag = element.closest?.("ms-viewport-frame")?.diagnostics?.();
+  if (!diag || !Number.isFinite(diag.scaleX) || !Number.isFinite(diag.scaleY)) return screen;
+  const pixelsX = diag.scaleX * screen;
+  const pixelsY = diag.scaleY * screen;
+  const wholeX = Math.round(pixelsX);
+  const wholeY = Math.round(pixelsY);
+  if (wholeX >= 1
+    && wholeX === wholeY
+    && wholeX <= FIELD_CANVAS_LIMITS.maxDevicePixelRatio
+    && Math.abs(pixelsX - wholeX) < 1e-4
+    && Math.abs(pixelsY - wholeY) < 1e-4) {
+    return wholeX;
+  }
+  return 1;
 }
 
 function failureCode(error) {
@@ -4047,7 +4080,7 @@ class MsMapBatch extends SpikeElement {
         }
         decoded.set(pageId, bitmap);
       }
-      const ratio = deviceRatio();
+      const ratio = viewportPaintRatio(this);
       if (ratio === null) {
         this._failPaint(epoch, "RESOURCE_LIMIT", "device pixel ratio is outside the spike budget");
         return;
@@ -4123,7 +4156,48 @@ function repeatPhase(anchor, step) {
   return mod === 0 ? 0 : mod - step;
 }
 
-function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null) {
+function originPhase(origin, step) {
+  if (!(step > 0)) return 0;
+  return -(((origin % step) + step) % step);
+}
+
+function backTileStep(layout, axis) {
+  if (!layout) return 0;
+  if (axis === "x") {
+    if (!layout.tileHorizontal) return 0;
+    const step = layout.tileStepX > 0 ? layout.tileStepX : layout.frameWidth;
+    return step > 0 ? step : 0;
+  }
+  if (!layout.tileVertical) return 0;
+  const step = layout.tileStepY > 0 ? layout.tileStepY : layout.frameHeight;
+  return step > 0 ? step : 0;
+}
+
+/**
+ * A tiled back paints once at phase 0 into a surface one step larger than the
+ * viewport, then slides that bitmap with a canvas translate. The extra step
+ * is skipped when it would miss the field canvas budget; those backs keep the
+ * viewport-sized redraw.
+ */
+function chooseBackCanvas(layout, fallbackW, fallbackH, ratio) {
+  const baseW = layout?.canvasWidth ?? fallbackW;
+  const baseH = layout?.canvasHeight ?? fallbackH;
+  if (!Number.isFinite(baseW) || !Number.isFinite(baseH) || baseW <= 0 || baseH <= 0) return null;
+  const stepX = backTileStep(layout, "x");
+  const stepY = backTileStep(layout, "y");
+  const bleedW = baseW + stepX;
+  const bleedH = baseH + stepY;
+  const canBleed = (stepX > 0 || stepY > 0)
+    && deviceCanvasFitsBudget(Math.round(bleedW * ratio), Math.round(bleedH * ratio));
+  const w = canBleed ? bleedW : baseW;
+  const h = canBleed ? bleedH : baseH;
+  const deviceW = Math.round(w * ratio);
+  const deviceH = Math.round(h * ratio);
+  if (!deviceCanvasFitsBudget(deviceW, deviceH)) return null;
+  return { w, h, deviceW, deviceH, externalPhase: canBleed };
+}
+
+function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null, surface = null) {
   const source = image?.source ?? {
     x: 0,
     y: 0,
@@ -4148,8 +4222,8 @@ function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], s
   }
   const frameW = layout.frameWidth;
   const frameH = layout.frameHeight;
-  const canvasW = layout.canvasWidth;
-  const canvasH = layout.canvasHeight;
+  const canvasW = surface?.w ?? layout.canvasWidth;
+  const canvasH = surface?.h ?? layout.canvasHeight;
   const stepX = layout.tileStepX > 0 ? layout.tileStepX : frameW;
   const stepY = layout.tileStepY > 0 ? layout.tileStepY : frameH;
   context.clearRect(0, 0, canvasW, canvasH);
@@ -4157,14 +4231,16 @@ function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], s
   context.globalAlpha = opacity / 255;
   const originX = Number.isFinite(layout.tileOriginX) ? layout.tileOriginX : 0;
   const originY = Number.isFinite(layout.tileOriginY) ? layout.tileOriginY : 0;
-  const phaseX = Number.isFinite(screenAnchorX)
-    ? repeatPhase(screenAnchorX, stepX)
-    : -((((originX + scrollOffsetX) % stepX) + stepX) % stepX);
-  const phaseY = -(((originY % stepY) + stepY) % stepY);
   const horiz = Boolean(layout.tileHorizontal);
   const vert = Boolean(layout.tileVertical);
-  const yEnd = vert ? canvasH + stepY : frameH;
-  const xEnd = horiz ? canvasW + stepX : frameW;
+  const phaseX = surface
+    ? 0
+    : (Number.isFinite(screenAnchorX)
+      ? repeatPhase(screenAnchorX, stepX)
+      : originPhase(originX + scrollOffsetX, stepX));
+  const phaseY = surface ? 0 : originPhase(originY, stepY);
+  const yEnd = vert ? (surface ? canvasH : canvasH + stepY) : frameH;
+  const xEnd = horiz ? (surface ? canvasW : canvasW + stepX) : frameW;
   const yStep = vert ? stepY : frameH;
   const xStep = horiz ? stepX : frameW;
   const [offsetX, offsetY] = offset;
@@ -4305,6 +4381,7 @@ class MsMapBack extends SpikeElement {
     super();
     this._abort = null;
     this._paintedSignature = null;
+    this._paintedData = null;
     this._loadingSignature = null;
     this._sourceBitmap = null;
     this._frameBitmaps = [];
@@ -4318,6 +4395,10 @@ class MsMapBack extends SpikeElement {
     this._animationPaints = 0;
     this._contentSignature = null;
     this._layoutSignature = null;
+    this._externalPhase = false;
+    this._phaseTransform = "";
+    this._canvasCssW = 0;
+    this._canvasCssH = 0;
   }
 
   diagnostics() {
@@ -4352,6 +4433,7 @@ class MsMapBack extends SpikeElement {
     this._stopAnim();
     this._releaseBitmaps();
     this._validated = null;
+    this._paintedData = null;
     super._failInput(result);
   }
 
@@ -4395,7 +4477,7 @@ class MsMapBack extends SpikeElement {
     this._canvas = document.createElement("canvas");
     this._canvas.setAttribute("aria-hidden", "true");
     shadow.append(this._style, this._canvas);
-    this._style.textContent = HOST_STATIC_CANVAS;
+    this._style.textContent = HOST_STATIC_BACK;
     this._writeHost(false, { viewX: 0, viewY: 0, stackRank: 1, w: 0, h: 0 });
   }
 
@@ -4410,7 +4492,23 @@ class MsMapBack extends SpikeElement {
     if (!this._canvas) return;
     this._canvas.width = 0;
     this._canvas.height = 0;
+    this._canvas.style.transform = "";
+    this._phaseTransform = "";
+    this._externalPhase = false;
     this._clearCommits += 1;
+  }
+
+  _sizeBackCanvas(layout, fallbackW, fallbackH, ratio) {
+    const chosen = chooseBackCanvas(layout, fallbackW, fallbackH, ratio);
+    if (!chosen) return false;
+    this._externalPhase = chosen.externalPhase;
+    this._canvasCssW = chosen.w;
+    this._canvasCssH = chosen.h;
+    this._canvas.width = chosen.deviceW;
+    this._canvas.height = chosen.deviceH;
+    this._canvas.style.width = cssPx(chosen.w);
+    this._canvas.style.height = cssPx(chosen.h);
+    return true;
   }
 
   _applyInput() {
@@ -4420,6 +4518,13 @@ class MsMapBack extends SpikeElement {
     const attrs = validateBackAttrs(declared.value);
     if (!attrs.ok) return this._failInput(attrs);
     if (this._data === undefined) return;
+    if (this._state === "ready" && this._data === this._paintedData && this._validated && this._hasLastGoodPaint()) {
+      const box = this._hostBox(attrs.value, this._validated);
+      this._writeHost(attrs.value.visible, box);
+      this._syncAnimLoop();
+      this._followBackPhase();
+      return;
+    }
     const data = validateBackData(this._data);
     if (!data.ok) return this._failInput(data);
     const validated = data.value;
@@ -4428,6 +4533,7 @@ class MsMapBack extends SpikeElement {
     const box = this._hostBox(attrs.value, validated);
     const hasLastGood = this._hasLastGoodPaint();
     if (hasLastGood && contentSignature === this._paintedSignature && this._state === "ready") {
+      this._paintedData = this._data;
       if (layoutSignature !== this._layoutSignature) {
         this._relayoutViewportSurface(attrs.value.visible, box, validated);
         this._contentSignature = contentSignature;
@@ -4436,7 +4542,7 @@ class MsMapBack extends SpikeElement {
       }
       this._writeHost(attrs.value.visible, box);
       this._syncAnimLoop();
-      if (this._horizontalAnchor() !== this._paintedAnchorX) this._redrawBack(false);
+      this._followBackPhase();
       return;
     }
     if (contentSignature === this._loadingSignature) return;
@@ -4476,21 +4582,13 @@ class MsMapBack extends SpikeElement {
     const frame = validated.mode === "local-animation"
       ? validated.frames[this._displayFrame] ?? validated.frames[0]
       : { image: validated.image, draw: validated.draw };
-    const canvasWidth = layout?.canvasWidth ?? frame.image.pageWidth;
-    const canvasHeight = layout?.canvasHeight ?? frame.image.pageHeight;
-    const deviceW = Math.round(canvasWidth * ratio);
-    const deviceH = Math.round(canvasHeight * ratio);
-    if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+    if (!this._sizeBackCanvas(layout, frame.image.pageWidth, frame.image.pageHeight, ratio)) {
       this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "Back canvas budget exceeded" });
       return;
     }
     // The running callback closes over layout/draw. Restart it so the next
     // animation paint cannot restore stale viewport geometry after relayout.
     this._stopAnim();
-    this._canvas.width = deviceW;
-    this._canvas.height = deviceH;
-    this._canvas.style.width = cssPx(canvasWidth);
-    this._canvas.style.height = cssPx(canvasHeight);
     this._validated = validated;
     this._redrawBack(false);
     this._writeHost(visible, box);
@@ -4520,6 +4618,43 @@ class MsMapBack extends SpikeElement {
     return horizontalScreenAnchor(layout, cameraX, Math.trunc(this._scrollOffsetX));
   }
 
+  /**
+   * The host stays pinned by view-x/view-y. The world plane already translates
+   * by the camera, so the tile phase is only a canvas translate inside the
+   * clipped host. Horizontal phase follows the screen anchor (including type-4
+   * scroll). Vertical phase is the authored origin, which the camera does not
+   * change.
+   */
+  _syncBackPhase() {
+    if (!this._canvas) return;
+    if (!this._externalPhase) {
+      if (this._phaseTransform !== "") {
+        this._canvas.style.transform = "";
+        this._phaseTransform = "";
+      }
+      return;
+    }
+    const layout = this._validated?.layout ?? null;
+    const stepX = backTileStep(layout, "x");
+    const stepY = backTileStep(layout, "y");
+    const anchor = this._horizontalAnchor();
+    const phaseX = stepX > 0 && Number.isFinite(anchor) ? repeatPhase(anchor, stepX) : 0;
+    const originY = Number.isFinite(layout?.tileOriginY) ? layout.tileOriginY : 0;
+    const phaseY = stepY > 0 ? originPhase(originY, stepY) : 0;
+    const next = `translate(${cssPx(phaseX)}, ${cssPx(phaseY)})`;
+    if (this._phaseTransform === next) return;
+    this._canvas.style.transform = next;
+    this._phaseTransform = next;
+  }
+
+  _followBackPhase() {
+    if (this._externalPhase) {
+      this._syncBackPhase();
+      return;
+    }
+    if (this._horizontalAnchor() !== this._paintedAnchorX) this._redrawBack(false);
+  }
+
   _redrawBack(countCommit = true) {
     const bitmap = this._currentBitmap();
     if (!this._canvas || !bitmap) return;
@@ -4532,6 +4667,7 @@ class MsMapBack extends SpikeElement {
     context.imageSmoothingEnabled = false;
     const anchor = this._horizontalAnchor();
     this._paintedAnchorX = anchor;
+    const surface = this._externalPhase ? { w: this._canvasCssW, h: this._canvasCssH } : null;
     paintBackTiles(
       context,
       bitmap,
@@ -4539,9 +4675,11 @@ class MsMapBack extends SpikeElement {
       layout,
       frame.draw,
       frame.offset,
-      anchor === null ? this._scrollOffsetX : 0,
-      anchor,
+      !surface && anchor === null ? this._scrollOffsetX : 0,
+      surface ? null : anchor,
+      surface,
     );
+    this._syncBackPhase();
     if (countCommit) this._paintCommits += 1;
   }
 
@@ -4563,6 +4701,7 @@ class MsMapBack extends SpikeElement {
         return;
       }
       let dirty = false;
+      let advanced = false;
       if (scroll) {
         if (this._scrollLastTs !== null) {
           const delta = ts - this._scrollLastTs;
@@ -4570,7 +4709,9 @@ class MsMapBack extends SpikeElement {
           const pixel = Math.trunc(this._scrollOffsetX);
           if (pixel !== this._scrollPixel) {
             this._scrollPixel = pixel;
-            dirty = true;
+            if (this._externalPhase) this._syncBackPhase();
+            else dirty = true;
+            advanced = true;
           }
         }
         this._scrollLastTs = ts;
@@ -4588,12 +4729,11 @@ class MsMapBack extends SpikeElement {
             }
           }
           dirty = true;
+          advanced = true;
         }
       }
-      if (dirty) {
-        this._redrawBack(false);
-        this._animationPaints += 1;
-      }
+      if (dirty) this._redrawBack(false);
+      if (advanced) this._animationPaints += 1;
       this._animFrame = requestAnimationFrame(tick);
     };
     this._animFrame = requestAnimationFrame(tick);
@@ -4646,17 +4786,9 @@ class MsMapBack extends SpikeElement {
       box = this._hostBox(attrs.value, validated);
       const layout = validated.layout;
       const frame = validated.frames[0];
-      const canvasW = layout?.canvasWidth ?? frame.image.pageWidth;
-      const canvasH = layout?.canvasHeight ?? frame.image.pageHeight;
-      const deviceW = Math.round(canvasW * ratio);
-      const deviceH = Math.round(canvasH * ratio);
-      if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
+      if (!this._sizeBackCanvas(layout, frame.image.pageWidth, frame.image.pageHeight, ratio)) {
         throw Object.assign(new Error("Back canvas budget exceeded"), { code: "RESOURCE_LIMIT" });
       }
-      this._canvas.width = deviceW;
-      this._canvas.height = deviceH;
-      this._canvas.style.width = cssPx(canvasW);
-      this._canvas.style.height = cssPx(canvasH);
       this._releaseBitmaps();
       this._frameBitmaps = bitmaps;
       adopted = true;
@@ -4667,6 +4799,7 @@ class MsMapBack extends SpikeElement {
       this._scrollPixel = 0;
       this._redrawBack();
       this._paintedSignature = signature;
+      this._paintedData = this._data;
       this._contentSignature = backContentSignature(this._data);
       this._layoutSignature = backLayoutSignature(this._data);
       this._loadingSignature = null;
@@ -4721,19 +4854,11 @@ class MsMapBack extends SpikeElement {
       if (ratio === null) return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
       validated = latest.value;
       const layout = validated.layout;
-      const canvasWidth = layout?.canvasWidth ?? validated.image.pageWidth;
-      const canvasHeight = layout?.canvasHeight ?? validated.image.pageHeight;
-      const deviceW = Math.round(canvasWidth * ratio);
-      const deviceH = Math.round(canvasHeight * ratio);
-      if (!deviceCanvasFitsBudget(deviceW, deviceH)) {
-        return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "Back canvas budget exceeded" });
-      }
       const latestBox = this._hostBox(attrs.value, validated);
       if (epoch !== this._epoch || !this.isConnected) return;
-      this._canvas.width = deviceW;
-      this._canvas.height = deviceH;
-      this._canvas.style.width = cssPx(canvasWidth);
-      this._canvas.style.height = cssPx(canvasHeight);
+      if (!this._sizeBackCanvas(layout, validated.image.pageWidth, validated.image.pageHeight, ratio)) {
+        return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "Back canvas budget exceeded" });
+      }
       this._releaseBitmaps();
       this._sourceBitmap = bitmap;
       bitmap = null;
@@ -4742,6 +4867,7 @@ class MsMapBack extends SpikeElement {
       this._scrollPixel = 0;
       this._redrawBack();
       this._paintedSignature = signature;
+      this._paintedData = this._data;
       this._contentSignature = backContentSignature(this._data);
       this._layoutSignature = backLayoutSignature(this._data);
       this._loadingSignature = null;
@@ -4768,6 +4894,7 @@ class MsMapBack extends SpikeElement {
     this._detail = detail;
     if (!hasLastGood) {
       this._paintedSignature = null;
+      this._paintedData = null;
       this._clearCanvas();
       this._writeHost(false, this._box ?? { viewX: 0, viewY: 0, stackRank: 1, w: 0, h: 0 });
       return;

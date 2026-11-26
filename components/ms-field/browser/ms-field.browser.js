@@ -3829,8 +3829,9 @@ class SpikeElement extends SpikeHTMLElement {
     this._applyInput();
   }
 
-  attributeChangedCallback() {
+  attributeChangedCallback(_name, oldValue, newValue) {
     this._attrsSeen = true;
+    if (oldValue === newValue) return;
     this._scheduleApply();
   }
 

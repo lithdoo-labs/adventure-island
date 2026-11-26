@@ -54,8 +54,9 @@ function integerInside(value, minimum, maximum) {
  * When both screen edges already lie inside the range, render at that screen
  * size. An integer screen keeps scale 1.
  * When either edge is outside the range but the aspect can sit inside it, keep
- * that aspect and use the largest legal logical size, which is the smallest
- * uniform scale.
+ * that aspect and use the legal logical size whose uniform scale is closest
+ * to 1. A smaller screen uses the smallest legal size; a larger screen uses
+ * the largest.
  * When the aspect is too tall, render at maximum width and minimum height.
  * When the aspect is too wide, render at minimum width and maximum height.
  * The caller stretches those corner sizes to cover the screen.
@@ -83,11 +84,16 @@ function resolveViewportFrame(screenWidth, screenHeight, range) {
     const low = Math.max(range.minWidth, range.minHeight * aspect);
     const high = Math.min(range.maxWidth, range.maxHeight * aspect);
     const minInt = Math.ceil(low - 1e-9);
-    let width = Math.min(range.maxWidth, Math.floor(high + 1e-9));
-    if (width < minInt) width = minInt;
+    const maxInt = Math.min(range.maxWidth, Math.floor(high + 1e-9));
+    const screenIsSmall = screenWidth <= minInt;
+    let width = screenIsSmall ? minInt : maxInt;
+    const step = screenIsSmall ? 1 : -1;
     let height = Math.round(width / aspect);
-    while (width >= minInt && (height < range.minHeight || height > range.maxHeight || width > range.maxWidth)) {
-      width -= 1;
+    while (
+      width >= minInt && width <= maxInt
+      && (height < range.minHeight || height > range.maxHeight || width < range.minWidth || width > range.maxWidth)
+    ) {
+      width += step;
       height = Math.round(width / aspect);
     }
     if (width < range.minWidth || width > range.maxWidth || height < range.minHeight || height > range.maxHeight) {

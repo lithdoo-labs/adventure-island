@@ -33,12 +33,22 @@ test("a 16:9 window above the range lands on 1280×720 at scale 1.5", () => {
   assert.equal(frame.scaleY, 1.5);
 });
 
-test("a small 4:3 window still picks the largest fitting logical size", () => {
+test("a small 4:3 window uses the legal size whose scale is closest to 1", () => {
   const frame = resolveViewportFrame(320, 240, range);
   assert.equal(frame.mode, "uniform");
-  assert.equal(frame.width, 960);
-  assert.equal(frame.height, 720);
-  assert.equal(frame.scaleX, 320 / 960);
+  assert.equal(frame.width, 640);
+  assert.equal(frame.height, 480);
+  assert.equal(frame.scaleX, 320 / 640);
+  assert.equal(frame.scaleY, frame.scaleX);
+});
+
+test("a short fullscreen screen uses the smallest legal size instead of the largest", () => {
+  const frame = resolveViewportFrame(640, 427, range);
+  assert.equal(frame.mode, "uniform");
+  assert.equal(frame.width, 720);
+  assert.equal(frame.height, 480);
+  assert.equal(frame.scaleX, 640 / 720);
+  assert.equal(frame.scaleY, frame.scaleX);
 });
 
 test("a tall screen covers from the wide corner of the range", () => {
@@ -108,7 +118,7 @@ test("a fractional screen inside the range rounds to an integer logical size nea
   assert.ok(Math.abs(frame.scaleY - 1) < 0.001);
 });
 
-test("one edge outside the range still uses the largest logical size and the smallest scale", () => {
+test("a screen larger than the range still uses the largest legal size", () => {
   const frame = resolveViewportFrame(1500, 600, range);
   assert.equal(frame.mode, "uniform");
   assert.equal(frame.width, 1280);

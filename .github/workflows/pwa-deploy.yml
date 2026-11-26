@@ -77,11 +77,16 @@ jobs:
           test -S /var/run/docker.sock
           publisher="$PWA_DATA_ROOT/publisher/bin/deploy.mjs"
           test -f "$publisher"
-          # The previous attempt recreated loomrealm-pwa-web-1 and Windows then
-          # refused 127.0.0.1:8787. Start that container again. Do not recreate it.
-          docker ps -a --filter name=loomrealm-pwa --format '{{.Names}} {{.Status}} {{.Ports}}'
-          if ! docker ps --filter name=loomrealm-pwa-web-1 --filter status=running --format '{{.ID}}' | grep -q .; then
-            docker start loomrealm-pwa-web-1
-          fi
-          docker ps --filter name=loomrealm-pwa-web-1 --format '{{.Names}} {{.Status}} {{.Ports}}'
-          docker inspect loomrealm-pwa-web-1 --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}'
+          # Windows excludes TCP 8706-9602 on this host, so 8787 and 8790 cannot bind.
+          # 18787 is outside that range. The HTTPS gateway reaches the container
+          # by Docker DNS (loomrealm-pwa-web-1), not by the host port.
+          node "$publisher" publish \
+            --app adventure-island \
+            --source "$GITHUB_WORKSPACE/dist/staging/adventure-island" \
+            --commit "$EXPECTED_SHA" \
+            --game-root "$GITHUB_WORKSPACE" \
+            --data-root "$PWA_DATA_ROOT" \
+            --engine-root "$PWA_DATA_ROOT" \
+            --candidate-port 19787 \
+            --official-port 18787 \
+            --source-run "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${{ github.event.workflow_run.id }}"

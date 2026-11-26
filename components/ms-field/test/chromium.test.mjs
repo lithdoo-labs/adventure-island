@@ -5,6 +5,7 @@ import path from "node:path";
 import test, { after, before } from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildFieldProjection } from "../src/field-project.mjs";
+import { FIELD_CANVAS_LIMITS } from "../src/limits.mjs";
 import { RESOURCE_READ_CONCURRENCY } from "../src/resource-read-pool.mjs";
 import { buildCanonicalAdventureAvatarContent } from "../../../scripts/pwa/read-adventure-fsdb.mjs";
 import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
@@ -732,9 +733,10 @@ test("M7.6 relayout during Content load cannot restore stale viewport geometry",
     const deviceW = Math.round(width);
     const deviceH = Math.round(height);
     const fits = (stepX > 0 || stepY > 0)
-      && deviceW <= 2048
-      && deviceH <= 2048
-      && deviceW * deviceH <= 4_194_304;
+      && deviceW <= FIELD_CANVAS_LIMITS.maxCanvasWidth
+      && deviceH <= FIELD_CANVAS_LIMITS.maxCanvasHeight
+      && deviceW * deviceH <= FIELD_CANVAS_LIMITS.maxCanvasPixels
+      && deviceW * deviceH <= FIELD_CANVAS_LIMITS.maxSlidingBackPixels;
     return `${fits ? width : layout.canvasWidth}px`;
   };
   assert.deepEqual(latestGeometry, [back, otherBack].map((child) => {

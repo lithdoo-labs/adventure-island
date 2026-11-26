@@ -17,6 +17,9 @@ export function validateMapEnvironment(value) {
   if (value.swim !== 0 && value.swim !== 1) {
     throw new TypeError("mapEnvironment.swim must be 0 or 1");
   }
+  if (value.fieldLimit !== undefined && !Number.isSafeInteger(value.fieldLimit)) {
+    throw new TypeError("mapEnvironment.fieldLimit must be a safe integer");
+  }
   const source = value.source;
   if (source === null || typeof source !== "object"
     || source.namespace !== MAP_ENVIRONMENT_NAMESPACE

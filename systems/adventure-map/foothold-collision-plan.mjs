@@ -14,7 +14,7 @@ export function finiteFootholdSegment(raw) {
   }
   const lenSq = (raw.x2 - raw.x1) ** 2 + (raw.y2 - raw.y1) ** 2;
   if (lenSq <= 0) throw new TypeError("foothold segment must have non-zero length");
-  return Object.freeze({
+  const segment = {
     layer: raw.layer,
     platform: raw.platform,
     id: raw.id,
@@ -24,7 +24,20 @@ export function finiteFootholdSegment(raw) {
     y2: raw.y2,
     prev: linkId(raw.prev),
     next: linkId(raw.next),
-  });
+  };
+  const conveyor = footholdScalar(raw.force, 0);
+  const friction = footholdScalar(raw.drag, 1);
+  if (conveyor !== 0) segment.conveyor = conveyor;
+  if (friction !== 1) segment.friction = friction;
+  if (raw.forbidFallDown === 1 || raw.forbidFallDown === true) segment.forbidFallDown = true;
+  return Object.freeze(segment);
+}
+
+function footholdScalar(value, fallback) {
+  if (value === undefined || value === null || value === 0) return fallback;
+  const numeric = Number(value);
+  if (!Number.isSafeInteger(numeric)) return fallback;
+  return numeric * 0.01;
 }
 
 function linkId(value) {

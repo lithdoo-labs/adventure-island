@@ -441,6 +441,7 @@ export default defineSubsystem((scope) => ({
               jumpHeld: movementIntent.jump === true,
               dropPressed: jumpPressed && movementIntent.down === true,
               portalEntries: portalIndex?.entries,
+              fieldLimit: activePlan.mapEnvironment?.fieldLimit ?? 0,
             },
           );
           if (movementState.mode === "climb") {

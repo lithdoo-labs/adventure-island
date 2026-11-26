@@ -28,56 +28,25 @@ import {
   HELD_BUOYANT_JUMP_MS,
   dropVerticalSpeed,
   integrateFoothold,
-  settleGroundTravel,
   jumpHorizontal,
-  stopAtVerticalWall,
+  physicalBoundsFromFootholds,
+  settleGroundTravel,
+  sweepAirMotion,
 } from "./movement-dynamics.mjs";
 import {
   BUSINESS_TICK_MS,
   BUSINESS_TICK_S,
-  GROUND_EPSILON_PX,
   findDropTarget,
-  findLandingSegment,
   findSupportSegment,
+  spacePlatformOf,
 } from "./movement-sim.mjs";
+
+export { physicalBoundsFromFootholds };
 
 export const WATER_JUMP_SPEED_MULTIPLIER = 5;
 
 function q(value) {
   return Math.round(value * 1000) / 1000;
-}
-
-/**
- * OpenMS prepareBounds margins, recovered from the physical rectangle
- * (left/right inset 30, top expanded 300, bottom expanded 10). No VRLimit
- * on these swim maps, so the foothold extrema are the whole wall.
- * A reversed rectangle (a fixture narrower than the margins) is not a wall.
- */
-export function physicalBoundsFromFootholds(segments) {
-  if (!Array.isArray(segments) || segments.length === 0) return null;
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const row of segments) {
-    const x1 = row?.x1;
-    const x2 = row?.x2;
-    const y1 = row?.y1;
-    const y2 = row?.y2;
-    if (![x1, x2, y1, y2].every(Number.isFinite)) return null;
-    minX = Math.min(minX, x1, x2);
-    maxX = Math.max(maxX, x1, x2);
-    minY = Math.min(minY, y1, y2);
-    maxY = Math.max(maxY, y1, y2);
-  }
-  const bounds = {
-    left: minX + 30,
-    right: maxX - 30,
-    top: minY - 300,
-    bottom: maxY + 10,
-  };
-  if (bounds.left > bounds.right || bounds.top > bounds.bottom) return null;
-  return bounds;
 }
 
 function clipSwimBody(worldX, worldY, velocityX, velocityY, bounds, clampBottom) {
@@ -307,6 +276,8 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     throw new TypeError("movementConfig ground fields are invalid");
   }
   const dt = BUSINESS_TICK_S;
+  const bounds = physicalBoundsFromFootholds(segments);
+  const spacePlatform = state.spacePlatform ?? spacePlatformOf(segments);
   const facing = nextFacing(state.facing, intent);
   const dir = horizontalDirection(intent);
   let worldX = state.worldX;
@@ -331,11 +302,14 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     } else {
       worldY = support.surfaceY;
       contact = contactOf(support);
-      const dropTarget = edges.dropPressed === true
+      const dropBlocked = (Number(edges.fieldLimit) & 0x20000) !== 0
+        || support.segment.forbidFallDown === true;
+      const dropTarget = edges.dropPressed === true && !dropBlocked
         ? findDropTarget(worldX, worldY, segments, contact.footholdId)
         : null;
       if (dropTarget) {
         ignoredFootholdId = contact.footholdId;
+        worldY = Math.floor(worldY - 1);
         velocityX = 0;
         velocityY = dropVerticalSpeed(movementConfig.jumpSpeed);
         grounded = false;
@@ -358,32 +332,47 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
           dt,
           true,
         );
-        const settled = settleGroundTravel(moved, support.segment, segments, dt);
+        const settled = settleGroundTravel(moved, support.segment, segments, dt, bounds);
         worldX = settled.worldX;
         worldY = settled.worldY;
         velocityX = settled.velocityX;
         velocityY = settled.velocityY;
         horizontalIntegrated = true;
         if (!settled.on) {
-          const stopped = stopAtVerticalWall({
+          const swept = sweepAirMotion({
             x0: settled.entryX,
             y0: settled.entryY,
             x1: worldX,
             y1: worldY,
-            velocityX,
-            velocityY,
+            velocityX0: velocityX,
+            velocityY0: velocityY,
+            velocityX1: velocityX,
+            velocityY1: velocityY,
+            remainingMs: settled.remainingMs ?? 0,
             segments,
-            platform: support.platform,
+            contactPlatform: support.platform,
+            spacePlatform,
             ignoredFootholdId,
+            horizontalInput: dir,
+            bounds,
+            secondary: true,
           });
-          if (stopped) {
-            worldX = stopped.worldX;
-            worldY = stopped.worldY;
-            velocityX = stopped.velocityX;
-            velocityY = stopped.velocityY;
+          worldX = swept.worldX;
+          worldY = swept.worldY;
+          velocityX = swept.velocityX;
+          velocityY = swept.velocityY;
+          if (swept.grounded && swept.segment) {
+            grounded = true;
+            contact = contactOf({
+              layer: swept.segment.layer,
+              platform: swept.segment.platform,
+              footholdId: swept.segment.id,
+            });
+            ignoredFootholdId = null;
+          } else {
+            grounded = false;
+            contact = null;
           }
-          grounded = false;
-          contact = null;
         } else {
           contact = contactOf({
             layer: settled.segment.layer,
@@ -395,7 +384,6 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     }
   }
 
-  const bounds = physicalBoundsFromFootholds(segments);
   if (grounded) {
     const mode = dir !== 0 ? "walk" : "stand";
     const clipped = clipSwimBody(worldX, worldY, velocityX, velocityY, bounds, false);
@@ -414,10 +402,10 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     });
   }
 
-  const steppedX = worldX;
-  const previousY = worldY;
   const swimOriginX = worldX;
   const swimOriginY = worldY;
+  const swimOriginVx = velocityX;
+  const swimOriginVy = velocityY;
   const swam = stepWaterMovement(
     {
       ...state,
@@ -438,40 +426,34 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     movementConfig,
     leaveForJump ? { ...edges, jumpPressed: true } : edges,
   );
-  let resolvedX = horizontalIntegrated ? steppedX : swam.worldX;
-  let resolvedY = swam.worldY;
-  let resolvedVx = swam.velocityX;
-  let resolvedVy = swam.velocityY;
-  if (!horizontalIntegrated) {
-    const stopped = stopAtVerticalWall({
-      x0: swimOriginX,
-      y0: swimOriginY,
-      x1: resolvedX,
-      y1: resolvedY,
-      velocityX: resolvedVx,
-      velocityY: resolvedVy,
-      segments,
-      platform: state.platform,
-      ignoredFootholdId,
-    });
-    if (stopped) {
-      resolvedX = stopped.worldX;
-      resolvedY = stopped.worldY;
-      resolvedVx = stopped.velocityX;
-      resolvedVy = stopped.velocityY;
-    }
-  }
-  const clippedMove = clipSwimBody(resolvedX, resolvedY, resolvedVx, resolvedVy, bounds, false);
-  const landing = clippedMove.velocityY >= 0
-    ? findLandingSegment(clippedMove.worldX, previousY, clippedMove.worldY, segments, ignoredFootholdId)
-    : null;
-  if (landing !== null && clippedMove.worldY >= landing.surfaceY - GROUND_EPSILON_PX) {
+  const resolvedX = horizontalIntegrated ? swimOriginX : swam.worldX;
+  const resolvedY = swam.worldY;
+  const swept = sweepAirMotion({
+    x0: swimOriginX,
+    y0: swimOriginY,
+    x1: resolvedX,
+    y1: resolvedY,
+    velocityX0: swimOriginVx,
+    velocityY0: swimOriginVy,
+    velocityX1: swam.velocityX,
+    velocityY1: swam.velocityY,
+    remainingMs: BUSINESS_TICK_MS,
+    segments,
+    contactPlatform: contact?.platform ?? state.platform,
+    spacePlatform,
+    ignoredFootholdId,
+    horizontalInput: dir,
+    bounds,
+    secondary: false,
+  });
+  const clippedMove = clipSwimBody(swept.worldX, swept.worldY, swept.velocityX, swept.velocityY, bounds, false);
+  if (swept.grounded && swept.segment) {
     const mode = dir !== 0 ? "walk" : "stand";
     const clippedLand = clipSwimBody(
       clippedMove.worldX,
-      landing.surfaceY,
+      swept.worldY,
       clippedMove.velocityX,
-      0,
+      clippedMove.velocityY,
       bounds,
       false,
     );
@@ -483,7 +465,11 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
       facing: swam.facing,
       mode,
       grounded: true,
-      contact: contactOf(landing),
+      contact: contactOf({
+        layer: swept.segment.layer,
+        platform: swept.segment.platform,
+        footholdId: swept.segment.id,
+      }),
       locomotion: mode,
       jumpRepeatMs: 0,
       ignoredFootholdId: null,

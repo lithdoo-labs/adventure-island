@@ -98,6 +98,8 @@ async function readMovementConfig(gameRoot) {
     floatDrag1: Number(physics.floatDrag1),
     floatDrag2: Number(physics.floatDrag2),
     floatCoefficient: Number(physics.floatCoefficient),
+    minFriction: Number(physics.minFriction),
+    maxFriction: Number(physics.maxFriction),
   }));
   return Object.freeze({
     movementConfig,
@@ -139,11 +141,16 @@ async function readMapEnvironment(gameRoot, mapId) {
   if (swim !== 0 && swim !== 1) {
     throw new TypeError(`map ${mapId} info.swim must be exactly 0 or 1`);
   }
+  const fieldLimit = Number(record?.info?.fieldLimit ?? 0);
+  if (!Number.isSafeInteger(fieldLimit)) {
+    throw new TypeError(`map ${mapId} info.fieldLimit must be an integer`);
+  }
   return Object.freeze({
     mapEnvironment: validateMapEnvironment(Object.freeze({
       formatVersion: 1,
       mapId,
       swim,
+      fieldLimit,
       source: Object.freeze({
         namespace: MAP_ENVIRONMENT_NAMESPACE,
         key: mapEnvironmentRecordKey(mapId),

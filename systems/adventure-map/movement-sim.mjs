@@ -9,10 +9,10 @@ import {
   dropVerticalSpeed,
   integrateFoothold,
   jumpHorizontal,
-  projectOntoFoothold,
+  physicalBoundsFromFootholds,
   settleGroundTravel,
   stepAirVelocity,
-  stopAtVerticalWall,
+  sweepAirMotion,
 } from "./movement-dynamics.mjs";
 
 export const BUSINESS_TICK_MS = 20;
@@ -206,7 +206,43 @@ export function createMovementState({
     locomotion: grounded ? "stand" : "jump",
     ropeContact: null,
     ignoredFootholdId: null,
+    spacePlatform: spacePlatformOf(segments ?? []),
+    fallTerminalTicks: 0,
+    fallLanding: null,
+    seat: null,
   });
+}
+
+export function spacePlatformOf(segments) {
+  let space = null;
+  for (const segment of segments) {
+    if (space === null || segment.platform < space) space = segment.platform;
+  }
+  return space ?? 0;
+}
+
+function reachableSeat(seats, x, y) {
+  if (!Array.isArray(seats)) return null;
+  for (const seat of seats) {
+    if (!Number.isFinite(seat?.x) || !Number.isFinite(seat?.y)) continue;
+    if (seat.x >= x - 10 && seat.x < x + 10 && seat.y >= y - 30 && seat.y < y + 30) {
+      const id = Number.isSafeInteger(seat.id) ? seat.id : (Number.isSafeInteger(seat.index) ? seat.index : 0);
+      return { id, x: seat.x, y: seat.y };
+    }
+  }
+  return null;
+}
+
+function takeFallLanding(ticks, fallSpeed, facing) {
+  const threshold = Math.trunc(600000 / fallSpeed / BUSINESS_TICK_MS);
+  if (ticks <= threshold || ticks <= 18) return { ticks, landing: null };
+  return {
+    ticks: 0,
+    landing: {
+      amount: Math.max(1, 36 - Math.trunc(336 / (ticks - 18))),
+      facing,
+    },
+  };
 }
 
 function horizontalDirection(intent) {
@@ -239,6 +275,8 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
     if (!Number.isFinite(value) || value <= 0) throw new TypeError("movementConfig is invalid");
   }
   const dt = BUSINESS_TICK_S;
+  const bounds = physicalBoundsFromFootholds(segments);
+  const spacePlatform = state.spacePlatform ?? spacePlatformOf(segments);
   let worldX = state.worldX;
   let worldY = state.worldY;
   let velocityX = state.velocityX;
@@ -248,8 +286,61 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
   let contact = grounded ? state.contact : null;
   let facing = nextFacing(state.facing, intent);
   let ignoredFootholdId = state.ignoredFootholdId ?? null;
+  let seat = state.seat ?? null;
+  let fallTerminalTicks = velocityY >= fallSpeed ? (state.fallTerminalTicks ?? 0) + 1 : 0;
+  let fallLanding = null;
   const dir = horizontalDirection(intent);
   let ranFoothold = false;
+
+  if (seat) {
+    const leaving = intent.left || intent.right || intent.up || intent.down
+      || intent.jump || edges.sitPressed === true;
+    if (!leaving) {
+      return finishMovement(state, {
+        worldX: seat.x,
+        worldY: seat.y,
+        velocityX: 0,
+        velocityY: 0,
+        facing,
+        mode: "sit",
+        grounded: true,
+        contact,
+        locomotion: "sit",
+        ignoredFootholdId: null,
+        spacePlatform,
+        fallTerminalTicks: 0,
+        fallLanding: null,
+        seat,
+      });
+    }
+    seat = null;
+    grounded = false;
+    contact = null;
+    mode = "fall";
+    velocityX = 0;
+    velocityY = 0;
+  } else if (edges.sitPressed === true && grounded
+    && Math.abs(velocityX) < 1e-6 && Math.abs(velocityY) < 1e-6) {
+    const found = reachableSeat(edges.seats, worldX, worldY);
+    if (found) {
+      return finishMovement(state, {
+        worldX: found.x,
+        worldY: found.y,
+        velocityX: 0,
+        velocityY: 0,
+        facing,
+        mode: "sit",
+        grounded: true,
+        contact,
+        locomotion: "sit",
+        ignoredFootholdId: null,
+        spacePlatform,
+        fallTerminalTicks: 0,
+        fallLanding: null,
+        seat: found,
+      });
+    }
+  }
 
   if (grounded) {
     const support = findSupportSegment(worldX, worldY, segments, contact);
@@ -266,11 +357,14 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
       contact = contactOf(support);
       const wantsDrop = edges.dropPressed === true;
       const wantsJump = (edges.jumpPressed === true || edges.jumpHeld === true) && !intent.down;
-      const dropTarget = wantsDrop && !portalBlocksDrop(edges.portalEntries, worldX, worldY)
+      const dropBlocked = (Number(edges.fieldLimit) & 0x20000) !== 0
+        || support.segment.forbidFallDown === true;
+      const dropTarget = wantsDrop && !dropBlocked && !portalBlocksDrop(edges.portalEntries, worldX, worldY)
         ? findDropTarget(worldX, worldY, segments, contact.footholdId)
         : null;
       if (dropTarget) {
         ignoredFootholdId = contact.footholdId;
+        worldY = Math.floor(worldY - 1);
         velocityX = 0;
         velocityY = dropVerticalSpeed(jumpSpeed);
         grounded = false;
@@ -300,33 +394,34 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
           dt,
           false,
         );
-        const settled = settleGroundTravel(moved, support.segment, segments, dt);
+        const settled = settleGroundTravel(moved, support.segment, segments, dt, bounds);
         worldX = settled.worldX;
         worldY = settled.worldY;
         velocityX = settled.velocityX;
         velocityY = settled.velocityY;
         ranFoothold = true;
         if (!settled.on) {
-          const stopped = stopAtVerticalWall({
+          const swept = sweepAirMotion({
             x0: settled.entryX,
             y0: settled.entryY,
             x1: worldX,
             y1: worldY,
-            velocityX,
-            velocityY,
+            velocityX0: velocityX,
+            velocityY0: velocityY,
+            velocityX1: velocityX,
+            velocityY1: velocityY,
+            remainingMs: settled.remainingMs ?? 0,
             segments,
-            platform: support.platform,
+            contactPlatform: support.platform,
+            spacePlatform,
             ignoredFootholdId,
+            horizontalInput: dir,
+            bounds,
+            secondary: true,
           });
-          if (stopped) {
-            worldX = stopped.worldX;
-            worldY = stopped.worldY;
-            velocityX = stopped.velocityX;
-            velocityY = stopped.velocityY;
-          }
-          grounded = false;
-          contact = null;
-          mode = "fall";
+          ({ worldX, worldY, velocityX, velocityY, grounded, contact, mode, ignoredFootholdId, fallTerminalTicks, fallLanding } = adoptSweep(
+            swept, dir, facing, fallSpeed, fallTerminalTicks, fallLanding, ignoredFootholdId,
+          ));
         } else {
           contact = contactOf({
             layer: settled.segment.layer,
@@ -349,61 +444,113 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
     velocityY = air.velocityY;
     worldX += (previousX + velocityX) * dt * 0.5;
     worldY += (previousY + velocityY) * dt * 0.5;
-    const stopped = stopAtVerticalWall({
+    const swept = sweepAirMotion({
       x0: previousFeetX,
       y0: previousFeetY,
       x1: worldX,
       y1: worldY,
-      velocityX,
-      velocityY,
+      velocityX0: previousX,
+      velocityY0: previousY,
+      velocityX1: velocityX,
+      velocityY1: velocityY,
+      remainingMs: BUSINESS_TICK_MS,
       segments,
-      platform: state.platform,
+      contactPlatform: state.platform,
+      spacePlatform,
       ignoredFootholdId,
+      horizontalInput: dir,
+      bounds,
+      secondary: false,
     });
-    if (stopped) {
-      worldX = stopped.worldX;
-      worldY = stopped.worldY;
-      velocityX = stopped.velocityX;
-      velocityY = stopped.velocityY;
-    }
-    const landing = velocityY >= 0
-      ? findLandingSegment(worldX, previousFeetY, worldY, segments, ignoredFootholdId)
-      : null;
-    if (landing !== null && worldY >= landing.surfaceY - GROUND_EPSILON_PX) {
-      const tangent = projectOntoFoothold(velocityX, velocityY, landing.segment);
-      worldY = landing.surfaceY;
-      velocityX = tangent.velocityX;
-      velocityY = tangent.velocityY;
-      grounded = true;
-      contact = contactOf(landing);
-      ignoredFootholdId = null;
-      mode = dir !== 0 ? "walk" : "stand";
-    } else {
-      mode = velocityY < 0 ? "jump" : "fall";
-    }
+    ({ worldX, worldY, velocityX, velocityY, grounded, contact, mode, ignoredFootholdId, fallTerminalTicks, fallLanding } = adoptSweep(
+      swept, dir, facing, fallSpeed, fallTerminalTicks, fallLanding, ignoredFootholdId,
+    ));
   }
 
   const locomotion = mode === "walk" ? "walk" : (mode === "stand" ? "stand" : (mode === "prone" ? "prone" : "jump"));
-  const tickIndex = state.tickIndex + 1;
-  const simulationTimeMs = state.simulationTimeMs + BUSINESS_TICK_MS;
-
-  return Object.freeze({
-    medium: "land",
-    worldX: q(worldX),
-    worldY: q(worldY),
-    velocityX: q(velocityX),
-    velocityY: q(velocityY),
+  return finishMovement(state, {
+    worldX,
+    worldY,
+    velocityX,
+    velocityY,
     facing,
     mode,
     grounded,
     contact,
-    tickIndex,
-    simulationTimeMs,
-    layer: contact?.layer ?? state.layer,
-    platform: contact?.platform ?? state.platform,
+    locomotion,
+    ignoredFootholdId,
+    spacePlatform,
+    fallTerminalTicks,
+    fallLanding,
+    seat,
+  });
+}
+
+function adoptSweep(swept, dir, facing, fallSpeed, fallTerminalTicks, fallLanding, ignoredFootholdId) {
+  let ticks = fallTerminalTicks;
+  let landing = fallLanding;
+  if (swept.landed) {
+    const recorded = takeFallLanding(ticks, fallSpeed, facing);
+    ticks = recorded.ticks;
+    landing = recorded.landing;
+  }
+  const keptIgnored = swept.landed ? null : ignoredFootholdId;
+  if (swept.grounded && swept.segment) {
+    return {
+      worldX: swept.worldX,
+      worldY: swept.worldY,
+      velocityX: swept.velocityX,
+      velocityY: swept.velocityY,
+      grounded: true,
+      contact: contactOf({
+        layer: swept.segment.layer,
+        platform: swept.segment.platform,
+        footholdId: swept.segment.id,
+      }),
+      mode: dir !== 0 ? "walk" : "stand",
+      ignoredFootholdId: keptIgnored,
+      fallTerminalTicks: ticks,
+      fallLanding: landing,
+    };
+  }
+  return {
+    worldX: swept.worldX,
+    worldY: swept.worldY,
+    velocityX: swept.velocityX,
+    velocityY: swept.velocityY,
+    grounded: false,
+    contact: null,
+    mode: swept.velocityY < 0 ? "jump" : "fall",
+    ignoredFootholdId: keptIgnored,
+    fallTerminalTicks: ticks,
+    fallLanding: landing,
+  };
+}
+
+function finishMovement(state, fields) {
+  const locomotion = fields.locomotion
+    ?? (fields.mode === "walk" ? "walk" : (fields.mode === "stand" ? "stand" : (fields.mode === "prone" ? "prone" : "jump")));
+  return Object.freeze({
+    medium: "land",
+    worldX: q(fields.worldX),
+    worldY: q(fields.worldY),
+    velocityX: q(fields.velocityX),
+    velocityY: q(fields.velocityY),
+    facing: fields.facing,
+    mode: fields.mode,
+    grounded: fields.grounded,
+    contact: fields.contact,
+    tickIndex: state.tickIndex + 1,
+    simulationTimeMs: state.simulationTimeMs + BUSINESS_TICK_MS,
+    layer: fields.contact?.layer ?? state.layer,
+    platform: fields.contact?.platform ?? state.platform,
     locomotion,
     ropeContact: null,
-    ignoredFootholdId,
+    ignoredFootholdId: fields.ignoredFootholdId ?? null,
+    spacePlatform: fields.spacePlatform,
+    fallTerminalTicks: fields.fallTerminalTicks,
+    fallLanding: fields.fallLanding,
+    seat: fields.seat,
   });
 }
 
@@ -431,6 +578,8 @@ export function applyMovementToFieldState(fieldState, movement) {
     ropeContact: movement.ropeContact ?? null,
     tickIndex: movement.tickIndex,
     simulationTimeMs: movement.simulationTimeMs,
+    fallLanding: movement.fallLanding ?? null,
+    seat: movement.seat ?? null,
   });
   return Object.freeze({
     ...fieldState,

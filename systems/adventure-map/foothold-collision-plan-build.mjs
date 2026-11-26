@@ -28,6 +28,9 @@ export function buildFootholdCollisionPlan(footholds) {
     y2: Number(row.y2),
     prev: integerLink(row.prev),
     next: integerLink(row.next),
+    force: row.force,
+    drag: row.drag,
+    forbidFallDown: row.forbidFallDown,
   })));
   const ids = new Set(segments.map((segment) => segment.id));
   for (const segment of segments) {

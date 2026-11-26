@@ -39,6 +39,16 @@ export function validateMovementConfig(value) {
     && (!Number.isFinite(value.floatCoefficient) || value.floatCoefficient <= 0 || value.floatCoefficient > 1)) {
     throw new TypeError("movementConfig.floatCoefficient must be in (0, 1]");
   }
+  for (const key of ["minFriction", "maxFriction", "fs"]) {
+    if (value[key] === undefined) continue;
+    if (!Number.isFinite(value[key]) || value[key] < 0 || value[key] > 100) {
+      throw new TypeError(`movementConfig.${key} must be a bounded non-negative number`);
+    }
+  }
+  if (value.minFriction !== undefined && value.maxFriction !== undefined
+    && value.minFriction > value.maxFriction) {
+    throw new TypeError("movementConfig.minFriction must not exceed maxFriction");
+  }
   return Object.freeze({
     ...value,
     source: Object.freeze({ ...source }),

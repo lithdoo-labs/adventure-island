@@ -30,7 +30,20 @@ function playerProvenance(player) {
   });
 }
 
-/** Compute unique contiguous ranks with Player at its Foothold depth. */
+/** Static paint units keep even ranks. The player takes the odd rank in its depth slot. */
+function staticStackRank(staticIndex) {
+  return String(2 * (staticIndex + 1));
+}
+
+function playerStackRank(insertAt) {
+  return String(2 * insertAt + 1);
+}
+
+/**
+ * Place the player among static nodes by sort key.
+ * Static ranks stay fixed for a given node order, so a later depth move
+ * changes only the player's rank.
+ */
 export function playerStackRankPlan(children, player) {
   if (!Array.isArray(children)) throw new TypeError("children must be an array");
   const playerNode = children.find((child) => child.key === PLAYER_WORLD_ITEM_KEY);
@@ -39,12 +52,20 @@ export function playerStackRankPlan(children, player) {
   const sortKey = playerSortKey(player);
   let insertAt = staticChildren.findIndex((child) => sortKey < childSortKey(child));
   if (insertAt < 0) insertAt = staticChildren.length;
-  const ordered = [...staticChildren];
-  ordered.splice(insertAt, 0, playerNode);
-  return Object.freeze(ordered.map((child, index) => Object.freeze({
-    key: child.key,
-    rank: String(index + 1),
-  })));
+  const ordered = [];
+  for (let index = 0; index < staticChildren.length; index += 1) {
+    if (index === insertAt) {
+      ordered.push(Object.freeze({ key: playerNode.key, rank: playerStackRank(insertAt) }));
+    }
+    ordered.push(Object.freeze({
+      key: staticChildren[index].key,
+      rank: staticStackRank(index),
+    }));
+  }
+  if (insertAt === staticChildren.length) {
+    ordered.push(Object.freeze({ key: playerNode.key, rank: playerStackRank(insertAt) }));
+  }
+  return Object.freeze(ordered);
 }
 
 /** Build the first authoritative snapshot before the Domain becomes visible. */
@@ -101,7 +122,8 @@ export function projectInitialMovementRoot(root, fieldState, camera) {
 
 /**
  * Existing-node update for a Player depth transition. Static Canvas data is
- * never resent; only affected ranks and Player provenance change.
+ * never resent. A node whose rank is already the stable value is left alone,
+ * so a foothold change patches the player only.
  */
 export function projectPlayerDepthUpdate(children, player, currentRanks) {
   const plan = playerStackRankPlan(children, player);

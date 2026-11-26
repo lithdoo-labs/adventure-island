@@ -453,9 +453,11 @@ test("T2: the Map projects the static Field scene and reprojects camera on resiz
   assert.equal(root.attrs["camera-y"], "-210");
   assert.ok(root.children.length > 200, "the Field root carries the full map Paint Unit tree");
   const initialPlayer = root.children.find((child) => child.key === "player:adventure");
+  const playerIndex = root.children.findIndex((child) => child.key === "player:adventure");
   assert.ok(initialPlayer);
   assert.equal(initialPlayer.attrs["world-y"], "243", "the first snapshot uses authoritative ground contact");
-  assert.equal(initialPlayer.attrs["stack-rank"], "155", "the first snapshot uses Foothold layer/group depth");
+  assert.equal(playerIndex, 154, "spawn stays between the same paint units");
+  assert.equal(initialPlayer.attrs["stack-rank"], "309", "stable odd rank for that foothold slot");
   assert.equal(harness.eventsHarness.listeners.length, 1, "exactly one Controls consumer listener");
   assert.deepEqual(harness.eventsHarness.listeners[0].channels, ["controls.state", "controls.event"]);
 

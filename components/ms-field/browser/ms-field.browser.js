@@ -3587,6 +3587,68 @@ function cssPx(number) {
   return `${number}px`;
 }
 
+function assignStyleProperty(style, name, value) {
+  if (style.getPropertyValue(name) === value) return;
+  if (value === "") style.removeProperty(name);
+  else style.setProperty(name, value);
+}
+
+function hostStyleRule(styleElement) {
+  const sheet = styleElement?.sheet;
+  if (!sheet) return null;
+  for (const rule of sheet.cssRules) {
+    if (rule.selectorText === ":host") return rule;
+  }
+  return null;
+}
+
+function writeHostPlacement(styleElement, shown, box, leftKey, topKey, sized) {
+  const rule = hostStyleRule(styleElement);
+  if (!rule) return;
+  const style = rule.style;
+  assignStyleProperty(style, "left", cssPx(box[leftKey]));
+  assignStyleProperty(style, "top", cssPx(box[topKey]));
+  if (sized) {
+    assignStyleProperty(style, "width", cssPx(box.w));
+    assignStyleProperty(style, "height", cssPx(box.h));
+  }
+  assignStyleProperty(style, "z-index", String(box.stackRank));
+  assignStyleProperty(style, "visibility", shown ? "" : "hidden");
+}
+
+const HOST_STATIC_BATCH = `
+  :host {
+    position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:auto;
+    left:0px; top:0px; width:0px; height:0px; z-index:1; visibility:hidden;
+  }
+  canvas { position:absolute; margin:0; image-rendering:pixelated; }
+`;
+
+const HOST_STATIC_CANVAS = `
+  :host {
+    position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:none;
+    left:0px; top:0px; width:0px; height:0px; z-index:1; visibility:hidden;
+  }
+  canvas { display:block; image-rendering:pixelated; }
+`;
+
+const HOST_STATIC_SCENE = `
+  :host { display:block; position:absolute; inset:0; margin:0; visibility:hidden; }
+  .viewport { position:absolute; inset:0; overflow:hidden; }
+  .world-plane {
+    position:absolute; left:0; top:0; width:0; height:0; transform-origin:0 0;
+    --ms-scene-camera-x:0px; --ms-scene-camera-y:0px;
+    transform:translate(calc(-1 * var(--ms-scene-camera-x)), calc(-1 * var(--ms-scene-camera-y)));
+  }
+`;
+
+const HOST_STATIC_WORLD = `
+  :host {
+    position:absolute; width:0; height:0; margin:0; padding:0; border:0;
+    left:0px; top:0px; z-index:1; visibility:hidden;
+  }
+`;
+
 function snap(number) {
   const rounded = Math.round(number);
   return Object.is(rounded, -0) ? 0 : rounded;
@@ -3828,21 +3890,15 @@ class MsSceneView extends SpikeElement {
     this._plane.append(slot);
     this._viewport.append(this._plane);
     shadow.append(this._style, this._viewport);
+    this._style.textContent = HOST_STATIC_SCENE;
     this._writeHost(false);
   }
 
   _writeHost(shown) {
     this._desiredVisible = shown;
-    if (!this._style) return;
-    this._style.textContent = `
-      :host { display:block; position:absolute; inset:0; margin:0; ${shown ? "" : "visibility:hidden;"} }
-      .viewport { position:absolute; inset:0; overflow:hidden; }
-      .world-plane {
-        position:absolute; left:0; top:0; width:0; height:0; transform-origin:0 0;
-        --ms-scene-camera-x:0px; --ms-scene-camera-y:0px;
-        transform:translate(calc(-1 * var(--ms-scene-camera-x)), calc(-1 * var(--ms-scene-camera-y)));
-      }
-    `;
+    const rule = hostStyleRule(this._style);
+    if (!rule) return;
+    assignStyleProperty(rule.style, "visibility", shown ? "" : "hidden");
   }
 
   _applyInput() {
@@ -3856,8 +3912,8 @@ class MsSceneView extends SpikeElement {
     if (!data.ok) return this._failInput(data);
     const cameraX = snap(attrs.value.cameraX);
     const cameraY = snap(attrs.value.cameraY);
-    this._plane.style.setProperty("--ms-scene-camera-x", cssPx(cameraX));
-    this._plane.style.setProperty("--ms-scene-camera-y", cssPx(cameraY));
+    assignStyleProperty(this._plane.style, "--ms-scene-camera-x", cssPx(cameraX));
+    assignStyleProperty(this._plane.style, "--ms-scene-camera-y", cssPx(cameraY));
     this._state = "ready";
     this._code = null;
     this._detail = "";
@@ -3873,8 +3929,20 @@ class MsMapBatch extends SpikeElement {
   constructor() {
     super();
     this._abort = null;
-    this._paintedSignature = null;
-    this._loadingSignature = null;
+    this._paintedData = null;
+    this._loadingData = null;
+  }
+
+  _failInput(result) {
+    this._paintedData = null;
+    this._loadingData = null;
+    super._failInput(result);
+  }
+
+  _releaseSurface() {
+    this._paintedData = null;
+    this._loadingData = null;
+    super._releaseSurface();
   }
 
   _installShadow() {
@@ -3885,6 +3953,7 @@ class MsMapBatch extends SpikeElement {
     this._canvas.setAttribute("aria-hidden", "true");
     this._surfaces.push(this._canvas);
     shadow.append(this._style, this._canvas);
+    this._style.textContent = HOST_STATIC_BATCH;
     this._writeHost(false, { x: 0, y: 0, w: 0, h: 0, stackRank: 1 });
   }
 
@@ -3904,14 +3973,7 @@ class MsMapBatch extends SpikeElement {
     this._desiredVisible = shown;
     this._box = box;
     if (!this._style || !box) return;
-    this._style.textContent = `
-      :host {
-        position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:auto;
-        left:${cssPx(box.x)}; top:${cssPx(box.y)}; width:${cssPx(box.w)}; height:${cssPx(box.h)};
-        z-index:${box.stackRank}; ${shown ? "" : "visibility:hidden;"}
-      }
-      canvas { position:absolute; margin:0; image-rendering:pixelated; }
-    `;
+    writeHostPlacement(this._style, shown, box, "x", "y", true);
   }
 
   _clearCanvas() {
@@ -3929,17 +3991,20 @@ class MsMapBatch extends SpikeElement {
     const attrs = validateBatchAttrs(declared.value);
     if (!attrs.ok) return this._failInput(attrs);
     if (this._data === undefined) return;
-    const data = validateBatchData(this._data);
-    if (!data.ok) return this._failInput(data);
-    const box = { ...data.value.bounds, stackRank: attrs.value.stackRank };
-    const signature = JSON.stringify(data.value);
-    if (signature === this._paintedSignature && this._state === "ready") {
-      this._writeHost(attrs.value.visible, box);
+    const source = this._data;
+    if (this._state === "ready" && source === this._paintedData && this._box) {
+      this._writeHost(attrs.value.visible, { ...this._box, stackRank: attrs.value.stackRank });
       return;
     }
+    if (this._state === "loading" && source === this._loadingData && this._box) {
+      this._writeHost(false, { ...this._box, stackRank: attrs.value.stackRank });
+      return;
+    }
+    const data = validateBatchData(source);
+    if (!data.ok) return this._failInput(data);
+    const box = { ...data.value.bounds, stackRank: attrs.value.stackRank };
     this._writeHost(false, box);
-    if (signature === this._loadingSignature) return;
-    this._loadingSignature = signature;
+    this._loadingData = source;
     this._epoch += 1;
     const epoch = this._epoch;
     this._abort?.abort();
@@ -3949,10 +4014,10 @@ class MsMapBatch extends SpikeElement {
     this._code = null;
     this._detail = "";
     this._clearCanvas();
-    void this._paint(data.value, signature, epoch, controller, attrs.value.visible);
+    void this._paint(data.value, source, epoch, controller, attrs.value.visible);
   }
 
-  async _paint(data, signature, epoch, controller, visible) {
+  async _paint(data, source, epoch, controller, visible) {
     const bitmaps = [];
     try {
       if (this._context?.resources?.resource === undefined) {
@@ -4021,8 +4086,8 @@ class MsMapBatch extends SpikeElement {
         canvas.getContext("2d").drawImage(offscreen, 0, 0);
       }
       this._paintCommits += 1;
-      this._paintedSignature = signature;
-      this._loadingSignature = null;
+      this._paintedData = source;
+      this._loadingData = null;
       this._state = "ready";
       this._code = null;
       this._detail = "";
@@ -4043,8 +4108,8 @@ class MsMapBatch extends SpikeElement {
 
   _failPaint(epoch, code, detail) {
     if (epoch !== this._epoch) return;
-    this._paintedSignature = null;
-    this._loadingSignature = null;
+    this._paintedData = null;
+    this._loadingData = null;
     this._state = code === "INPUT_INVALID" || code === "DEPTH_PLAN_INVALID" ? "invalid" : "failed";
     this._code = code;
     this._detail = detail;
@@ -4330,6 +4395,7 @@ class MsMapBack extends SpikeElement {
     this._canvas = document.createElement("canvas");
     this._canvas.setAttribute("aria-hidden", "true");
     shadow.append(this._style, this._canvas);
+    this._style.textContent = HOST_STATIC_CANVAS;
     this._writeHost(false, { viewX: 0, viewY: 0, stackRank: 1, w: 0, h: 0 });
   }
 
@@ -4337,14 +4403,7 @@ class MsMapBack extends SpikeElement {
     this._desiredVisible = shown;
     this._box = box;
     if (!this._style || !box) return;
-    this._style.textContent = `
-      :host {
-        position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:none;
-        left:${cssPx(box.viewX)}; top:${cssPx(box.viewY)}; width:${cssPx(box.w)}; height:${cssPx(box.h)};
-        z-index:${box.stackRank}; ${shown ? "" : "visibility:hidden;"}
-      }
-      canvas { display:block; image-rendering:pixelated; }
-    `;
+    writeHostPlacement(this._style, shown, box, "viewX", "viewY", true);
   }
 
   _clearCanvas() {
@@ -4744,6 +4803,7 @@ class MsStandalonePaintUnit extends SpikeElement {
     this._canvas = document.createElement("canvas");
     this._canvas.setAttribute("aria-hidden", "true");
     shadow.append(this._style, this._canvas);
+    this._style.textContent = HOST_STATIC_CANVAS;
     this._writeHost(false, { worldX: 0, worldY: 0, stackRank: 1, w: 0, h: 0 });
   }
 
@@ -4751,14 +4811,7 @@ class MsStandalonePaintUnit extends SpikeElement {
     this._desiredVisible = shown;
     this._box = box;
     if (!this._style || !box) return;
-    this._style.textContent = `
-      :host {
-        position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:none;
-        left:${cssPx(box.worldX)}; top:${cssPx(box.worldY)}; width:${cssPx(box.w)}; height:${cssPx(box.h)};
-        z-index:${box.stackRank}; ${shown ? "" : "visibility:hidden;"}
-      }
-      canvas { display:block; image-rendering:pixelated; }
-    `;
+    writeHostPlacement(this._style, shown, box, "worldX", "worldY", true);
   }
 
   _clearCanvas() {
@@ -4980,6 +5033,7 @@ class MsMapObject extends SpikeElement {
     this._canvas = document.createElement("canvas");
     this._canvas.setAttribute("aria-hidden", "true");
     shadow.append(this._style, this._canvas);
+    this._style.textContent = HOST_STATIC_CANVAS;
     this._writeHost(false, { worldX: 0, worldY: 0, stackRank: 1, w: 0, h: 0 });
   }
 
@@ -5006,14 +5060,7 @@ class MsMapObject extends SpikeElement {
     this._desiredVisible = shown;
     this._box = box;
     if (!this._style || !box) return;
-    this._style.textContent = `
-      :host {
-        position:absolute; margin:0; padding:0; border:0; background:transparent; pointer-events:none;
-        left:${cssPx(box.worldX)}; top:${cssPx(box.worldY)}; width:${cssPx(box.w)}; height:${cssPx(box.h)};
-        z-index:${box.stackRank}; ${shown ? "" : "visibility:hidden;"}
-      }
-      canvas { display:block; image-rendering:pixelated; }
-    `;
+    writeHostPlacement(this._style, shown, box, "worldX", "worldY", true);
   }
 
   _clearCanvas() {
@@ -5814,6 +5861,7 @@ class MsWorldItem extends SpikeElement {
     const shadow = this.attachShadow({ mode: "open" });
     this._style = document.createElement("style");
     shadow.append(this._style, document.createElement("slot"));
+    this._style.textContent = HOST_STATIC_WORLD;
     this._writeHost(false, { worldX: 0, worldY: 0, stackRank: 1 });
   }
 
@@ -5821,13 +5869,7 @@ class MsWorldItem extends SpikeElement {
     this._desiredVisible = shown;
     this._box = box;
     if (!this._style || !box) return;
-    this._style.textContent = `
-      :host {
-        position:absolute; width:0; height:0; margin:0; padding:0; border:0;
-        left:${cssPx(box.worldX)}; top:${cssPx(box.worldY)}; z-index:${box.stackRank};
-        ${shown ? "" : "visibility:hidden;"}
-      }
-    `;
+    writeHostPlacement(this._style, shown, box, "worldX", "worldY", false);
   }
 
   _applyInput() {

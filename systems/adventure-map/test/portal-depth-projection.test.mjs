@@ -36,10 +36,8 @@ test("depth updates reference epoch children present in committed render tree", 
   const ranks = new Map(activeRenderChildren.map((c) => [c.key, c.attrs["stack-rank"]]));
   const depth = projectPlayerDepthUpdate(activeRenderChildren, player, ranks);
   const liveKeys = new Set(activeRenderChildren.map((c) => c.key));
+  assert.deepEqual(depth.nodes.map((node) => node.key), ["player:adventure"]);
   for (const node of depth.nodes) {
     assert.ok(liveKeys.has(node.key), `depth update must target live key ${node.key}`);
-    if (node.key !== "player:adventure") {
-      assert.match(node.key, /:e1$/u, "static depth targets must carry scene epoch suffix");
-    }
   }
 });

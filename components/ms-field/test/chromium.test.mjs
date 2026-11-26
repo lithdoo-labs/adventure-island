@@ -195,6 +195,30 @@ test("camera update keeps static batch paint counts stable", { timeout: 120_000 
   });
   assert.deepEqual(after.paints, before);
   assert.equal(after.cameraX.trim(), "10px");
+
+  const batch = projection.root.children.find((child) => child.tag === "ms-map-batch");
+  const nextRank = batch.attrs["stack-rank"] === "1" ? "2" : "1";
+  await page.evaluate(({ key, rank }) => window.__update([{
+    op: "update",
+    key,
+    attrs: { set: { "stack-rank": rank } },
+  }]), { key: batch.key, rank: nextRank });
+  await waitFor(
+    page,
+    (rank) => document.querySelector("ms-map-batch")?.getAttribute("stack-rank") === rank,
+    "batch stack rank moved",
+    20_000,
+    nextRank,
+  );
+  const afterRank = await page.evaluate(() => {
+    const host = document.querySelector("ms-map-batch");
+    return {
+      paints: [...document.querySelectorAll("ms-map-batch")].map((batch) => batch.diagnostics().paintCommits),
+      zIndex: getComputedStyle(host).zIndex,
+    };
+  });
+  assert.deepEqual(afterRank.paints, before);
+  assert.equal(afterRank.zIndex, nextRank);
 });
 
 test("field scene commits drawable pixels on ms-avatar and finite canvases", { timeout: 120_000 }, async (t) => {

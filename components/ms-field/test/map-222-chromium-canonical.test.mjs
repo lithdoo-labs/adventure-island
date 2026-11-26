@@ -254,14 +254,15 @@ test("canonical 222000000 full WebProjector scene: all visual canvases, ranks, b
     staticPaints: [...document.querySelectorAll("ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual")]
       .map((host) => host.diagnostics().paintCommits),
     avatarRounds: document.querySelector("ms-avatar").diagnostics().paintRounds,
-    hostStyle: document.querySelector("ms-world-item").shadowRoot.querySelector("style").textContent,
+    hostLeft: getComputedStyle(document.querySelector("ms-world-item")).left,
+    hostTop: getComputedStyle(document.querySelector("ms-world-item")).top,
   }));
   assert.deepEqual(afterWorldMove.staticPaints, beforeWorldMove.staticPaints,
     "world position updates must not repaint static map canvases");
   assert.equal(afterWorldMove.avatarRounds, beforeWorldMove.avatarRounds,
     "world position updates must not repaint the local avatar canvas");
-  assert.match(afterWorldMove.hostStyle, /left:1340px; top:220px;/,
-    "world position belongs to the outer ms-world-item host");
+  assert.equal(afterWorldMove.hostLeft, "1340px");
+  assert.equal(afterWorldMove.hostTop, "220px");
 
   const playerIndex = projection.root.children.findIndex((child) => child.key === "player:adventure");
   const nextDepthNode = projection.root.children[playerIndex + 1];

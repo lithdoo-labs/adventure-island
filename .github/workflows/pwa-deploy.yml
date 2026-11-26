@@ -77,30 +77,11 @@ jobs:
           test -S /var/run/docker.sock
           publisher="$PWA_DATA_ROOT/publisher/bin/deploy.mjs"
           test -f "$publisher"
-          # Windows excludes 127.0.0.1:8790 on the lab host. Keep that port first,
-          # then try others only when the bind is refused.
-          published=0
-          for port in 8790 18790 19790 20790; do
-            set +e
-            output="$(node "$publisher" publish \
-              --app adventure-island \
-              --source "$GITHUB_WORKSPACE/dist/staging/adventure-island" \
-              --commit "$EXPECTED_SHA" \
-              --game-root "$GITHUB_WORKSPACE" \
-              --data-root "$PWA_DATA_ROOT" \
-              --engine-root "$PWA_DATA_ROOT" \
-              --candidate-port "$port" \
-              --source-run "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${{ github.event.workflow_run.id }}")"
-            code=$?
-            set -e
-            printf '%s\n' "$output"
-            if [ "$code" -eq 0 ]; then
-              published=1
-              break
-            fi
-            if ! printf '%s\n' "$output" | grep -q 'forbidden by its access permissions'; then
-              exit "$code"
-            fi
-            echo "Windows refused 127.0.0.1:${port}; trying another candidate port"
-          done
-          test "$published" = 1
+          # The previous attempt recreated loomrealm-pwa-web-1 and Windows then
+          # refused 127.0.0.1:8787. Start that container again. Do not recreate it.
+          docker ps -a --filter name=loomrealm-pwa --format '{{.Names}} {{.Status}} {{.Ports}}'
+          if ! docker ps --filter name=loomrealm-pwa-web-1 --filter status=running --format '{{.ID}}' | grep -q .; then
+            docker start loomrealm-pwa-web-1
+          fi
+          docker ps --filter name=loomrealm-pwa-web-1 --format '{{.Names}} {{.Status}} {{.Ports}}'
+          docker inspect loomrealm-pwa-web-1 --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}'

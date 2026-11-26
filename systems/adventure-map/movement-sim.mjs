@@ -12,6 +12,7 @@ import {
   projectOntoFoothold,
   settleGroundTravel,
   stepAirVelocity,
+  stopAtVerticalWall,
 } from "./movement-dynamics.mjs";
 
 export const BUSINESS_TICK_MS = 20;
@@ -306,6 +307,23 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
         velocityY = settled.velocityY;
         ranFoothold = true;
         if (!settled.on) {
+          const stopped = stopAtVerticalWall({
+            x0: settled.entryX,
+            y0: settled.entryY,
+            x1: worldX,
+            y1: worldY,
+            velocityX,
+            velocityY,
+            segments,
+            platform: support.platform,
+            ignoredFootholdId,
+          });
+          if (stopped) {
+            worldX = stopped.worldX;
+            worldY = stopped.worldY;
+            velocityX = stopped.velocityX;
+            velocityY = stopped.velocityY;
+          }
           grounded = false;
           contact = null;
           mode = "fall";
@@ -324,12 +342,30 @@ export function stepMovement(state, intent, footholdCollisionPlan, movementConfi
   if (!grounded && !ranFoothold) {
     const previousX = velocityX;
     const previousY = velocityY;
+    const previousFeetX = worldX;
     const previousFeetY = worldY;
     const air = stepAirVelocity(velocityX, velocityY, dir, movementConfig, dt);
     velocityX = air.velocityX;
     velocityY = air.velocityY;
     worldX += (previousX + velocityX) * dt * 0.5;
     worldY += (previousY + velocityY) * dt * 0.5;
+    const stopped = stopAtVerticalWall({
+      x0: previousFeetX,
+      y0: previousFeetY,
+      x1: worldX,
+      y1: worldY,
+      velocityX,
+      velocityY,
+      segments,
+      platform: state.platform,
+      ignoredFootholdId,
+    });
+    if (stopped) {
+      worldX = stopped.worldX;
+      worldY = stopped.worldY;
+      velocityX = stopped.velocityX;
+      velocityY = stopped.velocityY;
+    }
     const landing = velocityY >= 0
       ? findLandingSegment(worldX, previousFeetY, worldY, segments, ignoredFootholdId)
       : null;

@@ -270,6 +270,57 @@ test("a vertical next edge stops the body instead of playing a jump", () => {
   assert.equal(movement.velocityX, 0);
 });
 
+test("an unlinked upward step face stops the coast and blocks the floor beyond it", () => {
+  const floor = { layer: 3, platform: 0, id: 18, x1: 0, y1: 0, x2: 10, y2: 0, prev: 0, next: 0 };
+  const wall = { layer: 3, platform: 0, id: 10, x1: 14, y1: 20, x2: 14, y2: -20, prev: 0, next: 0 };
+  const beyond = { layer: 3, platform: 0, id: 99, x1: 16, y1: 40, x2: 80, y2: 40, prev: 0, next: 0 };
+  const plan = { segments: [floor, wall, beyond] };
+  let movement = createMovementState({ worldX: 8, worldY: 0, segments: plan.segments });
+  let crossed = false;
+  for (let tick = 0; tick < 80; tick += 1) {
+    movement = stepMovement(movement, movementIntentFromHeld(["right"]), plan, movementConfig);
+    if (movement.worldX > 14) crossed = true;
+  }
+  assert.equal(crossed, false);
+  assert.ok(movement.worldX <= 14);
+  assert.notEqual(movement.contact?.footholdId, 99);
+  assert.ok(movement.velocityX === 0);
+});
+
+test("a downward face at a lip still lets the body walk off", () => {
+  const floor = { layer: 0, platform: 0, id: 1, x1: 0, y1: 0, x2: 10, y2: 0, prev: 0, next: 0 };
+  const wall = { layer: 0, platform: 0, id: 2, x1: 10, y1: 0, x2: 10, y2: 40, prev: 1, next: 0 };
+  const lower = { layer: 0, platform: 0, id: 3, x1: 10, y1: 80, x2: 400, y2: 80, prev: 0, next: 0 };
+  const plan = { segments: [floor, wall, lower] };
+  let movement = createMovementState({ worldX: 8, worldY: 0, segments: plan.segments });
+  let passedFace = false;
+  for (let tick = 0; tick < 40 && movement.contact?.footholdId !== 3; tick += 1) {
+    movement = stepMovement(movement, movementIntentFromHeld(["right"]), plan, movementConfig);
+    if (movement.worldX > 10.5 && movement.worldY < 40) passedFace = true;
+  }
+  assert.equal(passedFace, true);
+  assert.equal(movement.grounded, true);
+  assert.equal(movement.contact.footholdId, 3);
+});
+
+test("map 222000001 stops a walk from the unlinked ledge into either shaft wall", async () => {
+  const map = await buildMapProjection({ mapId: "222000001", gameRoot: repoRoot });
+  const plan = buildFootholdCollisionPlan(map.scene.footholds);
+  let right = createMovementState({ worldX: 40, worldY: 514, segments: plan.segments });
+  assert.equal(right.contact.footholdId, 18);
+  for (let tick = 0; tick < 80; tick += 1) {
+    right = stepMovement(right, movementIntentFromHeld(["right"]), plan, movementConfig);
+    assert.ok(right.worldX <= 83, `tick ${tick} x ${right.worldX}`);
+  }
+  assert.equal(right.velocityX, 0);
+  let left = createMovementState({ worldX: -40, worldY: 514, segments: plan.segments });
+  for (let tick = 0; tick < 80; tick += 1) {
+    left = stepMovement(left, movementIntentFromHeld(["left"]), plan, movementConfig);
+    assert.ok(left.worldX >= -85, `tick ${tick} x ${left.worldX}`);
+  }
+  assert.equal(left.velocityX, 0);
+});
+
 test("the village flat chain keeps walk from the spawn seam through the one-pixel link", async () => {
   const map = await buildMapProjection({ mapId: "222000000", gameRoot: repoRoot });
   const plan = buildFootholdCollisionPlan(map.scene.footholds);

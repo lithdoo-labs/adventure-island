@@ -339,3 +339,25 @@ test("swim body stops at the physical sides and the top, and the bottom is not a
   assert.equal(spawned.worldX, 513);
   assert.equal(spawned.worldY, -394);
 });
+
+test("a swim coast into an unlinked upward wall stays on the near side", () => {
+  const floor = { layer: 0, platform: 3, id: 1, x1: 0, y1: 0, x2: 10, y2: 0, prev: 0, next: 0 };
+  const wall = { layer: 0, platform: 3, id: 2, x1: 14, y1: 20, x2: 14, y2: -20, prev: 0, next: 0 };
+  const plan = { segments: [floor, wall] };
+  let movement = Object.freeze({
+    ...createWaterMovementState({ worldX: 8, worldY: 0, platform: 3 }),
+    grounded: true,
+    contact: Object.freeze({ layer: 0, platform: 3, footholdId: 1 }),
+    platform: 3,
+  });
+  for (let tick = 0; tick < 40; tick += 1) {
+    movement = stepSwimMapMovement(
+      movement,
+      movementIntentFromHeld(["right"]),
+      plan,
+      movementConfig,
+    );
+    assert.ok(movement.worldX <= 14, `tick ${tick} x ${movement.worldX}`);
+  }
+  assert.ok(movement.velocityX === 0);
+});

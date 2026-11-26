@@ -30,6 +30,7 @@ import {
   integrateFoothold,
   settleGroundTravel,
   jumpHorizontal,
+  stopAtVerticalWall,
 } from "./movement-dynamics.mjs";
 import {
   BUSINESS_TICK_MS,
@@ -364,6 +365,23 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
         velocityY = settled.velocityY;
         horizontalIntegrated = true;
         if (!settled.on) {
+          const stopped = stopAtVerticalWall({
+            x0: settled.entryX,
+            y0: settled.entryY,
+            x1: worldX,
+            y1: worldY,
+            velocityX,
+            velocityY,
+            segments,
+            platform: support.platform,
+            ignoredFootholdId,
+          });
+          if (stopped) {
+            worldX = stopped.worldX;
+            worldY = stopped.worldY;
+            velocityX = stopped.velocityX;
+            velocityY = stopped.velocityY;
+          }
           grounded = false;
           contact = null;
         } else {
@@ -398,6 +416,8 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
 
   const steppedX = worldX;
   const previousY = worldY;
+  const swimOriginX = worldX;
+  const swimOriginY = worldY;
   const swam = stepWaterMovement(
     {
       ...state,
@@ -418,8 +438,30 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
     movementConfig,
     leaveForJump ? { ...edges, jumpPressed: true } : edges,
   );
-  const resolvedX = horizontalIntegrated ? steppedX : swam.worldX;
-  const clippedMove = clipSwimBody(resolvedX, swam.worldY, swam.velocityX, swam.velocityY, bounds, false);
+  let resolvedX = horizontalIntegrated ? steppedX : swam.worldX;
+  let resolvedY = swam.worldY;
+  let resolvedVx = swam.velocityX;
+  let resolvedVy = swam.velocityY;
+  if (!horizontalIntegrated) {
+    const stopped = stopAtVerticalWall({
+      x0: swimOriginX,
+      y0: swimOriginY,
+      x1: resolvedX,
+      y1: resolvedY,
+      velocityX: resolvedVx,
+      velocityY: resolvedVy,
+      segments,
+      platform: state.platform,
+      ignoredFootholdId,
+    });
+    if (stopped) {
+      resolvedX = stopped.worldX;
+      resolvedY = stopped.worldY;
+      resolvedVx = stopped.velocityX;
+      resolvedVy = stopped.velocityY;
+    }
+  }
+  const clippedMove = clipSwimBody(resolvedX, resolvedY, resolvedVx, resolvedVy, bounds, false);
   const landing = clippedMove.velocityY >= 0
     ? findLandingSegment(clippedMove.worldX, previousY, clippedMove.worldY, segments, ignoredFootholdId)
     : null;

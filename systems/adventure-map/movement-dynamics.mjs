@@ -178,6 +178,8 @@ export function settleGroundTravel(moved, segment, segments, dt) {
     return {
       on: false,
       segment: current,
+      entryX: released.worldX,
+      entryY: released.worldY,
       worldX: released.worldX + released.velocityX * seconds,
       worldY: released.worldY + released.velocityY * seconds,
       velocityX: released.velocityX,
@@ -261,6 +263,48 @@ export function stepAirVelocity(velocityX, velocityY, direction, config, dt) {
     vx = approach(vx, 0, ((drag * coefficient) / MASS) * dt);
   }
   return { velocityX: vx, velocityY: vy };
+}
+
+/**
+ * One-way foot sweep against a vertical foothold, OpenMS 009b34c8.
+ * Floors stay with the landing query. A wall stops the side the segment faces
+ * and leaves the other side open, so a ledge can still be walked off.
+ * @param {object} move
+ */
+export function stopAtVerticalWall(move) {
+  let best = null;
+  for (const segment of move.segments) {
+    if (segment.platform !== move.platform) continue;
+    if (move.ignoredFootholdId != null && segment.id === move.ignoredFootholdId) continue;
+    const hit = verticalWallHit(move.x0, move.y0, move.x1, move.y1, segment);
+    if (hit && (best === null || hit.fraction < best.fraction)) best = hit;
+  }
+  if (!best) return null;
+  const speed = move.velocityX * best.tx + move.velocityY * best.ty;
+  return {
+    worldX: best.x,
+    worldY: best.y,
+    velocityX: speed * best.tx,
+    velocityY: speed * best.ty,
+  };
+}
+
+function verticalWallHit(x0, y0, x1, y1, segment) {
+  const dx = segment.x2 - segment.x1;
+  const dy = segment.y2 - segment.y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 1e-9 || Math.abs(dx) > 1e-6) return null;
+  const startSide = (y0 - segment.y1) * dx - (x0 - segment.x1) * dy;
+  const endSide = (y1 - segment.y1) * dx - (x1 - segment.x1) * dy;
+  if (startSide > 0 || endSide < 0 || startSide === endSide) return null;
+  const fraction = startSide / (startSide - endSide);
+  const x = x0 + (x1 - x0) * fraction;
+  const y = y0 + (y1 - y0) * fraction;
+  const tx = dx / len;
+  const ty = dy / len;
+  const distance = (x - segment.x1) * tx + (y - segment.y1) * ty;
+  if (distance < -1e-6 || distance > len + 1e-6) return null;
+  return { fraction, x, y, tx, ty };
 }
 
 export function projectOntoFoothold(velocityX, velocityY, segment) {

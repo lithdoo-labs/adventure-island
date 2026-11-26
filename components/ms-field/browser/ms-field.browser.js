@@ -11,10 +11,6 @@ const FIELD_CANVAS_LIMITS = Object.freeze({
   maxCanvasWidth: 2048,
   maxCanvasHeight: 2048,
   maxCanvasPixels: 4_194_304,
-  // Sliding one extra tile must stay inside the M7.1 water-map local canvas
-  // ceiling (portal-budgets maxWaterMapLocalCanvasPixels). The 1028×720 route
-  // viewport plus a 100×99 tile is 1128×819 and fails that gate.
-  maxSlidingBackPixels: 900_000,
 });
 
 const FIELD_INPUT_LIMITS = Object.freeze({
@@ -4178,30 +4174,19 @@ function backTileStep(layout, axis) {
 }
 
 /**
- * A tiled back paints once at phase 0 into a surface one step larger than the
- * viewport, then slides that bitmap with a canvas translate. The extra step
- * is skipped when it would miss the field canvas budget or the M7.1 sliding
- * ceiling; those backs keep the viewport-sized redraw.
+ * Tiled backs stay on the viewport-sized surface. One extra tile would let
+ * the bitmap slide instead of repainting, but on the resolved 1028×720 water
+ * map those tiles add about 2M pixels and the M7.1 total ceiling only has
+ * about 0.6M of slack.
  */
 function chooseBackCanvas(layout, fallbackW, fallbackH, ratio) {
   const baseW = layout?.canvasWidth ?? fallbackW;
   const baseH = layout?.canvasHeight ?? fallbackH;
   if (!Number.isFinite(baseW) || !Number.isFinite(baseH) || baseW <= 0 || baseH <= 0) return null;
-  const stepX = backTileStep(layout, "x");
-  const stepY = backTileStep(layout, "y");
-  const bleedW = baseW + stepX;
-  const bleedH = baseH + stepY;
-  const bleedDeviceW = Math.round(bleedW * ratio);
-  const bleedDeviceH = Math.round(bleedH * ratio);
-  const canBleed = (stepX > 0 || stepY > 0)
-    && deviceCanvasFitsBudget(bleedDeviceW, bleedDeviceH)
-    && bleedDeviceW * bleedDeviceH <= FIELD_CANVAS_LIMITS.maxSlidingBackPixels;
-  const w = canBleed ? bleedW : baseW;
-  const h = canBleed ? bleedH : baseH;
-  const deviceW = Math.round(w * ratio);
-  const deviceH = Math.round(h * ratio);
+  const deviceW = Math.round(baseW * ratio);
+  const deviceH = Math.round(baseH * ratio);
   if (!deviceCanvasFitsBudget(deviceW, deviceH)) return null;
-  return { w, h, deviceW, deviceH, externalPhase: canBleed };
+  return { w: baseW, h: baseH, deviceW, deviceH, externalPhase: false };
 }
 
 function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null, surface = null) {

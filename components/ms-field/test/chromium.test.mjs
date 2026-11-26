@@ -5,7 +5,6 @@ import path from "node:path";
 import test, { after, before } from "node:test";
 import { fileURLToPath } from "node:url";
 import { buildFieldProjection } from "../src/field-project.mjs";
-import { FIELD_CANVAS_LIMITS } from "../src/limits.mjs";
 import { RESOURCE_READ_CONCURRENCY } from "../src/resource-read-pool.mjs";
 import { buildCanonicalAdventureAvatarContent } from "../../../scripts/pwa/read-adventure-fsdb.mjs";
 import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
@@ -721,24 +720,7 @@ test("M7.6 relayout during Content load cannot restore stale viewport geometry",
       hostWidth: getComputedStyle(host).width,
       canvasWidth: host.shadowRoot.querySelector("canvas").style.width,
     })));
-  const fittedWidth = (layout) => {
-    const stepX = layout?.tileHorizontal
-      ? (layout.tileStepX > 0 ? layout.tileStepX : layout.frameWidth)
-      : 0;
-    const stepY = layout?.tileVertical
-      ? (layout.tileStepY > 0 ? layout.tileStepY : layout.frameHeight)
-      : 0;
-    const width = (layout?.canvasWidth ?? 0) + (stepX > 0 ? stepX : 0);
-    const height = (layout?.canvasHeight ?? 0) + (stepY > 0 ? stepY : 0);
-    const deviceW = Math.round(width);
-    const deviceH = Math.round(height);
-    const fits = (stepX > 0 || stepY > 0)
-      && deviceW <= FIELD_CANVAS_LIMITS.maxCanvasWidth
-      && deviceH <= FIELD_CANVAS_LIMITS.maxCanvasHeight
-      && deviceW * deviceH <= FIELD_CANVAS_LIMITS.maxCanvasPixels
-      && deviceW * deviceH <= FIELD_CANVAS_LIMITS.maxSlidingBackPixels;
-    return `${fits ? width : layout.canvasWidth}px`;
-  };
+  const fittedWidth = (layout) => `${layout.canvasWidth}px`;
   assert.deepEqual(latestGeometry, [back, otherBack].map((child) => {
     const patch = relayout.find((node) => node.key === child.key);
     const layout = patch?.data?.set?.layout ?? child.data.layout;

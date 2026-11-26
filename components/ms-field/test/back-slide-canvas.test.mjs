@@ -17,10 +17,10 @@ test("the resolved 1028×720 water back keeps the viewport canvas when one extra
   assert.equal(chosen.externalPhase, false);
   assert.equal(chosen.deviceW, 1028);
   assert.equal(chosen.deviceH, 720);
-  assert.ok(chosen.deviceW * chosen.deviceH <= FIELD_CANVAS_LIMITS.maxSlidingBackPixels);
+  assert.ok(chosen.deviceW * chosen.deviceH <= FIELD_CANVAS_LIMITS.maxCanvasPixels);
 });
 
-test("a tiled back still slides when the extra tile stays inside the ceiling", () => {
+test("a tiled back does not grow by one tile; the water-map total cannot absorb it", () => {
   const chosen = chooseBackCanvas({
     canvasWidth: 1000,
     canvasHeight: 600,
@@ -31,8 +31,8 @@ test("a tiled back still slides when the extra tile stays inside the ceiling", (
     tileHorizontal: true,
     tileVertical: false,
   }, 1000, 600, 1);
-  assert.equal(chosen.externalPhase, true);
-  assert.equal(chosen.deviceW, 1100);
+  assert.equal(chosen.externalPhase, false);
+  assert.equal(chosen.deviceW, 1000);
   assert.equal(chosen.deviceH, 600);
-  assert.ok(chosen.deviceW * chosen.deviceH <= FIELD_CANVAS_LIMITS.maxSlidingBackPixels);
+  assert.ok(chosen.deviceW * chosen.deviceH <= FIELD_CANVAS_LIMITS.maxCanvasPixels);
 });

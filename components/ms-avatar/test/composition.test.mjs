@@ -3,6 +3,7 @@ import test from "node:test";
 import { layoutFrame, occludedLayers } from "../../cms-actor/src/avatar-model.mjs";
 import { composeInternalPaintPlan, shouldMirrorAvatar } from "../src/compose-internal-plan.mjs";
 import { validateAvatarRenderData, validateMsActionData } from "../src/avatar-render-data.mjs";
+import { stagePaintRatio } from "../src/ms-avatar.mjs";
 
 const version = `sha256:${"1".repeat(64)}`;
 const zOrder = ["hair", "face", "head", "body"];
@@ -63,4 +64,27 @@ test("slot priority and facing/frame flip retain CMS079 composition semantics", 
   assert.equal(shouldMirrorAvatar("left", false), false);
   assert.equal(shouldMirrorAvatar("right", true), false);
   assert.equal(shouldMirrorAvatar("left", true), true);
+});
+
+test("the avatar backing follows the logical grid when the stage scale is fractional", () => {
+  const previous = globalThis.devicePixelRatio;
+  globalThis.devicePixelRatio = 1.25;
+  try {
+    const fractional = {
+      closest() {
+        return { diagnostics: () => ({ scaleX: 1.3723536737235367, scaleY: 1.3723536737235367 }) };
+      },
+    };
+    const aligned = {
+      closest() {
+        return { diagnostics: () => ({ scaleX: 1.6, scaleY: 1.6 }) };
+      },
+    };
+    assert.deepEqual(stagePaintRatio(fractional), { ratio: 1, smooth: true });
+    assert.deepEqual(stagePaintRatio(aligned), { ratio: 2, smooth: false });
+    assert.deepEqual(stagePaintRatio({ closest() { return null; } }), { ratio: 1.25, smooth: false });
+  } finally {
+    if (previous === undefined) delete globalThis.devicePixelRatio;
+    else globalThis.devicePixelRatio = previous;
+  }
 });

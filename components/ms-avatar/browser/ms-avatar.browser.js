@@ -1071,6 +1071,33 @@ const MAX_CONCURRENT_DECODES = 8;
 /**
  * M4 paper-doll renderer — consumes render-ready appearance/actions/sprites.
  */
+/**
+ * Match the field paint ratio. The stage fill scale stays as it is. Copy the
+ * sprite on the logical pixel grid unless that scale already lands on a whole
+ * device pixel. `smooth` is set when the stage still has to resample.
+ */
+function stagePaintRatio(element) {
+  const rawDpr = Number(globalThis.devicePixelRatio);
+  const dpr = Number.isFinite(rawDpr) && rawDpr > 1
+    ? Math.min(rawDpr, COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio)
+    : 1;
+  const diag = element?.closest?.("ms-viewport-frame")?.diagnostics?.();
+  if (!diag || !Number.isFinite(diag.scaleX) || !Number.isFinite(diag.scaleY)) {
+    return { ratio: dpr, smooth: false };
+  }
+  const pixelsX = diag.scaleX * dpr;
+  const pixelsY = diag.scaleY * dpr;
+  const wholeX = Math.round(pixelsX);
+  const wholeY = Math.round(pixelsY);
+  const aligned = wholeX >= 1
+    && wholeX === wholeY
+    && wholeX <= COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio
+    && Math.abs(pixelsX - wholeX) < 1e-4
+    && Math.abs(pixelsY - wholeY) < 1e-4;
+  if (aligned) return { ratio: wholeX, smooth: false };
+  return { ratio: 1, smooth: true };
+}
+
 class MsAvatar extends HTMLElementBase {
   static get observedAttributes() {
     return OBSERVED_ATTRIBUTES;
@@ -1946,22 +1973,20 @@ class MsAvatar extends HTMLElementBase {
     const cssHeight = Math.max(1, maxY - minY);
     // devicePixelRatio is environmental (about:flags, zoom, embedded hosts)
     // and can be absurd; clamp it so no host can scale the backing store
-    // past the budget below.
-    const rawDpr = Number(globalThis.devicePixelRatio);
-    const dpr = Number.isFinite(rawDpr) && rawDpr > 1
-      ? Math.min(rawDpr, COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio)
-      : 1;
+    // past the budget below. Inside a viewport the stage scale stays put and
+    // this backing uses the logical pixel grid instead of a second resample.
+    const { ratio, smooth } = stagePaintRatio(this);
 
     // Plan validation bounds each SOURCE bitmap, but ±100,000 anchors/origins
     // can still separate valid layers enormously. Reject before the first
     // canvas dimension assignment, or the browser would attempt the huge
     // allocation itself.
-    const deviceWidth = Math.ceil(cssWidth * dpr);
-    const deviceHeight = Math.ceil(cssHeight * dpr);
+    const deviceWidth = Math.ceil(cssWidth * ratio);
+    const deviceHeight = Math.ceil(cssHeight * ratio);
     if (deviceWidth > COMPOSITE_CANVAS_LIMITS.maxDeviceWidth
       || deviceHeight > COMPOSITE_CANVAS_LIMITS.maxDeviceHeight
       || deviceWidth * deviceHeight > COMPOSITE_CANVAS_LIMITS.maxDevicePixels) {
-      throw new Error(`COMPOSITE_TOO_LARGE composite canvas ${cssWidth}x${cssHeight} CSS px (${deviceWidth}x${deviceHeight} device px at dpr ${dpr}) exceeds the ${COMPOSITE_CANVAS_LIMITS.maxDeviceWidth}/${COMPOSITE_CANVAS_LIMITS.maxDeviceHeight}/${COMPOSITE_CANVAS_LIMITS.maxDevicePixels} composite budget; farthest layers: ${rightmost.layer.id} at x ${Math.round(maxX)}, ${lowest.layer.id} at y ${Math.round(maxY)}`);
+      throw new Error(`COMPOSITE_TOO_LARGE composite canvas ${cssWidth}x${cssHeight} CSS px (${deviceWidth}x${deviceHeight} device px at dpr ${ratio}) exceeds the ${COMPOSITE_CANVAS_LIMITS.maxDeviceWidth}/${COMPOSITE_CANVAS_LIMITS.maxDeviceHeight}/${COMPOSITE_CANVAS_LIMITS.maxDevicePixels} composite budget; farthest layers: ${rightmost.layer.id} at x ${Math.round(maxX)}, ${lowest.layer.id} at y ${Math.round(maxY)}`);
     }
 
     // Reuse the backing store across animation frames: assigning
@@ -1978,13 +2003,14 @@ class MsAvatar extends HTMLElementBase {
     canvas.style.height = `${cssHeight}px`;
     canvas.style.left = `${minX}px`;
     canvas.style.top = `${minY}px`;
+    canvas.style.imageRendering = smooth ? "auto" : "pixelated";
     context.imageSmoothingEnabled = false;
     if (!resized) {
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.clearRect(0, 0, deviceWidth, deviceHeight);
     }
-    const translateX = mirror ? (2 * mirrorPivotX - minX) * dpr : -minX * dpr;
-    context.setTransform(dpr, 0, 0, dpr, translateX, -minY * dpr);
+    const translateX = mirror ? (2 * mirrorPivotX - minX) * ratio : -minX * ratio;
+    context.setTransform(ratio, 0, 0, ratio, translateX, -minY * ratio);
     if (mirror) {
       context.scale(-1, 1);
       // Chromium/Skia rasterizes a negative-scale drawImage one device pixel

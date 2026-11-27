@@ -1191,6 +1191,33 @@ const MAX_CONCURRENT_DECODES = 8;
 /**
  * M4 paper-doll renderer — consumes render-ready appearance/actions/sprites.
  */
+/**
+ * Match the field paint ratio. The stage fill scale stays as it is. Copy the
+ * sprite on the logical pixel grid unless that scale already lands on a whole
+ * device pixel. `smooth` is set when the stage still has to resample.
+ */
+function stagePaintRatio(element) {
+  const rawDpr = Number(globalThis.devicePixelRatio);
+  const dpr = Number.isFinite(rawDpr) && rawDpr > 1
+    ? Math.min(rawDpr, COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio)
+    : 1;
+  const diag = element?.closest?.("ms-viewport-frame")?.diagnostics?.();
+  if (!diag || !Number.isFinite(diag.scaleX) || !Number.isFinite(diag.scaleY)) {
+    return { ratio: dpr, smooth: false };
+  }
+  const pixelsX = diag.scaleX * dpr;
+  const pixelsY = diag.scaleY * dpr;
+  const wholeX = Math.round(pixelsX);
+  const wholeY = Math.round(pixelsY);
+  const aligned = wholeX >= 1
+    && wholeX === wholeY
+    && wholeX <= COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio
+    && Math.abs(pixelsX - wholeX) < 1e-4
+    && Math.abs(pixelsY - wholeY) < 1e-4;
+  if (aligned) return { ratio: wholeX, smooth: false };
+  return { ratio: 1, smooth: true };
+}
+
 class MsAvatar extends HTMLElementBase {
   static get observedAttributes() {
     return OBSERVED_ATTRIBUTES;
@@ -2066,22 +2093,20 @@ class MsAvatar extends HTMLElementBase {
     const cssHeight = Math.max(1, maxY - minY);
     // devicePixelRatio is environmental (about:flags, zoom, embedded hosts)
     // and can be absurd; clamp it so no host can scale the backing store
-    // past the budget below.
-    const rawDpr = Number(globalThis.devicePixelRatio);
-    const dpr = Number.isFinite(rawDpr) && rawDpr > 1
-      ? Math.min(rawDpr, COMPOSITE_CANVAS_LIMITS.maxDevicePixelRatio)
-      : 1;
+    // past the budget below. Inside a viewport the stage scale stays put and
+    // this backing uses the logical pixel grid instead of a second resample.
+    const { ratio, smooth } = stagePaintRatio(this);
 
     // Plan validation bounds each SOURCE bitmap, but ±100,000 anchors/origins
     // can still separate valid layers enormously. Reject before the first
     // canvas dimension assignment, or the browser would attempt the huge
     // allocation itself.
-    const deviceWidth = Math.ceil(cssWidth * dpr);
-    const deviceHeight = Math.ceil(cssHeight * dpr);
+    const deviceWidth = Math.ceil(cssWidth * ratio);
+    const deviceHeight = Math.ceil(cssHeight * ratio);
     if (deviceWidth > COMPOSITE_CANVAS_LIMITS.maxDeviceWidth
       || deviceHeight > COMPOSITE_CANVAS_LIMITS.maxDeviceHeight
       || deviceWidth * deviceHeight > COMPOSITE_CANVAS_LIMITS.maxDevicePixels) {
-      throw new Error(`COMPOSITE_TOO_LARGE composite canvas ${cssWidth}x${cssHeight} CSS px (${deviceWidth}x${deviceHeight} device px at dpr ${dpr}) exceeds the ${COMPOSITE_CANVAS_LIMITS.maxDeviceWidth}/${COMPOSITE_CANVAS_LIMITS.maxDeviceHeight}/${COMPOSITE_CANVAS_LIMITS.maxDevicePixels} composite budget; farthest layers: ${rightmost.layer.id} at x ${Math.round(maxX)}, ${lowest.layer.id} at y ${Math.round(maxY)}`);
+      throw new Error(`COMPOSITE_TOO_LARGE composite canvas ${cssWidth}x${cssHeight} CSS px (${deviceWidth}x${deviceHeight} device px at dpr ${ratio}) exceeds the ${COMPOSITE_CANVAS_LIMITS.maxDeviceWidth}/${COMPOSITE_CANVAS_LIMITS.maxDeviceHeight}/${COMPOSITE_CANVAS_LIMITS.maxDevicePixels} composite budget; farthest layers: ${rightmost.layer.id} at x ${Math.round(maxX)}, ${lowest.layer.id} at y ${Math.round(maxY)}`);
     }
 
     // Reuse the backing store across animation frames: assigning
@@ -2098,13 +2123,14 @@ class MsAvatar extends HTMLElementBase {
     canvas.style.height = `${cssHeight}px`;
     canvas.style.left = `${minX}px`;
     canvas.style.top = `${minY}px`;
+    canvas.style.imageRendering = smooth ? "auto" : "pixelated";
     context.imageSmoothingEnabled = false;
     if (!resized) {
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.clearRect(0, 0, deviceWidth, deviceHeight);
     }
-    const translateX = mirror ? (2 * mirrorPivotX - minX) * dpr : -minX * dpr;
-    context.setTransform(dpr, 0, 0, dpr, translateX, -minY * dpr);
+    const translateX = mirror ? (2 * mirrorPivotX - minX) * ratio : -minX * ratio;
+    context.setTransform(ratio, 0, 0, ratio, translateX, -minY * ratio);
     if (mirror) {
       context.scale(-1, 1);
       // Chromium/Skia rasterizes a negative-scale drawImage one device pixel
@@ -3684,9 +3710,9 @@ function deviceRatio() {
 }
 
 /**
- * The stage keeps its fill scale. Bricks are copied on the logical pixel grid
- * so that scale is the only resample. When the fill scale already lands on a
- * whole device pixel, paint at that integer instead and skip the resample.
+ * The stage keeps its fill scale. Field canvases are copied on the logical
+ * pixel grid so that scale is the only resample. When the fill scale already
+ * lands on a whole device pixel, paint at that integer instead and skip the resample.
  */
 function viewportPaintRatio(element) {
   const screen = deviceRatio();
@@ -3754,16 +3780,47 @@ function batchCanvasTiles(width, height, ratio) {
   return tiles;
 }
 
-function paintBatchPlacement(context, bitmap, placement, item, originX, originY) {
+/** Extra logical pixels drawn past each batch sprite so neighboring canvases overlap under the stage scale. */
+const TILE_EDGE_BLEED_PX = 1;
+
+/**
+ * Grow a batch slice by `bleed` logical pixels on every side. The slice grid
+ * itself stays abutted; only the canvas extends. Drop the pad when the padded
+ * device canvas would pass the field budget.
+ */
+function batchSliceSurface(tile, ratio, bleed = TILE_EDGE_BLEED_PX) {
+  if (!tile || !Number.isFinite(ratio) || ratio <= 0) return null;
+  const requested = Number.isInteger(bleed) && bleed > 0 ? bleed : 0;
+  for (let pad = requested; pad >= 0; pad -= 1) {
+    const deviceW = Math.round((tile.w + pad * 2) * ratio);
+    const deviceH = Math.round((tile.h + pad * 2) * ratio);
+    if (!deviceCanvasFitsBudget(deviceW, deviceH)) continue;
+    return {
+      pad,
+      deviceW,
+      deviceH,
+      x: tile.x - pad,
+      y: tile.y - pad,
+      w: tile.w + pad * 2,
+      h: tile.h + pad * 2,
+    };
+  }
+  return null;
+}
+
+function paintBatchPlacement(context, bitmap, placement, item, originX, originY, bleed = 0) {
   const dest = placementDestRect(placement, item);
-  const localX = dest.x - originX;
-  const localY = dest.y - originY;
+  const pad = Number.isInteger(bleed) && bleed > 0 ? bleed : 0;
+  const localX = dest.x - originX - pad;
+  const localY = dest.y - originY - pad;
+  const destW = dest.w + pad * 2;
+  const destH = dest.h + pad * 2;
   context.save();
   context.globalAlpha = placement.opacity / 255;
   if (placement.flip) {
-    context.translate(localX + dest.w, localY);
+    context.translate(localX + destW, localY);
     context.scale(-1, 1);
-    context.drawImage(bitmap, item.source.x, item.source.y, item.source.w, item.source.h, 0, 0, dest.w, dest.h);
+    context.drawImage(bitmap, item.source.x, item.source.y, item.source.w, item.source.h, 0, 0, destW, destH);
   } else {
     context.drawImage(
       bitmap,
@@ -3773,8 +3830,8 @@ function paintBatchPlacement(context, bitmap, placement, item, originX, originY)
       item.source.h,
       localX,
       localY,
-      dest.w,
-      dest.h,
+      destW,
+      destH,
     );
   }
   context.restore();
@@ -4095,32 +4152,40 @@ class MsMapBatch extends SpikeElement {
         return;
       }
       const slices = tiles.map((tile) => {
+        const surface = batchSliceSurface(tile, ratio);
+        if (!surface) return null;
         const offscreen = document.createElement("canvas");
-        offscreen.width = tile.deviceW;
-        offscreen.height = tile.deviceH;
+        offscreen.width = surface.deviceW;
+        offscreen.height = surface.deviceH;
         const context = offscreen.getContext("2d");
-        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        context.setTransform(ratio, 0, 0, ratio, surface.pad * ratio, surface.pad * ratio);
         context.imageSmoothingEnabled = false;
         const originX = data.bounds.x + tile.x;
         const originY = data.bounds.y + tile.y;
         for (const placement of data.placements) {
           const item = data.items[placement.sprite];
-          paintBatchPlacement(context, decoded.get(item.page), placement, item, originX, originY);
+          paintBatchPlacement(context, decoded.get(item.page), placement, item, originX, originY, surface.pad);
         }
-        return { tile, offscreen };
+        return { surface, offscreen };
       });
+      if (slices.some((slice) => slice === null)) {
+        this._failPaint(epoch, "RESOURCE_LIMIT", "device canvas budget exceeded");
+        return;
+      }
       if (epoch !== this._epoch) return;
       this._syncSurfaces(slices.length);
       for (let index = 0; index < slices.length; index += 1) {
-        const { tile, offscreen } = slices[index];
+        const { surface, offscreen } = slices[index];
         const canvas = this._surfaces[index];
-        canvas.width = tile.deviceW;
-        canvas.height = tile.deviceH;
-        canvas.style.left = cssPx(tile.x);
-        canvas.style.top = cssPx(tile.y);
-        canvas.style.width = cssPx(tile.w);
-        canvas.style.height = cssPx(tile.h);
-        canvas.getContext("2d").drawImage(offscreen, 0, 0);
+        canvas.width = surface.deviceW;
+        canvas.height = surface.deviceH;
+        canvas.style.left = cssPx(surface.x);
+        canvas.style.top = cssPx(surface.y);
+        canvas.style.width = cssPx(surface.w);
+        canvas.style.height = cssPx(surface.h);
+        const visible = canvas.getContext("2d");
+        visible.imageSmoothingEnabled = false;
+        visible.drawImage(offscreen, 0, 0);
       }
       this._paintCommits += 1;
       this._paintedData = source;
@@ -4240,18 +4305,22 @@ function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], s
   const yStep = vert ? stepY : frameH;
   const xStep = horiz ? stepX : frameW;
   const [offsetX, offsetY] = offset;
+  const bleedX = horiz ? TILE_EDGE_BLEED_PX : 0;
+  const bleedY = vert ? TILE_EDGE_BLEED_PX : 0;
+  const drawW = source.w + bleedX * 2;
+  const drawH = source.h + bleedY * 2;
   for (let y = vert ? phaseY : 0; y < yEnd; y += yStep) {
     for (let x = horiz ? phaseX : 0; x < xEnd; x += xStep) {
-      const drawX = x + offsetX;
-      const drawY = y + offsetY;
+      const drawX = x + offsetX - bleedX;
+      const drawY = y + offsetY - bleedY;
       if (draw?.flip) {
         context.save();
-        context.translate(drawX + source.w, drawY);
+        context.translate(drawX + drawW, drawY);
         context.scale(-1, 1);
-        context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, source.w, source.h);
+        context.drawImage(bitmap, source.x, source.y, source.w, source.h, 0, 0, drawW, drawH);
         context.restore();
       } else {
-        context.drawImage(bitmap, source.x, source.y, source.w, source.h, drawX, drawY, source.w, source.h);
+        context.drawImage(bitmap, source.x, source.y, source.w, source.h, drawX, drawY, drawW, drawH);
       }
     }
   }
@@ -4395,6 +4464,31 @@ class MsMapBack extends SpikeElement {
     this._phaseTransform = "";
     this._canvasCssW = 0;
     this._canvasCssH = 0;
+    this._paintRatioObserver = null;
+    this._paintRatioFrame = null;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._watchPaintRatio();
+  }
+
+  disconnectedCallback() {
+    this._paintRatioObserver?.disconnect();
+    this._paintRatioObserver = null;
+    this._paintRatioFrame = null;
+    super.disconnectedCallback();
+  }
+
+  _watchPaintRatio() {
+    const frame = this.closest?.("ms-viewport-frame");
+    if (!frame || frame === this._paintRatioFrame || typeof ResizeObserver !== "function") return;
+    this._paintRatioObserver?.disconnect();
+    this._paintRatioFrame = frame;
+    this._paintRatioObserver = new ResizeObserver(() => {
+      if (this._state === "ready") this._redrawBack(false);
+    });
+    this._paintRatioObserver.observe(frame);
   }
 
   diagnostics() {
@@ -4570,7 +4664,7 @@ class MsMapBack extends SpikeElement {
       ? this._frameBitmaps.length > 0
       : this._sourceBitmap !== null;
     if (!this._canvas || !hasBitmap) return;
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (ratio === null) {
       this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
       return;
@@ -4654,10 +4748,17 @@ class MsMapBack extends SpikeElement {
   _redrawBack(countCommit = true) {
     const bitmap = this._currentBitmap();
     if (!this._canvas || !bitmap) return;
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (ratio === null) return;
     const frame = this._currentFrame();
     const layout = this._validated?.layout ?? this._data?.layout ?? null;
+    const pageW = frame.image?.pageWidth ?? frame.image?.source?.w ?? 0;
+    const pageH = frame.image?.pageHeight ?? frame.image?.source?.h ?? 0;
+    const chosen = chooseBackCanvas(layout, pageW, pageH, ratio);
+    if (!chosen) return;
+    if (this._canvas.width !== chosen.deviceW || this._canvas.height !== chosen.deviceH) {
+      this._sizeBackCanvas(layout, pageW, pageH, ratio);
+    }
     const context = this._canvas.getContext("2d");
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.imageSmoothingEnabled = false;
@@ -4736,7 +4837,7 @@ class MsMapBack extends SpikeElement {
   }
 
   async _loadFrames(validated, signature, epoch, controller, visible, box) {
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     const bitmaps = [];
     let pendingBitmap = null;
     let adopted = false;
@@ -4846,7 +4947,7 @@ class MsMapBack extends SpikeElement {
       const latest = validateBackData(this._data);
       if (!latest.ok) return this._failInput(latest);
       if (backContentSignature(this._data) !== signature) return;
-      const ratio = deviceRatio();
+      const ratio = viewportPaintRatio(this);
       if (ratio === null) return this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
       validated = latest.value;
       const layout = validated.layout;
@@ -5013,7 +5114,7 @@ class MsStandalonePaintUnit extends SpikeElement {
       if (mime !== "image/png") throw Object.assign(new Error("page mime is not image/png"), { code: "CONTENT_INVALID" });
       bitmap = await createImageBitmap(new Blob([resource.bytes], { type: mime }));
       if (epoch !== this._epoch) return;
-      const ratio = deviceRatio();
+      const ratio = viewportPaintRatio(this);
       if (ratio === null) {
         this._failPaint(epoch, "RESOURCE_LIMIT", "device pixel ratio is outside the field budget", signature);
         return;
@@ -5247,7 +5348,7 @@ class MsMapObject extends SpikeElement {
     if (!this._canvas || this._frameBitmaps.length === 0) return;
     const layout = validated.layout;
     const frame = validated.frames[this._displayFrame] ?? validated.frames[0];
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (ratio === null) {
       this._failInput({ code: "RESOURCE_LIMIT", path: "canvas", detail: "device pixel ratio is outside the field budget" });
       return;
@@ -5277,7 +5378,7 @@ class MsMapObject extends SpikeElement {
     const canvasW = frame.image.source.w;
     const canvasH = frame.image.source.h;
     if (this._canvas.style.width === cssPx(canvasW) && this._canvas.style.height === cssPx(canvasH)) return;
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (ratio === null) return;
     const deviceW = Math.round(canvasW * ratio);
     const deviceH = Math.round(canvasH * ratio);
@@ -5347,7 +5448,7 @@ class MsMapObject extends SpikeElement {
     if (!bitmap) return;
     const frame = this._validated.frames[this._displayFrame];
     const context = this._canvas.getContext("2d");
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (ratio === null) return;
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.imageSmoothingEnabled = false;
@@ -5363,7 +5464,7 @@ class MsMapObject extends SpikeElement {
   }
 
   async _loadFrames(validated, signature, epoch, controller, visible, box) {
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     const bitmaps = [];
     let pendingBitmap = null;
     let adopted = false;
@@ -5635,7 +5736,7 @@ class MsPortalVisual extends MsStandalonePaintUnit {
     const canvasW = frame.image.source.w;
     const canvasH = frame.image.source.h;
     if (this._canvas.style.width === cssPx(canvasW) && this._canvas.style.height === cssPx(canvasH)) return;
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (ratio === null) return;
     const deviceW = Math.round(canvasW * ratio);
     const deviceH = Math.round(canvasH * ratio);
@@ -5651,7 +5752,7 @@ class MsPortalVisual extends MsStandalonePaintUnit {
     const bitmap = this._frameBitmaps[this._displayFrame];
     const frame = this._validated.frames[this._displayFrame];
     if (!bitmap || !frame) return;
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (ratio === null) return;
     const context = this._canvas.getContext("2d");
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -5669,7 +5770,7 @@ class MsPortalVisual extends MsStandalonePaintUnit {
   }
 
   async _loadPortalFrames(validated, signature, epoch, controller, visible, box) {
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     const bitmaps = [];
     let pendingBitmap = null;
     let adopted = false;
@@ -5770,7 +5871,7 @@ class MsPortalVisual extends MsStandalonePaintUnit {
     const box = standaloneHostBox(attrs, current.frame.image, current.frame.draw);
     this._displayFrame = index;
     this._fitPortalFrame(current.frame);
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     if (!this._canvas || ratio === null) return;
     const context = this._canvas.getContext("2d");
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -5891,7 +5992,7 @@ class MsPortalVisual extends MsStandalonePaintUnit {
   }
 
   async _loadSequenceFrames(validated, signature, epoch, controller, visible, box) {
-    const ratio = deviceRatio();
+    const ratio = viewportPaintRatio(this);
     const bitmaps = [];
     let pendingBitmap = null;
     let adopted = false;

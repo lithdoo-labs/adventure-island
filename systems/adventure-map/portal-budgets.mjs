@@ -98,3 +98,46 @@ export const M7_6_MEASURED_SOAK_BUDGETS = Object.freeze({
   relayoutHostsPerCycle: 23,
   soakCycles: 6,
 });
+
+/**
+ * M7.8 additive release-validation ceilings; M7.1–M7.7 gates remain immutable evidence.
+ * Covers four published FieldPlans, ms-viewport frame selection, aqua link 230030100,
+ * expanded Movement slices already in main, one-hand outfit, and bounded release soak.
+ */
+export const M7_8_RELEASE_VALIDATION_BUDGETS = Object.freeze({
+  publishedFieldPlanRecords: 4,
+  /** Union of published resource.Map entries in canonical PWA content (unchanged from M7.7 evidence). */
+  publishedMapResourceUnion: 397,
+  maxAquaLinkVisualCanvases: 170,
+  maxAquaLinkCanvasWidth: 2_500,
+  maxAquaLinkCanvasHeight: 900,
+  maxAquaLinkLocalCanvasPixels: 900_000,
+  maxAquaLinkTotalLocalPixels: 15_500_000,
+  maxAquaLinkFieldPlanResourceClosure: 210,
+  maxAquaLinkBrowserReadyMs: 35_000,
+  maxBootstrapTotalLocalPixels: 22_500_000,
+  maxBootstrapFieldPlanResourceClosure: 203,
+  maxFourMapNodeProjectionMs: 12_000,
+  maxContentReadConcurrency: 8,
+  /** Default bounded CI / dev soak; qualification may raise via env (see scripts/release). */
+  maxReleaseSoakCycles: 6,
+  maxReleaseSoakDurationMs: 30 * 60 * 1_000,
+  maxReleaseDomNodeCount: 650,
+  maxReleaseHeapDomProxyScore: 25_000,
+  maxReleaseHeapDomProxyDelta: 800,
+  maxReleaseEventLoopLagProxyMs: 350,
+  maxReleaseRelayoutResourceReadDelta: 0,
+  maxReleaseStaticPaintCommitDelta: 0,
+  maxReleasePaintCommitsDelta: 200,
+});
+
+/** Measured Node 2026-11-28 on canonical 1000×700 viewport (four-map release slice). */
+export const M7_8_MEASURED_RELEASE_BUDGETS = Object.freeze({
+  aquaLinkVisualCanvases: 159,
+  aquaLinkTotalLocalPixels: 14_079_881,
+  aquaLinkFieldPlanResourceClosure: 187,
+  aquaLinkBrowserReadyMapPaintResources: 133,
+  bootstrapTotalLocalPixels: 21_691_165,
+  bootstrapFieldPlanResourceClosure: 198,
+  publishedFieldPlanRecords: 4,
+});

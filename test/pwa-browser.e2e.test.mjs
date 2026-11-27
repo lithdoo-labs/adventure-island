@@ -23,6 +23,7 @@ import { COLORS, FRAME_MARKERS } from "../components/cms-actor/test/synthetic-fs
 import {
   M6_PORTAL_BUDGETS,
   M7_6_VIEWPORT_BUDGETS,
+  M7_8_RELEASE_VALIDATION_BUDGETS,
   M7_PORTAL_BUDGETS,
 } from "../systems/adventure-map/portal-budgets.mjs";
 import { DEFAULT_VIEWPORT_RANGE, resolveViewportFrame } from "../components/ms-viewport/src/layout.mjs";
@@ -738,6 +739,168 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
       Math.abs(standingAtEast.cameraX + standingAtEast.frameWidth - 533) <= 28,
       "the water view stops at the foothold camera's right edge",
     );
+
+    // M7.8 real fourth-map detour. Swim from C/east00 to C/west00 using the
+    // trusted Controls path, atomically replace C with 230030100, then return
+    // through D/east00. Both replacements must retire the old static carriers
+    // while preserving the player/avatar carrier and rejecting late paints.
+    await page.keyboard.down("ArrowDown");
+    await page.keyboard.down("ArrowLeft");
+    try {
+      await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) >= 850, null, { timeout: 25_000 });
+    } finally {
+      await page.keyboard.up("ArrowDown");
+    }
+    try {
+      await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) <= -1740, null, { timeout: 30_000 });
+    } finally {
+      await page.keyboard.up("ArrowLeft");
+    }
+    for (let pulse = 0; pulse < 64; pulse += 1) {
+      const pose = await page.evaluate(() => {
+        const player = document.querySelector("ms-world-item");
+        return {
+          x: Number(player?.getAttribute("world-x")),
+          y: Number(player?.getAttribute("world-y")),
+        };
+      });
+      if (pose.x >= -1797 && pose.x <= -1757 && pose.y >= 837 && pose.y <= 937) break;
+      const key = pose.x > -1757 ? "ArrowLeft" : "ArrowRight";
+      await page.keyboard.down(key);
+      await page.waitForTimeout(30);
+      await page.keyboard.up(key);
+      await page.waitForTimeout(45);
+    }
+    await page.waitForFunction(() => {
+      const player = document.querySelector("ms-world-item");
+      const x = Number(player?.getAttribute("world-x"));
+      const y = Number(player?.getAttribute("world-y"));
+      return x >= -1797 && x <= -1757 && y >= 837 && y <= 937;
+    }, null, { timeout: 10_000 });
+    await page.evaluate(() => {
+      const hosts = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual",
+      )];
+      window.__m78RetiredC = { hosts, avatar: document.querySelector("ms-avatar") };
+    });
+    const aquaLinkStartedAt = Date.now();
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.up("ArrowUp");
+    await page.waitForFunction(() => {
+      const scene = document.querySelector("ms-scene-view");
+      const avatar = document.querySelector("ms-avatar");
+      return scene?.diagnostics?.().state === "ready"
+        && document.querySelectorAll("ms-map-back").length === 31
+        && document.querySelectorAll("ms-map-batch").length === 78
+        && document.querySelectorAll("ms-map-object").length === 47
+        && document.querySelectorAll("ms-portal-visual").length === 2
+        && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === 33
+        && Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) === 882
+        && avatar?.diagnostics?.().state === "ready";
+    }, null, { timeout: M7_8_RELEASE_VALIDATION_BUDGETS.maxAquaLinkBrowserReadyMs });
+    const aquaLink = await page.evaluate(() => {
+      const hosts = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual, ms-avatar",
+      )];
+      const canvases = hosts.map((host) => host.shadowRoot?.querySelector("canvas")).filter(Boolean);
+      const retired = window.__m78RetiredC;
+      return {
+        canvasCount: canvases.length,
+        totalPixels: canvases.reduce((sum, canvas) => sum + canvas.width * canvas.height, 0),
+        retiredDisconnected: retired.hosts.every((host) => !host.isConnected),
+        retiredNonZeroCanvases: retired.hosts.filter((host) => (
+          (host.shadowRoot?.querySelector("canvas")?.width ?? 0) !== 0
+        )).length,
+        avatarPreserved: retired.avatar === document.querySelector("ms-avatar"),
+      };
+    });
+    assert.ok(Date.now() - aquaLinkStartedAt <= M7_8_RELEASE_VALIDATION_BUDGETS.maxAquaLinkBrowserReadyMs);
+    assert.ok(aquaLink.canvasCount <= M7_8_RELEASE_VALIDATION_BUDGETS.maxAquaLinkVisualCanvases);
+    assert.ok(aquaLink.totalPixels <= M7_8_RELEASE_VALIDATION_BUDGETS.maxAquaLinkTotalLocalPixels);
+    assert.equal(aquaLink.retiredDisconnected, true);
+    assert.equal(aquaLink.retiredNonZeroCanvases, 0);
+    assert.equal(aquaLink.avatarPreserved, true);
+
+    await page.evaluate(() => {
+      const hosts = [...document.querySelectorAll(
+        "ms-map-back, ms-map-batch, ms-map-object, ms-portal-visual",
+      )];
+      window.__m78RetiredD = { hosts, avatar: document.querySelector("ms-avatar") };
+    });
+    await page.waitForTimeout(250);
+    await page.keyboard.down("ArrowUp");
+    await page.keyboard.up("ArrowUp");
+    await page.waitForFunction(() => (
+      document.querySelectorAll("ms-map-back").length === 31
+      && document.querySelectorAll("ms-map-batch").length === 65
+      && document.querySelectorAll("ms-map-object").length === 50
+      && document.querySelectorAll("ms-portal-visual").length === 1
+      && Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) === -1777
+      && Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) === 877
+    ), null, { timeout: M7_PORTAL_BUDGETS.maxWaterMapBrowserTravelReadyMs });
+    const retiredD = await page.evaluate(async () => {
+      const retired = window.__m78RetiredD;
+      const before = retired.hosts.map((host) => host.diagnostics().paintCommits);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return {
+        disconnected: retired.hosts.every((host) => !host.isConnected),
+        nonZeroCanvases: retired.hosts.filter((host) => (
+          (host.shadowRoot?.querySelector("canvas")?.width ?? 0) !== 0
+        )).length,
+        paintCommitsStable: retired.hosts.every((host, index) => host.diagnostics().paintCommits === before[index]),
+        avatarPreserved: retired.avatar === document.querySelector("ms-avatar"),
+      };
+    });
+    assert.deepEqual(retiredD, {
+      disconnected: true,
+      nonZeroCanvases: 0,
+      paintCommitsStable: true,
+      avatarPreserved: true,
+    });
+
+    // Return to C/east00 without issuing Up inside either portal band: first
+    // move horizontally away from west00, rise while crossing the map, then
+    // coast onto the east foothold and resume the existing C→B assertion.
+    await page.keyboard.down("ArrowRight");
+    await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")) >= -1600, null, { timeout: 10_000 });
+    await page.keyboard.down("KeyZ");
+    await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) < 830, null, { timeout: 5_000 });
+    await page.keyboard.up("KeyZ");
+    await page.keyboard.down("ArrowUp");
+    await page.waitForFunction(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-y")) <= -130, null, { timeout: 35_000 });
+    await page.keyboard.up("ArrowUp");
+    await page.keyboard.up("ArrowRight");
+    for (let pulse = 0; pulse < 96; pulse += 1) {
+      const x = await page.evaluate(() => Number(document.querySelector("ms-world-item")?.getAttribute("world-x")));
+      if (x >= 276 && x <= 316) break;
+      const key = x > 316 ? "ArrowLeft" : "ArrowRight";
+      await page.keyboard.down(key);
+      await page.waitForTimeout(45);
+      await page.keyboard.up(key);
+      await page.waitForTimeout(45);
+    }
+    try {
+      await page.waitForFunction(() => {
+        const player = document.querySelector("ms-world-item");
+        const avatar = document.querySelector("ms-avatar");
+        const y = Number(player?.getAttribute("world-y"));
+        return Math.abs(Number(player?.getAttribute("world-x")) - 296) <= 20
+          && y >= -148 && y <= -48
+          && avatar?.getAttribute("action") === "stand1";
+      }, null, { timeout: 20_000 });
+    } catch (cause) {
+      const pose = await page.evaluate(() => {
+        const player = document.querySelector("ms-world-item");
+        return {
+          x: player?.getAttribute("world-x") ?? null,
+          y: player?.getAttribute("world-y") ?? null,
+          action: document.querySelector("ms-avatar")?.getAttribute("action") ?? null,
+        };
+      });
+      throw new Error(`M7.8 west00→east00 swim did not settle: ${cause.message} ${JSON.stringify(pose)}`);
+    }
+    t.diagnostic(`M7.8 real PWA C→D→C aqua-link detour ${Date.now() - aquaLinkStartedAt}ms`);
+
   const landReturnStartedAt = Date.now();
   await page.keyboard.down("ArrowUp");
   await page.keyboard.up("ArrowUp");

@@ -1,7 +1,7 @@
 # Adventure Island 设计文档
 
-> **当前状态：Design Baseline Reset / 非规范 / 未批准 / 未实现。**
-> 本目录是 Adventure Island 新一轮产品与架构设计的统一入口。除非单独文档明确标记为已批准，否则这里的标签、字段、阶段范围、算法和验收计划都只是候选设计，不是实现指令。
+> **当前状态：实现已推进至 M7.8 发布验证切片；设计契约仍非规范、未批准、未冻结。**
+> 本目录是 Adventure Island 产品、架构与验收状态的统一入口。实现存在和里程碑完成不等于 ABI 批准；除非单独批准记录明确标记，否则这里的标签、字段、阶段范围和算法形状仍是候选设计。
 
 ## 1. 设计目标
 
@@ -138,7 +138,7 @@ Business Custom Elements
 - CMS079 已闭合 Tile/Obj key、ordered-tree comparator、Avatar 世界插入 key、纸娃娃遮挡、Portal 到达、部分完整物理循环和世界到屏幕 Camera 公式。
 - `[FSDB]adventure` 已包含 13 张地图、地图放置记录、Avatar 结构、Avatar/Map 资源及物理配置。
 - 旧 `cms-actor` 已验证局部 Canvas、资源解码、动画帧和“位置更新不重绘 Avatar”这一更新分离策略。
-- M0 已复验固定 Gitlink、锁定依赖、deterministic bundle、generic PWA staging 与 canonical Service Worker E2E；M1 已通过真实 Renderer Store/WebProjector 验证 managed Light DOM、共同 world-plane、跨类型遮挡、有限 Canvas、identity 保留和静态画面无冗余重绘；M2 已对 `222000000` 建立纯 FSDB 内容闭包与 Adapter/Projection；M3 已完成静态 Field 验收（历史基线：FieldPlan 闭包 167、首帧读取 146）；M4 已接入 `ms-avatar` + `ms-action`（闭包 171、首帧读取 150）；**M5 验证通过**——Subsystem 权威固定 tick、Foothold 行走/跳跃/落地、Camera follow/clamp、FSDB 物理配置身份、玩家深度更新和局部失效边界；**M6 实验闭环完成**——222000000↔222000001 Portal 原子事务；**M7.1 实验闭环完成**——第三份 230030200 FieldPlan、四条批准 Portal 边、整图泳态、真实 FSDB `fly` 两帧、精确缺口/资源发布门，以及真实 Chromium A→B→C 和局部失效预算均已取证；**M7.2 实验切片完成**——可信 C→B 返程、B↔C 重复替换、scene epoch/key 不复用和退役载体异步隔离已取证；**M7.3 实验切片完成**——真实 RopePlan、Subsystem 权威 grab/climb/exit、`rope` 纸娃娃动作、局部失效与 Chromium B→A 返回已取证；**M7.4 实验切片完成**——`230030200` 的非零 `cx/cy` 有界重复、零步长单图、type4 本地滚动和 Camera counter-position 已取证；**M7.5 实验切片完成**——11 条 `flow:1` 鱼 Obj 的多帧、局部滚动、锚点与退役生命周期已取证；**M7.6 实验切片完成**——`800×600`↔`1000×700` envelope 内 Back/Obj viewport relayout、Content 保留与 bounded Chromium/PWA soak 已取证。详见 [M0](./roadmap/M0-BASELINE-EVIDENCE.md)–[M7.6](./roadmap/M7.6-VIEWPORT-RELAYOUT-EVIDENCE.md)；里程碑完成仍不代表组件 ABI 或完整 CMS079 物理等价性批准。
+- M0 已复验固定 Gitlink、锁定依赖、deterministic bundle、generic PWA staging 与 canonical Service Worker E2E；M1 已通过真实 Renderer Store/WebProjector 验证 managed Light DOM、共同 world-plane、跨类型遮挡、有限 Canvas、identity 保留和静态画面无冗余重绘；M2 已对 `222000000` 建立纯 FSDB 内容闭包与 Adapter/Projection；M3 已完成静态 Field 验收（历史基线：FieldPlan 闭包 167、首帧读取 146）；M4 已接入 `ms-avatar` + `ms-action`（闭包 171、首帧读取 150）；**M5 验证通过**——Subsystem 权威固定 tick、Foothold 行走/跳跃/落地、Camera follow/clamp、FSDB 物理配置身份、玩家深度更新和局部失效边界；**M6 实验闭环完成**——222000000↔222000001 Portal 原子事务；**M7.1 实验闭环完成**——第三份 230030200 FieldPlan、四条批准 Portal 边、整图泳态、真实 FSDB `fly` 两帧、精确缺口/资源发布门，以及真实 Chromium A→B→C 和局部失效预算均已取证；**M7.2 实验切片完成**——可信 C→B 返程、B↔C 重复替换、scene epoch/key 不复用和退役载体异步隔离已取证；**M7.3 实验切片完成**——真实 RopePlan、Subsystem 权威 grab/climb/exit、`rope` 纸娃娃动作、局部失效与 Chromium B→A 返回已取证；**M7.4 实验切片完成**——`230030200` 的非零 `cx/cy` 有界重复、零步长单图、type4 本地滚动和 Camera counter-position 已取证；**M7.5 实验切片完成**——11 条 `flow:1` 鱼 Obj 的多帧、局部滚动、锚点与退役生命周期已取证；**M7.6 实验切片完成**——`800×600`↔`1000×700` envelope 内 Back/Obj viewport relayout、Content 保留与 bounded Chromium/PWA soak 已取证；**M7.7 实验切片完成**——13 图 scope 内 Back `ani` 全帧与 renderer-local `delay` 循环；**M7.8 发布验证切片完成**——四图 FieldPlan、`ms-viewport` frame、230030100 aqua link、静态失效边界、bounded release soak 与已实测 30 分钟资格门。详见 [M0](./roadmap/M0-BASELINE-EVIDENCE.md)–[M7.8](./roadmap/M7.8-RELEASE-VALIDATION-EVIDENCE.md)；里程碑完成仍不代表组件 ABI 或完整 CMS079 物理等价性批准。
 
 ### 尚未批准或仍有证据缺口
 

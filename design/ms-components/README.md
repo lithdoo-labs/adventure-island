@@ -1,7 +1,7 @@
 # MS 组件与首阶段场景设计索引
 
-> **状态：Design Baseline Reset；以下组件均未批准、未冻结、未实现。**
-> `ms-avatar` / `ms-action` 是此前保留的详细候选；其余六个标签和组件树是 DOM + Multi-Canvas 方向下的讨论草案，不是已批准 Scene ABI。
+> **状态：M1–M7.8 已实现并验证本文所列组件的有界产品切片；所有新 `ms-*` 契约仍未批准、未冻结。**
+> `ms-avatar` / `ms-action` 与 Field 组件已进入正式 PWA 主路径，但本文中的 attrs/data/children 仍是候选 Scene ABI；实现存在和测试通过不产生兼容性承诺。
 
 ## 1. 上游设计入口
 
@@ -131,4 +131,11 @@ WebProjector 管理 Light DOM 节点、attrs、data、children 和顺序。组�
 
 ## 9. 旧运行路径
 
-当前实际 PWA 仍注册 `cms-actor`，`systems/adventure-map` 只投影一个居中的旧 Actor 并将输入映射为 stand/walk/jump。旧实现可以验证局部 Canvas、资源读取、帧播放和位置更新分离，但不能作为新 `ms-*` ABI 已实现的证据。
+当前正式 PWA 主路径已 bootstrap `ms-field`、`ms-viewport` 与 `ms-avatar`；`cms-actor` 保留为 Legacy PWA Compatibility CI 切片。上述标签在 M1–M7.8 证据中均有实验验证记录，但**组件 attrs/data/children ABI 仍未批准**（见 [M7.8 发布验证](../roadmap/M7.8-RELEASE-VALIDATION-EVIDENCE.md)）。
+
+| 标签 | 实验验证（M7.8 止） | 正式 ABI |
+| --- | --- | --- |
+| `ms-viewport` / `ms-viewport-frame` | 合法 frame 与 relayout soak | 未批准 |
+| `ms-scene-view` / `ms-map-*` / `ms-world-item` | 四图投影与静态失效边界 | 未批准 |
+| `ms-avatar` / `ms-action` | 单手装备与 locomotion 投影 | 未批准 |
+| `cms-actor` | Legacy 兼容与 import-map harness | 冻结旧契约，不传递至 `ms-*` |

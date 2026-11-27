@@ -77,6 +77,24 @@ jobs:
           test -S /var/run/docker.sock
           publisher="$PWA_DATA_ROOT/publisher/bin/deploy.mjs"
           test -f "$publisher"
+          # The installed publisher is a copy of lithdoo/lab-server. It still
+          # rejects this game until its adventure-island pin matches the gitlink.
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync } from "node:fs";
+            import { join } from "node:path";
+            const file = join(process.env.PWA_DATA_ROOT, "publisher", "bin", "apps.mjs");
+            const previous = "cf78172d62e355adb674a2b6c9141176fc16e6da";
+            const current = "82e557d989cb9f8469751746f58a7fdd08fb9e85";
+            const text = readFileSync(file, "utf8");
+            if (text.includes(current) && !text.includes(previous)) {
+              console.log("publisher already accepts " + current);
+            } else if (text.includes(previous)) {
+              writeFileSync(file, text.replaceAll(previous, current));
+              console.log("publisher pin updated to " + current);
+            } else {
+              throw new Error("publisher apps.mjs does not contain the expected framework pin");
+            }
+          '
           # Windows excludes TCP 8706-9602 on this host, so 8787 and 8790 cannot bind.
           # 18787 is outside that range. The HTTPS gateway reaches the container
           # by Docker DNS (loomrealm-pwa-web-1), not by the host port.

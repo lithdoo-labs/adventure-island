@@ -20,6 +20,13 @@ export const BUSINESS_TICK_S = BUSINESS_TICK_MS / 1000;
 
 export const GROUND_EPSILON_PX = 4;
 
+/**
+ * A move object with no foothold stores layer 7 and platform 0.
+ * CMS079 0x9BC622 writes that pair on the no-context path; the avatar key
+ * at 0x9363D9 reads it until a foothold install replaces it.
+ */
+export const UNCONTACTED_LAYER = 7;
+
 function q(value) {
   return Math.round(value * 1000) / 1000;
 }
@@ -176,7 +183,7 @@ export function createMovementState({
   worldY,
   facing = "right",
   segments,
-  layer = 0,
+  layer = UNCONTACTED_LAYER,
   platform = 0,
 } = {}) {
   if (!Number.isFinite(worldX) || !Number.isFinite(worldY)) {

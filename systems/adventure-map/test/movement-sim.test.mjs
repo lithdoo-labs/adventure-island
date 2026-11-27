@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { avatarSortKey, objSortKey } from "../../../components/ms-map-adapter/src/depth.mjs";
 import { buildMapProjection } from "../../../components/ms-map-adapter/src/index.mjs";
 import { buildFootholdCollisionPlan } from "../foothold-collision-plan-build.mjs";
+import { buildArrivalMovementState } from "../portal-arrival.mjs";
 import {
   BUSINESS_TICK_MS,
   createMovementState,
   findLandingSegment,
   stepMovement,
   applyMovementToFieldState,
+  UNCONTACTED_LAYER,
 } from "../movement-sim.mjs";
 import { movementIntentFromHeld } from "../movement-intent.mjs";
 import { hashFieldState as stateHash } from "../field-state-hash.mjs";
@@ -301,6 +304,48 @@ test("a downward face at a lip still lets the body walk off", () => {
   assert.equal(passedFace, true);
   assert.equal(movement.grounded, true);
   assert.equal(movement.contact.footholdId, 3);
+});
+
+test("a jump keeps the foothold layer instead of the uncontacted layer", () => {
+  const segment = { layer: 3, platform: 4, id: 1, x1: -20, y1: 0, x2: 20, y2: 0 };
+  const plan = { segments: [segment] };
+  let movement = createMovementState({ worldX: 0, worldY: 0, segments: plan.segments });
+  assert.equal(movement.layer, 3);
+  assert.equal(movement.platform, 4);
+  movement = stepMovement(
+    movement,
+    movementIntentFromHeld(["south"]),
+    plan,
+    movementConfig,
+    { jumpHeld: true, jumpPressed: true },
+  );
+  assert.equal(movement.grounded, false);
+  assert.equal(movement.layer, 3);
+  assert.equal(movement.platform, 4);
+});
+
+test("the well arrival stays on the uncontacted layer until the shaft floor", async () => {
+  const map = await buildMapProjection({ mapId: "222000001", gameRoot: repoRoot });
+  const plan = buildFootholdCollisionPlan(map.scene.footholds);
+  let movement = buildArrivalMovementState({ x: 22, y: -286 }, plan);
+  assert.equal(movement.grounded, false);
+  assert.equal(movement.worldX, 22);
+  assert.equal(movement.worldY, -296);
+  assert.equal(movement.layer, UNCONTACTED_LAYER);
+  assert.equal(movement.platform, 0);
+  assert.ok(avatarSortKey(movement.layer, movement.platform, 0) > objSortKey(4, 9));
+  let sawAir = false;
+  for (let tick = 0; tick < 400 && movement.grounded !== true; tick += 1) {
+    sawAir = true;
+    assert.equal(movement.layer, UNCONTACTED_LAYER);
+    assert.equal(movement.platform, 0);
+    movement = stepMovement(movement, movementIntentFromHeld([]), plan, movementConfig);
+  }
+  assert.equal(sawAir, true);
+  assert.equal(movement.grounded, true);
+  assert.equal(movement.layer, 3);
+  assert.equal(movement.platform, 0);
+  assert.ok(avatarSortKey(movement.layer, movement.platform, 0) > objSortKey(3, 9));
 });
 
 test("map 222000001 stops a walk from the unlinked ledge into either shaft wall", async () => {

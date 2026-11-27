@@ -56,14 +56,14 @@ function openLibrary() {
   };
   return {
     files,
-    async record(namespace, key) {
+    async record(_databasePath, namespace, key) {
       return { value: JSON.parse((await read(namespace, key, ".json")).toString("utf8")), contentVersion: "record" };
     },
-    async group(namespace, key) {
+    async group(_databasePath, namespace, key) {
       const rows = (await read(namespace, key, ".jsonl")).toString("utf8").split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line));
       return { rows, contentVersion: "group" };
     },
-    async resource(namespace, key) {
+    async resource(_databasePath, namespace, key) {
       const kind = namespace.slice(0, namespace.indexOf("."));
       const name = namespace.slice(kind.length + 1);
       const bytes = await readFile(path.join(libraryRoot, `[${kind}]${name}`, `${key}.png`));

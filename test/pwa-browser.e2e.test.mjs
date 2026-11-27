@@ -130,11 +130,11 @@ test("Adventure Island Base → Adventure Map PWA runs active under its isolated
     assert.deepEqual(evidence.executableModules, ["subsystems/base.mjs", "subsystems/adventure-map.mjs"]);
     assert.equal(evidence.contentCount, CANONICAL_CONTENT_COUNT);
     assert.deepEqual(evidence.presentationScripts, [
-      { namespace: "Presentation", key: CONTROLS_SCRIPT_KEY },
-      { namespace: "Presentation", key: VIEWPORT_SCRIPT_KEY },
-      { namespace: "Presentation", key: AVATAR_SCRIPT_KEY },
-      { namespace: "Presentation", key: FIELD_SCRIPT_KEY },
-      { namespace: "Presentation", key: ACTOR_SCRIPT_KEY },
+      { databasePath: "adventure", namespace: "Presentation", key: CONTROLS_SCRIPT_KEY },
+      { databasePath: "adventure", namespace: "Presentation", key: VIEWPORT_SCRIPT_KEY },
+      { databasePath: "adventure", namespace: "Presentation", key: AVATAR_SCRIPT_KEY },
+      { databasePath: "adventure", namespace: "Presentation", key: FIELD_SCRIPT_KEY },
+      { databasePath: "adventure", namespace: "Presentation", key: ACTOR_SCRIPT_KEY },
     ]);
     assert.equal(evidence.failure, null);
     assert.ok(evidence.statuses.some((entry) => entry?.status === "main-started"), "the real Runtime must have started Main");

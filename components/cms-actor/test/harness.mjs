@@ -87,10 +87,13 @@ export function startContentServer({ index, scriptBytes, scriptPath, installatio
         response.end(scriptBytes);
         return;
       }
-      const resourcePrefix = `/_lr/v1/games/${installationId}/resources/`;
+      const resourcePrefix = `/_lr/v1/games/${installationId}/databases/`;
       if (url.pathname.startsWith(resourcePrefix)) {
         if (request.headers.authorization !== bearer) { response.statusCode = 401; response.end(); return; }
-        const segments = url.pathname.slice(resourcePrefix.length).split("/").map((part) => decodeURIComponent(part));
+        const route = url.pathname.slice(resourcePrefix.length).split("/");
+        const marker = route.indexOf("$db");
+        if (marker < 1 || route[marker + 1] !== "resources") { response.statusCode = 404; response.end(); return; }
+        const segments = route.slice(marker + 2).map((part) => decodeURIComponent(part));
         const namespace = segments.shift();
         const key = segments.join("/");
         const entry = index.get(`${namespace}\0${key}`);
@@ -158,11 +161,11 @@ export async function openBootstrappedPage(t, { chromium, origin, prepared, inst
     window.__resourceCalls = [];
     window.__presentationFailures = [];
     const resourceClient = {
-      async resource(namespace, key, expectedContentVersion, signal) {
-        const record = { namespace, key, expectedContentVersion, aborted: false };
+      async resource(databasePath, namespace, key, expectedContentVersion, signal) {
+        const record = { databasePath, namespace, key, expectedContentVersion, aborted: false };
         window.__resourceCalls.push(record);
         signal?.addEventListener("abort", () => { record.aborted = true; }, { once: true });
-        return inner.resource(namespace, key, expectedContentVersion, signal).catch((error) => {
+        return inner.resource(databasePath, namespace, key, expectedContentVersion, signal).catch((error) => {
           if (debug) console.log("underlying fail", key, error?.name, error?.code, String(error?.message ?? error));
           throw error;
         });

@@ -64,7 +64,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$(git rev-parse HEAD:loom-realm)" = "cf78172d62e355adb674a2b6c9141176fc16e6da"
+          test "$(git rev-parse HEAD:loom-realm)" = "82e557d989cb9f8469751746f58a7fdd08fb9e85"
           # The labs runner reuses its git directory, so origin/main can point at an
           # old diverged commit. The leading + updates only that local tracking ref.
           git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main

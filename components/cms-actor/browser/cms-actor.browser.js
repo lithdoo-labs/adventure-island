@@ -4,6 +4,9 @@
  * <script src>; MIME essence must be text/javascript. */
 (function () {
 "use strict";
+/** Logical FSDB path of content/[FSDB]adventure. The container root is the content directory. */
+const ADVENTURE_DATABASE_PATH = "adventure";
+
 const ANCHOR_PRIORITY = Object.freeze([
   "navel",
   "neck",
@@ -1234,6 +1237,7 @@ class CmsActor extends HTMLElementBase {
     this._pinEntry(entry);
     this._loadingCount += 1;
     entry.promise = this._context.resources.resource(
+      ADVENTURE_DATABASE_PATH,
       resource.namespace,
       resource.key,
       resource.contentVersion,

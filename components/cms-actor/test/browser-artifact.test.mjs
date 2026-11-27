@@ -33,7 +33,7 @@ test("presentation.json is a valid Web Presentation Config v1 declaration", asyn
   assert.equal(validated.formatVersion, 1);
   assert.deepEqual(validated.styles, []);
   assert.deepEqual(validated.scripts, [
-    { namespace: "resource.Presentation", key: "cms-actor/cms-actor.browser.js" },
+    { databasePath: "adventure", namespace: "resource.Presentation", key: "cms-actor/cms-actor.browser.js" },
   ]);
 });
 
@@ -44,7 +44,7 @@ test("prepareWebPresentationV1 resolves the script ref with frozen MIME essence 
   const scriptBytes = await readFile(path.join(componentRoot, "browser", "cms-actor.browser.js"));
   const contentVersion = `sha256:${createHash("sha256").update(scriptBytes).digest("hex")}`;
   const prepared = await prepareWebPresentationV1(config, async (ref) => {
-    assert.deepEqual(ref, { namespace: "resource.Presentation", key: "cms-actor/cms-actor.browser.js" });
+    assert.deepEqual(ref, { databasePath: "adventure", namespace: "resource.Presentation", key: "cms-actor/cms-actor.browser.js" });
     return { contentVersion, mime: "text/javascript; charset=utf-8", browserSource: "http://127.0.0.1:1/presentation/cms-actor/cms-actor.browser.js" };
   });
   assert.equal(prepared.styles.length, 0);

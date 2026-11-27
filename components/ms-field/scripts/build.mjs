@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const componentRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sources = [
+  path.join(componentRoot, "..", "..", "systems", "adventure-map", "content-database.mjs"),
   path.join(componentRoot, "src", "limits.mjs"),
   path.join(componentRoot, "src", "resource-read-pool.mjs"),
   path.join(componentRoot, "..", "cms-actor", "src", "avatar-model.mjs"),

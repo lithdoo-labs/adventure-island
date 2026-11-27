@@ -104,7 +104,7 @@ async function main() {
   ] };
   const plan = { formatVersion: 1, zOrder, locomotionActions: { stand: "stand1", walk: "walk1", jump: "jump" }, actions };
   const resourceClient = {
-    async resource(namespace, key, expectedContentVersion, { signal } = {}) {
+    async resource(_databasePath, namespace, key, expectedContentVersion, { signal } = {}) {
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
       const asset = assets.get(key);
       if (!asset || namespace !== "fixture") throw new Error(`Synthetic resource not found: ${namespace}/${key}`);

@@ -9,7 +9,7 @@
 // packages/renderer/src/internal/web-presentation-config.ts,
 // validateWebPresentationConfigV1): an exact
 // { formatVersion, scripts, styles } object whose entries are exact
-// { namespace, key } Content resource references. The application declares
+// { databasePath, namespace, key } Content resource references. The application declares
 // exactly three scripts, in order:
 //   resource.Presentation/controls/device-input.browser.js
 //   resource.Presentation/ms-field/ms-field.browser.js
@@ -31,11 +31,11 @@ const EXPECTED_PRESENTATION = Object.freeze({
   formatVersion: 1,
   styles: Object.freeze([]),
   scripts: Object.freeze([
-    Object.freeze({ namespace: "Presentation", key: "controls/device-input.browser.js" }),
-    Object.freeze({ namespace: "Presentation", key: "ms-viewport/ms-viewport.browser.js" }),
-    Object.freeze({ namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" }),
-    Object.freeze({ namespace: "Presentation", key: "ms-field/ms-field.browser.js" }),
-    Object.freeze({ namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: "controls/device-input.browser.js" }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: "ms-viewport/ms-viewport.browser.js" }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: "ms-field/ms-field.browser.js" }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" }),
   ]),
 });
 
@@ -85,13 +85,14 @@ function validatePresentationStructural(text, label) {
     assert.ok(Array.isArray(list), `${label}: ${listLabel} must be an array`);
     const seen = new Set();
     return Object.freeze(list.map((candidate, index) => {
-      const ref = exactObjectKeys(candidate, ["namespace", "key"], `${label}: ${listLabel}[${index}]`);
+      const ref = exactObjectKeys(candidate, ["databasePath", "namespace", "key"], `${label}: ${listLabel}[${index}]`);
+      assert.equal(ref.databasePath, "adventure", `${label}: invalid ${listLabel}[${index}] databasePath`);
       assert.ok(validSegment(ref.namespace, false), `${label}: invalid ${listLabel}[${index}] namespace`);
       assert.ok(validSegment(ref.key, true), `${label}: invalid ${listLabel}[${index}] key`);
-      const identity = JSON.stringify([ref.namespace, ref.key]);
+      const identity = JSON.stringify([ref.databasePath, ref.namespace, ref.key]);
       assert.ok(!seen.has(identity), `${label}: duplicate ${listLabel} resource`);
       seen.add(identity);
-      return Object.freeze({ namespace: ref.namespace, key: ref.key });
+      return Object.freeze({ databasePath: ref.databasePath, namespace: ref.namespace, key: ref.key });
     }));
   };
   return Object.freeze({
@@ -115,11 +116,11 @@ test("the root presentation manifest registers Controls, ms-avatar, ms-field, an
   assert.deepEqual(
     presentation.scripts,
     [
-      { namespace: "Presentation", key: "controls/device-input.browser.js" },
-      { namespace: "Presentation", key: "ms-viewport/ms-viewport.browser.js" },
-      { namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" },
-      { namespace: "Presentation", key: "ms-field/ms-field.browser.js" },
-      { namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" },
+      { databasePath: "adventure", namespace: "Presentation", key: "controls/device-input.browser.js" },
+      { databasePath: "adventure", namespace: "Presentation", key: "ms-viewport/ms-viewport.browser.js" },
+      { databasePath: "adventure", namespace: "Presentation", key: "ms-avatar/ms-avatar.browser.js" },
+      { databasePath: "adventure", namespace: "Presentation", key: "ms-field/ms-field.browser.js" },
+      { databasePath: "adventure", namespace: "Presentation", key: "cms-actor/cms-actor.browser.js" },
     ],
     "Controls must load first; the formal ms-avatar artifact must own its tags before the field aggregate fallback",
   );
@@ -160,12 +161,12 @@ test("the mirrored Web Presentation Config rules reject malformed documents", ()
   // future drift of the pinned validator surfaces as a failing assertion.
   const valid = JSON.stringify({
     formatVersion: 1,
-    styles: [{ namespace: "Presentation", key: "page.css" }],
-    scripts: [{ namespace: "Presentation", key: "ui/page.browser.js" }],
+    styles: [{ databasePath: "adventure", namespace: "Presentation", key: "page.css" }],
+    scripts: [{ databasePath: "adventure", namespace: "Presentation", key: "ui/page.browser.js" }],
   });
   assert.deepEqual(
     validatePresentationStructural(valid, "calibration"),
-    { formatVersion: 1, styles: [{ namespace: "Presentation", key: "page.css" }], scripts: [{ namespace: "Presentation", key: "ui/page.browser.js" }] },
+    { formatVersion: 1, styles: [{ databasePath: "adventure", namespace: "Presentation", key: "page.css" }], scripts: [{ databasePath: "adventure", namespace: "Presentation", key: "ui/page.browser.js" }] },
   );
 
   const invalid = new Map([
@@ -173,16 +174,17 @@ test("the mirrored Web Presentation Config rules reject malformed documents", ()
     ["unknown top-level key", JSON.stringify({ formatVersion: 1, styles: [], scripts: [], extra: 1 })],
     ["missing top-level key", JSON.stringify({ formatVersion: 1, styles: [] })],
     ["styles is not an array", JSON.stringify({ formatVersion: 1, styles: {}, scripts: [] })],
-    ["ref with extra field", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P", key: "a.css", mime: "text/css" }], scripts: [] })],
-    ["namespace with hierarchy", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P/x", key: "a.css" }], scripts: [] })],
-    ["key with traversal segment", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P", key: "../a.css" }], scripts: [] })],
-    ["absolute key", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "P", key: "/a.css" }], scripts: [] })],
-    ["scheme-like namespace", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "https:", key: "a.css" }], scripts: [] })],
+    ["missing databasePath", JSON.stringify({ formatVersion: 1, styles: [{ namespace: "Presentation", key: "page.css" }], scripts: [] })],
+    ["ref with extra field", JSON.stringify({ formatVersion: 1, styles: [{ databasePath: "adventure", namespace: "P", key: "a.css", mime: "text/css" }], scripts: [] })],
+    ["namespace with hierarchy", JSON.stringify({ formatVersion: 1, styles: [{ databasePath: "adventure", namespace: "P/x", key: "a.css" }], scripts: [] })],
+    ["key with traversal segment", JSON.stringify({ formatVersion: 1, styles: [{ databasePath: "adventure", namespace: "P", key: "../a.css" }], scripts: [] })],
+    ["absolute key", JSON.stringify({ formatVersion: 1, styles: [{ databasePath: "adventure", namespace: "P", key: "/a.css" }], scripts: [] })],
+    ["scheme-like namespace", JSON.stringify({ formatVersion: 1, styles: [{ databasePath: "adventure", namespace: "https:", key: "a.css" }], scripts: [] })],
     ["duplicate resource", JSON.stringify({
       formatVersion: 1,
       styles: [
-        { namespace: "Presentation", key: "a.css" },
-        { namespace: "Presentation", key: "a.css" },
+        { databasePath: "adventure", namespace: "Presentation", key: "a.css" },
+        { databasePath: "adventure", namespace: "Presentation", key: "a.css" },
       ],
       scripts: [],
     })],

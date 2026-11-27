@@ -49,16 +49,16 @@ function openLibrary() {
   return {
     calls,
     files,
-    async record(namespace, key) {
+    async record(_databasePath, namespace, key) {
       const bytes = await read(namespace, key, ".json");
       return { value: JSON.parse(bytes.toString("utf8")), contentVersion: "record" };
     },
-    async group(namespace, key) {
+    async group(_databasePath, namespace, key) {
       const bytes = await read(namespace, key, ".jsonl");
       const rows = bytes.toString("utf8").split(/\r?\n/).filter((line) => line.trim()).map((line) => JSON.parse(line));
       return { rows, contentVersion: "group" };
     },
-    async resource(namespace, key, ...extra) {
+    async resource(_databasePath, namespace, key, ...extra) {
       calls.push({ namespace, key, extra: extra.length });
       const kind = namespace.slice(0, namespace.indexOf("."));
       const name = namespace.slice(kind.length + 1);
@@ -237,8 +237,8 @@ test("a longcoat keeps the coat and pants, and a hammer keeps a shield worn with
   const library = openLibrary();
   const hammer = await buildAdventureAvatarPlan({
     ...library,
-    async group(namespace, key) {
-      const result = await library.group(namespace, key);
+    async group(databasePath, namespace, key) {
+      const result = await library.group(databasePath, namespace, key);
       if (key !== "avatar.equip.shield.01092003") return result;
       const copies = result.rows
         .filter((row) => row.action === "stand1")

@@ -60,7 +60,8 @@ function createPresentationEventsHarness() {
 
 function createContentHarness(fieldPlan = canonicalFieldPlan) {
   return {
-    async record(namespace, key) {
+    async record(databasePath, namespace, key) {
+      if (databasePath !== "adventure") throw new Error(`unexpected database ${databasePath}`);
       if (namespace === FIELD_PLAN_NAMESPACE && key === FIELD_PLAN_KEY) {
         return Object.freeze({ value: fieldPlan });
       }

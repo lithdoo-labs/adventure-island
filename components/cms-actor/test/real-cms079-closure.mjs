@@ -132,6 +132,9 @@ function startPageServer({ scriptBytes, targetOrigin, installationId }) {
 
 async function main() {
   const fsdb = path.resolve(arg("--fsdb", "E:\\cms079-pr1-work\\fsdb-all\\[FSDB]cms"));
+  const databaseMatch = /^\[FSDB\](.+)$/i.exec(path.basename(fsdb));
+  if (!databaseMatch) throw new Error(`expected an [FSDB] directory, got ${fsdb}`);
+  const databasePath = databaseMatch[1];
   const out = path.resolve(arg("--out", "E:\\cms079-pr1-work\\reports\\content-avatar.json"));
   const installationRoot = path.dirname(fsdb);
   await ensureInstallation(installationRoot);
@@ -160,7 +163,7 @@ async function main() {
   const evidence = { looks: {}, resources: {}, closed: {} };
 
   try {
-    const zmap = await content.record("struct.ZMap", "order");
+    const zmap = await content.record(databasePath, "struct.ZMap", "order");
     const zOrder = zNamesFromRecord(zmap.value);
     assert.equal(zOrder.length, 149);
     assert.ok(zOrder.includes("body") && zOrder.includes("weapon"));
@@ -168,19 +171,19 @@ async function main() {
 
     const looks = {};
     for (const [key, islot, role] of LOOKS) {
-      const record = await content.record("struct.Look", key);
+      const record = await content.record(databasePath, "struct.Look", key);
       assert.equal(record.value.info.islot, islot);
       assert.match(record.contentVersion, /^sha256:[0-9a-f]{64}$/);
       looks[role] = record.value;
       evidence.looks[key] = { role, contentVersion: record.contentVersion, islot };
     }
 
-    const tiles = await content.group("group.Tile", "100000000");
+    const tiles = await content.group(databasePath, "group.Tile", "100000000");
     assert.ok(tiles.rows.length > 0);
     assert.match(tiles.contentVersion, /^sha256:[0-9a-f]{64}$/);
     evidence.group = { namespace: "group.Tile", key: "100000000", rows: tiles.rows.length, contentVersion: tiles.contentVersion };
 
-    const sound = await content.resource("resource.音", "Sound/Bgm00/FloralLife");
+    const sound = await content.resource(databasePath, "resource.音", "Sound/Bgm00/FloralLife");
     assert.equal(sound.mime, "audio/mpeg");
     assert.equal(sound.bytes.byteLength, 1_376_392);
     assert.equal(sha256(sound.bytes), sound.contentVersion);
@@ -197,7 +200,7 @@ async function main() {
         const match = /^CMS079 AvatarPlan: missing contentVersion for (\S+)$/.exec(error.message);
         if (!match) throw error;
         const key = match[1];
-        const resource = await content.resource("resource.图", key);
+        const resource = await content.resource(databasePath, "resource.图", key);
         assert.equal(resource.mime, "image/png");
         assert.equal(sha256(resource.bytes), resource.contentVersion);
         assert.equal(resource.bytes[0], 0x89);
@@ -217,21 +220,21 @@ async function main() {
       body: bodyLayer.resource,
     };
 
-    await assert.rejects(() => content.record("struct.Look", "missing-look"), (error) => error instanceof ContentReadError && error.code === "CONTENT_NOT_FOUND");
+    await assert.rejects(() => content.record(databasePath, "struct.Look", "missing-look"), (error) => error instanceof ContentReadError && error.code === "CONTENT_NOT_FOUND");
     const denied = service.createGrant({ permissions: ["records"], expiresAtUnixMs: Date.now() + 60_000 });
     const deniedClient = createBoundContentClient(service.access(denied), lifetime.signal);
-    await assert.rejects(() => deniedClient.resource("resource.图", bodyLayer.resource.key), (error) => error instanceof ContentReadError && error.code === "CONTENT_UNAVAILABLE");
+    await assert.rejects(() => deniedClient.resource(databasePath, "resource.图", bodyLayer.resource.key), (error) => error instanceof ContentReadError && error.code === "CONTENT_UNAVAILABLE");
     const renderer = createRendererResourceClient({
       origin: access.origin,
       installationId: access.installationId,
       token: access.token,
     }, lifetime.signal);
     await assert.rejects(
-      () => renderer.resource("resource.图", bodyLayer.resource.key, `sha256:${"0".repeat(64)}`),
+      () => renderer.resource(databasePath, "resource.图", bodyLayer.resource.key, `sha256:${"0".repeat(64)}`),
       (error) => error instanceof RendererResourceError && error.code === "conflict",
     );
     await assert.rejects(
-      () => renderer.resource("resource.图", "missing/resource", bodyLayer.resource.contentVersion),
+      () => renderer.resource(databasePath, "resource.图", "missing/resource", bodyLayer.resource.contentVersion),
       (error) => error instanceof RendererResourceError && error.code === "not-found",
     );
     evidence.closed = { missingRecord: "CONTENT_NOT_FOUND", deniedResource: "CONTENT_UNAVAILABLE", wrongVersion: "conflict", missingResource: "not-found" };
@@ -249,7 +252,7 @@ async function main() {
     page.on("pageerror", (error) => console.log("pageerror", error));
     try {
       await page.goto(pageServer.origin);
-      await page.evaluate(async ({ origin, prepared, installationId, token }) => {
+      await page.evaluate(async ({ origin, prepared, installationId, token, databasePath: contentDatabasePath }) => {
         const { bootstrapWebPresentation } = await import(`${origin}/packages/renderer/dist/internal/web-presentation-bootstrap.js`);
         const { createRendererResourceClient } = await import(`${origin}/packages/renderer/dist/internal/resource-client.js`);
         const { WebProjector } = await import(`${origin}/packages/renderer/dist/internal/web-projector.js`);
@@ -258,9 +261,9 @@ async function main() {
         window.__resourceCalls = [];
         window.__presentationFailures = [];
         const resourceClient = {
-          async resource(namespace, key, expectedContentVersion, signal) {
-            window.__resourceCalls.push({ namespace, key, expectedContentVersion });
-            return inner.resource(namespace, key, expectedContentVersion, signal);
+          async resource(databasePath, namespace, key, expectedContentVersion, signal) {
+            window.__resourceCalls.push({ databasePath, namespace, key, expectedContentVersion });
+            return inner.resource(contentDatabasePath, namespace, key, expectedContentVersion, signal);
           },
         };
         await bootstrapWebPresentation(window, prepared, () => {
@@ -295,6 +298,7 @@ async function main() {
         prepared: presentation,
         installationId: access.installationId,
         token: access.token,
+        databasePath,
       });
       const view = actorView(SESSION, { plan });
       await page.evaluate((next) => window.__applyView(next), view);

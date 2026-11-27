@@ -65,7 +65,8 @@ test("prepareCrossMapPortalCommit loads map222000001 field plan record", async (
   const mapB = plans.plans.find((p) => p.mapId === "222000001");
   const in00 = mapA.portalLogicalIndex.entries.find((p) => p.name === "in00");
   const scope = {
-    async record(namespace, key) {
+    async record(databasePath, namespace, key) {
+      if (databasePath !== "adventure") throw new Error(`unexpected database ${databasePath}`);
       if (namespace !== FIELD_PLAN_NAMESPACE) throw new Error("unexpected");
       const match = plans.plans.find((p) => fieldPlanContentKey(p.mapId) === key);
       if (!match) throw new Error(`missing ${key}`);
@@ -101,7 +102,7 @@ test("aborted prepare does not change committed map id", async () => {
   const prepared = await prepareCrossMapPortalCommit({
     scope: {
       content: {
-        async record(_ns, _key, { signal }) {
+        async record(_databasePath, _ns, _key, { signal }) {
           controller.abort();
           if (signal.aborted) {
             const err = new Error("CONTENT_CANCELLED");
@@ -147,7 +148,8 @@ test("prepareCrossMapPortalCommit loads map222000001 when returning from water e
   const mapC = plans.plans.find((p) => p.mapId === "230030200");
   const east00 = mapC.portalLogicalIndex.entries.find((p) => p.name === "east00");
   const scope = {
-    async record(namespace, key) {
+    async record(databasePath, namespace, key) {
+      if (databasePath !== "adventure") throw new Error(`unexpected database ${databasePath}`);
       if (namespace !== FIELD_PLAN_NAMESPACE) throw new Error("unexpected");
       const match = plans.plans.find((p) => fieldPlanContentKey(p.mapId) === key);
       if (!match) throw new Error(`missing ${key}`);

@@ -3,6 +3,9 @@
  * Isolated M1 fixture. The canonical PWA entry remains cms-actor. */
 (function () {
 "use strict";
+/** Logical FSDB path of content/[FSDB]adventure. The container root is the content directory. */
+const ADVENTURE_DATABASE_PATH = "adventure";
+
 /**
  * Spike-only budgets for the M1 synthetic scene.
  * These numbers are not an approved product Canvas or coordinate policy.
@@ -761,6 +764,7 @@ class MsMapBatch extends SpikeElement {
       for (const [pageId, page] of Object.entries(data.pages)) {
         this._resourceReads += 1;
         const resource = await this._context.resources.resource(
+          ADVENTURE_DATABASE_PATH,
           page.resource.namespace,
           page.resource.key,
           page.resource.contentVersion,

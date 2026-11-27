@@ -22,6 +22,7 @@ import path from "node:path";
 
 const componentRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sources = {
+  database: path.join(componentRoot, "..", "..", "systems", "adventure-map", "content-database.mjs"),
   model: path.join(componentRoot, "src", "avatar-model.mjs"),
   element: path.join(componentRoot, "src", "cms-actor.mjs"),
 };
@@ -41,9 +42,10 @@ function stripExports(source) {
 }
 
 function bundle() {
+  const database = stripExports(readFileSync(sources.database, "utf8"));
   const model = stripExports(readFileSync(sources.model, "utf8"));
   const element = stripExports(readFileSync(sources.element, "utf8"));
-  const body = `${model}\n${element}`
+  const body = `${database}\n${model}\n${element}`
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   const script = `${HEADER}\n(function () {\n"use strict";\n${body}\n})();\n`;

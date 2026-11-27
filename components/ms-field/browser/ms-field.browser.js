@@ -3,6 +3,9 @@
  * M3 static Field scene for the canonical PWA entry. */
 (function () {
 "use strict";
+/** Logical FSDB path of content/[FSDB]adventure. The container root is the content directory. */
+const ADVENTURE_DATABASE_PATH = "adventure";
+
 /**
  * M3 field scene input and Canvas budgets (candidate / not product ABI).
  */
@@ -94,7 +97,7 @@ function readSharedResource(client, namespace, key, contentVersion, signal) {
     return Promise.reject(Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" }));
   }
   const pool = resourcePool(client);
-  const identity = `${namespace}\0${key}\0${contentVersion}`;
+  const identity = `${ADVENTURE_DATABASE_PATH}\0${namespace}\0${key}\0${contentVersion}`;
   let entry = pool.entries.get(identity);
   if (entry === undefined) {
     let resolveEntry;
@@ -107,7 +110,7 @@ function readSharedResource(client, namespace, key, contentVersion, signal) {
     pool.entries.set(identity, entry);
     pool.queue.push(async () => {
       try {
-        resolveEntry(await client.resource(namespace, key, contentVersion));
+        resolveEntry(await client.resource(ADVENTURE_DATABASE_PATH, namespace, key, contentVersion));
       } catch (error) {
         if (pool.entries.get(identity) === entry) pool.entries.delete(identity);
         rejectEntry(error);

@@ -1,4 +1,5 @@
 import { validateAvatarPlan } from "./avatar-model.mjs";
+import { ADVENTURE_DATABASE_PATH } from "../../../systems/adventure-map/content-database.mjs";
 
 /**
  * Project an AvatarPlanV1 from the self-designed paper-doll tables.
@@ -155,9 +156,9 @@ function copyPoint(point, label) {
 
 async function loadPart(content, key) {
   const [record, frames, resources] = await Promise.all([
-    content.record("struct.avatar.Part", key),
-    content.group("group.avatar.PartFrame", key),
-    content.group("group.avatar.Resource", key),
+    content.record(ADVENTURE_DATABASE_PATH, "struct.avatar.Part", key),
+    content.group(ADVENTURE_DATABASE_PATH, "group.avatar.PartFrame", key),
+    content.group(ADVENTURE_DATABASE_PATH, "group.avatar.Resource", key),
   ]);
   const byName = new Map();
   for (const row of resources.rows ?? []) byName.set(row.name, row);
@@ -178,8 +179,8 @@ export async function buildAdventureAvatarPlan(content, input) {
   if (new Set(parts).size !== parts.length) throw new TypeError("duplicate part key");
 
   const [drawOrderRecord, layerSlotRecord, loaded] = await Promise.all([
-    content.record("struct.avatar.DrawOrder", "avatar"),
-    content.record("struct.avatar.LayerSlot", "avatar"),
+    content.record(ADVENTURE_DATABASE_PATH, "struct.avatar.DrawOrder", "avatar"),
+    content.record(ADVENTURE_DATABASE_PATH, "struct.avatar.LayerSlot", "avatar"),
     Promise.all(parts.map((key) => loadPart(content, key))),
   ]);
   const frontToBack = drawOrderRecord.value?.frontToBack;
@@ -232,7 +233,7 @@ export async function buildAdventureAvatarPlan(content, input) {
   const versions = new Map();
   const versionFor = async (image) => {
     if (!versions.has(image)) {
-      const loadedResource = await content.resource(IMAGE_NAMESPACE, image);
+      const loadedResource = await content.resource(ADVENTURE_DATABASE_PATH, IMAGE_NAMESPACE, image);
       if (!loadedResource || typeof loadedResource.contentVersion !== "string") {
         throw new TypeError(`resource.Avatar/${image} did not return contentVersion`);
       }

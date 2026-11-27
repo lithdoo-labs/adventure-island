@@ -93,11 +93,11 @@ const EXPECTED_PRESENTATION = Object.freeze({
   formatVersion: 1,
   styles: Object.freeze([]),
   scripts: Object.freeze([
-    Object.freeze({ namespace: "Presentation", key: CONTROLS_SCRIPT_KEY }),
-    Object.freeze({ namespace: "Presentation", key: VIEWPORT_SCRIPT_KEY }),
-    Object.freeze({ namespace: "Presentation", key: AVATAR_SCRIPT_KEY }),
-    Object.freeze({ namespace: "Presentation", key: FIELD_SCRIPT_KEY }),
-    Object.freeze({ namespace: "Presentation", key: ACTOR_SCRIPT_KEY }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: CONTROLS_SCRIPT_KEY }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: VIEWPORT_SCRIPT_KEY }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: AVATAR_SCRIPT_KEY }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: FIELD_SCRIPT_KEY }),
+    Object.freeze({ databasePath: "adventure", namespace: "Presentation", key: ACTOR_SCRIPT_KEY }),
   ]),
 });
 
@@ -306,13 +306,14 @@ function validatePwaBundlePayload(value) {
     if (!["record", "group", "resource"].includes(entry.kind)) {
       throw new TypeError("Invalid Content kind at index " + index);
     }
+    requireString(entry.databasePath, "content[" + index + "].databasePath");
     requireString(entry.namespace, "content[" + index + "].namespace");
     requireString(entry.key, "content[" + index + "].key");
     requireString(entry.mime, "content[" + index + "].mime");
     if (entry.encoding !== "base64" || typeof entry.body !== "string" || !validBase64(entry.body)) {
       throw new TypeError("Content body must be canonical base64 at index " + index);
     }
-    const identity = [entry.kind, entry.namespace, entry.key].join("\0");
+    const identity = [entry.databasePath, entry.kind, entry.namespace, entry.key].join("\0");
     if (identities.has(identity)) throw new TypeError("Duplicate PWA Content identity at index " + index);
     identities.add(identity);
   }
@@ -430,7 +431,8 @@ test("the Content whitelist is exact: the three classic scripts plus the read-on
     ));
 
     for (const entry of payload.content) {
-      assert.deepEqual(Object.keys(entry), ["kind", "namespace", "key", "mime", "encoding", "body"], "content entries must have exactly the payload schema keys");
+      assert.deepEqual(Object.keys(entry), ["databasePath", "kind", "namespace", "key", "mime", "encoding", "body"], "content entries must have exactly the payload schema keys");
+      assert.equal(entry.databasePath, "adventure");
       assert.equal(entry.encoding, "base64");
       const bytes = Buffer.from(entry.body, "base64");
       assert.equal(bytes.toString("base64"), entry.body, "content bodies must be canonical base64");
@@ -658,7 +660,7 @@ test("the upstream generic bundle validator (vendored from loom-realm 9364819) a
     assert.ok(validFixture.formatVersion === 1);
 
     const executable = { logicalModule: "subsystems/a.mjs", mime: "text/javascript", source: "x", contentVersion: "sha256:y" };
-    const contentEntry = { kind: "resource", namespace: "Presentation", key: "a.css", mime: "text/css", encoding: "base64", body: "aGVsbG8=" };
+    const contentEntry = { databasePath: "adventure", kind: "resource", namespace: "Presentation", key: "a.css", mime: "text/css", encoding: "base64", body: "aGVsbG8=" };
     const invalid = new Map([
       ["formatVersion", { ...validFixture, formatVersion: 2 }],
       ["gameEntryText not JSON", { ...validFixture, gameEntryText: "<" }],
@@ -1123,12 +1125,12 @@ test("illegal CLI usage and failing inputs are rejected without writing output",
         "an out-of-root logical module must be rejected",
       );
       await rejectFixture(
-        { "presentation.json": JSON.stringify({ formatVersion: 1, styles: [{ namespace: "Presentation", key: "page.css" }], scripts: [] }) },
+        { "presentation.json": JSON.stringify({ formatVersion: 1, styles: [{ databasePath: "adventure", namespace: "Presentation", key: "page.css" }], scripts: [] }) },
         /has no Content entry/,
         "a presentation resource without Content must be rejected",
       );
       await rejectFixture(
-        { "presentation.json": JSON.stringify({ formatVersion: 1, styles: [], scripts: [{ namespace: "Presentation", key: "ghost/ghost.browser.js" }] }) },
+        { "presentation.json": JSON.stringify({ formatVersion: 1, styles: [], scripts: [{ databasePath: "adventure", namespace: "Presentation", key: "ghost/ghost.browser.js" }] }) },
         /has no Content entry/,
         "a presentation script without a matching published resource must be rejected",
       );

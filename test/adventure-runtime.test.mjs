@@ -145,8 +145,9 @@ function createContentHarness({
   const calls = [];
   const content = {
     calls,
-    async record(namespace, key, options) {
-      calls.push({ namespace, key, options });
+    async record(databasePath, namespace, key, options) {
+      calls.push({ databasePath, namespace, key, options });
+      if (databasePath !== "adventure") throw new Error(`unexpected database ${databasePath}`);
       if (recordError !== null) throw recordError;
       if (namespace === FIELD_PLAN_NAMESPACE && key === FIELD_PLAN_KEY) {
         return Object.freeze({ value: fieldPlan });
@@ -674,12 +675,12 @@ test("M7.3: a fresh Up edge in the out00 rope band commits B to A", async (t) =>
   const content = createContentHarness({ fieldPlan: source, targetFieldPlan: canonicalFieldPlan });
   const baseRecord = content.record.bind(content);
   let bootstrapReads = 0;
-  content.record = async (namespace, key, options) => {
+  content.record = async (databasePath, namespace, key, options) => {
     if (namespace === FIELD_PLAN_NAMESPACE && key === FIELD_PLAN_KEY) {
       bootstrapReads += 1;
       return Object.freeze({ value: bootstrapReads === 1 ? source : canonicalFieldPlan });
     }
-    return baseRecord(namespace, key, options);
+    return baseRecord(databasePath, namespace, key, options);
   };
   const harness = startMapFrame({
     content,
@@ -706,11 +707,11 @@ test("M6: failed prepare keeps source movement monotonic instead of rewinding a 
   let rejectTarget;
   const content = createContentHarness({ fieldPlan: fieldPlanAtPortal() });
   const baseRecord = content.record.bind(content);
-  content.record = async (namespace, key, options) => {
+  content.record = async (databasePath, namespace, key, options) => {
     if (key === fieldPlanContentKey("222000001")) {
       return new Promise((_resolve, reject) => { rejectTarget = reject; });
     }
-    return baseRecord(namespace, key, options);
+    return baseRecord(databasePath, namespace, key, options);
   };
   const harness = startMapFrame({ content });
   t.after(() => harness.frame.abort());
@@ -740,7 +741,7 @@ test("M6: frame cancellation aborts an in-flight target FieldPlan read", async (
   let targetReadAborted = false;
   const content = createContentHarness({ fieldPlan: fieldPlanAtPortal() });
   const baseRecord = content.record.bind(content);
-  content.record = async (namespace, key, options) => {
+  content.record = async (databasePath, namespace, key, options) => {
     if (key === fieldPlanContentKey("222000001")) {
       targetReadStarted = true;
       return new Promise((_resolve, reject) => {
@@ -750,7 +751,7 @@ test("M6: frame cancellation aborts an in-flight target FieldPlan read", async (
         }, { once: true });
       });
     }
-    return baseRecord(namespace, key, options);
+    return baseRecord(databasePath, namespace, key, options);
   };
   const harness = startMapFrame({ content });
   await settle();

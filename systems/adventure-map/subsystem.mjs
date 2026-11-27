@@ -3,6 +3,7 @@
  * Controls channel provided by Base's `game-controls-input`.
  */
 import { ContentReadError, cancelled, defineSubsystem, failed } from "@loomrealm/subsystem";
+import { ADVENTURE_DATABASE_PATH } from "./content-database.mjs";
 import { createControlsConsumer } from "@loomrealm-game/common-controls/subsystem";
 import {
   FIELD_PLAN_KEY,
@@ -133,7 +134,7 @@ export default defineSubsystem((scope) => ({
   async frame(frame) {
     let bootstrap;
     try {
-      bootstrap = await scope.content.record(FIELD_PLAN_NAMESPACE, FIELD_PLAN_KEY, { signal: frame.signal });
+      bootstrap = await scope.content.record(ADVENTURE_DATABASE_PATH, FIELD_PLAN_NAMESPACE, FIELD_PLAN_KEY, { signal: frame.signal });
     } catch (cause) {
       const code = contentErrorCode(cause);
       if (frame.signal.aborted || code === "CONTENT_CANCELLED") return cancelled();

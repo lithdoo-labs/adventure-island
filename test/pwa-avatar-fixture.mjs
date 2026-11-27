@@ -167,12 +167,12 @@ function missingResourcePlan() {
 
 /** Re-read every published record through the real Content API and compare. */
 async function verifyPublishedRecords(scope) {
-  const zmap = await scope.content.record(ZMAP_NAMESPACE, "order");
+  const zmap = await scope.content.record("adventure", ZMAP_NAMESPACE, "order");
   if (JSON.stringify(zmap.value) !== JSON.stringify(ZMAP)) {
     throw new Error("published struct.ZMap/order does not match the canonical record");
   }
   for (const [kind, record] of Object.entries(LOOKS)) {
-    const read = await scope.content.record(LOOK_NAMESPACE, LOOK_IDS[kind]);
+    const read = await scope.content.record("adventure", LOOK_NAMESPACE, LOOK_IDS[kind]);
     if (JSON.stringify(read.value) !== JSON.stringify(record)) {
       throw new Error("published struct.Look/" + LOOK_IDS[kind] + " does not match the canonical " + kind + " record");
     }
@@ -269,6 +269,7 @@ export default function defineAvatarFixtureSubsystem(scope) {
 export async function composeAvatarFixturePayload() {
   const synthetic = buildCanonicalSyntheticAvatarContent();
   const content = synthetic.entries.map(({ kind, namespace, key, mime, bytes }) => ({
+    databasePath: "adventure",
     kind,
     namespace,
     key,
@@ -278,6 +279,7 @@ export async function composeAvatarFixturePayload() {
   }));
   const scriptBytes = await readFile(fileURLToPath(new URL(`../${PRESENTATION_SCRIPT_PATH}`, import.meta.url)));
   content.push({
+    databasePath: "adventure",
     kind: "resource",
     namespace: PRESENTATION_SCRIPT_NAMESPACE,
     key: PRESENTATION_SCRIPT_KEY,
@@ -306,7 +308,7 @@ export async function composeAvatarFixturePayload() {
       presentation: {
         formatVersion: 1,
         styles: [],
-        scripts: [{ namespace: "Presentation", key: PRESENTATION_SCRIPT_KEY }],
+        scripts: [{ databasePath: "adventure", namespace: "Presentation", key: PRESENTATION_SCRIPT_KEY }],
       },
       executables: Object.freeze([Object.freeze({
         logicalModule: FIXTURE_LOGICAL_MODULE,

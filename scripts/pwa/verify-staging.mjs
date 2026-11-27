@@ -7,7 +7,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const FRAMEWORK_PIN = "cf78172d62e355adb674a2b6c9141176fc16e6da";
+const FRAMEWORK_PIN = "82e557d989cb9f8469751746f58a7fdd08fb9e85";
 const root = fileURLToPath(new URL("../../", import.meta.url));
 
 function sha256(data) {

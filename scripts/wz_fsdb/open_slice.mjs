@@ -2,8 +2,8 @@ import { openFsdb, listFsdbEntries } from "../../loom-realm/packages/fsdb/dist/i
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "content", "[FSDB]cms");
-const db = await openFsdb({ root });
+const fsdbDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "content", "[FSDB]cms");
+const db = await openFsdb({ root: path.dirname(fsdbDirectory), path: "cms" });
 const entries = listFsdbEntries(db);
 const counts = new Map();
 for (const entry of entries) {

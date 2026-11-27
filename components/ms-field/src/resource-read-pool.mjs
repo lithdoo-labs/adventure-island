@@ -1,3 +1,5 @@
+import { ADVENTURE_DATABASE_PATH } from "../../../systems/adventure-map/content-database.mjs";
+
 /** Shared immutable Content read pool (8 concurrent reads per resource client). */
 export const RESOURCE_READ_CONCURRENCY = 8;
 // Both classic component bundles include this small module. Store the pool on
@@ -57,7 +59,7 @@ export function readSharedResource(client, namespace, key, contentVersion, signa
     return Promise.reject(Object.assign(new Error("missing resource client"), { code: "CONTENT_UNAVAILABLE" }));
   }
   const pool = resourcePool(client);
-  const identity = `${namespace}\0${key}\0${contentVersion}`;
+  const identity = `${ADVENTURE_DATABASE_PATH}\0${namespace}\0${key}\0${contentVersion}`;
   let entry = pool.entries.get(identity);
   if (entry === undefined) {
     let resolveEntry;
@@ -70,7 +72,7 @@ export function readSharedResource(client, namespace, key, contentVersion, signa
     pool.entries.set(identity, entry);
     pool.queue.push(async () => {
       try {
-        resolveEntry(await client.resource(namespace, key, contentVersion));
+        resolveEntry(await client.resource(ADVENTURE_DATABASE_PATH, namespace, key, contentVersion));
       } catch (error) {
         if (pool.entries.get(identity) === entry) pool.entries.delete(identity);
         rejectEntry(error);

@@ -75,14 +75,21 @@ export async function startFieldServer({ index, scriptBytes, resourceDelayMs = n
         response.end(scriptBytes);
         return;
       }
-      const resourcePrefix = `/_lr/v1/games/${INSTALLATION_ID}/resources/`;
+      const resourcePrefix = `/_lr/v1/games/${INSTALLATION_ID}/databases/`;
       if (url.pathname.startsWith(resourcePrefix)) {
         if (request.headers.authorization !== BEARER) {
           response.statusCode = 401;
           response.end();
           return;
         }
-        const segments = url.pathname.slice(resourcePrefix.length).split("/").map((part) => decodeURIComponent(part));
+        const route = url.pathname.slice(resourcePrefix.length).split("/");
+        const marker = route.indexOf("$db");
+        if (marker < 1 || route[marker + 1] !== "resources") {
+          response.statusCode = 404;
+          response.end();
+          return;
+        }
+        const segments = route.slice(marker + 2).map((part) => decodeURIComponent(part));
         const namespace = segments.shift();
         const key = segments.join("/");
         const identity = `${namespace}\0${key}`;
@@ -148,14 +155,14 @@ export async function openFieldPage(t, { chromium, origin, prepared, installatio
     window.__resourceMaxActive = 0;
     window.__presentationFailures = [];
     const resourceClient = {
-      async resource(namespace, key, expectedContentVersion, signal) {
-        const record = { namespace, key, expectedContentVersion, aborted: false };
+      async resource(databasePath, namespace, key, expectedContentVersion, signal) {
+        const record = { databasePath, namespace, key, expectedContentVersion, aborted: false };
         window.__resourceCalls.push(record);
         window.__resourceActive += 1;
         window.__resourceMaxActive = Math.max(window.__resourceMaxActive, window.__resourceActive);
         signal?.addEventListener("abort", () => { record.aborted = true; }, { once: true });
         try {
-          return await inner.resource(namespace, key, expectedContentVersion, signal);
+          return await inner.resource(databasePath, namespace, key, expectedContentVersion, signal);
         } finally {
           window.__resourceActive -= 1;
         }

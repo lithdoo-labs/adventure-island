@@ -21,7 +21,7 @@
  *     presentation: { formatVersion: 1, styles: [], scripts: [resource refs] },
  *     executables: [{ logicalModule: "subsystems/base.mjs",
  *                     mime: "text/javascript", source, contentVersion }],
- *     content: [{ kind, namespace, key, mime, encoding: "base64", body }] }
+ *     content: [{ databasePath, kind, namespace, key, mime, encoding: "base64", body }] }
  *
  * Executables (issue #62): the canonical application declares base and
  * adventure-map. Each executable is a SELF-CONTAINED esbuild bundle compiled
@@ -56,6 +56,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build as esbuild } from "esbuild";
+import { ADVENTURE_DATABASE_PATH } from "../../systems/adventure-map/content-database.mjs";
 
 import {
   AVATAR_PLAN_DATA_BYTE_LIMIT,
@@ -270,15 +271,22 @@ function validatePresentation(value, label) {
     if (!Array.isArray(list)) throw new TypeError(`${label}: ${listLabel} must be an array`);
     const seen = new Set();
     return list.map((candidate, index) => {
-      exactKeys(candidate, ["namespace", "key"], `${label}: ${listLabel}[${index}]`);
+      exactKeys(candidate, ["databasePath", "namespace", "key"], `${label}: ${listLabel}[${index}]`);
+      if (candidate.databasePath !== ADVENTURE_DATABASE_PATH) {
+        throw new TypeError(`${label}: ${listLabel}[${index}].databasePath must be ${ADVENTURE_DATABASE_PATH}`);
+      }
       if (!validSegment(candidate.namespace, false, `${label}: ${listLabel}[${index}].namespace`)
         || !validSegment(candidate.key, true, `${label}: ${listLabel}[${index}].key`)) {
         throw new TypeError(`${label}: invalid ${listLabel}[${index}] resource reference`);
       }
-      const identity = JSON.stringify([candidate.namespace, candidate.key]);
+      const identity = JSON.stringify([candidate.databasePath, candidate.namespace, candidate.key]);
       if (seen.has(identity)) throw new TypeError(`${label}: duplicate ${listLabel} resource`);
       seen.add(identity);
-      return Object.freeze({ namespace: candidate.namespace, key: candidate.key });
+      return Object.freeze({
+        databasePath: candidate.databasePath,
+        namespace: candidate.namespace,
+        key: candidate.key,
+      });
     });
   };
   return Object.freeze({
@@ -396,7 +404,15 @@ async function assembleAdventureContent({ scriptEntries, adventureContent }) {
     const identity = [kind, namespace, key].join("\0");
     if (byIdentity.has(identity)) throw new TypeError(`duplicate Content identity ${kind} ${namespace}/${key}`);
     byIdentity.set(identity, Object.freeze({ bytes, mime, contentVersion: `sha256:${sha256(bytes)}` }));
-    content.push(Object.freeze({ kind, namespace, key, mime, encoding: "base64", body }));
+    content.push(Object.freeze({
+      databasePath: ADVENTURE_DATABASE_PATH,
+      kind,
+      namespace,
+      key,
+      mime,
+      encoding: "base64",
+      body,
+    }));
   };
   for (const entry of generated.entries) push(entry);
   for (const entry of scriptEntries) push(entry);

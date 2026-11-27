@@ -227,7 +227,7 @@ export async function buildCanonicalAdventureAvatarContent({
 
   /** The official adapter's Content view: every read becomes a published entry. */
   const content = {
-    async record(namespace, key) {
+    async record(_databasePath, namespace, key) {
       const { bytes, physicalPath } = await readTableFile("record", namespace, key);
       let value;
       try {
@@ -241,7 +241,7 @@ export async function buildCanonicalAdventureAvatarContent({
       track("record", namespace, key, RECORD_MIME, bytes, physicalPath);
       return Object.freeze({ value, contentVersion: sha256(bytes) });
     },
-    async group(namespace, key) {
+    async group(_databasePath, namespace, key) {
       const { bytes, physicalPath } = await readTableFile("group", namespace, key);
       const rows = parseRows(bytes, `adventure FSDB group ${namespace}/${key}`);
       if (namespace === "group.avatar.PartFrame") {
@@ -277,7 +277,7 @@ export async function buildCanonicalAdventureAvatarContent({
       track("group", namespace, key, GROUP_MIME, bytes, physicalPath);
       return Object.freeze({ rows: Object.freeze(rows), contentVersion: sha256(bytes) });
     },
-    async resource(namespace, key) {
+    async resource(_databasePath, namespace, key) {
       const { bytes, physicalPath } = await readTableFile("resource", namespace, key);
       track("resource", namespace, key, PNG_MIME, bytes, physicalPath);
       return Object.freeze({ bytes, mime: PNG_MIME, contentVersion: sha256(bytes) });

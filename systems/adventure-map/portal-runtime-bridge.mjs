@@ -1,4 +1,5 @@
 import { ContentReadError } from "@loomrealm/subsystem";
+import { ADVENTURE_DATABASE_PATH } from "./content-database.mjs";
 import { validateFieldPlan, FIELD_PLAN_NAMESPACE } from "./field-plan-model.mjs";
 import { fieldPlanRecordKeyForMap } from "./field-plan-keys.mjs";
 import { sceneRootKeyFromPlan } from "./field-scene-runtime.mjs";
@@ -103,6 +104,7 @@ export async function prepareCrossMapPortalCommit({
   let record;
   try {
     record = await content.record(
+      ADVENTURE_DATABASE_PATH,
       FIELD_PLAN_NAMESPACE,
       fieldPlanRecordKeyForMap(targetMapId),
       { signal },

@@ -1,3 +1,4 @@
+import { ADVENTURE_DATABASE_PATH } from "../../../systems/adventure-map/content-database.mjs";
 import {
   formatSkippedLayers,
   frameDuration,
@@ -738,6 +739,7 @@ export class CmsActor extends HTMLElementBase {
     this._pinEntry(entry);
     this._loadingCount += 1;
     entry.promise = this._context.resources.resource(
+      ADVENTURE_DATABASE_PATH,
       resource.namespace,
       resource.key,
       resource.contentVersion,

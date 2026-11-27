@@ -2,10 +2,10 @@
   "formatVersion": 1,
   "styles": [],
   "scripts": [
-    { "namespace": "Presentation", "key": "controls/device-input.browser.js" },
-    { "namespace": "Presentation", "key": "ms-viewport/ms-viewport.browser.js" },
-    { "namespace": "Presentation", "key": "ms-avatar/ms-avatar.browser.js" },
-    { "namespace": "Presentation", "key": "ms-field/ms-field.browser.js" },
-    { "namespace": "Presentation", "key": "cms-actor/cms-actor.browser.js" }
+    { "databasePath": "adventure", "namespace": "Presentation", "key": "controls/device-input.browser.js" },
+    { "databasePath": "adventure", "namespace": "Presentation", "key": "ms-viewport/ms-viewport.browser.js" },
+    { "databasePath": "adventure", "namespace": "Presentation", "key": "ms-avatar/ms-avatar.browser.js" },
+    { "databasePath": "adventure", "namespace": "Presentation", "key": "ms-field/ms-field.browser.js" },
+    { "databasePath": "adventure", "namespace": "Presentation", "key": "cms-actor/cms-actor.browser.js" }
   ]
 }

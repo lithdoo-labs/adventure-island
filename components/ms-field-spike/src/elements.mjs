@@ -1,3 +1,4 @@
+import { ADVENTURE_DATABASE_PATH } from "../../../systems/adventure-map/content-database.mjs";
 import { SPIKE_CANVAS_LIMITS } from "./limits.mjs";
 import {
   placementDestRect,
@@ -290,6 +291,7 @@ export class MsMapBatch extends SpikeElement {
       for (const [pageId, page] of Object.entries(data.pages)) {
         this._resourceReads += 1;
         const resource = await this._context.resources.resource(
+          ADVENTURE_DATABASE_PATH,
           page.resource.namespace,
           page.resource.key,
           page.resource.contentVersion,

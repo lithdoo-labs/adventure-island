@@ -19,6 +19,18 @@ export const componentRoot = path.resolve(path.dirname(fileURLToPath(import.meta
 export const repoRoot = path.resolve(componentRoot, "..", "..");
 export const loomRoot = path.join(repoRoot, "loom-realm");
 export const rendererDistInternal = path.join(loomRoot, "packages", "renderer", "dist", "internal");
+export const FSDB_NAMES_URL = "/packages/fsdb/dist/names.js";
+const fsdbNamesFile = path.join(loomRoot, "packages", "fsdb", "dist", "names.js");
+
+/** The renderer dist imports this bare specifier. Chromium only resolves it through an import map. */
+export function presentationDocument({ head = "" } = {}) {
+  const importMap = JSON.stringify({ imports: { "@loomrealm/fsdb/names": FSDB_NAMES_URL } });
+  return `<!doctype html><html><head><script type="importmap">${importMap}</script>${head}</head><body style="margin:0"></body></html>`;
+}
+
+export function readFsdbNamesModule() {
+  return readFile(fsdbNamesFile);
+}
 
 export function importRendererInternal(module) {
   const file = path.join(rendererDistInternal, `${module}.js`);
@@ -68,7 +80,12 @@ export function startContentServer({ index, scriptBytes, scriptPath, installatio
     try {
       if (url.pathname === "/") {
         response.setHeader("content-type", "text/html");
-        response.end("<!doctype html><html><head></head><body style=\"margin:0\"></body></html>");
+        response.end(presentationDocument());
+        return;
+      }
+      if (url.pathname === FSDB_NAMES_URL) {
+        response.setHeader("content-type", "text/javascript");
+        response.end(await readFsdbNamesModule());
         return;
       }
       if (url.pathname.startsWith("/packages/renderer/dist/internal/") && url.pathname.endsWith(".js")) {

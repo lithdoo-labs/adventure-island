@@ -95,7 +95,13 @@ function startPageServer({ scriptBytes, targetOrigin, installationId }) {
     try {
       if (url.pathname === "/") {
         response.setHeader("content-type", "text/html; charset=utf-8");
-        response.end("<!doctype html><html><head></head><body style=\"margin:0\"></body></html>");
+        const importMap = JSON.stringify({ imports: { "@loomrealm/fsdb/names": "/packages/fsdb/dist/names.js" } });
+        response.end(`<!doctype html><html><head><script type="importmap">${importMap}</script></head><body style="margin:0"></body></html>`);
+        return;
+      }
+      if (url.pathname === "/packages/fsdb/dist/names.js") {
+        response.setHeader("content-type", "text/javascript");
+        response.end(await readFile(path.join(loomRoot, "packages", "fsdb", "dist", "names.js")));
         return;
       }
       if (url.pathname.startsWith("/packages/renderer/dist/internal/") && url.pathname.endsWith(".js")) {

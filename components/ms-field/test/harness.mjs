@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { launchChromium, preparePresentation, rendererDistInternal, waitFor } from "../../cms-actor/test/harness.mjs";
+import { FSDB_NAMES_URL, launchChromium, preparePresentation, presentationDocument, readFsdbNamesModule, rendererDistInternal, waitFor } from "../../cms-actor/test/harness.mjs";
 
 const componentRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const rendererDist = path.resolve(rendererDistInternal, "..");
@@ -49,7 +49,14 @@ export async function startFieldServer({ index, scriptBytes, resourceDelayMs = n
     try {
       if (url.pathname === "/") {
         response.setHeader("content-type", "text/html");
-        response.end("<!doctype html><html><head><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#ff00ff}</style></head><body></body></html>");
+        response.end(presentationDocument({
+          head: "<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#ff00ff}</style>",
+        }));
+        return;
+      }
+      if (url.pathname === FSDB_NAMES_URL) {
+        response.setHeader("content-type", "text/javascript");
+        response.end(await readFsdbNamesModule());
         return;
       }
       if (url.pathname.startsWith("/packages/renderer/dist/") && url.pathname.endsWith(".js")) {

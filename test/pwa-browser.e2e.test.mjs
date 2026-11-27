@@ -1390,8 +1390,8 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
   }, "jump phase holding its single marker frame", { timeout: 45_000, arg: FRAME_MARKERS.jump[0].slice(0, 3) });
 
   // 10. ContentVersion rejection: the pinned resource client refuses the
-  //     mismatched version, the element surfaces a locatable error and the
-  //     canvas is cleared (no partial frame).
+  //     mismatched version as CONTENT_CONFLICT, the element surfaces a
+  //     locatable error and the canvas is cleared (no partial frame).
   const conflictState = await waitForEvaluate(page, () => {
     const phaseOk = document.querySelector("#avatar-fixture-status")?.getAttribute("data-phase") === "version-conflict";
     const actor = document.querySelector("cms-actor");
@@ -1400,7 +1400,7 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
     if (!phaseOk || actor?.getAttribute("data-render-state") !== "error" || error === null) return false;
     return { error, canvasWidth: canvas?.width ?? 0 };
   }, "version-conflict error state", { timeout: 45_000 });
-  assert.match(conflictState.error, /CONTENT_UNAVAILABLE/u, `the pinned resource client must reject the wrong version (${conflictState.error})`);
+  assert.match(conflictState.error, /CONTENT_CONFLICT/u, `the pinned resource client must reject the wrong version (${conflictState.error})`);
   // The conflicted plan lands while whichever locomotion is active, so the
   // failing fetch names that action's hair canvas.
   assert.match(conflictState.error, /Look\/00030000\/(?:stand1|walk1|jump)\/0\/hair/u, `the diagnostic must name the conflicted hair resource (${conflictState.error})`);
@@ -1414,7 +1414,7 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
   await expectPixel(POINTS.faceThroughHairHole, COLORS.face, "pixels restored after the version-conflict recovery");
 
   // 11. Missing resource: the Service Worker answers 404 and the element
-  //     reports a locatable unavailable error.
+  //     reports a locatable CONTENT_NOT_FOUND error.
   const missingState = await waitForEvaluate(page, () => {
     const phaseOk = document.querySelector("#avatar-fixture-status")?.getAttribute("data-phase") === "missing";
     const actor = document.querySelector("cms-actor");
@@ -1423,7 +1423,7 @@ test("the canonical synthetic Content projects a paper-doll actor in the real PW
     if (!phaseOk || actor?.getAttribute("data-render-state") !== "error" || error === null) return false;
     return { error, canvasWidth: canvas?.width ?? 0 };
   }, "missing-resource error state", { timeout: 45_000 });
-  assert.match(missingState.error, /CONTENT_UNAVAILABLE/u, `a missing Content resource must surface an error (${missingState.error})`);
+  assert.match(missingState.error, /CONTENT_NOT_FOUND/u, `a missing Content resource must surface an error (${missingState.error})`);
   assert.ok(missingState.error.includes("Look/00020000/default/0/ghost"), `the diagnostic must name the missing key (${missingState.error})`);
   assert.equal(missingState.canvasWidth, 1, "the missing-resource error must clear the canvas");
 

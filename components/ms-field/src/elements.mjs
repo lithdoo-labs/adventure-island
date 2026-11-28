@@ -1,4 +1,4 @@
-import { horizontalScreenAnchor } from "../../ms-map-adapter/src/back-layout.mjs";
+import { horizontalScreenAnchor, verticalScreenAnchor } from "../../ms-map-adapter/src/back-layout.mjs";
 import { hiddenPortalClipAfterFinish, hiddenPortalClipForDesire } from "./portal-sequence.mjs";
 import { FIELD_CANVAS_LIMITS } from "./limits.mjs";
 import { readSharedResource } from "./resource-read-pool.mjs";
@@ -665,7 +665,7 @@ export function chooseBackCanvas(layout, fallbackW, fallbackH, ratio) {
   return { w: baseW, h: baseH, deviceW, deviceH, externalPhase: false };
 }
 
-function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null, surface = null) {
+function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null, surface = null, screenAnchorY = null) {
   const source = image?.source ?? {
     x: 0,
     y: 0,
@@ -706,7 +706,11 @@ function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], s
     : (Number.isFinite(screenAnchorX)
       ? repeatPhase(screenAnchorX, stepX)
       : originPhase(originX + scrollOffsetX, stepX));
-  const phaseY = surface ? 0 : originPhase(originY, stepY);
+  const phaseY = surface
+    ? 0
+    : (Number.isFinite(screenAnchorY)
+      ? repeatPhase(screenAnchorY, stepY)
+      : originPhase(originY, stepY));
   const yEnd = vert ? (surface ? canvasH : canvasH + stepY) : frameH;
   const xEnd = horiz ? (surface ? canvasW : canvasW + stepX) : frameW;
   const yStep = vert ? stepY : frameH;
@@ -1115,12 +1119,17 @@ export class MsMapBack extends SpikeElement {
     return horizontalScreenAnchor(layout, cameraX, Math.trunc(this._scrollOffsetX));
   }
 
+  _verticalAnchor() {
+    const layout = this._validated?.layout ?? this._data?.layout ?? null;
+    const cameraY = Number(this.getAttribute("view-y"));
+    return verticalScreenAnchor(layout, cameraY, Math.trunc(this._scrollOffsetX));
+  }
+
   /**
    * The host stays pinned by view-x/view-y. The world plane already translates
    * by the camera, so the tile phase is only a canvas translate inside the
-   * clipped host. Horizontal phase follows the screen anchor (including type-4
-   * scroll). Vertical phase is the authored origin, which the camera does not
-   * change.
+   * clipped host. Both axes follow the screen anchor. Rate -100 keeps the
+   * authored edge on the map, including a vertical repeat.
    */
   _syncBackPhase() {
     if (!this._canvas) return;
@@ -1135,9 +1144,12 @@ export class MsMapBack extends SpikeElement {
     const stepX = backTileStep(layout, "x");
     const stepY = backTileStep(layout, "y");
     const anchor = this._horizontalAnchor();
+    const anchorY = this._verticalAnchor();
     const phaseX = stepX > 0 && Number.isFinite(anchor) ? repeatPhase(anchor, stepX) : 0;
     const originY = Number.isFinite(layout?.tileOriginY) ? layout.tileOriginY : 0;
-    const phaseY = stepY > 0 ? originPhase(originY, stepY) : 0;
+    const phaseY = stepY > 0 && Number.isFinite(anchorY)
+      ? repeatPhase(anchorY, stepY)
+      : (stepY > 0 ? originPhase(originY, stepY) : 0);
     const next = `translate(${cssPx(phaseX)}, ${cssPx(phaseY)})`;
     if (this._phaseTransform === next) return;
     this._canvas.style.transform = next;
@@ -1149,7 +1161,8 @@ export class MsMapBack extends SpikeElement {
       this._syncBackPhase();
       return;
     }
-    if (this._horizontalAnchor() !== this._paintedAnchorX) this._redrawBack(false);
+    if (this._horizontalAnchor() !== this._paintedAnchorX
+      || this._verticalAnchor() !== this._paintedAnchorY) this._redrawBack(false);
   }
 
   _redrawBack(countCommit = true) {
@@ -1170,7 +1183,9 @@ export class MsMapBack extends SpikeElement {
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.imageSmoothingEnabled = false;
     const anchor = this._horizontalAnchor();
+    const anchorY = this._verticalAnchor();
     this._paintedAnchorX = anchor;
+    this._paintedAnchorY = anchorY;
     const surface = this._externalPhase ? { w: this._canvasCssW, h: this._canvasCssH } : null;
     paintBackTiles(
       context,
@@ -1182,6 +1197,7 @@ export class MsMapBack extends SpikeElement {
       !surface && anchor === null ? this._scrollOffsetX : 0,
       surface ? null : anchor,
       surface,
+      surface ? null : anchorY,
     );
     this._syncBackPhase();
     if (countCommit) this._paintCommits += 1;

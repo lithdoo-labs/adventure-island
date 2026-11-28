@@ -150,6 +150,12 @@ test("down grab snaps to the rope top and up grab keeps the current height", () 
 
   const dropping = Object.freeze({ ...falling, ignoredFootholdId: 1 });
   assert.notEqual(land(dropping, ["up"], rope).mode, "climb");
+
+  const lip = ropeSegment({ y1: 2, y2: 100 });
+  const onLip = land(standing, ["down"], lip);
+  assert.equal(onLip.mode, "climb");
+  assert.equal(onLip.worldY, lip.y1);
+  assert.notEqual(land(standing, ["up"], lip).mode, "climb");
 });
 
 test("releasing the key stays on the rope, and the ends follow uf", () => {

@@ -19,7 +19,8 @@
  *   every 300ms while airborne. Landing while it is still held jumps again.
  * - Position uses the average of the pre- and post-integration velocities.
  * - Downward crossings install the highest crossed walkable segment.
- * - Avatar projection maps locomotion swim → fly, and stand/walk while grounded.
+ * - Avatar projection maps locomotion swim → fly. Grounded down with no
+ *   horizontal key is prone, the same as land. Airborne down changes swim speed.
  * - After the step, X is clamped to the physical rectangle and horizontal
  *   speed is cleared at a side. Y stops only above the top. The bottom is
  *   not a floor. Spawn and arrival clamp Y into the rectangle once.
@@ -289,6 +290,7 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
   let horizontalIntegrated = false;
   let ignoredFootholdId = state.ignoredFootholdId ?? null;
   let leaveForJump = false;
+  let prone = false;
 
   if (grounded) {
     const support = findSupportSegment(worldX, worldY, segments, contact);
@@ -320,6 +322,10 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
         contact = null;
         ignoredFootholdId = null;
         leaveForJump = true;
+      } else if (intent.down && dir === 0) {
+        velocityX = 0;
+        velocityY = 0;
+        prone = true;
       } else {
         const moved = integrateFoothold(
           worldX,
@@ -385,8 +391,15 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
   }
 
   if (grounded) {
-    const mode = dir !== 0 ? "walk" : "stand";
-    const clipped = clipSwimBody(worldX, worldY, velocityX, velocityY, bounds, false);
+    const mode = prone ? "prone" : (dir !== 0 ? "walk" : "stand");
+    const clipped = clipSwimBody(
+      worldX,
+      worldY,
+      prone ? 0 : velocityX,
+      prone ? 0 : velocityY,
+      bounds,
+      false,
+    );
     return freezeSwimStep(state, {
       worldX: clipped.worldX,
       worldY: clipped.worldY,
@@ -448,12 +461,13 @@ export function stepSwimMapMovement(state, intent, footholdCollisionPlan, moveme
   });
   const clippedMove = clipSwimBody(swept.worldX, swept.worldY, swept.velocityX, swept.velocityY, bounds, false);
   if (swept.grounded && swept.segment) {
-    const mode = dir !== 0 ? "walk" : "stand";
+    const landedProne = intent.down === true && dir === 0;
+    const mode = landedProne ? "prone" : (dir !== 0 ? "walk" : "stand");
     const clippedLand = clipSwimBody(
       clippedMove.worldX,
       swept.worldY,
-      clippedMove.velocityX,
-      clippedMove.velocityY,
+      landedProne ? 0 : clippedMove.velocityX,
+      landedProne ? 0 : clippedMove.velocityY,
       bounds,
       false,
     );

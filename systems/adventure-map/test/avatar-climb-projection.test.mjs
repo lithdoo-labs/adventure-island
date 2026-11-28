@@ -34,3 +34,16 @@ test("a ladder rope uses the ladder clip only when that action is published", ()
   });
   assert.equal(ropeOnly.action, "rope");
 });
+
+test("a live climb with no plan ref uses ladder when the rope is a ladder", () => {
+  const ladder = projectAvatarLocomotionAttrs({
+    player: { locomotion: "climb", facing: "right" },
+    movement: { ropeContact: { l: 1 } },
+  });
+  assert.equal(ladder.action, "ladder");
+  const rope = projectAvatarLocomotionAttrs({
+    player: { locomotion: "climb", facing: "right" },
+    movement: { ropeContact: { l: 0 } },
+  });
+  assert.equal(rope.action, "rope");
+});

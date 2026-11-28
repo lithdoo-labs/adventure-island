@@ -1,0 +1,12 @@
+{"layer":"3","oS":"tower","l0":"marineTower","l1":"foot","l2":"7","x":-423,"y":289,"z":3,"f":0,"zM":1}
+{"layer":"3","oS":"tower","l0":"marineTower","l1":"foot","l2":"7","x":-127,"y":289,"z":3,"f":0,"zM":0}
+{"layer":"3","oS":"tower","l0":"marineTower","l1":"foot","l2":"7","x":422,"y":289,"z":3,"f":0,"zM":0}
+{"layer":"3","oS":"tower","l0":"marineTower","l1":"foot","l2":"7","x":134,"y":289,"z":3,"f":0,"zM":0}
+{"layer":"3","oS":"acc5","l0":"safetyZone","l1":"boat","l2":"0","x":-5,"y":67,"z":3,"f":0,"zM":3}
+{"layer":"3","oS":"acc5","l0":"safetyZone","l1":"boat","l2":"1","x":-216,"y":49,"z":2,"f":0,"zM":3}
+{"layer":"3","oS":"acc5","l0":"safetyZone","l1":"boat","l2":"2","x":97,"y":-17,"z":2,"f":0,"zM":3}
+{"layer":"4","oS":"connect","l0":"ladder","l1":"34","l2":"0","x":156,"y":43,"z":3,"f":0,"zM":2}
+{"layer":"4","oS":"connect","l0":"ladder","l1":"34","l2":"1","x":156,"y":83,"z":3,"f":0,"zM":2}
+{"layer":"4","oS":"connect","l0":"ladder","l1":"34","l2":"2","x":156,"y":132,"z":3,"f":0,"zM":2}
+{"layer":"4","oS":"connect","l0":"ladder","l1":"34","l2":"3","x":156,"y":181,"z":3,"f":0,"zM":2}
+{"layer":"4","oS":"connect","l0":"ladder","l1":"34","l2":"4","x":156,"y":219,"z":3,"f":0,"zM":2}

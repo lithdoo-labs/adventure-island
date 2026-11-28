@@ -28,7 +28,7 @@ describe("real map 222000000 static field projection", () => {
     assert.equal(first.hash, second.hash);
     assert.equal(
       first.hash,
-      "sha256:458d78e9a3f42475e869276503dc2984367dad50b271afff0aa346b1653b7e93",
+      "sha256:8dcfe51cae734c4db524bd54ab264d4fc87f2d9623af3c3414559860b3505dce",
     );
 
     assert.ok(Number.isFinite(first.camera.cameraX));

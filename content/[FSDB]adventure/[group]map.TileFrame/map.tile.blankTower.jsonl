@@ -1,0 +1,6 @@
+{"u":"enV1","no":0,"origin":[0,0],"z":-2,"width":16,"height":60,"resource":"tile/blankTower/enV1/0"}
+{"u":"enV0","no":0,"origin":[17,0],"z":-2,"width":17,"height":60,"resource":"tile/blankTower/enV0/0"}
+{"u":"edD","no":0,"origin":[12,0],"z":-4,"width":25,"height":18,"resource":"tile/blankTower/edD/0"}
+{"u":"edU","no":0,"origin":[12,15],"z":-4,"width":25,"height":18,"resource":"tile/blankTower/edU/0"}
+{"u":"enH1","no":0,"origin":[0,0],"z":-3,"width":90,"height":29,"resource":"tile/blankTower/enH1/0"}
+{"u":"enH0","no":0,"origin":[0,29],"z":-3,"width":90,"height":29,"resource":"tile/blankTower/enH0/0"}

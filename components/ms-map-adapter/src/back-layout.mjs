@@ -1,11 +1,13 @@
 /**
- * Candidate Back type 0-4 layout algebra.
+ * Back type 0-7 layout algebra.
  *
- * CMS079 proves the type axes and exact cx/cy steps. Type 4 scroll uses the
- * CMS 20000 divisor and the OpenMS 100px period.
- * The viewport-sized local surface and horizontal pinning are explicit M7.4
- * product decisions. Vertical placement uses the OpenMS-REFERENCE camera term
- * because the CMS079 +0x98 body is not in the game image.
+ * CMS079 proves the type axes, the cx/cy steps, and the +0x98 arguments:
+ * type 0–3 pass (rx, ry); type 4 and 6 pass (0, ry+100); type 5 and 7 pass
+ * (rx+100, 0). Type 4 and 6 scroll on rx, type 5 and 7 on ry. The distance
+ * is the CMS 20000 divisor and the OpenMS 100px period. The +0x98 body is
+ * not in the image. A repeated axis keeps a viewport-sized surface and a
+ * pinned host. Rate -100 stays on the authored edge. Rate 0 stays on the
+ * screen, which is how a type 4 cloud keeps floating while the map moves.
  */
 
 /** CMS079 0x66A56E divisor. OpenMS 0063df23 travels 100px in trunc(divisor/|rx|) ms. */
@@ -19,7 +21,7 @@ export const BACK_LAYOUT_LIMITS = Object.freeze({
   maxCanvasPixels: 4_194_304,
 });
 
-export const SUPPORTED_BACK_LAYOUT_TYPES = new Set([0, 1, 2, 3, 4]);
+export const SUPPORTED_BACK_LAYOUT_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7]);
 
 const DEFAULT_VIEWPORT = Object.freeze({ width: 800, height: 600 });
 
@@ -28,15 +30,18 @@ export function backLayoutUnsupportedMessage(type) {
   return `back type ${type} layout is not implemented`;
 }
 
-/** CMS079-VERIFIED mode axes. */
+/** CMS079-VERIFIED mode axes. Type 6 and 7 use mode 3, both axes. */
 export function backTileAxes(type) {
   switch (type) {
     case 1:
     case 4:
       return Object.freeze({ horizontal: true, vertical: false });
     case 2:
+    case 5:
       return Object.freeze({ horizontal: false, vertical: true });
     case 3:
+    case 6:
+    case 7:
       return Object.freeze({ horizontal: true, vertical: true });
     default:
       return Object.freeze({ horizontal: false, vertical: false });
@@ -49,7 +54,24 @@ export function backPresentation(type) {
   if (type === 2) return "tile-vertical";
   if (type === 3) return "tile-both";
   if (type === 4) return "scroll-horizontal";
+  if (type === 5) return "scroll-vertical";
+  if (type === 6) return "scroll-horizontal-both";
+  if (type === 7) return "scroll-vertical-both";
   return "layout-pending";
+}
+
+function horizontalScrollKind(kind) {
+  return kind === "scroll-horizontal" || kind === "scroll-horizontal-both";
+}
+
+function verticalScrollKind(kind) {
+  return kind === "scroll-vertical" || kind === "scroll-vertical-both";
+}
+
+/** trunc(center * (rate + 100) / 100). Type 4/6 pass ry+100; type 5/7 pass rx+100. */
+function combinedCameraTerm(rate, cameraEdge, viewportExtent) {
+  const center = Math.trunc(cameraEdge) + Math.trunc(viewportExtent / 2);
+  return Math.trunc((center * (rate + 100)) / 100);
 }
 
 /** Positive authored cx/cy. Zero is not a step; the repeat axis resolves it separately. */
@@ -98,21 +120,51 @@ export function verticalParallaxOffset(ry, cameraY, viewportHeight, combined = f
 }
 
 /**
- * Screen X of a horizontally repeated copy, including type 4 world lock.
- * Type 4 keeps its X at the authored left minus the camera, then subtracts
- * the integrated offset. OpenMS adds that offset, so scrollPixelsPerMs stores
- * the opposite of rx and a positive rx moves the picture right. Other types
- * use the camera term. The host stays pinned, so this value is a screen X.
- * Returns null when this layout does not tile horizontally.
+ * Screen X of a horizontally repeated copy.
+ * Type 4 and 6 use horizontal rate 0, then subtract the integrated rx offset.
+ * scrollPixelsPerMs stores the opposite of the rate, so a positive rate moves
+ * the picture toward +X. Type 5 and 7 tile with the rx+100 term and do not
+ * scroll this axis. Other types use rx. The host stays pinned, so this value
+ * is a screen X. Returns null when this layout does not tile horizontally.
  */
 export function horizontalScreenAnchor(layout, cameraX, scrollPixels = 0) {
   if (!layout?.tileHorizontal || !Number.isFinite(cameraX)) return null;
   const scroll = Number.isFinite(scrollPixels) ? Math.trunc(scrollPixels) : 0;
-  if (layout.kind === "scroll-horizontal") {
-    return layout.worldLeft - Math.trunc(cameraX) - scroll;
+  if (horizontalScrollKind(layout.kind)) {
+    return layout.worldLeft + parallaxScreenOffset(0, cameraX, layout.viewportWidth) - scroll;
+  }
+  if (verticalScrollKind(layout.kind)) {
+    if (!Number.isInteger(layout.parallaxRx)) return null;
+    return layout.worldLeft
+      + combinedCameraTerm(layout.parallaxRx, cameraX, layout.viewportWidth)
+      - Math.trunc(cameraX);
   }
   if (!Number.isInteger(layout.parallaxRx)) return null;
   return layout.worldLeft + parallaxScreenOffset(layout.parallaxRx, cameraX, layout.viewportWidth);
+}
+
+/**
+ * Screen Y of a vertically repeated copy. The host stays pinned, so this
+ * value is a screen Y inside that surface. Rate -100 is worldTop - cameraY.
+ * Type 5 and 7 use vertical rate 0 and subtract the integrated ry offset.
+ * Type 6 uses the ry+100 term. Returns null when this layout does not tile
+ * vertically.
+ */
+export function verticalScreenAnchor(layout, cameraY, scrollPixels = 0) {
+  if (!layout?.tileVertical || !Number.isFinite(cameraY)) return null;
+  if (!Number.isSafeInteger(layout.viewportHeight) || layout.viewportHeight <= 0) return null;
+  const scroll = Number.isFinite(scrollPixels) ? Math.trunc(scrollPixels) : 0;
+  if (verticalScrollKind(layout.kind)) {
+    return layout.worldTop + parallaxScreenOffset(0, cameraY, layout.viewportHeight) - scroll;
+  }
+  if (horizontalScrollKind(layout.kind)) {
+    if (!Number.isInteger(layout.parallaxRy)) return null;
+    return layout.worldTop
+      + combinedCameraTerm(layout.parallaxRy, cameraY, layout.viewportHeight)
+      - Math.trunc(cameraY);
+  }
+  if (!Number.isInteger(layout.parallaxRy)) return null;
+  return layout.worldTop + parallaxScreenOffset(layout.parallaxRy, cameraY, layout.viewportHeight);
 }
 
 export function scrollPixelsPerMs(rx) {
@@ -180,9 +232,15 @@ export function layoutBackView({
 
   const worldLeft = bounds.x;
   const worldTop = bounds.y;
-  const scroll = type === 4 && repeatX ? scrollPixelsPerMs(Number(placement.rx)) : null;
-  const parallaxRx = type === 4 ? null : integerParallaxRate(placement.rx);
-  const parallaxRy = integerParallaxRate(placement.ry);
+  const horizontalScroll = type === 4 || type === 6;
+  const verticalScroll = type === 5 || type === 7;
+  const scroll = horizontalScroll && repeatX
+    ? scrollPixelsPerMs(Number(placement.rx))
+    : verticalScroll && repeatY
+      ? scrollPixelsPerMs(Number(placement.ry))
+      : null;
+  const parallaxRx = horizontalScroll ? null : integerParallaxRate(placement.rx);
+  const parallaxRy = verticalScroll ? 0 : integerParallaxRate(placement.ry);
   const layout = Object.freeze({
     kind: backPresentation(type),
     worldLeft,
@@ -198,7 +256,7 @@ export function layoutBackView({
     pinToViewportX: repeatX,
     pinToViewportY: repeatY,
     parallaxRx,
-    parallaxRy: repeatY ? null : parallaxRy,
+    parallaxRy,
     viewportWidth: vpW,
     viewportHeight: vpH,
     tileOriginX: repeatX ? worldLeft % stepX : 0,
@@ -226,11 +284,13 @@ export function backViewAttrsForCamera(layout, cameraX, cameraY) {
       layout.parallaxRy,
       cameraY,
       layout.viewportHeight,
-      layout.kind === "scroll-horizontal",
+      horizontalScrollKind(layout.kind),
     )
     : 0;
   let viewX = layout.pinToViewportX ? cameraX : layout.worldLeft;
-  if (!layout.pinToViewportX && Number.isInteger(layout.parallaxRx)) {
+  if (!layout.pinToViewportX && verticalScrollKind(layout.kind) && Number.isInteger(layout.parallaxRx)) {
+    viewX = layout.worldLeft + combinedCameraTerm(layout.parallaxRx, cameraX, layout.viewportWidth);
+  } else if (!layout.pinToViewportX && Number.isInteger(layout.parallaxRx)) {
     viewX = cameraX + layout.worldLeft + parallaxScreenOffset(layout.parallaxRx, cameraX, layout.viewportWidth);
   }
   return Object.freeze({

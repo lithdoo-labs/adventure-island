@@ -13,6 +13,7 @@ import {
   buildRopeCollisionPlan,
   assertRopeCollisionPlanHash,
 } from "../rope-collision-plan-build.mjs";
+import { avatarSortKey } from "../../../components/ms-map-adapter/src/depth.mjs";
 import { queryRopeSegments, validateRopeCollisionPlan } from "../rope-collision-plan.mjs";
 import { buildCanonicalAdventureFieldPlanContent } from "../../../scripts/pwa/read-adventure-field-plan.mjs";
 
@@ -20,6 +21,10 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 
 test("map222000001 publishes audited rope segment with stable hash", async () => {
   const map = await buildMapProjection({ mapId: "222000001", gameRoot: repoRoot });
+  const climb = map.scene.insertionPoints.find((point) => point.layer === 4 && point.zM === 0);
+  assert.ok(climb, "rope page 4 is an avatar insertion even without a layer-4 foothold");
+  assert.equal(climb.flag0, avatarSortKey(4, 0, 0));
+  assert.equal(climb.flag1, avatarSortKey(4, 0, 1));
   const rope = map.scene.ropes[0];
   assert.equal(map.scene.groupStatus.rope, SOURCE_PRESENT);
   assert.equal(rope.x, -51);

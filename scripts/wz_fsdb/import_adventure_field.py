@@ -1,18 +1,15 @@
-"""Import the corridor field closure into content/[FSDB]adventure.
+"""Import field maps into content/[FSDB]adventure.
 
-Reads the converted CMS library and writes only:
-
-- the 13 maps from 222000000 through 230000003
-- back, tile, obj, portal, foothold, rope, and seat rows for those maps
-- rope and seat files only when the source group has rows
-- the canvases those rows reference, one PNG each
-- MapHelper portal/game pv, ph, and psh
-- Physics/default as physics.default
+Reads a converted CMS library and writes map rows plus the canvases they
+reference. The default set is the original 13-map corridor. Pass
+--maps-file to import a larger set, and --keep-existing so maps, helper
+frames, and physics already in the destination stay byte-for-byte.
 
 Editor portal icons are not copied. Missing z and delay stay absent.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 import sys
@@ -129,7 +126,8 @@ def pick(row: dict, order: tuple[str, ...], drop_empty: frozenset[str] = frozens
 
 
 class Importer:
-    def __init__(self) -> None:
+    def __init__(self, keep_existing: bool = False) -> None:
+        self.keep_existing = keep_existing
         self.copied: set[str] = set()
         self.back_frames: dict[str, list[dict]] = {}
         self.tile_frames: dict[str, list[dict]] = {}
@@ -140,10 +138,13 @@ class Importer:
     def copy_png(self, cms_key: str, adventure_key: str) -> None:
         if adventure_key in self.copied:
             return
+        target = DEST / "[resource]Map" / f"{adventure_key}.png"
+        if self.keep_existing and target.is_file():
+            self.copied.add(adventure_key)
+            return
         source = SOURCE / "[resource]图" / f"{cms_key}.png"
         if not source.is_file():
             raise SystemExit(f"missing png for {cms_key}")
-        target = DEST / "[resource]Map" / f"{adventure_key}.png"
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, target)
         self.copied.add(adventure_key)
@@ -317,12 +318,57 @@ def write_metadata() -> None:
             (path / ".desc.meta").write_text(text + "\n", encoding="utf-8", newline="\n")
 
 
+def load_jsonl(path: Path) -> list[dict]:
+    if not path.is_file():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def merge_jsonl(path: Path, rows: list[dict], identity) -> None:
+    existing = load_jsonl(path)
+    seen = {identity(row) for row in existing}
+    changed = not path.is_file()
+    for row in rows:
+        key = identity(row)
+        if key in seen:
+            continue
+        existing.append(row)
+        seen.add(key)
+        changed = True
+    if changed:
+        dump_jsonl(path, existing)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--source", default="", help="Converted CMS library. Defaults to the offline fsdb-all path.")
+    parser.add_argument("--maps-file", default="", help="Map ids to import, one per line. Defaults to the 13-map corridor.")
+    parser.add_argument("--keep-existing", action="store_true", help="Leave destination maps, PNGs, helper frames, and physics that already exist.")
+    return parser.parse_args()
+
+
 def main() -> None:
-    importer = Importer()
+    global SOURCE
+    args = parse_args()
+    if args.source:
+        SOURCE = Path(args.source)
+    maps = MAPS
+    if args.maps_file:
+        maps = tuple(
+            line.strip()
+            for line in Path(args.maps_file).read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        )
+    importer = Importer(keep_existing=args.keep_existing)
     write_metadata()
-    for map_id in MAPS:
+    imported = 0
+    for map_id in maps:
+        record_path = DEST / "[struct]map.Map" / f"map.{map_id}.json"
+        if args.keep_existing and record_path.is_file():
+            continue
+        imported += 1
         record = map_record(map_id)
-        dump_json(DEST / "[struct]map.Map" / f"map.{map_id}.json", record)
+        dump_json(record_path, record)
         if "miniMap" in record:
             canvas = f"MiniMap/{map_id}"
             importer.copy_png(canvas, adv_resource(canvas))
@@ -367,23 +413,52 @@ def main() -> None:
             dump_jsonl(DEST / "[group]map.Seat" / f"map.{map_id}.jsonl", seats)
 
     for name, frames in importer.back_frames.items():
-        dump_json(DEST / "[struct]map.Back" / f"map.back.{name}.json", {})
-        dump_jsonl(DEST / "[group]map.BackFrame" / f"map.back.{name}.jsonl", frames)
+        struct = DEST / "[struct]map.Back" / f"map.back.{name}.json"
+        if not struct.is_file():
+            dump_json(struct, {})
+        merge_jsonl(
+            DEST / "[group]map.BackFrame" / f"map.back.{name}.jsonl",
+            frames,
+            lambda row: (row.get("kind"), row.get("no"), row.get("frame")),
+        )
     for name, frames in importer.tile_frames.items():
-        dump_json(DEST / "[struct]map.Tileset" / f"map.tile.{name}.json", {})
-        dump_jsonl(DEST / "[group]map.TileFrame" / f"map.tile.{name}.jsonl", frames)
+        struct = DEST / "[struct]map.Tileset" / f"map.tile.{name}.json"
+        if not struct.is_file():
+            dump_json(struct, {})
+        merge_jsonl(
+            DEST / "[group]map.TileFrame" / f"map.tile.{name}.jsonl",
+            frames,
+            lambda row: (row.get("u"), row.get("no")),
+        )
     for name, frames in importer.obj_frames.items():
-        dump_json(DEST / "[struct]map.Obj" / f"map.obj.{name}.json", {})
-        dump_jsonl(DEST / "[group]map.ObjFrame" / f"map.obj.{name}.jsonl", frames)
+        struct = DEST / "[struct]map.Obj" / f"map.obj.{name}.json"
+        if not struct.is_file():
+            dump_json(struct, {})
+        merge_jsonl(
+            DEST / "[group]map.ObjFrame" / f"map.obj.{name}.jsonl",
+            frames,
+            lambda row: (row.get("l0"), row.get("l1"), row.get("l2"), row.get("frame")),
+        )
 
-    importer.add_helper()
-    dump_json(DEST / "[struct]map.Helper" / "map.helper.json", {"gamePortal": ["pv", "ph", "psh"]})
-    dump_jsonl(DEST / "[group]map.HelperFrame" / "map.helper.jsonl", importer.helper_frames)
+    helper_frames = DEST / "[group]map.HelperFrame" / "map.helper.jsonl"
+    if not (args.keep_existing and helper_frames.is_file()):
+        importer.add_helper()
+        dump_json(DEST / "[struct]map.Helper" / "map.helper.json", {"gamePortal": ["pv", "ph", "psh"]})
+        dump_jsonl(helper_frames, importer.helper_frames)
+    physics_path = DEST / "[struct]physics.Default" / "physics.default.json"
     physics = load_json(SOURCE / "[struct]Physics" / "default.json")
-    dump_json(DEST / "[struct]physics.Default" / "physics.default.json", physics)
+    if not (args.keep_existing and physics_path.is_file()):
+        dump_json(physics_path, physics)
+    missing = [
+        map_id for map_id in maps
+        if not (DEST / "[struct]map.Map" / f"map.{map_id}.json").is_file()
+        or not (DEST / "[group]map.Portal" / f"map.{map_id}.jsonl").is_file()
+    ]
+    if missing:
+        raise SystemExit(f"import left {len(missing)} maps without a record, first {missing[:8]}")
     check(physics)
     print(
-        f"png {len(importer.copied)} backs {len(importer.back_frames)} "
+        f"imported {imported} png {len(importer.copied)} backs {len(importer.back_frames)} "
         f"tilesets {len(importer.tile_frames)} objs {len(importer.obj_frames)} "
         f"helper {len(importer.helper_frames)}"
     )

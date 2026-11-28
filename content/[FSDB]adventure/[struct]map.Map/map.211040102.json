@@ -1,0 +1,50 @@
+{
+  "mapId": "211040102",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "returnMap": 211000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.7000001668930054,
+    "bgm": "Bgm04/WarmRegard",
+    "mapMark": "ElNath",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "fs": 0.20000000298023224,
+    "decHP": 10,
+    "swim": 0,
+    "protectItem": 1102109,
+    "timeMob": {
+      "id": 8220001,
+      "message": "스노우맨이 나타났습니다."
+    }
+  },
+  "vr": {
+    "VRLeft": -400,
+    "VRTop": -1230,
+    "VRRight": 400,
+    "VRBottom": 450
+  },
+  "miniMap": {
+    "width": 902,
+    "height": 1083,
+    "centerX": 450,
+    "centerY": 290,
+    "mag": 4,
+    "resource": "minimap/211040102"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {
+      "tileSet": "blackTile",
+      "tSMag": 1
+    },
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

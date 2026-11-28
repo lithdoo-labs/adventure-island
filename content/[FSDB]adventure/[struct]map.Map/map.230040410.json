@@ -1,0 +1,44 @@
+{
+  "mapId": "230040410",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "swim": 0,
+    "returnMap": 230000000,
+    "forcedReturn": 230040400,
+    "mobRate": 1.0,
+    "bgm": "Bgm12/AquaCave",
+    "mapMark": "AquaRoad",
+    "hideMinimap": 0,
+    "fieldLimit": 8296,
+    "lvLimit": 15
+  },
+  "vr": {
+    "VRLeft": -405,
+    "VRTop": -300,
+    "VRRight": 1247,
+    "VRBottom": 300
+  },
+  "miniMap": {
+    "width": 1754,
+    "height": 750,
+    "centerX": 453,
+    "centerY": 326,
+    "mag": 4,
+    "resource": "minimap/230040410"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {
+      "tileSet": "deepSeeCave",
+      "tSMag": 1
+    },
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

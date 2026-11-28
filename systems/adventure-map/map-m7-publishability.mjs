@@ -28,11 +28,12 @@ export const M7_230030200_KNOWN_PRESENTATION_GAPS = Object.freeze({
 });
 
 const M7_EXTRA_PUBLISHABLE_MAP_IDS = new Set(["230030200"]);
+/** Type of each 230030200 back in WZ child-name order. That name is the depth index. */
 const EXPECTED_BACK_TYPES = Object.freeze([
-  3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 4, 4, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 1,
+  3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 4, 4, 4, 1, 1, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 ]);
 const EXPECTED_REPEATED_BACK_SOURCE_ORDERS = Object.freeze([
-  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 25, 29, 30,
+  0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 30,
 ]);
 const EXPECTED_OBJ_FLOW_SOURCE_ORDERS = Object.freeze([22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]);
 
@@ -183,6 +184,43 @@ export function assertM7AquaLinkFieldPlanPublishable(mapId, projection) {
   }
 }
 
+export const WALK_MAP_KNOWN_UNSUPPORTED = new Set([
+  "obj flow mode 2 is not implemented",
+  "obj flow mode 3 is not implemented",
+]);
+
+function unresolvedBackIsEmpty(drawable) {
+  return drawable?.sourceKind === "back"
+    && (drawable.placement?.bS ?? "") === ""
+    && (drawable.frames?.length ?? 0) === 0
+    && drawable.resource == null;
+}
+
+function assertWalkMapFieldPlanPublishable(mapId, projection) {
+  const closure = projection?.closure;
+  if (!closure) {
+    throw new TypeError(`map ${mapId} publishability requires the adapter closure`);
+  }
+  if ((closure.missingResources?.length ?? 0) > 0) {
+    throw new TypeError(`map ${mapId} has missing resources — not publishable`);
+  }
+  if ((closure.fatalDiagnostics?.length ?? 0) > 0) {
+    throw new TypeError(`map ${mapId} has fatal diagnostics — not publishable`);
+  }
+  const unresolved = closure.unresolvedDrawables ?? [];
+  if (unresolved.some((drawable) => !unresolvedBackIsEmpty(drawable))) {
+    throw new TypeError(`map ${mapId} has unresolved drawables — not publishable`);
+  }
+  const unsupported = (projection.scene?.diagnostics ?? []).filter((item) => item.code === UNSUPPORTED);
+  const unknown = unsupported.find((item) => !WALK_MAP_KNOWN_UNSUPPORTED.has(item.message));
+  if (unknown) {
+    throw new TypeError(`map ${mapId} has an unapproved unsupported diagnostic: ${unknown.message}`);
+  }
+  if (closure.ok !== true && unresolved.length === 0 && unsupported.length === 0) {
+    throw new TypeError(`map ${mapId} projection closure is not publishable`);
+  }
+}
+
 export function assertPublishedExtraMapFieldPlanPublishable(mapId, projection) {
   if (mapId === "222000001") {
     assertM6ExtraMapFieldPlanPublishable(mapId, projection?.closure ?? projection);
@@ -196,5 +234,5 @@ export function assertPublishedExtraMapFieldPlanPublishable(mapId, projection) {
     assertM7AquaLinkFieldPlanPublishable(mapId, projection);
     return;
   }
-  throw new TypeError(`map ${mapId} has no extra-map publishability gate`);
+  assertWalkMapFieldPlanPublishable(mapId, projection);
 }

@@ -66,7 +66,7 @@ test("published hidden portals travel to the named portal on Up", () => {
 
 test("M7 portal graph enables the well hop and its return", () => {
   const enabled = plans["222000000"].portalLogicalIndex.entries.filter((p) => p.enabled);
-  assert.deepEqual(enabled.map((p) => p.name), ["in00", "ph00", "ph00_1"]);
+  assert.deepEqual(enabled.map((p) => p.name), ["in00", "tower00", "east00", "ph00", "ph00_1"]);
   const mapB = plans["222000001"].portalLogicalIndex;
   assert.ok(portalByName(mapB, "out00").enabled);
   assert.ok(portalByName(mapB, "sea00").enabled);
@@ -81,8 +81,14 @@ test("M7 portal graph enables the well hop and its return", () => {
   assert.equal(back.enabled, true);
   assert.equal(String(back.targetMap), "230030200");
   assert.equal(back.targetName, "west00");
-  assert.equal(portalByName(link, "west00").enabled, false);
-  assert.equal(portalByName(link, "out00").enabled, false);
+  const westLink = portalByName(link, "west00");
+  assert.equal(westLink.enabled, true);
+  assert.equal(String(westLink.targetMap), "230030000");
+  assert.equal(westLink.targetName, "east00");
+  const out00 = portalByName(link, "out00");
+  assert.equal(out00.enabled, true);
+  assert.equal(String(out00.targetMap), "230030101");
+  assert.equal(out00.targetName, "st00");
   const sameMap = link.entries.filter((entry) => entry.enabled && String(entry.targetMap) === "230030100");
   assert.deepEqual(sameMap.map((entry) => entry.name), ["h000", "h001", "h002"]);
   const h000 = portalByName(link, "h000");

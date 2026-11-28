@@ -1,0 +1,39 @@
+{
+  "mapId": "200000301",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 1,
+    "returnMap": 200000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.0,
+    "bgm": "Bgm04/Shinin'Harbor",
+    "mapMark": "Orbis",
+    "hideMinimap": 0,
+    "fieldLimit": 4
+  },
+  "vr": {
+    "VRLeft": -403,
+    "VRTop": -415,
+    "VRRight": 794,
+    "VRBottom": 300
+  },
+  "miniMap": {
+    "width": 1297,
+    "height": 913,
+    "centerX": 449,
+    "centerY": 564,
+    "mag": 4,
+    "resource": "minimap/200000301"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

@@ -29,9 +29,13 @@ export function projectAvatarLocomotionAttrs(fieldState = null, timingState = nu
   } else {
     action = LOCOMOTION_ACTION_FALLBACK[locomotion] ?? LOCOMOTION_ACTION_FALLBACK.stand;
   }
-  // l selects the ladder clip when that action is actually in the plan.
-  // A rope (l 0), and a ladder whose clip was not published, stay on rope.
-  if (locomotion === "climb" && fieldState?.movement?.ropeContact?.l === 1 && planRef?.actions?.ladder) {
+  // l selects the ladder clip. A published plan that omitted ladder stays on
+  // rope. The live field does not carry avatarPlanRef; the body plan includes
+  // the clip, so l === 1 uses ladder. CMS079 writes ladder2/rope2 from the
+  // same bit; those frames redirect to ladder/rope. OpenMS selects the same
+  // two action names from the ladder flag.
+  const ladderPublished = planRef ? Boolean(planRef.actions?.ladder) : true;
+  if (locomotion === "climb" && fieldState?.movement?.ropeContact?.l === 1 && ladderPublished) {
     action = "ladder";
   }
 

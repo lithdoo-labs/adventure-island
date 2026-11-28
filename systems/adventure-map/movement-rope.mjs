@@ -2,9 +2,9 @@
  * Rope and ladder climb.
  *
  * Y-down. Down is +1 and looks at [feet, feet+10]; Up is -1 and looks at
- * [feet-20, feet]. The whole probe has to sit inside the rope, and the
- * horizontal tolerance is 10px once. Down snaps to the top. Up keeps the
- * current height, limited to the rope bottom.
+ * [feet-20, feet]. Grabbing uses an overlap test, so the probe may stick out
+ * of the rope. The horizontal tolerance is 10px once. Down snaps to the top.
+ * Up keeps the current height, limited to the rope bottom.
  * Ground accepts either key. Air accepts only Up while falling, and never
  * while a drop-through foothold is still ignored.
  * Attaching installs (page, 0). Releasing the key stays on the rope and the
@@ -88,14 +88,28 @@ function attachRope(state, segment, worldY) {
 
 function grabDown(state, segments) {
   const feet = state.worldY;
-  const hit = queryRopeSegments(segments, state.worldX, state.worldX, feet, feet + GRAB_DOWN_REACH_PX);
+  const hit = queryRopeSegments(
+    segments,
+    state.worldX,
+    state.worldX,
+    feet,
+    feet + GRAB_DOWN_REACH_PX,
+    { overlap: true },
+  );
   if (!hit || hit.y1 > feet + GRAB_DOWN_REACH_PX) return null;
   return attachRope(state, hit, hit.y1);
 }
 
 function grabUp(state, segments) {
   const feet = state.worldY;
-  const hit = queryRopeSegments(segments, state.worldX, state.worldX, feet - GRAB_UP_REACH_PX, feet);
+  const hit = queryRopeSegments(
+    segments,
+    state.worldX,
+    state.worldX,
+    feet - GRAB_UP_REACH_PX,
+    feet,
+    { overlap: true },
+  );
   if (!hit) return null;
   return attachRope(state, hit, Math.min(feet, hit.y2));
 }

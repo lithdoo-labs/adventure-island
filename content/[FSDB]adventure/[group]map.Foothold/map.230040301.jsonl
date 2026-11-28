@@ -1,0 +1,9 @@
+{"layer":4,"platform":0,"id":1,"x1":-45,"y1":168,"x2":45,"y2":168,"prev":9,"next":2}
+{"layer":4,"platform":0,"id":2,"x1":45,"y1":168,"x2":135,"y2":168,"prev":1,"next":3}
+{"layer":4,"platform":0,"id":3,"x1":135,"y1":168,"x2":225,"y2":168,"prev":2,"next":4}
+{"layer":4,"platform":0,"id":4,"x1":225,"y1":168,"x2":315,"y2":168,"prev":3,"next":5}
+{"layer":4,"platform":0,"id":5,"x1":315,"y1":168,"x2":405,"y2":168,"prev":4,"next":0}
+{"layer":4,"platform":0,"id":6,"x1":-225,"y1":168,"x2":-135,"y2":168,"prev":8,"next":9}
+{"layer":4,"platform":0,"id":7,"x1":-405,"y1":168,"x2":-315,"y2":168,"prev":0,"next":8}
+{"layer":4,"platform":0,"id":8,"x1":-315,"y1":168,"x2":-225,"y2":168,"prev":7,"next":6}
+{"layer":4,"platform":0,"id":9,"x1":-135,"y1":168,"x2":-45,"y2":168,"prev":6,"next":1}

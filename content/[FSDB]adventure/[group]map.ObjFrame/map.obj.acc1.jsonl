@@ -1,0 +1,15 @@
+{"l0":"grassySoil","l1":"market","l2":"56","frame":"0","origin":[128,70],"z":0,"width":256,"height":140,"resource":"obj/acc1/grassySoil/market/56/0"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"0","origin":[14,16],"z":0,"delay":500,"width":29,"height":33,"resource":"obj/acc1/grassySoil/market/54/0"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"1","origin":[14,16],"z":0,"delay":800,"width":29,"height":33,"resource":"obj/acc1/grassySoil/market/54/1"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"2","origin":[14,16],"z":0,"delay":400,"width":29,"height":33,"resource":"obj/acc1/grassySoil/market/54/2"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"3","origin":[14,16],"z":0,"delay":850,"width":29,"height":33,"resource":"obj/acc1/grassySoil/market/54/3"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"4","origin":[14,16],"z":0,"delay":1000,"width":29,"height":33,"resource":"obj/acc1/grassySoil/market/54/4"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"5","origin":[14,12],"z":0,"delay":100,"width":33,"height":29,"resource":"obj/acc1/grassySoil/market/54/5"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"6","origin":[14,16],"z":0,"delay":150,"width":29,"height":33,"resource":"obj/acc1/grassySoil/market/54/6"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"7","origin":[14,12],"z":0,"delay":100,"width":33,"height":29,"resource":"obj/acc1/grassySoil/market/54/7"}
+{"l0":"grassySoil","l1":"market","l2":"54","frame":"8","origin":[14,16],"z":0,"delay":1500,"width":29,"height":33,"resource":"obj/acc1/grassySoil/market/54/8"}
+{"l0":"grassySoil","l1":"market","l2":"53","frame":"0","origin":[18,19],"z":0,"delay":1100,"width":36,"height":38,"resource":"obj/acc1/grassySoil/market/53/0"}
+{"l0":"grassySoil","l1":"market","l2":"53","frame":"1","origin":[18,19],"z":0,"delay":150,"width":36,"height":38,"resource":"obj/acc1/grassySoil/market/53/1"}
+{"l0":"grassySoil","l1":"market","l2":"53","frame":"2","origin":[18,19],"z":0,"delay":150,"width":36,"height":38,"resource":"obj/acc1/grassySoil/market/53/2"}
+{"l0":"grassySoil","l1":"nature","l2":"13","frame":"0","origin":[111,60],"z":0,"width":223,"height":128,"resource":"obj/acc1/grassySoil/nature/13/0"}
+{"l0":"darkWood","l1":"nature","l2":"20","frame":"0","origin":[32,52],"z":0,"width":149,"height":67,"resource":"obj/acc1/darkWood/nature/20/0"}

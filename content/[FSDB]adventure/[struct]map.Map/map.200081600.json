@@ -1,0 +1,43 @@
+{
+  "mapId": "200081600",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "returnMap": 211000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.100000023841858,
+    "bgm": "Bgm06/ComeWithMe",
+    "mapMark": "ElNath",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "swim": 0
+  },
+  "vr": {
+    "VRLeft": -445,
+    "VRTop": -1140,
+    "VRRight": 355,
+    "VRBottom": 660
+  },
+  "miniMap": {
+    "width": 810,
+    "height": 1998,
+    "centerX": 450,
+    "centerY": 1290,
+    "mag": 4,
+    "resource": "minimap/200081600"
+  },
+  "layers": {
+    "0": {},
+    "1": {
+      "tileSet": "orbisTower",
+      "tSMag": 1
+    },
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

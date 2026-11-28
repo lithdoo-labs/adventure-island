@@ -1,0 +1,13 @@
+{"layer":"2","oS":"dungeon2","l0":"deepSee","l1":"acc","l2":"9","x":235,"y":154,"z":9,"f":0,"zM":0}
+{"layer":"2","oS":"dungeon2","l0":"deepSee","l1":"acc","l2":"9","x":960,"y":106,"z":9,"f":0,"zM":0}
+{"layer":"4","oS":"trap","l0":"stone","l1":"stoneAR","l2":"0","x":-36,"y":-151,"z":9,"f":0,"zM":1}
+{"layer":"4","oS":"trap","l0":"stone","l1":"stoneAR","l2":"3","x":250,"y":-152,"z":9,"f":0,"zM":3}
+{"layer":"4","oS":"trap","l0":"stone","l1":"stoneAR","l2":"4","x":819,"y":-151,"z":9,"f":0,"zM":2}
+{"layer":"4","oS":"trap","l0":"stone","l1":"stoneAR","l2":"2","x":590,"y":-152,"z":9,"f":0,"zM":5}
+{"layer":"4","oS":"trap","l0":"fire","l1":"campfire","l2":"0","x":657,"y":142,"z":9,"f":0,"zM":0}
+{"layer":"4","oS":"trap","l0":"fire","l1":"campfire","l2":"0","x":74,"y":142,"z":9,"f":0,"zM":0}
+{"layer":"5","oS":"dungeon2","l0":"deepSee","l1":"acc","l2":"3","x":-109,"y":259,"z":9,"f":0,"zM":0}
+{"layer":"5","oS":"dungeon2","l0":"deepSee","l1":"acc","l2":"4","x":126,"y":275,"z":9,"f":1,"zM":0}
+{"layer":"5","oS":"dungeon2","l0":"deepSee","l1":"acc","l2":"5","x":769,"y":269,"z":9,"f":0,"zM":0}
+{"layer":"5","oS":"dungeon2","l0":"deepSee","l1":"acc","l2":"7","x":965,"y":282,"z":9,"f":0,"zM":0}
+{"layer":"5","oS":"dungeon2","l0":"deepSee","l1":"acc","l2":"6","x":1057,"y":279,"z":9,"f":0,"zM":0}

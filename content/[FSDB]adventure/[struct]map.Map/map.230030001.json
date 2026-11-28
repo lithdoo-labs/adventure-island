@@ -1,0 +1,40 @@
+{
+  "mapId": "230030001",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "swim": 1,
+    "returnMap": 230000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.100000023841858,
+    "bgm": "Bgm11/ShiningSea",
+    "mapMark": "AquaRoad",
+    "effect": "Bubbling",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "decHP": 6,
+    "protectItem": 1102061
+  },
+  "miniMap": {
+    "width": 3328,
+    "height": 1991,
+    "centerX": 1314,
+    "centerY": 944,
+    "mag": 4,
+    "resource": "minimap/230030001"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {
+      "tileSet": "greensandySeaFloor",
+      "tSMag": 1
+    },
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

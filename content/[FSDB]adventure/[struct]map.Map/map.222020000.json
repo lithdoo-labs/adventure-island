@@ -1,0 +1,40 @@
+{
+  "mapId": "222020000",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "swim": 0,
+    "returnMap": 222000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.0,
+    "bgm": "Bgm07/FunnyTimeMaker",
+    "mapMark": "LudiTower1",
+    "hideMinimap": 0,
+    "fieldLimit": 0
+  },
+  "vr": {
+    "VRLeft": -400,
+    "VRTop": -558,
+    "VRRight": 400,
+    "VRBottom": 640
+  },
+  "miniMap": {
+    "width": 898,
+    "height": 1396,
+    "centerX": 448,
+    "centerY": 709,
+    "mag": 4,
+    "resource": "minimap/222020000"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

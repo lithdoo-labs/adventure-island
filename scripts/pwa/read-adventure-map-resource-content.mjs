@@ -7,11 +7,13 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildMapProjection } from "../../components/ms-map-adapter/src/index.mjs";
-import { assertPublishedExtraMapFieldPlanPublishable } from "../../systems/adventure-map/map-m7-publishability.mjs";
+import { assertPublishedExtraMapFieldPlanPublishable, WALK_MAP_KNOWN_UNSUPPORTED } from "../../systems/adventure-map/map-m7-publishability.mjs";
+import { UNSUPPORTED } from "../../components/ms-map-adapter/src/status.mjs";
 import { defaultAdventureFsdbRoot } from "../../components/ms-map-adapter/src/fsdb-reader.mjs";
 import { FIELD_MAP_222000000 } from "../../components/ms-field/src/field-state.mjs";
 import {
   assertExactMapResourceRefSets,
+  assertFieldTreeMapResourcesSubsetOfAdapter,
   assertM7WaterMapResourceBoundary,
   collectMapResourceRefsFromFieldTree,
 } from "./collect-field-plan-map-resources.mjs";
@@ -99,8 +101,16 @@ export async function buildCanonicalAdventureMapResourceContent({
     const resourceLabel = `AdventureFieldPlan ${extraMapId} vs adapter closure`;
     if (extraMapId === "230030200") {
       assertM7WaterMapResourceBoundary(extraTreeRefs, extraAdapterRefs, extraProjection.scene, resourceLabel);
-    } else {
+    } else if (extraTreeRefs.length === extraAdapterRefs.length) {
       assertExactMapResourceRefSets(extraTreeRefs, extraAdapterRefs, resourceLabel);
+    } else {
+      const unsupported = (extraProjection.scene?.diagnostics ?? []).filter((item) => item.code === UNSUPPORTED);
+      const knownGap = unsupported.length > 0
+        && unsupported.every((item) => WALK_MAP_KNOWN_UNSUPPORTED.has(item.message));
+      if (!knownGap) {
+        assertExactMapResourceRefSets(extraTreeRefs, extraAdapterRefs, resourceLabel);
+      }
+      assertFieldTreeMapResourcesSubsetOfAdapter(extraTreeRefs, extraAdapterRefs, resourceLabel);
     }
   }
 

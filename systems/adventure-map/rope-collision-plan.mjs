@@ -86,22 +86,30 @@ export function validateRopeCollisionPlan(plan, expectedGroupStatus = null) {
 
 /**
  * Rope hit. The caller passes the body probe. X hits when that probe meets
- * the rope's ±10 band. Y hits only when the whole probe sits inside [y1, y2].
+ * the rope's ±10 band.
+ * Default Y is CMS079 0xA4FC6F: the whole probe sits inside [y1, y2].
+ * `overlap: true` is the OpenMS capture test (009cbefb): the probe only has
+ * to meet [y1, y2]. Grabbing uses that, so a ladder whose top is a couple of
+ * pixels below the floor still accepts the downward 10px probe.
  * @param {object[]} segments
  * @param {number} xMin
  * @param {number} xMax
  * @param {number} yMin
  * @param {number} yMax
+ * @param {{ overlap?: boolean }} [options]
  */
-export function queryRopeSegments(segments, xMin, xMax, yMin, yMax) {
+export function queryRopeSegments(segments, xMin, xMax, yMin, yMax, options = {}) {
   const probeTop = Math.min(yMin, yMax);
   const probeBottom = Math.max(yMin, yMax);
+  const overlap = options.overlap === true;
   const hits = [];
   for (const segment of segments) {
     const ropeXMin = segment.x - ROPE_HIT_HALF_WIDTH_PX;
     const ropeXMax = segment.x + ROPE_HIT_HALF_WIDTH_PX;
     if (xMax < ropeXMin || xMin > ropeXMax) continue;
-    if (probeTop < segment.y1 || probeBottom > segment.y2) continue;
+    if (overlap) {
+      if (segment.y1 > probeBottom || segment.y2 < probeTop) continue;
+    } else if (probeTop < segment.y1 || probeBottom > segment.y2) continue;
     hits.push(segment);
   }
   if (hits.length === 0) return null;

@@ -4,6 +4,7 @@
  */
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { projectAdventureMapFieldScene } from "../../systems/adventure-map/field-static-projection.mjs";
@@ -30,13 +31,16 @@ import { assertPublishedExtraMapFieldPlanPublishable } from "../../systems/adven
 import { FIELD_MAP_222000000 } from "../../components/ms-field/src/field-state.mjs";
 import { fieldPlanContentKey } from "../../systems/adventure-map/field-plan-keys.mjs";
 
-/** Maps with independently publishable derived FieldPlans (M6 + M7.1). */
-export const PUBLISHED_FIELD_PLAN_MAP_IDS = Object.freeze([
-  "222000000",
-  "222000001",
-  "230030200",
-  "230030100",
-]);
+/**
+ * Maps a player can walk to from 童话村 through portal types 1, 2, and 3.
+ * The list is the closure in scripts/wz_fsdb/village-walk-map-ids.txt.
+ */
+export const PUBLISHED_FIELD_PLAN_MAP_IDS = Object.freeze(
+  readFileSync(new URL("../wz_fsdb/village-walk-map-ids.txt", import.meta.url), "utf8")
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0),
+);
 
 const canonicalRepoRoot = fileURLToPath(new URL("../../", import.meta.url));
 const RECORD_MIME = "application/json; charset=utf-8";
@@ -137,7 +141,8 @@ async function readMapEnvironment(gameRoot, mapId) {
   }
   const bytes = await readFile(physicalPath);
   const record = JSON.parse(bytes.toString("utf8"));
-  const swim = record?.info?.swim;
+  // Maps that omit info.swim are land. Explicit 0 and 1 stay as authored.
+  const swim = record?.info?.swim ?? 0;
   if (swim !== 0 && swim !== 1) {
     throw new TypeError(`map ${mapId} info.swim must be exactly 0 or 1`);
   }

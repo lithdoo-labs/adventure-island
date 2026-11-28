@@ -7,6 +7,7 @@ import {
   horizontalScreenAnchor,
   layoutBackView,
   scrollPixelsPerMs,
+  verticalScreenAnchor,
 } from "../src/back-layout.mjs";
 
 test("type 4 scroll travels 100px in trunc(20000/abs(rx)) ms", () => {
@@ -83,7 +84,7 @@ test("type 1 with cx zero repeats horizontally and keeps the authored vertical f
   assert.equal(laidOut.viewY, 280);
 });
 
-test("horizontal repeat anchor follows rx and type 4 stays on the authored left", () => {
+test("horizontal repeat anchor follows rx and type 4 stays on the screen", () => {
   const meadow = layoutBackView({
     type: 1,
     bounds: { x: -565, y: 0, width: 100, height: 40 },
@@ -107,8 +108,10 @@ test("horizontal repeat anchor follows rx and type 4 stays on the authored left"
     viewport: { width: 1078, height: 720 },
   });
   assert.equal(mountains.layout.parallaxRx, null);
-  assert.equal(horizontalScreenAnchor(mountains.layout, -993, 0), -400 - (-993));
-  assert.equal(horizontalScreenAnchor(mountains.layout, -993, 6), -400 - (-993) - 6);
+  const parked = -400 + Math.trunc(1078 / 2);
+  assert.equal(horizontalScreenAnchor(mountains.layout, -993, 0), parked);
+  assert.equal(horizontalScreenAnchor(mountains.layout, 200, 0), parked);
+  assert.equal(horizontalScreenAnchor(mountains.layout, -993, 6), parked - 6);
   assert.ok(mountains.layout.scroll.pixelsPerMs < 0);
   const start = horizontalScreenAnchor(mountains.layout, -993, 0);
   const later = horizontalScreenAnchor(mountains.layout, -993, mountains.layout.scroll.pixelsPerMs * 1000);
@@ -144,6 +147,90 @@ test("vertical parallax follows ry and leaves ry -100 on the authored top", () =
   assert.equal(locked.viewY, 28);
   const moved = backViewAttrsForCamera(near.layout, 0, -110);
   assert.equal(moved.viewY, 28 + 75);
+});
+
+test("type 5 scrolls on ry and keeps horizontal rate rx+100", () => {
+  const column = layoutBackView({
+    type: 5,
+    bounds: { x: -218, y: -139, width: 146, height: 250 },
+    placement: { cx: 0, cy: 1300, rx: 0, ry: 15 },
+    frameWidth: 146,
+    frameHeight: 250,
+    cameraX: 40,
+    cameraY: 80,
+    viewport: { width: 800, height: 600 },
+  });
+  assert.equal(column.layout.kind, "scroll-vertical");
+  assert.equal(column.layout.tileVertical, true);
+  assert.equal(column.layout.tileHorizontal, false);
+  assert.equal(column.layout.parallaxRy, 0);
+  assert.equal(column.viewY, 80);
+  assert.equal(verticalScreenAnchor(column.layout, 80, 0), -139 + 300);
+  assert.equal(verticalScreenAnchor(column.layout, 400, 0), -139 + 300);
+  assert.equal(verticalScreenAnchor(column.layout, 80, 6), -139 + 300 - 6);
+  assert.equal(column.viewX, -218 + 40 + 400);
+  assert.ok(column.layout.scroll.pixelsPerMs < 0);
+});
+
+test("type 7 tiles both axes and scrolls only vertically", () => {
+  const both = layoutBackView({
+    type: 7,
+    bounds: { x: 10, y: 20, width: 48, height: 47 },
+    placement: { cx: 450, cy: 820, rx: -80, ry: -7 },
+    frameWidth: 48,
+    frameHeight: 47,
+    cameraX: 100,
+    cameraY: 50,
+    viewport: { width: 800, height: 600 },
+  });
+  assert.equal(both.layout.kind, "scroll-vertical-both");
+  assert.equal(both.layout.tileHorizontal, true);
+  assert.equal(both.layout.tileVertical, true);
+  assert.equal(both.viewX, 100);
+  assert.equal(both.viewY, 50);
+  assert.equal(verticalScreenAnchor(both.layout, 50, 0), 20 + 300);
+  assert.equal(verticalScreenAnchor(both.layout, 900, 0), 20 + 300);
+  const centerX = 100 + 400;
+  const expectedX = 10 + Math.trunc((centerX * 20) / 100) - 100;
+  assert.equal(horizontalScreenAnchor(both.layout, 100, 0), expectedX);
+});
+
+test("vertical repeat keeps ry and rate -100 tracks the authored top", () => {
+  const tower = layoutBackView({
+    type: 2,
+    bounds: { x: -293, y: -834, width: 587, height: 160 },
+    placement: { cx: 0, cy: 800, rx: -100, ry: -100 },
+    frameWidth: 587,
+    frameHeight: 160,
+    cameraX: -200,
+    cameraY: 400,
+    viewport: { width: 800, height: 600 },
+  });
+  assert.equal(tower.layout.tileVertical, true);
+  assert.equal(tower.layout.pinToViewportY, true);
+  assert.equal(tower.layout.parallaxRy, -100);
+  assert.equal(tower.viewY, 400);
+  assert.equal(verticalScreenAnchor(tower.layout, 400), -834 - 400);
+  assert.equal(verticalScreenAnchor(tower.layout, 1600), -834 - 1600);
+  const moved = backViewAttrsForCamera(tower.layout, -200, 1600);
+  assert.equal(moved.viewY, 1600);
+});
+
+test("a screen-locked vertical repeat does not follow the camera", () => {
+  const sky = layoutBackView({
+    type: 3,
+    bounds: { x: -25, y: -25, width: 50, height: 50 },
+    placement: { cx: 0, cy: 0, rx: 0, ry: 0 },
+    frameWidth: 50,
+    frameHeight: 50,
+    cameraX: 0,
+    cameraY: 0,
+    viewport: { width: 800, height: 600 },
+  });
+  assert.equal(sky.layout.parallaxRy, 0);
+  const parked = verticalScreenAnchor(sky.layout, 0);
+  assert.equal(parked, -25 + 300);
+  assert.equal(verticalScreenAnchor(sky.layout, 900), parked);
 });
 
 test("camera-only projection counter-positions only repeated axes", () => {

@@ -1,0 +1,43 @@
+{
+  "mapId": "222010402",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "swim": 0,
+    "returnMap": 222000000,
+    "forcedReturn": 999999999,
+    "mobRate": 0.5999999046325684,
+    "bgm": "Bgm11/DarkMountain",
+    "mapMark": "Folkvillige",
+    "hideMinimap": 0,
+    "fieldLimit": 0
+  },
+  "vr": {
+    "VRLeft": -540,
+    "VRTop": -700,
+    "VRRight": 1164,
+    "VRBottom": 340
+  },
+  "miniMap": {
+    "width": 1806,
+    "height": 758,
+    "centerX": 588,
+    "centerY": 328,
+    "mag": 4,
+    "resource": "minimap/222010402"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {
+      "tileSet": "darkMountain",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

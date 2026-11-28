@@ -1,0 +1,13 @@
+{"bS":"grayBrickTower3","no":8,"ani":0,"x":-370,"y":-23,"rx":0,"ry":-100,"type":3,"cx":750,"cy":0,"f":0,"a":255,"front":1}
+{"bS":"grayBrickTower","no":0,"ani":0,"x":-45,"y":0,"rx":-100,"ry":-100,"type":2,"cx":0,"cy":0,"f":0,"a":255,"front":0}
+{"bS":"grayBrickTower","no":4,"ani":0,"x":-197,"y":566,"rx":-100,"ry":-100,"type":2,"cx":0,"cy":800,"f":0,"a":255,"front":0}
+{"bS":"grayBrickTower","no":4,"ani":0,"x":108,"y":129,"rx":-100,"ry":-100,"type":2,"cx":0,"cy":800,"f":1,"a":255,"front":0}
+{"bS":"grayBrickTower","no":3,"ani":0,"x":-45,"y":-85,"rx":-100,"ry":-100,"type":2,"cx":0,"cy":0,"f":0,"a":255,"front":0}
+{"bS":"marineBrickTower","no":6,"ani":0,"x":-44,"y":29,"rx":-100,"ry":-100,"type":0,"cx":0,"cy":0,"f":0,"a":255,"front":0}
+{"bS":"marineBrickTower","no":17,"ani":0,"x":-40,"y":87,"rx":-100,"ry":-100,"type":0,"cx":0,"cy":0,"f":0,"a":192,"front":1}
+{"bS":"safetyIslandWest","no":2,"ani":1,"x":-62,"y":71,"rx":-100,"ry":-100,"type":1,"cx":0,"cy":0,"f":0,"a":32,"front":1}
+{"bS":"safetyIslandWest","no":1,"ani":1,"x":-36,"y":41,"rx":-100,"ry":-100,"type":1,"cx":0,"cy":0,"f":0,"a":32,"front":1}
+{"bS":"safetyIslandWest","no":0,"ani":1,"x":-40,"y":8,"rx":-100,"ry":-100,"type":1,"cx":0,"cy":0,"f":0,"a":32,"front":1}
+{"bS":"safetyIslandWest","no":3,"ani":1,"x":-41,"y":22,"rx":-100,"ry":-100,"type":0,"cx":0,"cy":0,"f":0,"a":160,"front":1}
+{"bS":"grayBrickTower3","no":8,"ani":0,"x":-411,"y":-163,"rx":-100,"ry":-100,"type":3,"cx":750,"cy":0,"f":0,"a":255,"front":1}
+{"bS":"grayBrickTower","no":6,"ani":0,"x":-359,"y":35,"rx":-100,"ry":-100,"type":3,"cx":630,"cy":0,"f":0,"a":255,"front":1}

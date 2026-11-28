@@ -30,3 +30,5 @@
 {"l0":"market","l1":"back","l2":"0","frame":"1","origin":[41,66],"z":0,"delay":500,"width":82,"height":132,"resource":"obj/signboard/market/back/0/1"}
 {"l0":"market","l1":"obj","l2":"1","frame":"0","origin":[17,30],"z":0,"delay":100,"width":35,"height":61,"resource":"obj/signboard/market/obj/1/0"}
 {"l0":"market","l1":"obj","l2":"8","frame":"0","origin":[22,13],"z":0,"width":45,"height":26,"resource":"obj/signboard/market/obj/8/0"}
+{"l0":"market","l1":"obj","l2":"11","frame":"0","origin":[42,21],"z":0,"width":85,"height":43,"resource":"obj/signboard/market/obj/11/0"}
+{"l0":"market","l1":"obj","l2":"4","frame":"0","origin":[31,15],"z":0,"width":62,"height":31,"resource":"obj/signboard/market/obj/4/0"}

@@ -1,0 +1,46 @@
+{
+  "mapId": "211000100",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 1,
+    "returnMap": 211000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.0,
+    "bgm": "Bgm03/SnowyVillage",
+    "fs": 0.20000000298023224,
+    "mapMark": "ElNath",
+    "hideMinimap": 0,
+    "fieldLimit": 0
+  },
+  "miniMap": {
+    "width": 5011,
+    "height": 1414,
+    "centerX": 1178,
+    "centerY": 1034,
+    "mag": 4,
+    "resource": "minimap/211000100"
+  },
+  "layers": {
+    "0": {},
+    "1": {
+      "tileSet": "snowyLightrock2",
+      "tSMag": 2
+    },
+    "2": {
+      "tileSet": "snowyLightrock2",
+      "tSMag": 2
+    },
+    "3": {
+      "tileSet": "snowyLightrock",
+      "tSMag": 1
+    },
+    "4": {},
+    "5": {
+      "tileSet": "snowyLightrock",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

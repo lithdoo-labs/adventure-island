@@ -1,0 +1,55 @@
+{
+  "mapId": "222010300",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "swim": 0,
+    "returnMap": 222000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.0,
+    "bgm": "Bgm11/DarkMountain",
+    "mapMark": "Folkvillige",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "timeMob": {
+      "id": 6090003,
+      "startHour": 22,
+      "endHour": 14,
+      "message": "不知从何处传来凄凉哀号的声音，随着哭声，书生鬼出现在眼前。若想解开书生鬼的冤屈，须将三尾狐的尾巴献到石塔上。"
+    }
+  },
+  "vr": {
+    "VRLeft": -360,
+    "VRTop": -1000,
+    "VRRight": 2880,
+    "VRBottom": 340
+  },
+  "miniMap": {
+    "width": 3502,
+    "height": 1280,
+    "centerX": 493,
+    "centerY": 850,
+    "mag": 4,
+    "resource": "minimap/222010300"
+  },
+  "layers": {
+    "0": {},
+    "1": {
+      "tileSet": "darkMountain",
+      "tSMag": 1
+    },
+    "2": {},
+    "3": {
+      "tileSet": "darkMountain",
+      "tSMag": 1
+    },
+    "4": {},
+    "5": {
+      "tileSet": "darkMountain",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

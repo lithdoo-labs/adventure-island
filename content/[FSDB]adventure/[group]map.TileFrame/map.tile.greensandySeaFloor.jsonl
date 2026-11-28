@@ -24,3 +24,5 @@
 {"u":"slLD","no":0,"origin":[91,0],"z":-3,"width":91,"height":87,"resource":"tile/greensandySeaFloor/slLD/0"}
 {"u":"slRD","no":1,"origin":[0,0],"z":-3,"width":90,"height":87,"resource":"tile/greensandySeaFloor/slRD/1"}
 {"u":"slRD","no":0,"origin":[0,0],"z":-3,"width":91,"height":87,"resource":"tile/greensandySeaFloor/slRD/0"}
+{"u":"enV1","no":1,"origin":[0,0],"z":-2,"width":24,"height":60,"resource":"tile/greensandySeaFloor/enV1/1"}
+{"u":"enV1","no":0,"origin":[0,0],"z":-2,"width":33,"height":60,"resource":"tile/greensandySeaFloor/enV1/0"}

@@ -1,0 +1,4 @@
+{"layer":1,"platform":0,"id":1,"x1":-218,"y1":61,"x2":7,"y2":61,"prev":2,"next":3}
+{"layer":1,"platform":0,"id":2,"x1":-400,"y1":61,"x2":-218,"y2":61,"prev":0,"next":1}
+{"layer":1,"platform":0,"id":3,"x1":7,"y1":61,"x2":174,"y2":61,"prev":1,"next":4}
+{"layer":1,"platform":1,"id":4,"x1":174,"y1":61,"x2":399,"y2":61,"prev":3,"next":0}

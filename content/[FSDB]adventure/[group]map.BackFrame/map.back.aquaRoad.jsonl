@@ -67,3 +67,4 @@
 {"kind":"ani","no":21,"frame":"3","origin":[384,417],"z":0,"delay":1500,"width":728,"height":751,"resource":"back/aquaRoad/ani/21/3"}
 {"kind":"ani","no":21,"frame":"4","origin":[321,393],"z":0,"delay":1500,"width":691,"height":704,"resource":"back/aquaRoad/ani/21/4"}
 {"kind":"ani","no":21,"frame":"5","origin":[321,393],"z":0,"delay":1500,"width":691,"height":704,"resource":"back/aquaRoad/ani/21/5"}
+{"kind":"back","no":17,"origin":[40,42],"z":0,"width":81,"height":100,"resource":"back/aquaRoad/back/17"}

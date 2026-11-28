@@ -1,0 +1,46 @@
+{
+  "mapId": "200020000",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "mobRate": 1.7000001668930054,
+    "bgm": "Bgm04/Shinin'Harbor",
+    "returnMap": 200000000,
+    "mapMark": "Orbis",
+    "forcedReturn": 999999999,
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "swim": 0
+  },
+  "miniMap": {
+    "width": 2268,
+    "height": 1625,
+    "centerX": 796,
+    "centerY": 1244,
+    "mag": 4,
+    "resource": "minimap/200020000"
+  },
+  "layers": {
+    "0": {
+      "tileSet": "dryRock2",
+      "tSMag": 1
+    },
+    "1": {},
+    "2": {
+      "tileSet": "dryRock2",
+      "tSMag": 1
+    },
+    "3": {
+      "tileSet": "pastelBrokenBrick",
+      "tSMag": 1
+    },
+    "4": {},
+    "5": {
+      "tileSet": "pastelBrokenBrick",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

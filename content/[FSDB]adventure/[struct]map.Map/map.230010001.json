@@ -1,0 +1,40 @@
+{
+  "mapId": "230010001",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "swim": 1,
+    "returnMap": 230000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.5000001192092896,
+    "bgm": "Bgm11/BlueWorld",
+    "mapMark": "AquaRoad",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "effect": "Bubbling",
+    "decHP": 6,
+    "protectItem": 1102061
+  },
+  "miniMap": {
+    "width": 2988,
+    "height": 2156,
+    "centerX": 1444,
+    "centerY": 1227,
+    "mag": 4,
+    "resource": "minimap/230010001"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {
+      "tileSet": "sandySeaFloor",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

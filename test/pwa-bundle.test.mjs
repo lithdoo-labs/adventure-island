@@ -571,7 +571,10 @@ test("T4: the plan and every referenced PNG round-trip from the FINAL published 
     const flyAction = seaAvatar.children.find((node) => node.tag === "ms-action" && node.attrs?.name === "fly");
     assert.ok(flyAction, "water FieldPlan must carry the real fly action clip");
     assert.deepEqual(flyAction.data.clip.frames.map((frame) => frame.durationMs), [300, 300]);
-    const fieldMapRefs = collectMapResourceRefsFromFieldTree(fieldPlan.root, [mapBRoot, mapSeaRoot, mapLinkRoot]);
+    const publishedFieldRoots = payload.content
+      .filter((entry) => entry.kind === "record" && entry.namespace === FIELD_PLAN_NAMESPACE)
+      .map((entry) => validateFieldPlan(JSON.parse(Buffer.from(entry.body, "base64").toString("utf8"))).root);
+    const fieldMapRefs = collectMapResourceRefsFromFieldTree(publishedFieldRoots[0], publishedFieldRoots.slice(1));
     const publishedMapResources = new Map(payload.content
       .filter((entry) => entry.kind === "resource" && entry.namespace === "resource.Map")
       .map((entry) => [entry.key, Buffer.from(entry.body, "base64")]));

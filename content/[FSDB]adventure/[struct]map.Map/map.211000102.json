@@ -1,0 +1,32 @@
+{
+  "mapId": "211000102",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 1,
+    "returnMap": 211000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.0,
+    "bgm": "Bgm03/SnowyVillage",
+    "mapMark": "ElNath",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "swim": 0
+  },
+  "vr": {
+    "VRLeft": -400,
+    "VRTop": -300,
+    "VRRight": 400,
+    "VRBottom": 300
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

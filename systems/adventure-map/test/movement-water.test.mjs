@@ -227,7 +227,18 @@ test("arrival above the portal ledge lands and stands on it", () => {
   }
   assert.equal(heldDown.grounded, true);
   assert.equal(heldDown.worldY, -94);
-  assert.equal(heldDown.locomotion, "stand");
+  assert.equal(heldDown.locomotion, "prone");
+  assert.equal(heldDown.mode, "prone");
+  assert.equal(heldDown.velocityX, 0);
+  assert.equal(heldDown.velocityY, 0);
+  const released = stepSwimMapMovement(
+    heldDown,
+    movementIntentFromHeld([]),
+    swimFootholds,
+    movementConfig,
+  );
+  assert.equal(released.locomotion, "stand");
+  assert.equal(released.worldY, -94);
 });
 
 test("walking off a swim foothold resumes sinking, and a lower line catches the body", () => {

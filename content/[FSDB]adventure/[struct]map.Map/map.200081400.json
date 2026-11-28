@@ -1,0 +1,43 @@
+{
+  "mapId": "200081400",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "returnMap": 200000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.0,
+    "bgm": "Bgm06/ComeWithMe",
+    "mapMark": "Orbis",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "swim": 0
+  },
+  "vr": {
+    "VRLeft": -450,
+    "VRTop": -960,
+    "VRRight": 350,
+    "VRBottom": 1200
+  },
+  "miniMap": {
+    "width": 803,
+    "height": 2358,
+    "centerX": 445,
+    "centerY": 1110,
+    "mag": 4,
+    "resource": "minimap/200081400"
+  },
+  "layers": {
+    "0": {},
+    "1": {
+      "tileSet": "orbisTower",
+      "tSMag": 1
+    },
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {},
+    "6": {},
+    "7": {}
+  }
+}

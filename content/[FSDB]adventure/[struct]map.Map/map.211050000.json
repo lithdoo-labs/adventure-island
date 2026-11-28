@@ -1,0 +1,52 @@
+{
+  "mapId": "211050000",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "returnMap": 211000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.4000000953674316,
+    "bgm": "Bgm04/WarmRegard",
+    "mapMark": "ElNath",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "fs": 0.20000000298023224,
+    "decHP": 10,
+    "swim": 0,
+    "protectItem": 1102109,
+    "timeMob": {
+      "id": 6090001,
+      "startHour": 22,
+      "endHour": 14,
+      "message": "雪山魔女的身影出现在暴风雪中！若想要平息魔女的怒火，需在祭坛放上战利品。"
+    }
+  },
+  "miniMap": {
+    "width": 2981,
+    "height": 1519,
+    "centerX": 1088,
+    "centerY": 1199,
+    "mag": 4,
+    "resource": "minimap/211050000"
+  },
+  "layers": {
+    "0": {},
+    "1": {
+      "tileSet": "snowyLightrock2",
+      "tSMag": 2
+    },
+    "2": {},
+    "3": {
+      "tileSet": "snowyLightrock2",
+      "tSMag": 2
+    },
+    "4": {},
+    "5": {
+      "tileSet": "snowyLightrock",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

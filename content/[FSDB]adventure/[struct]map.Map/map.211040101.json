@@ -1,0 +1,50 @@
+{
+  "mapId": "211040101",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "returnMap": 211000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.7000001668930054,
+    "bgm": "Bgm04/WarmRegard",
+    "mapMark": "ElNath",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "fs": 0.20000000298023224,
+    "decHP": 10,
+    "swim": 0,
+    "protectItem": 1102109,
+    "timeMob": {
+      "id": 8220001,
+      "message": "驮狼雪人出现了"
+    }
+  },
+  "vr": {
+    "VRLeft": -360,
+    "VRTop": -1032,
+    "VRRight": 630,
+    "VRBottom": 450
+  },
+  "miniMap": {
+    "width": 1108,
+    "height": 1743,
+    "centerX": 412,
+    "centerY": 1183,
+    "mag": 4,
+    "resource": "minimap/211040101"
+  },
+  "layers": {
+    "0": {},
+    "1": {},
+    "2": {},
+    "3": {},
+    "4": {},
+    "5": {
+      "tileSet": "snowyLightrock",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

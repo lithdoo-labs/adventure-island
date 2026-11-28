@@ -701,6 +701,7 @@ function validateBackLayout(layout, path = "data.layout") {
   }
   const kinds = new Set([
     "static-type0", "tile-horizontal", "tile-vertical", "tile-both", "scroll-horizontal",
+    "scroll-vertical", "scroll-horizontal-both", "scroll-vertical-both",
     "flow-horizontal", "flow-vertical",
   ]);
   if (!kinds.has(layout.kind)) {

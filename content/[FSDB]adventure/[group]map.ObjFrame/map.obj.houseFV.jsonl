@@ -62,3 +62,8 @@
 {"l0":"house1","l1":"deco","l2":"1","frame":"0","origin":[120,40],"z":0,"width":241,"height":81,"resource":"obj/houseFV/house1/deco/1/0"}
 {"l0":"house7","l1":"deco","l2":"4","frame":"0","origin":[39,34],"z":0,"width":79,"height":68,"resource":"obj/houseFV/house7/deco/4/0"}
 {"l0":"house7","l1":"basic","l2":"8","frame":"0","origin":[45,32],"z":0,"width":90,"height":64,"resource":"obj/houseFV/house7/basic/8/0"}
+{"l0":"house9","l1":"basic","l2":"0","frame":"0","origin":[278,130],"z":0,"width":556,"height":260,"resource":"obj/houseFV/house9/basic/0/0"}
+{"l0":"house8","l1":"basic","l2":"0","frame":"0","origin":[270,169],"z":0,"width":540,"height":338,"resource":"obj/houseFV/house8/basic/0/0"}
+{"l0":"house8","l1":"basic","l2":"1","frame":"0","origin":[79,37],"z":0,"width":158,"height":74,"resource":"obj/houseFV/house8/basic/1/0"}
+{"l0":"house8","l1":"basic","l2":"2","frame":"0","origin":[78,43],"z":0,"width":157,"height":87,"resource":"obj/houseFV/house8/basic/2/0"}
+{"l0":"house8","l1":"basic","l2":"3","frame":"0","origin":[206,51],"z":0,"width":413,"height":103,"resource":"obj/houseFV/house8/basic/3/0"}

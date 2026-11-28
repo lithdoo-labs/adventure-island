@@ -1,0 +1,10 @@
+{"kind":"back","no":1,"origin":[319,100],"z":0,"width":639,"height":200,"resource":"back/grayBrickTower/back/1"}
+{"kind":"back","no":2,"origin":[319,100],"z":0,"width":639,"height":200,"resource":"back/grayBrickTower/back/2"}
+{"kind":"back","no":0,"origin":[319,100],"z":0,"width":639,"height":200,"resource":"back/grayBrickTower/back/0"}
+{"kind":"back","no":4,"origin":[67,65],"z":0,"width":134,"height":131,"resource":"back/grayBrickTower/back/4"}
+{"kind":"back","no":5,"origin":[93,120],"z":0,"width":186,"height":241,"resource":"back/grayBrickTower/back/5"}
+{"kind":"ani","no":0,"frame":"0","origin":[77,97],"z":0,"delay":150,"width":127,"height":168,"resource":"back/grayBrickTower/ani/0/0"}
+{"kind":"ani","no":0,"frame":"1","origin":[64,104],"z":0,"delay":150,"width":123,"height":170,"resource":"back/grayBrickTower/ani/0/1"}
+{"kind":"ani","no":0,"frame":"2","origin":[79,102],"z":0,"delay":150,"width":118,"height":169,"resource":"back/grayBrickTower/ani/0/2"}
+{"kind":"back","no":3,"origin":[142,150],"z":0,"width":285,"height":300,"resource":"back/grayBrickTower/back/3"}
+{"kind":"back","no":6,"origin":[35,120],"z":0,"width":70,"height":240,"resource":"back/grayBrickTower/back/6"}

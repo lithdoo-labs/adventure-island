@@ -2980,6 +2980,7 @@ function validateBackLayout(layout, path = "data.layout") {
   }
   const kinds = new Set([
     "static-type0", "tile-horizontal", "tile-vertical", "tile-both", "scroll-horizontal",
+    "scroll-vertical", "scroll-horizontal-both", "scroll-vertical-both",
     "flow-horizontal", "flow-vertical",
   ]);
   if (!kinds.has(layout.kind)) {
@@ -3369,13 +3370,15 @@ function hiddenPortalClipAfterFinish(clip, desired) {
 }
 
 /**
- * Candidate Back type 0-4 layout algebra.
+ * Back type 0-7 layout algebra.
  *
- * CMS079 proves the type axes and exact cx/cy steps. Type 4 scroll uses the
- * CMS 20000 divisor and the OpenMS 100px period.
- * The viewport-sized local surface and horizontal pinning are explicit M7.4
- * product decisions. Vertical placement uses the OpenMS-REFERENCE camera term
- * because the CMS079 +0x98 body is not in the game image.
+ * CMS079 proves the type axes, the cx/cy steps, and the +0x98 arguments:
+ * type 0–3 pass (rx, ry); type 4 and 6 pass (0, ry+100); type 5 and 7 pass
+ * (rx+100, 0). Type 4 and 6 scroll on rx, type 5 and 7 on ry. The distance
+ * is the CMS 20000 divisor and the OpenMS 100px period. The +0x98 body is
+ * not in the image. A repeated axis keeps a viewport-sized surface and a
+ * pinned host. Rate -100 stays on the authored edge. Rate 0 stays on the
+ * screen, which is how a type 4 cloud keeps floating while the map moves.
  */
 
 /** CMS079 0x66A56E divisor. OpenMS 0063df23 travels 100px in trunc(divisor/|rx|) ms. */
@@ -3389,7 +3392,7 @@ const BACK_LAYOUT_LIMITS = Object.freeze({
   maxCanvasPixels: 4_194_304,
 });
 
-const SUPPORTED_BACK_LAYOUT_TYPES = new Set([0, 1, 2, 3, 4]);
+const SUPPORTED_BACK_LAYOUT_TYPES = new Set([0, 1, 2, 3, 4, 5, 6, 7]);
 
 const DEFAULT_VIEWPORT = Object.freeze({ width: 800, height: 600 });
 
@@ -3398,15 +3401,18 @@ function backLayoutUnsupportedMessage(type) {
   return `back type ${type} layout is not implemented`;
 }
 
-/** CMS079-VERIFIED mode axes. */
+/** CMS079-VERIFIED mode axes. Type 6 and 7 use mode 3, both axes. */
 function backTileAxes(type) {
   switch (type) {
     case 1:
     case 4:
       return Object.freeze({ horizontal: true, vertical: false });
     case 2:
+    case 5:
       return Object.freeze({ horizontal: false, vertical: true });
     case 3:
+    case 6:
+    case 7:
       return Object.freeze({ horizontal: true, vertical: true });
     default:
       return Object.freeze({ horizontal: false, vertical: false });
@@ -3419,7 +3425,24 @@ function backPresentation(type) {
   if (type === 2) return "tile-vertical";
   if (type === 3) return "tile-both";
   if (type === 4) return "scroll-horizontal";
+  if (type === 5) return "scroll-vertical";
+  if (type === 6) return "scroll-horizontal-both";
+  if (type === 7) return "scroll-vertical-both";
   return "layout-pending";
+}
+
+function horizontalScrollKind(kind) {
+  return kind === "scroll-horizontal" || kind === "scroll-horizontal-both";
+}
+
+function verticalScrollKind(kind) {
+  return kind === "scroll-vertical" || kind === "scroll-vertical-both";
+}
+
+/** trunc(center * (rate + 100) / 100). Type 4/6 pass ry+100; type 5/7 pass rx+100. */
+function combinedCameraTerm(rate, cameraEdge, viewportExtent) {
+  const center = Math.trunc(cameraEdge) + Math.trunc(viewportExtent / 2);
+  return Math.trunc((center * (rate + 100)) / 100);
 }
 
 /** Positive authored cx/cy. Zero is not a step; the repeat axis resolves it separately. */
@@ -3468,21 +3491,51 @@ function verticalParallaxOffset(ry, cameraY, viewportHeight, combined = false) {
 }
 
 /**
- * Screen X of a horizontally repeated copy, including type 4 world lock.
- * Type 4 keeps its X at the authored left minus the camera, then subtracts
- * the integrated offset. OpenMS adds that offset, so scrollPixelsPerMs stores
- * the opposite of rx and a positive rx moves the picture right. Other types
- * use the camera term. The host stays pinned, so this value is a screen X.
- * Returns null when this layout does not tile horizontally.
+ * Screen X of a horizontally repeated copy.
+ * Type 4 and 6 use horizontal rate 0, then subtract the integrated rx offset.
+ * scrollPixelsPerMs stores the opposite of the rate, so a positive rate moves
+ * the picture toward +X. Type 5 and 7 tile with the rx+100 term and do not
+ * scroll this axis. Other types use rx. The host stays pinned, so this value
+ * is a screen X. Returns null when this layout does not tile horizontally.
  */
 function horizontalScreenAnchor(layout, cameraX, scrollPixels = 0) {
   if (!layout?.tileHorizontal || !Number.isFinite(cameraX)) return null;
   const scroll = Number.isFinite(scrollPixels) ? Math.trunc(scrollPixels) : 0;
-  if (layout.kind === "scroll-horizontal") {
-    return layout.worldLeft - Math.trunc(cameraX) - scroll;
+  if (horizontalScrollKind(layout.kind)) {
+    return layout.worldLeft + parallaxScreenOffset(0, cameraX, layout.viewportWidth) - scroll;
+  }
+  if (verticalScrollKind(layout.kind)) {
+    if (!Number.isInteger(layout.parallaxRx)) return null;
+    return layout.worldLeft
+      + combinedCameraTerm(layout.parallaxRx, cameraX, layout.viewportWidth)
+      - Math.trunc(cameraX);
   }
   if (!Number.isInteger(layout.parallaxRx)) return null;
   return layout.worldLeft + parallaxScreenOffset(layout.parallaxRx, cameraX, layout.viewportWidth);
+}
+
+/**
+ * Screen Y of a vertically repeated copy. The host stays pinned, so this
+ * value is a screen Y inside that surface. Rate -100 is worldTop - cameraY.
+ * Type 5 and 7 use vertical rate 0 and subtract the integrated ry offset.
+ * Type 6 uses the ry+100 term. Returns null when this layout does not tile
+ * vertically.
+ */
+function verticalScreenAnchor(layout, cameraY, scrollPixels = 0) {
+  if (!layout?.tileVertical || !Number.isFinite(cameraY)) return null;
+  if (!Number.isSafeInteger(layout.viewportHeight) || layout.viewportHeight <= 0) return null;
+  const scroll = Number.isFinite(scrollPixels) ? Math.trunc(scrollPixels) : 0;
+  if (verticalScrollKind(layout.kind)) {
+    return layout.worldTop + parallaxScreenOffset(0, cameraY, layout.viewportHeight) - scroll;
+  }
+  if (horizontalScrollKind(layout.kind)) {
+    if (!Number.isInteger(layout.parallaxRy)) return null;
+    return layout.worldTop
+      + combinedCameraTerm(layout.parallaxRy, cameraY, layout.viewportHeight)
+      - Math.trunc(cameraY);
+  }
+  if (!Number.isInteger(layout.parallaxRy)) return null;
+  return layout.worldTop + parallaxScreenOffset(layout.parallaxRy, cameraY, layout.viewportHeight);
 }
 
 function scrollPixelsPerMs(rx) {
@@ -3550,9 +3603,15 @@ function layoutBackView({
 
   const worldLeft = bounds.x;
   const worldTop = bounds.y;
-  const scroll = type === 4 && repeatX ? scrollPixelsPerMs(Number(placement.rx)) : null;
-  const parallaxRx = type === 4 ? null : integerParallaxRate(placement.rx);
-  const parallaxRy = integerParallaxRate(placement.ry);
+  const horizontalScroll = type === 4 || type === 6;
+  const verticalScroll = type === 5 || type === 7;
+  const scroll = horizontalScroll && repeatX
+    ? scrollPixelsPerMs(Number(placement.rx))
+    : verticalScroll && repeatY
+      ? scrollPixelsPerMs(Number(placement.ry))
+      : null;
+  const parallaxRx = horizontalScroll ? null : integerParallaxRate(placement.rx);
+  const parallaxRy = verticalScroll ? 0 : integerParallaxRate(placement.ry);
   const layout = Object.freeze({
     kind: backPresentation(type),
     worldLeft,
@@ -3568,7 +3627,7 @@ function layoutBackView({
     pinToViewportX: repeatX,
     pinToViewportY: repeatY,
     parallaxRx,
-    parallaxRy: repeatY ? null : parallaxRy,
+    parallaxRy,
     viewportWidth: vpW,
     viewportHeight: vpH,
     tileOriginX: repeatX ? worldLeft % stepX : 0,
@@ -3596,11 +3655,13 @@ function backViewAttrsForCamera(layout, cameraX, cameraY) {
       layout.parallaxRy,
       cameraY,
       layout.viewportHeight,
-      layout.kind === "scroll-horizontal",
+      horizontalScrollKind(layout.kind),
     )
     : 0;
   let viewX = layout.pinToViewportX ? cameraX : layout.worldLeft;
-  if (!layout.pinToViewportX && Number.isInteger(layout.parallaxRx)) {
+  if (!layout.pinToViewportX && verticalScrollKind(layout.kind) && Number.isInteger(layout.parallaxRx)) {
+    viewX = layout.worldLeft + combinedCameraTerm(layout.parallaxRx, cameraX, layout.viewportWidth);
+  } else if (!layout.pinToViewportX && Number.isInteger(layout.parallaxRx)) {
     viewX = cameraX + layout.worldLeft + parallaxScreenOffset(layout.parallaxRx, cameraX, layout.viewportWidth);
   }
   return Object.freeze({
@@ -4258,7 +4319,7 @@ function chooseBackCanvas(layout, fallbackW, fallbackH, ratio) {
   return { w: baseW, h: baseH, deviceW, deviceH, externalPhase: false };
 }
 
-function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null, surface = null) {
+function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], scrollOffsetX = 0, screenAnchorX = null, surface = null, screenAnchorY = null) {
   const source = image?.source ?? {
     x: 0,
     y: 0,
@@ -4299,7 +4360,11 @@ function paintBackTiles(context, bitmap, image, layout, draw, offset = [0, 0], s
     : (Number.isFinite(screenAnchorX)
       ? repeatPhase(screenAnchorX, stepX)
       : originPhase(originX + scrollOffsetX, stepX));
-  const phaseY = surface ? 0 : originPhase(originY, stepY);
+  const phaseY = surface
+    ? 0
+    : (Number.isFinite(screenAnchorY)
+      ? repeatPhase(screenAnchorY, stepY)
+      : originPhase(originY, stepY));
   const yEnd = vert ? (surface ? canvasH : canvasH + stepY) : frameH;
   const xEnd = horiz ? (surface ? canvasW : canvasW + stepX) : frameW;
   const yStep = vert ? stepY : frameH;
@@ -4708,12 +4773,17 @@ class MsMapBack extends SpikeElement {
     return horizontalScreenAnchor(layout, cameraX, Math.trunc(this._scrollOffsetX));
   }
 
+  _verticalAnchor() {
+    const layout = this._validated?.layout ?? this._data?.layout ?? null;
+    const cameraY = Number(this.getAttribute("view-y"));
+    return verticalScreenAnchor(layout, cameraY, Math.trunc(this._scrollOffsetX));
+  }
+
   /**
    * The host stays pinned by view-x/view-y. The world plane already translates
    * by the camera, so the tile phase is only a canvas translate inside the
-   * clipped host. Horizontal phase follows the screen anchor (including type-4
-   * scroll). Vertical phase is the authored origin, which the camera does not
-   * change.
+   * clipped host. Both axes follow the screen anchor. Rate -100 keeps the
+   * authored edge on the map, including a vertical repeat.
    */
   _syncBackPhase() {
     if (!this._canvas) return;
@@ -4728,9 +4798,12 @@ class MsMapBack extends SpikeElement {
     const stepX = backTileStep(layout, "x");
     const stepY = backTileStep(layout, "y");
     const anchor = this._horizontalAnchor();
+    const anchorY = this._verticalAnchor();
     const phaseX = stepX > 0 && Number.isFinite(anchor) ? repeatPhase(anchor, stepX) : 0;
     const originY = Number.isFinite(layout?.tileOriginY) ? layout.tileOriginY : 0;
-    const phaseY = stepY > 0 ? originPhase(originY, stepY) : 0;
+    const phaseY = stepY > 0 && Number.isFinite(anchorY)
+      ? repeatPhase(anchorY, stepY)
+      : (stepY > 0 ? originPhase(originY, stepY) : 0);
     const next = `translate(${cssPx(phaseX)}, ${cssPx(phaseY)})`;
     if (this._phaseTransform === next) return;
     this._canvas.style.transform = next;
@@ -4742,7 +4815,8 @@ class MsMapBack extends SpikeElement {
       this._syncBackPhase();
       return;
     }
-    if (this._horizontalAnchor() !== this._paintedAnchorX) this._redrawBack(false);
+    if (this._horizontalAnchor() !== this._paintedAnchorX
+      || this._verticalAnchor() !== this._paintedAnchorY) this._redrawBack(false);
   }
 
   _redrawBack(countCommit = true) {
@@ -4763,7 +4837,9 @@ class MsMapBack extends SpikeElement {
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.imageSmoothingEnabled = false;
     const anchor = this._horizontalAnchor();
+    const anchorY = this._verticalAnchor();
     this._paintedAnchorX = anchor;
+    this._paintedAnchorY = anchorY;
     const surface = this._externalPhase ? { w: this._canvasCssW, h: this._canvasCssH } : null;
     paintBackTiles(
       context,
@@ -4775,6 +4851,7 @@ class MsMapBack extends SpikeElement {
       !surface && anchor === null ? this._scrollOffsetX : 0,
       surface ? null : anchor,
       surface,
+      surface ? null : anchorY,
     );
     this._syncBackPhase();
     if (countCommit) this._paintCommits += 1;

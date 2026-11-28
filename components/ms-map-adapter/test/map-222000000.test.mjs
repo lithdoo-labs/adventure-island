@@ -84,7 +84,7 @@ describe("real map 222000000 closure + projection", () => {
     assert.equal(first.projection.hash, second.projection.hash);
     assert.equal(
       first.projection.hash,
-      "sha256:db247ee94f52a0b174ba2bc4e1036cdbb184a3c32f98018c4e5220b7d9c4bfda",
+      "sha256:7ea07911256249ee67b0a4567291dca87952f07f5bbadb951c742a5fb3a82347",
     );
 
     // Spot-check first tile/obj keys against CMS079 formulas.
@@ -107,6 +107,8 @@ describe("real map 222000000 closure + projection", () => {
     assert.equal(first.paintUnits.length, 297);
     const backs = first.ordered.filter((item) => item.sourceKind === "back");
     const backAt = (no) => backs.findIndex((item) => Number(item.placement.no) === no);
+    const lake = first.facts.groups.back.rows.find((row) => Number(row.no) === 2);
+    assert.equal(lake.sourceOrder, 11);
     assert.ok(backAt(2) < backAt(4), "distant lake stays behind the meadow");
     assert.ok(backAt(2) < backAt(6), "distant lake stays behind the near forest");
     assert.equal(first.paintUnits.filter((u) => u.kind === "ms-map-back").length, 16);
@@ -158,5 +160,20 @@ describe("real map 222000000 closure + projection", () => {
       portalContinue: ["ph", "2"],
       portalExit: ["psh", "2"],
     });
+  });
+});
+
+describe("back depth index follows the WZ child name", () => {
+  it("puts the tower cloud named back/2 behind the brick walls", async () => {
+    const map = await buildMapProjection({ mapId: "222020100", gameRoot: repoRoot });
+    const rows = map.facts.groups.back.rows;
+    const cloud = rows.find((row) => row.bS === "toyCastle" && Number(row.no) === 6);
+    const firstWall = rows.find((row) => row.bS === "toyTowerInside");
+    assert.equal(cloud.sourceOrder, 2);
+    assert.ok(cloud.sourceOrder < firstWall.sourceOrder);
+    const ordered = map.ordered.filter((item) => item.sourceKind === "back");
+    const cloudPaint = ordered.findIndex((item) => item.sourceOrder === cloud.sourceOrder);
+    const wallPaint = ordered.findIndex((item) => item.sourceOrder === firstWall.sourceOrder);
+    assert.ok(cloudPaint < wallPaint);
   });
 });

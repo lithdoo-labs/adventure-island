@@ -39,22 +39,6 @@ function resourceRef(resources, logicalKey) {
   });
 }
 
-/**
- * File order paints later backs in front. Folkvillage lists the distant lake
- * after the nearer meadow, so that opaque water cuts the hills. Draw the lake
- * just before the first nearer sheet; every other back keeps its file index.
- */
-function backDepthIndex(row, rows) {
-  if (row.bS !== "folkvillige" || Number(row.no) !== 2 || Number(row.ry) !== -30) {
-    return row.sourceOrder;
-  }
-  const nearer = rows.filter((other) => (
-    other.sourceOrder < row.sourceOrder && Number(other.ry) < Number(row.ry)
-  ));
-  if (nearer.length === 0) return row.sourceOrder;
-  return Math.min(...nearer.map((other) => other.sourceOrder)) - 1;
-}
-
 function worldBoundsFrom(origin, width, height, x, y, flip) {
   const ox = origin?.[0] ?? 0;
   const oy = origin?.[1] ?? 0;
@@ -199,7 +183,9 @@ export function resolveMapScene(facts) {
     const animated = Number(row.ani) !== 0;
     const { framesFor } = findBackFrames(facts.frames, row.bS, row.no, animated);
     const frame = framesFor[0] ?? null;
-    const sortKey = backSortKey(backDepthIndex(row, facts.groups.back.rows), front);
+    // Line order is the WZ child name. The client loads back/<i> by that name
+    // and uses i as the depth index; the property-list order is not the index.
+    const sortKey = backSortKey(row.sourceOrder, front);
     const base = {
       stableId,
       sourceKind: "back",
@@ -820,22 +806,25 @@ export function resolveMapScene(facts) {
     sourceOrder: row.sourceOrder,
   })));
 
-  // Reachable avatar insertion keys from foothold layer/platform pairs.
+  // Avatar insertion keys. Foothold pairs cover walking. A climb installs
+  // (rope.page, 0), which often is not a foothold pair, so the body would
+  // otherwise sit in front of a whole unsplit batch.
   const pairKeys = new Set();
   const insertionPoints = [];
-  for (const fh of footholds) {
-    const token = `${Number(fh.layer)}:${Number(fh.platform)}`;
-    if (pairKeys.has(token)) continue;
+  const addInsertion = (layer, zM) => {
+    if (!Number.isInteger(layer) || !Number.isInteger(zM)) return;
+    const token = `${layer}:${zM}`;
+    if (pairKeys.has(token)) return;
     pairKeys.add(token);
-    const layer = Number(fh.layer);
-    const zM = Number(fh.platform);
     insertionPoints.push(Object.freeze({
       layer,
       zM,
       flag0: avatarSortKey(layer, zM, 0),
       flag1: avatarSortKey(layer, zM, 1),
     }));
-  }
+  };
+  for (const fh of footholds) addInsertion(Number(fh.layer), Number(fh.platform));
+  for (const rope of ropes) addInsertion(Number(rope.page), 0);
   insertionPoints.sort((a, b) => (a.flag0 - b.flag0) || (a.layer - b.layer) || (a.zM - b.zM));
 
   if (facts.groups.seat.status === SOURCE_ABSENT) {

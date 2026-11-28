@@ -511,6 +511,22 @@ def placement_row(codec: Codec, node, extra: dict) -> dict:
     return row
 
 
+def client_back_children(node):
+    """The client fetches back/<i> by the decimal child name and uses i as the depth index.
+
+    Property-list order in the WZ file is not that index. Names on these maps are a
+    permutation of 0..n-1; only then is sorted name order the same sequence the client loads.
+    """
+    children = list(node.children())
+    if not children or not all(child.name.isdigit() for child in children):
+        return children
+    numbers = [int(child.name) for child in children]
+    if sorted(numbers) != list(range(len(children))):
+        return children
+    children.sort(key=lambda child: int(child.name))
+    return children
+
+
 def convert_map(store: Store, img, map_id: str) -> dict:
     root = img.parse()
     info = root.child("info")
@@ -572,7 +588,7 @@ def convert_map(store: Store, img, map_id: str) -> dict:
         record["layers"] = layers
     back = root.child("back")
     if back is not None:
-        rows = [placement_row(codec, item, {}) for item in back.children()]
+        rows = [placement_row(codec, item, {}) for item in client_back_children(back)]
         for row in rows:
             if isinstance(row.get("bS"), str):
                 refs["back"].add(row["bS"])
@@ -805,13 +821,18 @@ def stem_of(path: str) -> str:
     return path.rsplit("/", 1)[-1][:-4]
 
 
-def selected(path: str, scope: str, assets: dict[str, set] | None) -> bool:
+def selected(path: str, scope: str, assets: dict[str, set] | None, map_ids: set[str] | None = None) -> bool:
     if scope == "all":
         return True
     stem = stem_of(path)
-    if path.endswith("Physics.img") or path.endswith("00002000.img") or path.endswith("Bgm00.img"):
+    ids = PHASE1_MAPS if map_ids is None else map_ids
+    if path.endswith("Physics.img"):
         return True
-    if stem in PHASE1_MAPS and path.startswith("Map/"):
+    if map_ids is None and (path.endswith("00002000.img") or path.endswith("Bgm00.img")):
+        return True
+    if map_ids is not None and path == "MapHelper.img":
+        return True
+    if stem in ids and path.startswith("Map/"):
         return True
     if assets is None:
         return False
@@ -824,18 +845,25 @@ def selected(path: str, scope: str, assets: dict[str, set] | None) -> bool:
     return False
 
 
-def convert_map_package(store: Store, wz: WzFile, scope: str) -> None:
+def convert_map_package(store: Store, wz: WzFile, scope: str, map_ids: set[str] | None = None) -> None:
     images = list(wz.root.walk_images())
     assets = {"tile": set(), "back": set(), "obj": set()}
-    if scope == "phase1":
+    ids = PHASE1_MAPS if scope == "phase1" and map_ids is None else map_ids
+    if ids is not None:
+        found: set[str] = set()
         for path, img in images:
-            if path.startswith("Map/") and stem_of(path) in PHASE1_MAPS:
-                refs = convert_map(store, img, stem_of(path))
+            stem = stem_of(path)
+            if path.startswith("Map/") and stem in ids:
+                refs = convert_map(store, img, stem)
+                found.add(stem)
                 for kind in assets:
                     assets[kind] |= refs[kind]
-                print(f"map {stem_of(path)} tileSets={len(refs['tile'])} backs={len(refs['back'])} objs={len(refs['obj'])}", flush=True)
+                print(f"map {stem} tileSets={len(refs['tile'])} backs={len(refs['back'])} objs={len(refs['obj'])}", flush=True)
+        missing = sorted(ids - found)
+        if missing:
+            raise SystemExit(f"Map.wz is missing {len(missing)} requested maps, first {missing[:8]}")
     for path, img in images:
-        if scope == "phase1" and not selected(path, scope, assets):
+        if (scope == "phase1" or map_ids is not None) and not selected(path, "phase1", assets, map_ids):
             continue
         stem = stem_of(path)
         try:
@@ -1114,9 +1142,20 @@ def main() -> None:
     parser.add_argument("--report-dir", default=os.environ.get("WZ_FSDB_REPORT_DIR", ""), help="Optional directory for the JSON summary.")
     parser.add_argument("--pixel-log", default="", help="Optional JSONL path for canvas width, height, and hash.")
     parser.add_argument("--only", default="")
+    parser.add_argument("--map-ids-file", default="", help="Nine-digit map ids, one per line. Converts those maps plus the backs, tiles, objects, MapHelper, and physics they use.")
     args = parser.parse_args()
     if not args.wz_root or not args.wzpy:
         raise SystemExit("pass --wz-root and --wzpy, or set WZ_ROOT and WZPY_ROOT")
+    map_ids = None
+    if args.map_ids_file:
+        map_ids = {
+            line.strip()
+            for line in Path(args.map_ids_file).read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        bad = sorted(item for item in map_ids if len(item) != 9 or not item.isdigit())
+        if bad:
+            raise SystemExit(f"map ids must be 9 digits, first {bad[:8]}")
     out = Path(args.out)
     assert_untracked_output(out)
     report_dir = Path(args.report_dir) if args.report_dir else None
@@ -1127,15 +1166,24 @@ def main() -> None:
         assert_untracked_output(pixel_path)
     load_dependencies(Path(args.wzpy))
     out.mkdir(parents=True, exist_ok=True)
-    store = Store(out, roundtrip=args.scope == "phase1", keep_pixels=pixel_path is not None)
+    store = Store(out, roundtrip=args.scope == "phase1" and map_ids is None, keep_pixels=pixel_path is not None)
     client = Path(args.wz_root)
     only = {part for part in args.only.split(",") if part}
-    plan = [
-        ("Map.wz", convert_map_package),
-        ("Character.wz", convert_character),
-        ("Sound.wz", convert_sound),
-    ]
-    if args.scope == "all":
+    if map_ids is not None:
+        print(f"OPEN Map.wz maps={len(map_ids)}", flush=True)
+        wz = open_package(client, "Map.wz")
+        try:
+            convert_map_package(store, wz, "phase1", map_ids)
+        finally:
+            wz.close()
+        plan = []
+    else:
+        plan = [
+            ("Map.wz", convert_map_package),
+            ("Character.wz", convert_character),
+            ("Sound.wz", convert_sound),
+        ]
+    if map_ids is None and args.scope == "all":
         plan = [
             ("Base.wz", lambda store, wz, scope: convert_base(store, wz)),
             ("Character.wz", convert_character),

@@ -1,0 +1,52 @@
+{
+  "mapId": "211000200",
+  "info": {
+    "version": 10,
+    "cloud": 0,
+    "town": 0,
+    "returnMap": 211000000,
+    "forcedReturn": 999999999,
+    "mobRate": 1.2000000476837158,
+    "bgm": "Bgm04/WarmRegard",
+    "mapMark": "ElNath",
+    "hideMinimap": 0,
+    "fieldLimit": 0,
+    "decHP": 10,
+    "fs": 0.20000000298023224,
+    "swim": 0,
+    "protectItem": 1102109
+  },
+  "vr": {
+    "VRLeft": -2070,
+    "VRTop": -888,
+    "VRRight": 2265,
+    "VRBottom": 615
+  },
+  "miniMap": {
+    "width": 4469,
+    "height": 1692,
+    "centerX": 2126,
+    "centerY": 1012,
+    "mag": 4,
+    "resource": "minimap/211000200"
+  },
+  "layers": {
+    "0": {},
+    "1": {
+      "tileSet": "snowyLightrock",
+      "tSMag": 1
+    },
+    "2": {},
+    "3": {
+      "tileSet": "snowyLightrock2",
+      "tSMag": 2
+    },
+    "4": {},
+    "5": {
+      "tileSet": "snowyLightrock",
+      "tSMag": 1
+    },
+    "6": {},
+    "7": {}
+  }
+}

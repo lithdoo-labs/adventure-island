@@ -125,7 +125,7 @@ PartFrame 保留 origin/anchors，Resource 负责 atlas rectangle。Adapter 联�
 
 ### 5.2 `group.map.Back`
 
-保留 source order 和源字段，例如：
+行序是 WZ 子节点的十进制名字，不是属性列表里的存放顺序。客户端用这个名字作为深度序号。字段仍按源数据保留，例如：
 
 - `bS` / frame branch；
 - `x/y`；
@@ -200,7 +200,18 @@ Rope 保存端点和来源身份；Seat 保存 index/x/y。CMS079 的命中范�
 
 ## 6. JSONL 顺序
 
-Map placement group 的行顺序保留源子节点顺序。当前记录未普遍增加显式 `sourceOrder` 字段，因此使用方必须保证：
+Map placement group 的行序就是 Adapter 的 `sourceOrder`（JSONL 行号）。记录里没有单独的 `sourceOrder` 字段。
+
+Back 不使用属性列表顺序。客户端把序号 `i` 格式化成十进制名字，取出 `back/<i>`，再用 `i` 计算深度。`WzSubProperty.children()` 给出的是文件里的存放顺序，两者经常不同。已核对到 WZ 里的位置：
+
+- `Map/Map2/222000000.img`，偏移 754188699。湖是 `back/11`（`folkvillige` 2，front 0）。属性列表把它放在 `0..10, 12, 13, 14, 15` 之后。按存放顺序导出时，湖盖住近处草地 `back/12`。
+- `Map/Map2/222020100.img`，偏移 766467275。浮云是 `back/2`（`toyCastle` 6，type 4，front 0，x -223，y 349）。属性列表把它放在第 25 个，于是云画到从 `back/6` 开始的砖墙前面。
+
+`scripts/wz_fsdb/convert_cms.py` 因此只在名字正好是无前导零的 `0..n-1` 时按名字写出 Back。空号、重号、前导零或非数字名字直接失败，不能退回属性列表顺序。Tile 和 Obj 仍按属性列表顺序写出：它们的深度键用 `z`、`layer` 和 `zM`，不用这个序号。`100000000.img` 的 tile 子节点可以从 `35,34,2` 开头。
+
+导入 `content/[FSDB]adventure` 时原样保留 Back 行序，不再按 `no`、`type` 或其他字段排序。用按存放顺序转换的旧库重新导入，会把这个问题写回去。
+
+使用方必须保证：
 
 1. Content API 对 group 的迭代顺序明确且可复现；
 2. Adapter 在读取时捕获行号/source index；

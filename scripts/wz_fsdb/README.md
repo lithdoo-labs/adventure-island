@@ -26,6 +26,17 @@ python scripts/wz_fsdb/convert_cms.py --scope phase1 --wz-root <wz-root> --wzpy 
 
 `--scope all` walks every package. `--only Map.wz,String.wz` limits the run. This handoff does not ask for another full conversion.
 
+## Back row order
+
+The client loads `back/<i>` by the decimal child name and uses `i` as the depth index. `children()` follows the WZ property list, and that order is not the index. `convert_cms.py` writes `group.map.Back` in name order, and only when the names are exactly `0..n-1` with no leading zeros. Gaps, duplicates, padding, or a non-numeric name abort the map. Do not catch that error and emit property-list order instead.
+
+Two checked locations in CMS079 `Map.wz`:
+
+- `Map/Map2/222000000.img` at offset 754188699. The lake is `back/11`. The property list places it after `back/15`.
+- `Map/Map2/222020100.img` at offset 766467275. The cloud is `back/2` (`toyCastle` 6). The property list places it 25th, in front of the brick walls that start at `back/6`.
+
+Tile and object rows stay in property-list order. Their depth keys use `z`, layer, and `zM`, not the list index. `import_adventure_field.py` copies Back rows unchanged; sorting them by `no` or `type` recreates the bug. The content contract is [FSDB-CONTENT-MODEL.md](../../design/content/FSDB-CONTENT-MODEL.md).
+
 ## Current CMS079 result (2026-11-06)
 
 **The one-time CMS079 full conversion has already completed locally. Do not rerun it for Issue #50.** This converter was selectively migrated from historical PR #1 at source blob `c3951951aecbfe720e19c43e495043c2e2ddd293`; the converter itself was not rewritten. The 16 data WZ packages produced the local, off-repository FSDB:

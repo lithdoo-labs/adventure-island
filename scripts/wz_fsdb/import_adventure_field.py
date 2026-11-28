@@ -6,6 +6,11 @@ reference. The default set is the original 13-map corridor. Pass
 frames, and physics already in the destination stay byte-for-byte.
 
 Editor portal icons are not copied. Missing z and delay stay absent.
+
+Back rows are copied in the CMS group order and must not be sorted again.
+That order is the WZ child name, which the client uses as the depth index.
+It is valid only when convert_cms wrote it. Re-importing a library converted
+from property-list order puts the 222020100 cloud back in front of the walls.
 """
 from __future__ import annotations
 
@@ -374,6 +379,7 @@ def main() -> None:
             importer.copy_png(canvas, adv_resource(canvas))
         layer_set = {name: item.get("tileSet") for name, item in record["layers"].items()}
         back_rows = []
+        # Keep CMS group order. It is the WZ child name, not a field to sort.
         for row in rows("Back", map_id):
             back_rows.append(pick(row, ("bS", "no", "ani", "x", "y", "rx", "ry", "type", "cx", "cy", "f", "a", "front")))
             if row.get("bS"):

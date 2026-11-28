@@ -1,8 +1,9 @@
 /**
  * Read MapFacts for one map from content/[FSDB]adventure.
  *
- * Captures JSONL line index as sourceOrder (PRODUCT-DECISION / FSDB-FACT:
- * row order is source order; schema has no explicit sourceOrder field).
+ * Captures the JSONL line index as sourceOrder. The schema has no sourceOrder
+ * field. map.Back lines are the WZ child names 0..n-1, and that name is the
+ * client depth index. Other groups keep WZ property-list order.
  */
 import { lstat, readFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";

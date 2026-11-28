@@ -19,6 +19,7 @@ ms-map-back 表示一个**可参与世界排序的 Back 绘制单元**，既可�
 - 普通 Back：`B - 128000 + index*1000`（`front=0`）。
 - Front Back：`B + 272000 + index*1000`（`front!=0`）。
 - 增大 depth 对应更靠前的原版层级顺序，但同深度还要比较 renderer serial。
+- `index` 是 WZ 子节点的十进制名字，不是属性列表中的存放位置。CMS079 按这个名字取出 `back/<i>`。`Map/Map2/222020100.img` 的 `back/2` 在文件里排在第 25 个；按存放顺序当作 index，浮云就会画到砖墙前面。行序约定见 [FSDB 内容模型](../content/FSDB-CONTENT-MODEL.md)。
 
 因此 Front Back 可以遮挡 Avatar，普通 Back 通常在 Avatar 后面；**这是 GMS083 行为参考，不是 CMS079 已验收的通用公式**。不能只按组件标签/资源名称为 Back 固定 CSS z-index。Back 仍由同一 World Depth Projection 给出 stack-rank。
 

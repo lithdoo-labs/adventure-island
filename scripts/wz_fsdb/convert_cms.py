@@ -511,18 +511,34 @@ def placement_row(codec: Codec, node, extra: dict) -> dict:
     return row
 
 
-def client_back_children(node):
-    """The client fetches back/<i> by the decimal child name and uses i as the depth index.
+def client_back_children(node, map_id: str | None = None):
+    """Return back children in the order the client loads them.
 
-    Property-list order in the WZ file is not that index. Names on these maps are a
-    permutation of 0..n-1; only then is sorted name order the same sequence the client loads.
+    The client formats ``i`` in base 10, loads ``back/<i>``, and uses ``i`` as
+    the depth index. ``children()`` follows the WZ property list, which is not
+    that index. JSONL line order becomes ``sourceOrder``, so the names must be
+    exactly ``"0"`` .. ``"n-1"``. Gaps, duplicates, padding, or a non-numeric
+    name are errors. Falling back to property-list order is how the
+    ``222020100`` cloud named ``back/2`` was painted in front of the walls.
     """
     children = list(node.children())
-    if not children or not all(child.name.isdigit() for child in children):
+    if not children:
         return children
-    numbers = [int(child.name) for child in children]
-    if sorted(numbers) != list(range(len(children))):
-        return children
+    label = f"map {map_id} back" if map_id else "back"
+    names = [child.name for child in children]
+    indexes = []
+    for name in names:
+        if not name.isdigit() or str(int(name)) != name:
+            raise ValueError(
+                f"{label} child names must be canonical decimal keys; "
+                f"property-list order is not the depth index. Got {names}"
+            )
+        indexes.append(int(name))
+    if sorted(indexes) != list(range(len(children))):
+        raise ValueError(
+            f"{label} child names must be exactly 0..{len(children) - 1} "
+            f"with no gaps or duplicates; property-list order is not the depth index. Got {names}"
+        )
     children.sort(key=lambda child: int(child.name))
     return children
 
@@ -588,7 +604,7 @@ def convert_map(store: Store, img, map_id: str) -> dict:
         record["layers"] = layers
     back = root.child("back")
     if back is not None:
-        rows = [placement_row(codec, item, {}) for item in client_back_children(back)]
+        rows = [placement_row(codec, item, {}) for item in client_back_children(back, map_id)]
         for row in rows:
             if isinstance(row.get("bS"), str):
                 refs["back"].add(row["bS"])
